@@ -2,6 +2,8 @@ sbtPlugin := true
 
 name := "android-sdk-plugin"
 
+version := "0.1"
+
 organization := "com.hanhuy"
 
 scalaSource in Compile <<= baseDirectory(_ / "src")
