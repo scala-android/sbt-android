@@ -1,12 +1,12 @@
-sbtPlugin := true
-
 name := "android-sdk-build"
 
-version := "0.1"
+version := "0.1.0"
 
 organization := "com.hanhuy.sbt"
 
 sourceDirectories in Compile <<= baseDirectory(b => Seq(b / "src"))
+
+scalacOptions += "-deprecation"
 
 scalaSource in Compile <<= baseDirectory(_ / "src")
 
@@ -14,8 +14,7 @@ scalaSource in Test <<= baseDirectory(_ / "test")
 
 unmanagedBase <<= baseDirectory(_ / "libs")
 
-//managedSourceDirectories <<= baseDirectory(b => Seq(b / "gen"))
-//managedSources <<= baseDirectory map (b => Seq(b / "gen" / "t.scala"))
+resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 
 products in Compile <<= ( products in Compile
                         , unmanagedJars in Compile
@@ -31,3 +30,7 @@ products in Compile <<= ( products in Compile
     }
     jars +: p
 }
+
+libraryDependencies += "net.sf.proguard" % "proguard-base" % "4.6" % "compile"
+
+sbtPlugin := true
