@@ -74,7 +74,7 @@ object AndroidSdkPlugin extends Plugin {
         Keys.`package`    <<= Keys.`package` dependsOn(compile,
                 pngCrunch in Android),
         javacOptions      <<= (platformJar in Android) (j =>
-            Seq("-bootclasspath", j, "-deprecation")
+            Seq("-bootclasspath", j)
         ),
         scalacOptions     <<= (platformJar in Android) map {j =>
             Seq("-bootclasspath", j, "-javabootclasspath", j)
@@ -400,6 +400,7 @@ object AndroidSdkPlugin extends Plugin {
 
         c
     }
+    // TODO save mappings file
     private def proguardTaskDef: Project.Initialize[Task[Option[File]]] =
             ( useProguard
             , proguardConfig
