@@ -65,10 +65,12 @@ object AndroidSdkPlugin extends Plugin {
         },
         classDirectory    <<= (binPath in Android) (_ / "classes"),
         sourceGenerators  <+= aapt in Android,
+        copyResources      := { Seq.empty },
         packageConfiguration in packageBin <<= (
                 packageConfiguration in packageBin,
+                baseDirectory,
                 libraryProject in Android,
-                classesJar in Android) map { (c, l, j) =>
+                classesJar in Android) map { (c, b, l, j) =>
             new Package.Configuration(c.sources, j, c.options)
         },
         Keys.`package`    <<= Keys.`package` dependsOn(compile,
@@ -352,9 +354,11 @@ object AndroidSdkPlugin extends Plugin {
 
     private def pngCrunchTaskDef = (aaptPath, binPath, baseDirectory) map {
         (a, bin, base) =>
+        val res = bin / "res"
+        res.mkdirs()
         Seq(a, "crunch", "-v",
             "-S", (base / "res").absolutePath,
-            "-C", (bin / "res").absolutePath) !
+            "-C", res.absolutePath) !
 
         ()
     }
