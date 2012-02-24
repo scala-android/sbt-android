@@ -55,8 +55,13 @@ from `libs` as in typical builds.
 ## Advanced Usage ##
 
 * Multi-project builds
-  * I'm still working on figuring this out for my own project... it kinda
-    works already.
+  * See https://gist.github.com/1897936 for an example of how to setup the
+    root project
+  * The example config makes `package` in the app project depend on `package`
+    in the library project.  `package` in the root project depends on
+    `android:package` in the app project. So if `package` is called from the
+    root, or if `android:package` is called from `appproject`, then the
+    right thing happens
 * Configuring `android-sdk-build` by editing build.sbt
   * `import AndroidKeys._` at the top to make sure you can use the plugin's
     configuration options
@@ -76,10 +81,8 @@ from `libs` as in typical builds.
 
 ### TODO ###
 
-* Figure out multi-project support better (kinda works, kinda doesn't) -- it
-  works fine for `compile`, but not so much for `package` and the
-  `android:package*` tasks
 * Implement the missing `AIDL`, `RenderScript` and optionally NDK build
   processes
 * Find somewhere to publish the plugin so that one does not need to clone
   and `publish-local` to use it.
+* Don't include scala-library when running proguard on a Java project

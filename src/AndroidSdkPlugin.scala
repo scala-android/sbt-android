@@ -73,7 +73,7 @@ object AndroidSdkPlugin extends Plugin {
                 classesJar in Android) map { (c, b, l, j) =>
             new Package.Configuration(c.sources, j, c.options)
         },
-        Keys.`package`    <<= Keys.`package` dependsOn(compile,
+        packageK          <<= packageK dependsOn(compile,
                 pngCrunch in Android),
         javacOptions      <<= (platformJar in Android) (j =>
             Seq("-bootclasspath", j)
@@ -126,25 +126,26 @@ object AndroidSdkPlugin extends Plugin {
         proguardOptions      := Seq.empty,
         proguardConfig       := proguardConfigDef,
         proguard            <<= proguardTaskDef,
-        proguard            <<= proguard dependsOn (Keys.`package` in Compile),
+        proguard            <<= proguard dependsOn (packageK in Compile),
         useProguard         <<= (scalaSource in Compile) {
             s => (s ** "*.scala").get.size > 0
         },
         packageResources    <<= packageResourcesTaskDef,
-        packageResources    <<= packageResources dependsOn(pngCrunch),
+        // packageResources needs to happen after all other project's crunches
+        packageResources    <<= packageResources dependsOn(pngCrunch, dex),
         apkbuild            <<= apkbuildTaskDef,
         signRelease         <<= signReleaseTaskDef,
         zipalign            <<= zipalignTaskDef,
-        Keys.`package`      <<= zipalign map identity,
+        packageK            <<= zipalign map identity,
         setDebug             := { createDebug = true },
         setRelease           := { createDebug = false },
         // I hope packageXXX dependsOn(setXXX) sets createDebug before package
         // because of how packageXXX is implemented by using task.?
-        packageDebug        <<= Keys.`package`.task.? {
+        packageDebug        <<= packageK.task.? {
             _ map identity getOrElse sys.error("package failed")
         },
         packageDebug        <<= packageDebug dependsOn(setDebug),
-        packageRelease      <<= Keys.`package`.task.? {
+        packageRelease      <<= packageK.task.? {
             _ map identity getOrElse sys.error("package failed")
         },
         packageRelease      <<= packageRelease dependsOn(setRelease),
@@ -183,8 +184,14 @@ object AndroidSdkPlugin extends Plugin {
                         "-S", (b / r / "res").getCanonicalPath))
                 yield arg
 
-        val libraryAssets = for (r <- l;
-                arg <- Seq("-A", (b / r / "assets").getCanonicalPath)) yield arg
+        val assets = (b / "assets")
+        val assetArgs = if (assets.exists) Seq("-A", assets.getCanonicalPath)
+            else Seq.empty
+
+        val libraryAssets = for (d <- l collect {
+                case r if (b / r / "assets").exists() =>
+                        (b/r/"assets").getCanonicalPath };
+                arg <- Seq("-A", d)) yield arg
 
         if (dfile.size == 0 || outofdate(dfile(0))) {
             val debug = if (createDebug) Seq("--debug-mode") else Seq.empty
@@ -194,12 +201,11 @@ object AndroidSdkPlugin extends Plugin {
                 "-M", m.absolutePath, // manifest
                 "-S", (bin / "res").absolutePath, // crunched png path
                 "-S", (b / "res").absolutePath, // resource path
-                "-A", (b / "assets").absolutePath,
                 "--generate-dependencies", // generate .d file
                 "-I", j,
                 "--no-crunch",
                 "-F", p.getAbsolutePath
-                ) ++ libraryResources ++ debug
+                ) ++ libraryResources ++ assetArgs ++ libraryAssets ++ debug
 
             val r = cmd !
 
@@ -449,6 +455,7 @@ object AndroidSdkPlugin extends Plugin {
 }
 
 object AndroidKeys {
+    val packageK = Keys.`package`
     val setDebug = TaskKey[Unit]("set-debug", "set debug build")
     val signRelease = TaskKey[File]("sign-release", "sign the release build")
     val zipalignPath = SettingKey[String]("zipalign-path",
