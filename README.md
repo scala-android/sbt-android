@@ -42,7 +42,8 @@ configuration and doesn't load up into Eclipse easily either.
    * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.1.0")`
 6. Create a file named `build.sbt` in the root of your project and add the
    following lines with a blank line between each:
-   * `name := YOUR-PROJECT-NAME`
+   * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
+     if you don't set it)
    * `seq(androidBuildSettings: _*)`
 7. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
