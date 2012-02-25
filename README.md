@@ -16,7 +16,7 @@ from `libs` as in typical builds.
 ### Differences from jberkel/android-plugin ###
 
 Why create a new plugin for building android applications?  Because
-`jberkely/android-plugin` seems to be pretty difficult to use, and enforces
+`jberkel/android-plugin` seems to be pretty difficult to use, and enforces
 an sbt-style project layout. This is incompatible with the built-in SDK
 configuration and doesn't load up into Eclipse easily either.
 
@@ -104,3 +104,5 @@ configuration and doesn't load up into Eclipse easily either.
   and `publish-local` to use it.
 * Properly look up `out.dir` in all library projects instead of depending
   on the default value of `bin`.
+* Save proguard mapping file when obfuscating
+* Compile with debug symbols on
