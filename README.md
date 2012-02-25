@@ -13,6 +13,22 @@ Features not support from the regular android build yet are compiling `AIDL`,
 `RenderScript` and `NDK` code. Although `NDK` libraries will be picked up
 from `libs` as in typical builds.
 
+### Differences from jberkel/android-plugin ###
+
+Why create a new plugin for building android applications?  Because
+`jberkely/android-plugin` seems to be pretty difficult to use, and enforces
+an sbt-style project layout. This is incompatible with the built-in SDK
+configuration and doesn't load up into Eclipse easily either.
+
+* android-sdk-build does not include any direct device management support
+  * Personally, I develop on a remote linux server and download APKs when
+    I need to try stuff out, so I normally don't need direct device access.
+  * Adding wrappers around `adb` to automatically install and such should
+    be pretty easy now that I've kinda figured out sbt.
+* This plugin uses the standard Android project layout as created by
+  Eclipse and `android create project`. Additionally, it reads all the
+  existing configuration out of the project's `.properties` files.
+
 ## Usage ##
 
 1. Install sbt (https://github.com/harrah/xsbt)
@@ -85,4 +101,3 @@ from `libs` as in typical builds.
   processes
 * Find somewhere to publish the plugin so that one does not need to clone
   and `publish-local` to use it.
-* Don't include scala-library when running proguard on a Java project
