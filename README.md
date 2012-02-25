@@ -106,3 +106,8 @@ configuration and doesn't load up into Eclipse easily either.
   on the default value of `bin`.
 * Save proguard mapping file when obfuscating
 * Compile with debug symbols on
+
+#### Thanks to ####
+
+* pfurla, jberkel, mharrah, retronym and the other folks from #sbt and #scala
+  for bearing with my questions and helping me learn sbt.
