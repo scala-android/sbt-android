@@ -20,7 +20,7 @@ Why create a new plugin for building android applications?  Because
 an sbt-style project layout. This is incompatible with the built-in SDK
 configuration and doesn't load up into Eclipse easily either.
 
-* android-sdk-build does not include any direct device management support
+* android-sdk-plugin does not include any direct device management support
   * Personally, I develop on a remote linux server and download APKs when
     I need to try stuff out, so I normally don't need direct device access.
   * Adding wrappers around `adb` to automatically install and such should
@@ -39,7 +39,7 @@ configuration and doesn't load up into Eclipse easily either.
      `android update project` to make sure everything is up-to-date.
 5. Create a directory named `project` within your project and name it
    `plugins.sbt`, in it, add the following line:
-   * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-build" % "0.1.0")`
+   * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.1.0")`
 6. Create a file named `build.sbt` in the root of your project and add the
    following lines with a blank line between each:
    * `name := YOUR-PROJECT-NAME`
@@ -78,7 +78,7 @@ configuration and doesn't load up into Eclipse easily either.
     `android:package` in the app project. So if `package` is called from the
     root, or if `android:package` is called from `appproject`, then the
     right thing happens
-* Configuring `android-sdk-build` by editing build.sbt
+* Configuring `android-sdk-plugin` by editing build.sbt
   * `import AndroidKeys._` at the top to make sure you can use the plugin's
     configuration options
   * Add configuration options according to the sbt style:

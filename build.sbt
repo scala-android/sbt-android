@@ -1,4 +1,4 @@
-name := "android-sdk-build"
+name := "android-sdk-plugin"
 
 version := "0.1.0"
 
