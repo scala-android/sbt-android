@@ -32,7 +32,7 @@ configuration and doesn't load up into Eclipse easily either.
 ## Usage ##
 
 1. Install sbt (https://github.com/harrah/xsbt)
-2. `git clone https://pfn@github.com/pfn/android-sdk-plugin.git`
+2. `git clone https://github.com/pfn/android-sdk-plugin.git`
 3. `cd android-sdk-plugin && sbt publish-local`
 4. Create a new android project using `android create project` or Eclipse
    * Instead of creating a new project, one can also do
