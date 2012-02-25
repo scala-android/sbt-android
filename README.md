@@ -101,3 +101,5 @@ configuration and doesn't load up into Eclipse easily either.
   processes
 * Find somewhere to publish the plugin so that one does not need to clone
   and `publish-local` to use it.
+* Properly look up `out.dir` in all library projects instead of depending
+  on the default value of `bin`.

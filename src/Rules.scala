@@ -58,7 +58,7 @@ object AndroidSdkPlugin extends Plugin {
             o ++ Seq("-bootclasspath", j, "-javabootclasspath", j)
         }
     )) ++ inConfig(Android) (Seq(
-        binPath             <<= baseDirectory (_ / "bin"),
+        binPath             <<= setDirectory("out.dir", "bin"),
         classesJar          <<= binPath (_ / "classes.jar"),
         classesDex          <<= binPath (_ / "classes.dex"),
         aapt                <<= aaptTaskDef,
