@@ -38,30 +38,39 @@ object AndroidSdkPlugin extends Plugin {
         resourceDirectory <<= baseDirectory (_ / "res"),
         unmanagedJars     <<= unmanagedJarsTaskDef,
         classDirectory    <<= (binPath in Android) (_ / "classes"),
-        sourceGenerators  <+= aapt in Android,
+        sourceGenerators  <+= aaptGen in Android,
         copyResources      := { Seq.empty },
-        packageConfiguration in packageBin <<= (
-                packageConfiguration in packageBin,
-                baseDirectory,
-                libraryProject in Android,
-                classesJar in Android) map { (c, b, l, j) =>
+        packageConfiguration in packageBin <<=
+                ( packageConfiguration in packageBin
+                , baseDirectory
+                , libraryProject in Android
+                , classesJar in Android) map {
+            (c, b, l, j) =>
             new Package.Configuration(c.sources, j, c.options)
         },
         packageT          <<= packageT dependsOn(compile,
                 pngCrunch in Android),
         javacOptions      <<= (javacOptions, platformJar in Android) {
             (o, j) =>
-            o ++ Seq("-bootclasspath", j)
+            // users will want to call clean before compiling if changing debug
+            val debugOptions = if (createDebug) Seq("-g") else Seq.empty
+            // make sure javac doesn't create code that proguard won't process
+            // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
+            o ++ Seq("-bootclasspath", j,
+                     "-source", "1.5",
+                     "-target", "1.5") ++ debugOptions
         },
         scalacOptions     <<= (scalacOptions, platformJar in Android) map {
             (o, j) =>
+            // scalac has -g:vars by default
             o ++ Seq("-bootclasspath", j, "-javabootclasspath", j)
         }
     )) ++ inConfig(Android) (Seq(
+        packageResourcesOptions <<= packageResourcesOptionsTaskDef,
         binPath             <<= setDirectory("out.dir", "bin"),
         classesJar          <<= binPath (_ / "classes.jar"),
         classesDex          <<= binPath (_ / "classes.dex"),
-        aapt                <<= aaptTaskDef,
+        aaptGen             <<= aaptGenTaskDef,
         pngCrunch           <<= pngCrunchTaskDef,
         genPath             <<= baseDirectory (_ / "gen"),
         libraryProjects     <<= properties { p =>
@@ -122,11 +131,11 @@ object AndroidSdkPlugin extends Plugin {
         // I hope packageXXX dependsOn(setXXX) sets createDebug before package
         // because of how packageXXX is implemented by using task.?
         packageDebug        <<= packageT.task.? {
-            _ map identity getOrElse sys.error("package failed")
+            _ getOrElse sys.error("package failed")
         },
         packageDebug        <<= packageDebug dependsOn(setDebug),
         packageRelease      <<= packageT.task.? {
-            _ map identity getOrElse sys.error("package failed")
+            _ getOrElse sys.error("package failed")
         },
         packageRelease      <<= packageRelease dependsOn(setRelease),
         sdkPath             <<= properties (_("sdk.dir") + File.separator),

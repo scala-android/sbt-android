@@ -3,6 +3,8 @@
 ## Description ##
 
 This is a simple plugin for existing and newly created android projects.
+It is tested and developed against sbt 0.11.2; I have not verified whether
+other versions work.
 
 The plugin supports normal android projects and projects that reference
 library projects. 3rd party libraries can be included by placing them in
@@ -95,8 +97,8 @@ configuration and doesn't load up into Eclipse easily either.
     option is usable here)
  * `proguardConfig in Android ...` can be used to replace the entire
    proguard config included with android-sdk-plugin
-* Scala applications on android build faster if they're using scala 2.8.1,
-  I have found. Set the scala version in `build.sbt` by entering
+* I have found that Scala applications on android build faster if they're
+  using scala 2.8.1. Set the scala version in `build.sbt` by entering
   `scalaVersion := "2.8.1"`
 
 ### TODO ###
@@ -105,10 +107,6 @@ configuration and doesn't load up into Eclipse easily either.
   processes
 * Find somewhere to publish the plugin so that one does not need to clone
   and `publish-local` to use it.
-* Properly look up `out.dir` in all library projects instead of depending
-  on the default value of `bin`.
-* Save proguard mapping file when obfuscating
-* Compile with debug symbols on
 
 #### Thanks to ####
 

@@ -31,6 +31,8 @@ object AndroidKeys {
             "create a release apk")
     val packageDebug = TaskKey[File]("package-debug",
             "create a debug apk")
+    val packageResourcesOptions = TaskKey[Seq[String]](
+            "package-resources-options", "options to package-resources")
     val packageResources = TaskKey[File]("package-resources",
             "package android resources")
     val manifestPath = SettingKey[File]("manifest-path",
@@ -57,7 +59,7 @@ object AndroidKeys {
             "IAndroidTarget object representing a target API level")
     val platformJar = SettingKey[String]("platform-jar", "Path to android.jar")
     val aaptPath = SettingKey[String]("aapt-path", "path to aapt")
-    val aapt = TaskKey[Seq[File]]("aapt", "android aapt task")
+    val aaptGen = TaskKey[Seq[File]]("aapt-gen", "android aapt source-gen task")
     val dexPath = SettingKey[String]("dex-path", "path to dex")
     val dex = TaskKey[File]("dex", "run bytecode dexer")
     val classesDex = SettingKey[File]("classes-dex", "output classes.dex path")

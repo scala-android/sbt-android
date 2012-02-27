@@ -25,27 +25,23 @@ object Tasks {
         } finally
             c foreach(_.close)
     }
-    def packageResourcesTaskDef = ( aaptPath
-                                  , manifestPath
-                                  , versionCode
-                                  , versionName
-                                  , baseDirectory
-                                  , binPath
-                                  , libraryProjects
-                                  , platformJar
-                                  , streams
-                                  ) map {
-        (a, m, v, n, b, bin, l, j, s) =>
-        val rel = if (createDebug) "-debug" else "-release"
-        val basename = "resources" + rel + ".ap_"
-        val dfile = bin * (basename + ".d") get
-        val p = bin / basename
+
+    def packageResourcesOptionsTaskDef = ( manifestPath
+                                         , versionCode
+                                         , versionName
+                                         , baseDirectory
+                                         , binPath
+                                         , libraryProjects
+                                         , platformJar
+                                         ) map {
+        (m, v, n, b, bin, l, j) =>
         val vc = v getOrElse sys.error("versionCode is not set")
         val vn = n getOrElse sys.error("versionName is not set")
 
         // crunched path needs to go before uncrunched
         val libraryResources = for (r <- l;
-                arg <- Seq("-S", (b / r / "bin" / "res").getCanonicalPath,
+                arg <- Seq("-S", (findLibraryBinPath(b / r) /
+                                "res").getCanonicalPath,
                         "-S", (b / r / "res").getCanonicalPath))
                 yield arg
 
@@ -58,19 +54,35 @@ object Tasks {
                         (b/r/"assets").getCanonicalPath };
                 arg <- Seq("-A", d)) yield arg
 
+        val debug = if (createDebug) Seq("--debug-mode") else Seq.empty
+        Seq("package", "-f",
+            // only required if refs lib projects, doesn't hurt otherwise?
+            "--auto-add-overlay",
+            "-M", m.absolutePath, // manifest
+            "-S", (bin / "res").absolutePath, // crunched png path
+            "-S", (b / "res").absolutePath, // resource path
+            "--generate-dependencies", // generate .d file
+            "-I", j,
+            "--no-crunch"
+            ) ++ libraryResources ++ assetArgs ++ libraryAssets ++ debug
+    }
+
+    def packageResourcesTaskDef = ( aaptPath
+                                  , packageResourcesOptions
+                                  , baseDirectory
+                                  , binPath
+                                  , streams
+                                  ) map {
+        (a, o, b, bin, s) =>
+        val rel = if (createDebug) "-debug" else "-release"
+        val basename = "resources" + rel + ".ap_"
+        val dfile = bin * (basename + ".d") get
+        val p = bin / basename
+
         if (dfile.size == 0 || outofdate(dfile(0))) {
-            val debug = if (createDebug) Seq("--debug-mode") else Seq.empty
-            val cmd = Seq(a, "package", "-f",
-                // only required if refs lib projects, doesn't hurt otherwise?
-                "--auto-add-overlay",
-                "-M", m.absolutePath, // manifest
-                "-S", (bin / "res").absolutePath, // crunched png path
-                "-S", (b / "res").absolutePath, // resource path
-                "--generate-dependencies", // generate .d file
-                "-I", j,
-                "--no-crunch",
-                "-F", p.getAbsolutePath
-                ) ++ libraryResources ++ assetArgs ++ libraryAssets ++ debug
+            val cmd = a +: (o ++ Seq("-F", p.getAbsolutePath))
+
+            s.log.debug("aapt: " + cmd.mkString(" "))
 
             val r = cmd !
 
@@ -79,12 +91,11 @@ object Tasks {
         p
     }
 
-    // FIXME this fails when new files are added but none are modified
+    // TODO this fails when new files are added but none are modified
     private def outofdate(dfile: File): Boolean = {
         (using (Source.fromFile(dfile)) { s =>
-            import collection.mutable.HashMap
             val dependencies = (s.getLines.foldLeft(
-                    (new HashMap[String,Seq[String]], Option[String](null))) {
+                    (Map[String,Seq[String]](), Option[String](null))) {
                 case ((deps, dep), line) =>
                     val d = if (dep.isEmpty) {
                         Option(line.init.trim)
@@ -92,12 +103,11 @@ object Tasks {
                         None
                     } else dep
 
-                    dep foreach { n =>
+                    ((dep map { n =>
                         val l = line.stripSuffix("\\").trim
                                 .stripPrefix(":").trim
-                        deps.update(n, (deps.get(n) getOrElse Seq.empty) :+ l)
-                    }
-                (deps, d)
+                        deps + (n -> ((deps.get(n) getOrElse Seq.empty) :+ l))
+                    } getOrElse deps), d)
             })._1
 
             dependencies.exists { case (d,l) =>
@@ -192,21 +202,22 @@ object Tasks {
             aligned
         }
     }
-    def aaptTaskDef = ( manifestPath
-                      , baseDirectory
-                      , packageName
-                      , platformJar
-                      , genPath
-                      , aaptPath
-                      , libraryProjects
-                      , streams
-                      ) map {
+    def aaptGenTaskDef = ( manifestPath
+                         , baseDirectory
+                         , packageName
+                         , platformJar
+                         , genPath
+                         , aaptPath
+                         , libraryProjects
+                         , streams
+                         ) map {
         (m, b, p, j, g, a, l, s) =>
         g.mkdirs()
         val libraryResources = for (r <- l;
                 arg <- Seq("-S", (b / r / "res").getCanonicalPath)) yield arg
 
         val dfile = (g * "R.java.d" get)
+        // TODO maybe split out aaptGenOptions like for packageResources?
         if (dfile.size == 0 || outofdate(dfile(0))) {
             val r = Seq(a, "package",
                 // only required if refs lib projects, doesn't hurt otherwise?
@@ -260,6 +271,7 @@ object Tasks {
         }
         if (inputs.exists { _.lastModified > c.lastModified }) {
             s.log.info("dexing input")
+            // TODO maybe split out options into a separate task?
             val r = Seq(d, "--dex",
                 // TODO
                 // --no-locals if instrumented
@@ -316,7 +328,10 @@ object Tasks {
                 val libraryjars = for (j <- libjars;
                         a <- Seq("-libraryjars", j.getAbsolutePath)) yield a
                 val outjars = "-outjars " + t.getAbsolutePath
-                val cfg = c ++ o ++ libraryjars :+ injars :+ outjars
+                val printmappings = Seq("-printmapping",
+                        (b / "mappings.txt").getAbsolutePath)
+                val cfg = c ++ o ++ libraryjars ++ printmappings :+
+                        injars :+ outjars
                 val config = new PgConfig
                 new ConfigurationParser(cfg.toArray[String]).parse(config)
                 new ProGuard(config).execute
@@ -328,6 +343,10 @@ object Tasks {
         } else None
     }
 
+    def findLibraryBinPath(path: File) = {
+        val props = loadProperties(path)
+        directoriesList("out.dir", "bin", props, path)(0)
+    }
     def loadProperties(path: File): Properties = {
         val p = new Properties
         (path * "*.properties" get) foreach { f =>
@@ -360,7 +379,8 @@ object Tasks {
         // add all dependent library projects' classes.jar files
         (u ++ (l map { p =>
                 Attributed.blank(
-                        (b / p / "bin" / "classes.jar").getCanonicalFile)
+                        (findLibraryBinPath(b / p) /
+                                "classes.jar").getCanonicalFile)
             }
         ) ++ (for (d <- l; j <- (b / d / "libs") * "*.jar" get)
             yield Attributed.blank(j.getCanonicalFile))
