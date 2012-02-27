@@ -261,7 +261,6 @@ object Tasks {
                              , unmanagedJars in Compile
                              , streams) map {
         (d, p, c, m, u, s) =>
-        // TODO remove duplicate jars
         val inputs = p map { f => Seq(f) } getOrElse {
             (m ++ u) collect {
                 // no proguard? then we don't need to dex scala!
@@ -273,7 +272,7 @@ object Tasks {
             s.log.info("dexing input")
             // TODO maybe split out options into a separate task?
             val r = Seq(d, "--dex",
-                // TODO
+                // TODO support instrumented builds
                 // --no-locals if instrumented
                 // --verbose
                 "--num-threads",
@@ -307,7 +306,6 @@ object Tasks {
 
         (injars,file(p) +: l)
     }
-    // TODO save mappings file
     def proguardTaskDef: Project.Initialize[Task[Option[File]]] =
             ( useProguard
             , proguardConfig
