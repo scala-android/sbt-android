@@ -38,7 +38,8 @@ object AndroidSdkPlugin extends Plugin {
         resourceDirectory <<= baseDirectory (_ / "res"),
         unmanagedJars     <<= unmanagedJarsTaskDef,
         classDirectory    <<= (binPath in Android) (_ / "classes"),
-        sourceGenerators  <+= aaptGen in Android,
+        sourceGenerators  <+= (aaptGenerator in Android,
+                aidl in Android, renderscript in Android) map (_ ++ _ ++ _),
         copyResources      := { Seq.empty },
         packageConfiguration in packageBin <<=
                 ( packageConfiguration in packageBin
@@ -67,81 +68,84 @@ object AndroidSdkPlugin extends Plugin {
         }
     )) ++ inConfig(Android) (Seq(
         packageResourcesOptions <<= packageResourcesOptionsTaskDef,
-        binPath             <<= setDirectory("out.dir", "bin"),
-        classesJar          <<= binPath (_ / "classes.jar"),
-        classesDex          <<= binPath (_ / "classes.dex"),
-        aaptGen             <<= aaptGenTaskDef,
-        pngCrunch           <<= pngCrunchTaskDef,
-        genPath             <<= baseDirectory (_ / "gen"),
-        libraryProjects     <<= properties { p =>
+        binPath                 <<= setDirectory("out.dir", "bin"),
+        classesJar              <<= binPath (_ / "classes.jar"),
+        classesDex              <<= binPath (_ / "classes.dex"),
+        aaptGeneratorOptions    <<= aaptGeneratorOptionsTaskDef,
+        aaptGenerator           <<= aaptGeneratorTaskDef,
+        aidl                    <<= aidlTaskDef,
+        renderscript            <<= renderscriptTaskDef,
+        pngCrunch               <<= pngCrunchTaskDef,
+        genPath                 <<= baseDirectory (_ / "gen"),
+        libraryProjects         <<= properties { p =>
             p.stringPropertyNames.collect {
                 case k if k.startsWith("android.library.reference") => k
             }.toList.sortWith { (a,b) => a < b } map { k => p(k) }
         },
-        libraryProject      <<= properties { p =>
+        libraryProject          <<= properties { p =>
             Option(p.getProperty("android.library")) map {
                     _.equals("true") } getOrElse false },
-        aaptPath            <<= sdkPath {
+        aaptPath                <<= sdkPath {
             import SdkConstants._
             _ + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AAPT
         },
-        dexPath             <<= sdkPath {
+        dexPath                 <<= sdkPath {
             import SdkConstants._
             _ + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_DX
         },
-        zipalignPath        <<= sdkPath {
+        zipalignPath            <<= sdkPath {
             import SdkConstants._
             _ + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
         },
-        dex                 <<= dexTaskDef,
-        platformJar         <<= platform (
+        dex                     <<= dexTaskDef,
+        platformJar             <<= platform (
                 _.getPath(IAndroidTarget.ANDROID_JAR)),
-        manifestPath        <<= baseDirectory (_ / "AndroidManifest.xml"),
-        properties          <<= baseDirectory (b => loadProperties(b)),
-        manifest            <<= manifestPath { m => XML.loadFile(m) },
-        versionCode         <<= manifest { m =>
+        manifestPath            <<= baseDirectory (_ / "AndroidManifest.xml"),
+        properties              <<= baseDirectory (b => loadProperties(b)),
+        manifest                <<= manifestPath { m => XML.loadFile(m) },
+        versionCode             <<= manifest { m =>
             val ns = m.getNamespace("android")
             m.attribute(ns, "versionCode") map { _(0) text }},
-        versionName         <<= manifest { m =>
+        versionName             <<= manifest { m =>
             val ns = m.getNamespace("android")
             m.attribute(ns, "versionName") map { _(0) text }},
-        packageName         <<= manifest { m =>
+        packageName             <<= manifest { m =>
             m.attribute("package") get (0) text
         },
-        proguardLibraries    := Seq.empty,
-        proguardExcludes     := Seq.empty,
-        proguardOptions      := Seq.empty,
-        proguardConfig       := proguardConfigDef,
-        proguard            <<= proguardTaskDef,
-        proguard            <<= proguard dependsOn (packageT in Compile),
-        proguardInputs      <<= proguardInputsTaskDef,
-        proguardScala       <<= (scalaSource in Compile) {
+        proguardLibraries        := Seq.empty,
+        proguardExcludes         := Seq.empty,
+        proguardOptions          := Seq.empty,
+        proguardConfig           := proguardConfigDef,
+        proguard                <<= proguardTaskDef,
+        proguard                <<= proguard dependsOn (packageT in Compile),
+        proguardInputs          <<= proguardInputsTaskDef,
+        proguardScala           <<= (scalaSource in Compile) {
             s => (s ** "*.scala").get.size > 0
         },
-        useProguard         <<= proguardScala,
-        packageResources    <<= packageResourcesTaskDef,
+        useProguard             <<= proguardScala,
+        packageResources        <<= packageResourcesTaskDef,
         // packageResources needs to happen after all other project's crunches
-        packageResources    <<= packageResources dependsOn(pngCrunch, dex),
-        apkbuild            <<= apkbuildTaskDef,
-        signRelease         <<= signReleaseTaskDef,
-        zipalign            <<= zipalignTaskDef,
-        packageT            <<= zipalign,
-        setDebug             := { createDebug = true },
-        setRelease           := { createDebug = false },
+        packageResources        <<= packageResources dependsOn(pngCrunch, dex),
+        apkbuild                <<= apkbuildTaskDef,
+        signRelease             <<= signReleaseTaskDef,
+        zipalign                <<= zipalignTaskDef,
+        packageT                <<= zipalign,
+        setDebug                 := { createDebug = true },
+        setRelease               := { createDebug = false },
         // I hope packageXXX dependsOn(setXXX) sets createDebug before package
         // because of how packageXXX is implemented by using task.?
-        packageDebug        <<= packageT.task.? {
+        packageDebug            <<= packageT.task.? {
             _ getOrElse sys.error("package failed")
         },
-        packageDebug        <<= packageDebug dependsOn(setDebug),
-        packageRelease      <<= packageT.task.? {
+        packageDebug            <<= packageDebug dependsOn(setDebug),
+        packageRelease          <<= packageT.task.? {
             _ getOrElse sys.error("package failed")
         },
-        packageRelease      <<= packageRelease dependsOn(setRelease),
-        sdkPath             <<= properties (_("sdk.dir") + File.separator),
-        sdkManager          <<= sdkPath (p =>
+        packageRelease          <<= packageRelease dependsOn(setRelease),
+        sdkPath                 <<= properties (_("sdk.dir") + File.separator),
+        sdkManager              <<= sdkPath (p =>
             SdkManager.createManager(p, null)),
-        platform            <<= (sdkManager, properties) { (m, p) =>
+        platform                <<= (sdkManager, properties) { (m, p) =>
             m.getTargetFromHashString(p("target"))
         }
     )) ++ Seq(

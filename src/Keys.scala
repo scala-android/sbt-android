@@ -59,7 +59,13 @@ object AndroidKeys {
             "IAndroidTarget object representing a target API level")
     val platformJar = SettingKey[String]("platform-jar", "Path to android.jar")
     val aaptPath = SettingKey[String]("aapt-path", "path to aapt")
-    val aaptGen = TaskKey[Seq[File]]("aapt-gen", "android aapt source-gen task")
+    val aaptGeneratorOptions = TaskKey[Seq[String]]("aapt-generator-options",
+            "android aapt source-gen options task")
+    val aaptGenerator = TaskKey[Seq[File]]("aapt-generator",
+            "android aapt source-gen task")
+    val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task")
+    val renderscript = TaskKey[Seq[File]]("renderscript",
+            "android renderscript source-gen task")
     val dexPath = SettingKey[String]("dex-path", "path to dex")
     val dex = TaskKey[File]("dex", "run bytecode dexer")
     val classesDex = SettingKey[File]("classes-dex", "output classes.dex path")

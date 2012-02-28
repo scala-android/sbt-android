@@ -7,6 +7,7 @@ import scala.collection.JavaConversions._
 import java.util.Properties
 import java.io.{File,FilenameFilter,FileInputStream}
 
+import com.android.sdklib.{IAndroidTarget,SdkConstants}
 import com.android.sdklib.build.ApkBuilder
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
@@ -202,33 +203,62 @@ object Tasks {
             aligned
         }
     }
-    def aaptGenTaskDef = ( manifestPath
-                         , baseDirectory
-                         , packageName
-                         , platformJar
-                         , genPath
-                         , aaptPath
-                         , libraryProjects
-                         , streams
-                         ) map {
-        (m, b, p, j, g, a, l, s) =>
-        g.mkdirs()
+
+    def renderscriptTaskDef = ( sdkPath
+                              , genPath
+                              ) map { (s, g) =>
+        import SdkConstants._
+
+        val rs        = s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_RENDERSCRIPT
+        val rsInclude = s + OS_SDK_PLATFORM_TOOLS_FOLDER + OS_FRAMEWORK_RS
+        val rsClang   = s + OS_SDK_PLATFORM_TOOLS_FOLDER + OS_FRAMEWORK_RS_CLANG
+        Seq[File]()
+    }
+    def aidlTaskDef = ( sdkPath
+                      , genPath
+                      , platform
+                      ) map { (s, g, p) =>
+        import SdkConstants._
+        val aidl          = s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
+        val frameworkAidl = p.getPath(IAndroidTarget.ANDROID_AIDL)
+
+        Seq[File]()
+    }
+
+    def aaptGeneratorOptionsTaskDef = ( manifestPath
+                                      , baseDirectory
+                                      , packageName
+                                      , libraryProjects
+                                      , platformJar
+                                      , genPath
+                                      ) map {
+        (m, b, p, l, j, g) =>
+
         val libraryResources = for (r <- l;
                 arg <- Seq("-S", (b / r / "res").getCanonicalPath)) yield arg
 
-        val dfile = (g * "R.java.d" get)
-        // TODO maybe split out aaptGenOptions like for packageResources?
-        if (dfile.size == 0 || outofdate(dfile(0))) {
-            val r = Seq(a, "package",
-                // only required if refs lib projects, doesn't hurt otherwise?
-                "--auto-add-overlay",
-                "-m", // make package directories in gen
-                //"--generate-dependencies", // generate R.java.d
-                "--custom-package", p, // package name
-                "-M", m.absolutePath, // manifest
-                "-S", (b / "res").absolutePath, // resource path
-                "-I", j, // platform jar
-                "-J", g.absolutePath) ++ libraryResources !
+        Seq("package",
+            // only required if refs lib projects, doesn't hurt otherwise?
+            "--auto-add-overlay",
+            "-m", // make package directories in gen
+            "--generate-dependencies", // generate R.java.d
+            "--custom-package", p, // package name
+            "-M", m.absolutePath, // manifest
+            "-S", (b / "res").absolutePath, // resource path
+            "-I", j, // platform jar
+            "-J", g.absolutePath) ++ libraryResources
+    }
+    def aaptGeneratorTaskDef = ( aaptPath
+                               , aaptGeneratorOptions
+                               , genPath
+                               , streams
+                               ) map {
+        (a, o, g, s) =>
+        g.mkdirs()
+
+        val dfile = (g ** "R.java.d" get)
+        if (dfile.size == 0 || dfile.exists(f => outofdate(f))) {
+            val r = (a +: o) !
 
             if (r != 0) sys.error("failed")
         } else s.log.info("R.java is up-to-date")
@@ -254,12 +284,12 @@ object Tasks {
         } getOrElse Seq[String]()
     }
 
-    def dexTaskDef = (dexPath
-                             , proguard
-                             , classesDex
-                             , managedClasspath in Compile
-                             , unmanagedJars in Compile
-                             , streams) map {
+    def dexTaskDef = ( dexPath
+                     , proguard
+                     , classesDex
+                     , managedClasspath in Compile
+                     , unmanagedJars in Compile
+                     , streams) map {
         (d, p, c, m, u, s) =>
         val inputs = p map { f => Seq(f) } getOrElse {
             (m ++ u) collect {
