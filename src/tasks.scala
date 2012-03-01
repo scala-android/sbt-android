@@ -141,12 +141,14 @@ object AndroidTasks {
     builder.setDebugMode(createDebug)
     (m ++ u) foreach { j => builder.addResourcesFromJar(j.data) }
 
-    ((for {
-      path <- p
-      lib <- ApkBuilder.getNativeFiles(base / path / "libs", createDebug)
-    } yield lib) ++ ApkBuilder.getNativeFiles(l, createDebug)) foreach {
+    ((p map { z => findLibraryLibPath(base / z) } collect {
+      case f if f.exists => f
+    } map {
+        ApkBuilder.getNativeFiles(_, createDebug)
+    } flatten) ++ (if (l.exists) ApkBuilder.getNativeFiles(l, createDebug)
+      else Seq.empty)) foreach (
         f => builder.addNativeLibraries(f.mFile)
-    }
+      )
 
     builder.sealApk()
 
@@ -294,25 +296,30 @@ object AndroidTasks {
                    , classesDex
                    , managedClasspath in Compile
                    , unmanagedJars in Compile
+                   , classesJar
                    , streams) map {
-    (d, p, c, m, u, s) =>
+    (d, p, c, m, u, j, s) =>
     val inputs = p map { f => Seq(f) } getOrElse {
       (m ++ u) collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") => x.data
       }
-    }
+    } :+ j
     if (inputs.exists { _.lastModified > c.lastModified }) {
       s.log.info("dexing input")
       // TODO maybe split out options into a separate task?
-      val r = Seq(d, "--dex",
+      val cmd = Seq(d, "--dex",
         // TODO support instrumented builds
         // --no-locals if instrumented
         // --verbose
         "--num-threads",
         "" + java.lang.Runtime.getRuntime.availableProcessors,
         "--output", c.getAbsolutePath
-        ) ++ (inputs map { _.getAbsolutePath }) !
+        ) ++ (inputs map { _.getAbsolutePath })
+
+      s.log.debug("dex: " + cmd.mkString(" "))
+
+      val r = cmd !
 
       if (r != 0) {
         sys.error("failed")
@@ -331,11 +338,12 @@ object AndroidTasks {
                               , unmanagedClasspath in Compile
                               , platformJar
                               , binPath
+                              , classesJar
                               ) map {
-    (s, l, e, m, u, p, b) =>
+    (s, l, e, m, u, p, b, c) =>
 
     // TODO remove duplicate jars
-    val injars = (((m ++ u) map { _.data }) :+ (b/"classes.jar")) filter {
+    val injars = (((m ++ u) map { _.data }) :+ c) filter {
       in =>
       (s || !in.getName.startsWith("scala-library")) &&
         !l.exists { i => i.getName == in.getName}
@@ -382,6 +390,11 @@ object AndroidTasks {
     directoriesList("out.dir", "bin", props, path)(0)
   }
 
+  // any way to get rid of the second path / "libs" ?
+  private def findLibraryLibPath(path: File) =
+    Seq("libs", "lib") map { path / _ } find { _.exists } getOrElse (
+      path / "libs")
+
   def loadProperties(path: File): Properties = {
     val p = new Properties
     (path * "*.properties" get) foreach { f =>
@@ -417,7 +430,7 @@ object AndroidTasks {
       "classes.jar").getCanonicalFile)
     }) ++ (for {
         d <- l
-        j <- (b / d / "libs") * "*.jar" get
+        j <- findLibraryLibPath(b / d) * "*.jar" get
       } yield Attributed.blank(j.getCanonicalFile))
     ) filter { !_.data.getName.startsWith("scala-library") }
   }
