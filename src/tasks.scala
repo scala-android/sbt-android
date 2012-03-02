@@ -141,15 +141,14 @@ object AndroidTasks {
     builder.setDebugMode(createDebug)
     (m ++ u) foreach { j => builder.addResourcesFromJar(j.data) }
 
-    ((p map { z => findLibraryLibPath(base / z) } collect {
+    val nativeLibraries = (p map { z => findLibraryLibPath(base / z) } collect {
       case f if f.exists => f
     } map {
         ApkBuilder.getNativeFiles(_, createDebug)
-    } flatten) ++ (if (l.exists) ApkBuilder.getNativeFiles(l, createDebug)
-      else Seq.empty)) foreach (
-        f => builder.addNativeLibraries(f.mFile)
-      )
+    } flatten) ++ (
+      if (l.exists) ApkBuilder.getNativeFiles(l, createDebug) else Seq.empty)
 
+    builder.addNativeLibraries(nativeLibraries)
     builder.sealApk()
 
     output
