@@ -21,6 +21,8 @@ object AndroidTasks {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
 
   var createDebug = true
+  def resourceAsStream =
+    AndroidSdkPlugin.getClass.getClassLoader.getResourceAsStream _
 
   def using[A <: { def close() },B](closeable: => A)(f: A => B): Option[B] = {
     var c: Option[A] = None
@@ -50,14 +52,6 @@ object AndroidTasks {
       // XXX handle package references? @id/android:ID or @id:android/ID
       val re = "@\\+id/(.*)".r
 
-
-      def update(map: Map[String,String], u: (String,String)) = {
-        if (map.contains(u._1) && (map(u._1) != u._2)) {
-          s.log.warn("%s remapped: %s to %s" format (u._1, map(u._1), u._2))
-        }
-        map + u
-      }
-
       def classForLabel(l: String) = {
         if (l contains ".") Some(l)
         else {
@@ -70,83 +64,41 @@ object AndroidTasks {
         }
       }
 
-      // maybe combine these folds?
-      val layoutTypes = layouts.foldLeft(Map.empty[String,String]) {
-        (a, b) =>
-        val layout = XML.loadFile(b)
-        classForLabel(layout.label) map {
-          l => update(a, (b.getName.stripSuffix(".xml") -> l))
-        } getOrElse a
-      }
-      val resources = layouts.foldLeft (Map.empty[String,String]) {
-        (a, b) =>
-        val layout = XML.loadFile(b)
-        layout.descendant_or_self.foldLeft (a) {
-          (m, n) =>
-          n.attribute(ANDROID_NS, "id") map { _(0).text match {
-            case re(id) =>
-              classForLabel(n.label) map {
-                l => update(m, (id -> l))
-              } getOrElse m
-            case _ => m
-          }} getOrElse m
+      def warn(res: Seq[(String,String)]) = {
+        res.groupBy(r => r._1) filter (_._2.toSet.size > 1) foreach {
+          case (k,v) => s.log.warn("%s was reassigned: %s" format (k,
+            v map (_._2) mkString " => "))
         }
+
+        res.toMap
       }
+      val layoutTypes = warn(for {
+        file   <- layouts
+        layout  = XML loadFile file
+        l      <- classForLabel(layout.label)
+      } yield file.getName.stripSuffix(".xml") -> l)
+
+      val resources = warn(for {
+        b      <- layouts
+        layout  = XML loadFile b
+        n      <- layout.descendant_or_self
+        re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
+        l      <- classForLabel(n.label)
+      } yield id -> l)
+
+      val trTemplate = using(resourceAsStream("tr.scala.template")) { in =>
+        Seq(Source.fromInputStream(in).getLines.toSeq: _*) mkString "\n"
+      } getOrElse (
+        throw new IllegalStateException("unable to load TR.scala template"))
+
       tr.delete()
-      IO.write(tr,
-        """package %s
-          |import android.app.{Activity,Dialog}
-          |import android.view.{View,ViewGroup,LayoutInflater}
-          |
-          |case class TypedResource[A](id: Int)
-          |case class TypedLayout[A](id: Int)
-          |
-          |object TR {
-          |%s
-          |
-          |  object layout {
-          |%s
-          |  }
-          |}
-          |
-          |trait TypedViewHolder {
-          |  def findViewById(id: Int): View
-          |  def findView[A](tr: TypedResource[A]): A =
-          |    findViewById(tr.id).asInstanceOf[A]
-          |}
-          |
-          |class TypedLayoutInflater(l: LayoutInflater) {
-          |  def inflate[A](tl: TypedLayout[A], c: ViewGroup, b: Boolean) =
-          |    l.inflate(tl.id, c, b).asInstanceOf[A]
-          |  def inflate[A](tl: TypedLayout[A], c: ViewGroup) =
-          |    l.inflate(tl.id, c).asInstanceOf[A]
-          |}
-          |
-          |object TypedResource {
-          |  implicit def typedLayoutToInt(tl: TypedLayout[_]) = tl.id
-          |  implicit def viewToTyped(v: View) =
-          |      new TypedViewHolder {
-          |    def findViewById(id: Int) = v.findViewById(id)
-          |  }
-          |  implicit def activityToTyped(a: Activity) =
-          |      new TypedViewHolder {
-          |    def findViewById(id: Int) = a.findViewById(id)
-          |  }
-          |  implicit def dialogToTyped(d: Dialog) =
-          |      new TypedViewHolder {
-          |    def findViewById(id: Int) = d.findViewById(id)
-          |  }
-          |  implicit def layoutInflaterToTyped(l: LayoutInflater) =
-          |    new TypedLayoutInflater(l)
-          |}
-          |
-          |""".stripMargin format (p,
-            resources map { case (k,v) =>
-              "  val `%s` = TypedResource[%s](R.id.`%s`)" format (k,v,k)
-            } mkString "\n",
-            layoutTypes map { case (k,v) =>
-              "    val `%s` = TypedLayout[%s](R.layout.`%s`)" format (k,v,k)
-            } mkString "\n"))
+      IO.write(tr, trTemplate format (p,
+        resources map { case (k,v) =>
+          "  val `%s` = TypedResource[%s](R.id.`%s`)" format (k,v,k)
+        } mkString "\n",
+        layoutTypes map { case (k,v) =>
+          "    val `%s` = TypedLayout[%s](R.layout.`%s`)" format (k,v,k)
+        } mkString "\n"))
       Seq(tr)
     }
   }
@@ -409,9 +361,8 @@ object AndroidTasks {
   }
 
   def proguardConfigDef = {
-    using(AndroidSdkPlugin.getClass.getClassLoader.getResourceAsStream(
-      "android-proguard.config")) { in =>
-        Seq(Source.fromInputStream(in).getLines.toSeq: _*)
+    using(resourceAsStream("android-proguard.config")) { in =>
+     Seq(Source.fromInputStream(in).getLines.toSeq: _*)
     } getOrElse Seq.empty[String]
   }
 
