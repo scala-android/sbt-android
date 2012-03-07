@@ -46,7 +46,8 @@ object AndroidSdkPlugin extends Plugin {
     unmanagedJars     <<= unmanagedJarsTaskDef,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
     sourceGenerators  <+= (aaptGenerator in Android,
-      aidl in Android, renderscript in Android) map (_ ++ _ ++ _),
+      typedResourcesGenerator in Android,
+      aidl in Android, renderscript in Android) map (_ ++ _ ++ _ ++ _),
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile, pngCrunch in Android),
     javacOptions      <<= (javacOptions, platformJar in Android) {
@@ -101,11 +102,9 @@ object AndroidSdkPlugin extends Plugin {
     properties              <<= baseDirectory (b => loadProperties(b)),
     manifest                <<= manifestPath { m => XML.loadFile(m) },
     versionCode             <<= manifest { m =>
-      val ns = m.getNamespace("android")
-      m.attribute(ns, "versionCode") map { _(0) text }},
+      m.attribute(ANDROID_NS, "versionCode") map { _(0) text }},
     versionName             <<= manifest { m =>
-      val ns = m.getNamespace("android")
-      m.attribute(ns, "versionName") map { _(0) text }},
+      m.attribute(ANDROID_NS, "versionName") map { _(0) text }},
     packageName             <<= manifest { m =>
       m.attribute("package") get (0) text
     },
@@ -119,6 +118,8 @@ object AndroidSdkPlugin extends Plugin {
     proguardScala           <<= (scalaSource in Compile) {
       s => (s ** "*.scala").get.size > 0
     },
+    typedResources          <<= proguardScala,
+    typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
     useProguard             <<= proguardScala,
     packageResources        <<= packageResourcesTaskDef,
     // packageResources needs to happen after all other project's crunches

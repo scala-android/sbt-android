@@ -1,8 +1,11 @@
 import sbt._
 import sbt.Keys._
+import classpath.ClasspathUtilities
 
 import scala.io.Source
 import scala.collection.JavaConversions._
+import scala.util.control.Exception._
+import scala.xml.XML
 
 import java.util.Properties
 import java.io.{File,FilenameFilter,FileInputStream}
@@ -15,6 +18,8 @@ import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 import AndroidKeys._
 
 object AndroidTasks {
+  val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+
   var createDebug = true
 
   def using[A <: { def close() },B](closeable: => A)(f: A => B): Option[B] = {
@@ -24,6 +29,126 @@ object AndroidTasks {
       c map f
     } finally
       c foreach(_.close)
+  }
+
+  val typedResourcesGeneratorTaskDef = ( typedResources
+                                       , aaptGenerator
+                                       , packageName
+                                       , resourceDirectory in Compile
+                                       , platformJar
+                                       , genPath
+                                       , streams
+                                       ) map {
+    (t, a, p, r, j, g, s) =>
+    if (!t)
+      Seq.empty[File]
+    else {
+      val androidjar = ClasspathUtilities.toLoader(file(j))
+      val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
+      val layouts = r ** "layout*" ** "*.xml" get
+
+      // XXX handle package references? @id/android:ID or @id:android/ID
+      val re = "@\\+id/(.*)".r
+
+
+      def update(map: Map[String,String], u: (String,String)) = {
+        if (map.contains(u._1) && (map(u._1) != u._2)) {
+          s.log.warn("%s remapped: %s to %s" format (u._1, map(u._1), u._2))
+        }
+        map + u
+      }
+
+      def classForLabel(l: String) = {
+        if (l contains ".") Some(l)
+        else {
+          Seq("android.widget.", "android.view.", "android.webkit.").flatMap {
+            pkg =>
+            catching(classOf[ClassNotFoundException]) opt {
+              androidjar.loadClass(pkg + l).getName
+            }
+          }.headOption
+        }
+      }
+
+      // maybe combine these folds?
+      val layoutTypes = layouts.foldLeft(Map.empty[String,String]) {
+        (a, b) =>
+        val layout = XML.loadFile(b)
+        classForLabel(layout.label) map {
+          l => update(a, (b.getName.stripSuffix(".xml") -> l))
+        } getOrElse a
+      }
+      val resources = layouts.foldLeft (Map.empty[String,String]) {
+        (a, b) =>
+        val layout = XML.loadFile(b)
+        layout.descendant_or_self.foldLeft (a) {
+          (m, n) =>
+          n.attribute(ANDROID_NS, "id") map { _(0).text match {
+            case re(id) =>
+              classForLabel(n.label) map {
+                l => update(m, (id -> l))
+              } getOrElse m
+            case _ => m
+          }} getOrElse m
+        }
+      }
+      tr.delete()
+      IO.write(tr,
+        """package %s
+          |import android.app.{Activity,Dialog}
+          |import android.view.{View,ViewGroup,LayoutInflater}
+          |
+          |case class TypedResource[A](id: Int)
+          |case class TypedLayout[A](id: Int)
+          |
+          |object TR {
+          |%s
+          |
+          |  object layout {
+          |%s
+          |  }
+          |}
+          |
+          |trait TypedViewHolder {
+          |  def findViewById(id: Int): View
+          |  def findView[A](tr: TypedResource[A]): A =
+          |    findViewById(tr.id).asInstanceOf[A]
+          |}
+          |
+          |class TypedLayoutInflater(l: LayoutInflater) {
+          |  def inflate[A](tl: TypedLayout[A], c: ViewGroup, b: Boolean) =
+          |    l.inflate(tl.id, c, b).asInstanceOf[A]
+          |  def inflate[A](tl: TypedLayout[A], c: ViewGroup) =
+          |    l.inflate(tl.id, c).asInstanceOf[A]
+          |}
+          |
+          |object TypedResource {
+          |  implicit def typedLayoutToInt(tl: TypedLayout[_]) = tl.id
+          |  implicit def viewToTyped(v: View) =
+          |      new TypedViewHolder {
+          |    def findViewById(id: Int) = v.findViewById(id)
+          |  }
+          |  implicit def activityToTyped(a: Activity) =
+          |      new TypedViewHolder {
+          |    def findViewById(id: Int) = a.findViewById(id)
+          |  }
+          |  implicit def dialogToTyped(d: Dialog) =
+          |      new TypedViewHolder {
+          |    def findViewById(id: Int) = d.findViewById(id)
+          |  }
+          |  implicit def layoutInflaterToTyped(l: LayoutInflater) =
+          |    new TypedLayoutInflater(l)
+          |}
+          |
+          |""".stripMargin format (p,
+            resources map { case (k,v) =>
+              "  val `%s` = TypedResource[%s](R.id.`%s`)" format (k,v,k)
+            } mkString "\n",
+            layoutTypes map { case (k,v) =>
+              "    val `%s` = TypedLayout[%s](R.layout.`%s`)" format (k,v,k)
+            } mkString "\n"))
+      Seq(tr)
+    }
   }
 
   val packageResourcesOptionsTaskDef = ( manifestPath
@@ -50,7 +175,7 @@ object AndroidTasks {
       else Seq.empty
 
     val libraryAssets = for {
-      d <- l collect { case r if (b / r / "assets").exists() =>
+      d <- l collect { case r if (b / r / "assets").exists =>
         (b/r/"assets").getCanonicalPath }
       arg <- Seq("-A", d)
     } yield arg
@@ -98,7 +223,7 @@ object AndroidTasks {
   private def outofdate(dfile: File): Boolean = {
     (using (Source.fromFile(dfile)) { s =>
       val dependencies = (s.getLines.foldLeft(
-        (Map[String,Seq[String]](), Option[String](null))) {
+        (Map.empty[String,Seq[String]], Option[String](null))) {
           case ((deps, dep), line) =>
           val d = if (dep.isEmpty) {
             Option(line.init.trim)
@@ -213,7 +338,7 @@ object AndroidTasks {
     val rs        = s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_RENDERSCRIPT
     val rsInclude = s + OS_SDK_PLATFORM_TOOLS_FOLDER + OS_FRAMEWORK_RS
     val rsClang   = s + OS_SDK_PLATFORM_TOOLS_FOLDER + OS_FRAMEWORK_RS_CLANG
-    Seq[File]()
+    Seq.empty[File]
   }
 
   val aidlTaskDef = ( sdkPath
@@ -224,7 +349,7 @@ object AndroidTasks {
     val aidl          = s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
     val frameworkAidl = p.getPath(IAndroidTarget.ANDROID_AIDL)
 
-    Seq[File]()
+    Seq.empty[File]
   }
 
   val aaptGeneratorOptionsTaskDef = ( manifestPath
@@ -287,7 +412,7 @@ object AndroidTasks {
     using(AndroidSdkPlugin.getClass.getClassLoader.getResourceAsStream(
       "android-proguard.config")) { in =>
         Seq(Source.fromInputStream(in).getLines.toSeq: _*)
-    } getOrElse Seq[String]()
+    } getOrElse Seq.empty[String]
   }
 
   val dexTaskDef = ( dexPath

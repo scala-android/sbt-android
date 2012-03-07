@@ -9,6 +9,10 @@ import java.util.Properties
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 
 object AndroidKeys {
+  val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
+    "TR.scala generating task")
+  val typedResources = SettingKey[Boolean]("typed-resources",
+    "flag indicating whether to generated TR.scala")
   val proguardScala = SettingKey[Boolean]("proguard-scala",
     "include scala-library in proguard: true if scala source present")
   val proguardExcludes = SettingKey[Seq[String]]("proguard-excludes",
