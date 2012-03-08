@@ -20,7 +20,12 @@ import AndroidKeys._
 object AndroidTasks {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
 
-  var createDebug = true
+  // wish this could be protected
+  var _createDebug = true
+
+  def createDebug = _createDebug
+  private def createDebug_=(d: Boolean) = _createDebug = d
+
   def resourceAsStream =
     AndroidSdkPlugin.getClass.getClassLoader.getResourceAsStream _
 
@@ -361,9 +366,14 @@ object AndroidTasks {
     ()
   }
 
-  def proguardConfigDef = {
+  def linesFromFile(f: File) =
+    using(new FileInputStream(f)) { in =>
+      Seq(Source.fromInputStream(in).getLines.toSeq: _*)
+    } getOrElse Seq.empty[String]
+
+  def proguardConfigTaskDef = {
     using(resourceAsStream("android-proguard.config")) { in =>
-     Seq(Source.fromInputStream(in).getLines.toSeq: _*)
+      Seq(Source.fromInputStream(in).getLines.toSeq: _*)
     } getOrElse Seq.empty[String]
   }
 
