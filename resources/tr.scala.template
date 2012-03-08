@@ -28,7 +28,6 @@ class TypedLayoutInflater(l: LayoutInflater) {
 }
 
 object TypedResource {
-  implicit def typedLayoutToInt(tl: TypedLayout[_]) = tl.id
   implicit def viewToTyped(v: View) = new TypedViewHolder {
     def findViewById(id: Int) = v.findViewById(id)
   }
