@@ -30,7 +30,7 @@ configuration and doesn't load up into Eclipse easily either.
 * This plugin uses the standard Android project layout as created by
   Eclipse and `android create project`. Additionally, it reads all the
   existing configuration out of the project's `.properties` files.
-* `TR` for typed resources improves upon `TR in android-plugin. It should be
+* `TR` for typed resources improves upon `TR` in android-plugin. It should be
   compatible with existing applications that use `TR` and it also adds a
   type to `TypedLayout[A]`. An implicit conversion on `LayoutInflater` to
   `TypedLayoutInflater` allows calling
