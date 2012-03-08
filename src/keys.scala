@@ -72,7 +72,7 @@ object AndroidKeys {
     "application version code")
   val proguardOptions = SettingKey[Seq[String]]("proguard-options",
     "additional options to add to proguard-config")
-  val proguardConfig = SettingKey[Seq[String]]("proguard-config",
+  val proguardConfig = TaskKey[Seq[String]]("proguard-config",
     "base proguard configuration")
   val proguard = TaskKey[Option[File]]("proguard",
     "proguard task, generates obfuscated.jar")

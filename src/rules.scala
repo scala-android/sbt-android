@@ -111,7 +111,7 @@ object AndroidSdkPlugin extends Plugin {
     proguardLibraries        := Seq.empty,
     proguardExcludes         := Seq.empty,
     proguardOptions          := Seq.empty,
-    proguardConfig           := proguardConfigDef,
+    proguardConfig           := proguardConfigTaskDef,
     proguard                <<= proguardTaskDef,
     proguard                <<= proguard dependsOn (packageT in Compile),
     proguardInputs          <<= proguardInputsTaskDef,
@@ -128,8 +128,8 @@ object AndroidSdkPlugin extends Plugin {
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
     packageT                <<= zipalign,
-    setDebug                 := { createDebug = true },
-    setRelease               := { createDebug = false },
+    setDebug                 := { _createDebug = true },
+    setRelease               := { _createDebug = false },
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
     // because of how packageXXX is implemented by using task.?
     packageDebug            <<= packageT.task.? {
