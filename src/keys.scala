@@ -70,7 +70,7 @@ object AndroidKeys {
     "application version name")
   val versionCode = SettingKey[Option[String]]("version-code",
     "application version code")
-  val proguardOptions = SettingKey[Seq[String]]("proguard-options",
+  val proguardOptions = TaskKey[Seq[String]]("proguard-options",
     "additional options to add to proguard-config")
   val proguardConfig = TaskKey[Seq[String]]("proguard-config",
     "base proguard configuration")
