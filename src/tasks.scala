@@ -26,17 +26,8 @@ object AndroidTasks {
   def createDebug = _createDebug
   private def createDebug_=(d: Boolean) = _createDebug = d
 
-  def resourceAsStream =
-    AndroidSdkPlugin.getClass.getClassLoader.getResourceAsStream _
-
-  def using[A <: { def close() },B](closeable: => A)(f: A => B): Option[B] = {
-    var c: Option[A] = None
-    try {
-      c = Option(closeable)
-      c map f
-    } finally
-      c foreach(_.close)
-  }
+  def resourceUrl =
+    AndroidSdkPlugin.getClass.getClassLoader.getResource _
 
   val typedResourcesGeneratorTaskDef = ( typedResources
                                        , aaptGenerator
@@ -92,10 +83,8 @@ object AndroidTasks {
         l      <- classForLabel(n.label)
       } yield id -> l)
 
-      val trTemplate = using(resourceAsStream("tr.scala.template")) { in =>
-        Seq(Source.fromInputStream(in).getLines.toSeq: _*) mkString "\n"
-      } getOrElse (
-        throw new IllegalStateException("unable to load TR.scala template"))
+      val trTemplate = IO.readLinesURL(
+        resourceUrl("tr.scala.template")) mkString "\n"
 
       tr.delete()
       IO.write(tr, trTemplate format (p,
@@ -179,27 +168,25 @@ object AndroidTasks {
 
   // TODO this fails when new files are added but none are modified
   private def outofdate(dfile: File): Boolean = {
-    (using (Source.fromFile(dfile)) { s =>
-      val dependencies = (s.getLines.foldLeft(
-        (Map.empty[String,Seq[String]], Option[String](null))) {
-          case ((deps, dep), line) =>
-          val d = if (dep.isEmpty) {
-            Option(line.init.trim)
-          } else if (!line.endsWith("\\")) {
-            None
-          } else dep
+    val dependencies = (IO.readLines(dfile).foldLeft(
+      (Map.empty[String,Seq[String]], Option[String](null))) {
+        case ((deps, dep), line) =>
+        val d = if (dep.isEmpty) {
+          Option(line.init.trim)
+        } else if (!line.endsWith("\\")) {
+          None
+        } else dep
 
-        ((dep map { n =>
-          val l = line.stripSuffix("\\").trim.stripPrefix(":").trim
-          deps + (n -> ((deps.get(n) getOrElse Seq.empty) :+ l))
-        } getOrElse deps), d)
-      })._1
+      ((dep map { n =>
+        val l = line.stripSuffix("\\").trim.stripPrefix(":").trim
+        deps + (n -> ((deps.get(n) getOrElse Seq.empty) :+ l))
+      } getOrElse deps), d)
+    })._1
 
-      dependencies.exists { case (d,l) =>
-        val f = new File(d)
-        l.exists { i => new File(i).lastModified > f.lastModified }
-      }
-    }) getOrElse false
+    dependencies.exists { case (d,l) =>
+      val f = new File(d)
+      l.exists { i => new File(i).lastModified > f.lastModified }
+    }
   }
 
   val apkbuildTaskDef = ( name
@@ -366,16 +353,8 @@ object AndroidTasks {
     ()
   }
 
-  def linesFromFile(f: File) =
-    using(new FileInputStream(f)) { in =>
-      Seq(Source.fromInputStream(in).getLines.toSeq: _*)
-    } getOrElse Seq.empty[String]
-
-  def proguardConfigTaskDef = {
-    using(resourceAsStream("android-proguard.config")) { in =>
-      Seq(Source.fromInputStream(in).getLines.toSeq: _*)
-    } getOrElse Seq.empty[String]
-  }
+  def proguardConfigTaskDef =
+    IO.readLinesURL(resourceUrl("android-proguard.config")).toSeq
 
   val dexTaskDef = ( dexPath
                    , proguard
@@ -484,7 +463,7 @@ object AndroidTasks {
   def loadProperties(path: File): Properties = {
     val p = new Properties
     (path * "*.properties" get) foreach { f =>
-      using(new FileInputStream(f)) { in => p.load(in) }
+      Using.file(new FileInputStream(_))(f) { p.load _ }
     }
     p
   }
