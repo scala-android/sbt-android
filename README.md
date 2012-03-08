@@ -30,9 +30,12 @@ configuration and doesn't load up into Eclipse easily either.
 * This plugin uses the standard Android project layout as created by
   Eclipse and `android create project`. Additionally, it reads all the
   existing configuration out of the project's `.properties` files.
-* TR for typed resources is not available in android-sdk-plugin. I haven't
-  been using TR in my scala projects as I have been using my own hacky
-  abstraction.
+* `TR` for typed resources improves upon `TR in android-plugin. It should be
+  compatible with existing applications that use `TR` and it also adds a
+  type to `TypedLayout[A]`. An implicit conversion on `LayoutInflater` to
+  `TypedLayoutInflater` allows calling
+  `inflater.inflate(TR.layout.foo, container, optionalBoolean)` and receiving
+  a properly typed resulting view object.
 
 ## Usage ##
 

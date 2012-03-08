@@ -65,6 +65,7 @@ object AndroidTasks {
       }
 
       def warn(res: Seq[(String,String)]) = {
+        // TODO merge to a common ancestor
         res.groupBy(r => r._1) filter (_._2.toSet.size > 1) foreach {
           case (k,v) => s.log.warn("%s was reassigned: %s" format (k,
             v map (_._2) mkString " => "))
