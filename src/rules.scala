@@ -38,7 +38,13 @@ object AndroidSdkPlugin extends Plugin {
                                            , classesJar in Android
                                            ) map {
         (c, b, l, j) =>
-        new Package.Configuration(c.sources, j, c.options)
+        val sources = if (l) {
+          c.sources filter {
+            case (f,n) => !f.getName.matches("R\\W+.*class") }
+        } else {
+          c.sources
+        }
+        new Package.Configuration(sources, j, c.options)
     },
     scalaSource       <<= setDirectory("source.dir", "src"),
     javaSource        <<= setDirectory("source.dir", "src"),
@@ -69,6 +75,7 @@ object AndroidSdkPlugin extends Plugin {
     binPath                 <<= setDirectory("out.dir", "bin"),
     classesJar              <<= binPath (_ / "classes.jar"),
     classesDex              <<= binPath (_ / "classes.dex"),
+    aaptNonConstantId        := true,
     aaptGeneratorOptions    <<= aaptGeneratorOptionsTaskDef,
     aaptGenerator           <<= aaptGeneratorTaskDef,
     aidl                    <<= aidlTaskDef,
@@ -148,6 +155,7 @@ object AndroidSdkPlugin extends Plugin {
   )) ++ Seq(
     cleanFiles    <+= binPath in Android,
     cleanFiles    <+= genPath in Android,
+    exportJars     := true,
     unmanagedBase <<= baseDirectory (_ / "libs")
   )
 }

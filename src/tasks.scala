@@ -34,16 +34,22 @@ object AndroidTasks {
                                        , packageName
                                        , resourceDirectory in Compile
                                        , platformJar
+                                       , baseDirectory
+                                       , libraryProjects
                                        , genPath
                                        , streams
                                        ) map {
-    (t, a, p, r, j, g, s) =>
-    if (!t)
+    (t, a, p, r, j, b, l, g, s) =>
+    val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
+    if (!t || !a.exists { _.lastModified > tr.lastModified })
       Seq.empty[File]
     else {
       val androidjar = ClasspathUtilities.toLoader(file(j))
-      val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
-      val layouts = r ** "layout*" ** "*.xml" get
+      val layouts = (r ** "layout*" ** "*.xml" get) ++
+        (for {
+          lib <- l
+          xml <- (b / lib) ** "layout*" ** "*.xml" get
+        } yield xml)
 
       // XXX handle package references? @id/android:ID or @id:android/ID
       val re = "@\\+id/(.*)".r
@@ -167,6 +173,7 @@ object AndroidTasks {
   }
 
   // TODO this fails when new files are added but none are modified
+  // TODO fix for form: file1 file2 : dependency list
   private def outofdate(dfile: File): Boolean = {
     val dependencies = (IO.readLines(dfile).foldLeft(
       (Map.empty[String,Seq[String]], Option[String](null))) {
@@ -297,18 +304,13 @@ object AndroidTasks {
     Seq.empty[File]
   }
 
-  val aaptGeneratorOptionsTaskDef = ( manifestPath
-                                    , baseDirectory
-                                    , packageName
-                                    , libraryProjects
-                                    , platformJar
-                                    , genPath
-                                    ) map {
-    (m, b, p, l, j, g) =>
+  private def makeAaptOptions(manifest: File, base: File, packageName: String,
+      isLib: Boolean, libraries: Seq[String], androidjar: String, gen: File) = {
 
+    val nonConstantId = if (isLib) Seq("--non-constant-id") else Seq.empty
     val libraryResources = for {
-      r <- l
-      arg <- Seq("-S", (b / r / "res").getCanonicalPath)
+      r <- libraries
+      arg <- Seq("-S", (base / r / "res").getCanonicalPath)
     } yield arg
 
     Seq("package",
@@ -316,23 +318,58 @@ object AndroidTasks {
       "--auto-add-overlay",
       "-m", // make package directories in gen
       "--generate-dependencies", // generate R.java.d
-      "--custom-package", p, // package name
-      "-M", m.absolutePath, // manifest
-      "-S", (b / "res").absolutePath, // resource path
-      "-I", j, // platform jar
-      "-J", g.absolutePath) ++ libraryResources
+      "--custom-package", packageName, // package name
+      "-M", manifest.absolutePath, // manifest
+      "-S", (base / "res").absolutePath, // resource path
+      "-I", androidjar, // platform jar
+      "-J", gen.absolutePath) ++ libraryResources ++ nonConstantId
+  }
+
+  val aaptGeneratorOptionsTaskDef = ( manifestPath
+                                    , baseDirectory
+                                    , packageName
+                                    , aaptNonConstantId
+                                    , libraryProject
+                                    , libraryProjects
+                                    , platformJar
+                                    , genPath
+                                    ) map {
+    (m, b, p, n, i, l, j, g) =>
+    makeAaptOptions(m, b, p, i && n, l, j, g)
   }
 
   val aaptGeneratorTaskDef = ( aaptPath
                              , aaptGeneratorOptions
+                             , aaptNonConstantId
                              , genPath
+                             , libraryProjects
+                             , baseDirectory
+                             , platformJar
                              , streams
                              ) map {
-    (a, o, g, s) =>
+    (a, o, n, g, l, b, j, s) =>
     g.mkdirs()
 
     val dfile = (g ** "R.java.d" get)
     if (dfile.size == 0 || dfile.exists(f => outofdate(f))) {
+      // put lib R.java generation first so that the project's
+      // dependency file can override
+      l foreach { lib =>
+        val base = b / lib
+        val manifest = base / "AndroidManifest.xml"
+
+        val m = XML.loadFile(manifest)
+        val pname = m.attribute("package") get (0) text
+
+        val opts = makeAaptOptions(
+          manifest, base, pname, n, List.empty[String], j, g)
+        val res = (a +: opts) !
+
+        if (res != 0) {
+          sys.error("library aapt failed")
+        }
+      }
+
       val r = (a +: o) !
 
       if (r != 0) {
