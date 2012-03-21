@@ -158,7 +158,7 @@ object AndroidTasks {
     val dfile = bin * (basename + ".d") get
     val p = bin / basename
 
-    if (dfile.size == 0 || (dfile exists outofdate)) {
+    if (dfile.isEmpty || (dfile exists outofdate)) {
       val cmd = a +: (o ++ Seq("-F", p.getAbsolutePath))
 
       s.log.debug("aapt: " + cmd.mkString(" "))
@@ -351,7 +351,7 @@ object AndroidTasks {
     g.mkdirs()
 
     val dfile = (g ** "R.java.d" get)
-    if (dfile.size == 0 || (dfile exists outofdate)) {
+    if (dfile.isEmpty || (dfile exists outofdate)) {
       // put lib R.java generation first so that the project's
       // dependency file can override
       l foreach { lib =>
