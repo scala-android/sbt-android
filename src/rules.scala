@@ -51,9 +51,12 @@ object AndroidSdkPlugin extends Plugin {
     resourceDirectory <<= baseDirectory (_ / "res"),
     unmanagedJars     <<= unmanagedJarsTaskDef,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
-    sourceGenerators  <+= (aaptGenerator in Android,
-      typedResourcesGenerator in Android,
-      aidl in Android, renderscript in Android) map (_ ++ _ ++ _ ++ _),
+    sourceGenerators  <+= (aaptGenerator in Android
+                          , typedResourcesGenerator in Android
+                          , aidl in Android
+                          , buildConfigGenerator in Android
+                          , renderscript in Android) map (
+                            _ ++ _ ++ _ ++ _ ++ _),
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile, pngCrunch in Android),
     javacOptions      <<= (javacOptions, platformJar in Android) {
@@ -72,6 +75,7 @@ object AndroidSdkPlugin extends Plugin {
     }
   )) ++ inConfig(Android) (Seq(
     packageResourcesOptions <<= packageResourcesOptionsTaskDef,
+    buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= setDirectory("out.dir", "bin"),
     classesJar              <<= binPath (_ / "classes.jar"),
     classesDex              <<= binPath (_ / "classes.dex"),

@@ -58,6 +58,8 @@ object AndroidKeys {
   val aaptPath = SettingKey[String]("aapt-path", "path to aapt")
   val aaptNonConstantId = SettingKey[Boolean]("aapt-non-constant-id",
     "generate lib-project R.java files with --non-constant-id, default true")
+  val buildConfigGenerator = TaskKey[Seq[File]]("build-config-generator",
+    "generate BuildConfig.java")
   val aaptGeneratorOptions = TaskKey[Seq[String]]("aapt-generator-options",
     "android aapt source-gen options task")
   val aaptGenerator = TaskKey[Seq[File]]("aapt-generator",

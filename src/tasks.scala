@@ -12,6 +12,7 @@ import java.io.{File,FilenameFilter,FileInputStream}
 
 import com.android.sdklib.{IAndroidTarget,SdkConstants}
 import com.android.sdklib.build.ApkBuilder
+import com.android.sdklib.internal.build.BuildConfigGenerator
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 
@@ -29,6 +30,14 @@ object AndroidTasks {
   def resourceUrl =
     AndroidSdkPlugin.getClass.getClassLoader.getResource _
 
+  val buildConfigGeneratorTaskDef = ( genPath
+                                    , packageName
+                                    ) map {
+    (g, p) =>
+    val generator = new BuildConfigGenerator(g.getAbsolutePath, p, createDebug)
+    generator.generate()
+    g ** "BuildConfig.java" get
+  }
   val typedResourcesGeneratorTaskDef = ( typedResources
                                        , aaptGenerator
                                        , packageName
