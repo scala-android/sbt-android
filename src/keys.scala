@@ -38,6 +38,7 @@ object AndroidKeys {
     "package android resources")
   val manifestPath = SettingKey[File]("manifest-path",
     "android manifest file path")
+  val targetSdkVersion = SettingKey[Int]("target-sdk-version", "android target")
   val manifest = SettingKey[Elem]("manifest", "android manifest xml object")
   val classesJar = SettingKey[File]("classes-jar",
     "generated classes.jar file if in a library project")

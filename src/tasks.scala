@@ -127,8 +127,8 @@ object AndroidTasks {
                                        , platformJar
                                        ) map {
     (m, v, n, b, bin, l, j) =>
-    val vc = v getOrElse sys.error("versionCode is not set")
-    val vn = n getOrElse sys.error("versionName is not set")
+    //val vc = v getOrElse sys.error("versionCode is not set")
+    //val vn = n getOrElse sys.error("versionName is not set")
 
     // crunched path needs to go before uncrunched
     val libraryResources = for {
@@ -297,14 +297,58 @@ object AndroidTasks {
   }
 
   val renderscriptTaskDef = ( sdkPath
+                            , binPath
                             , genPath
-                            ) map { (s, g) =>
+                            , targetSdkVersion
+                            , unmanagedSourceDirectories in Compile
+                            , streams
+                            ) map { (s, b, g, t, u, l) =>
     import SdkConstants._
 
     val rs        = s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_RENDERSCRIPT
     val rsInclude = s + OS_SDK_PLATFORM_TOOLS_FOLDER + OS_FRAMEWORK_RS
     val rsClang   = s + OS_SDK_PLATFORM_TOOLS_FOLDER + OS_FRAMEWORK_RS_CLANG
-    Seq.empty[File]
+
+    val scripts = for {
+      src    <- u
+      script <- (src ** "*.rs" get)
+    } yield (src,script)
+
+    val generated = g ** "*.java" get
+
+    val target = if (t < 11) "11" else t.toString
+
+    scripts flatMap { case (src, script) =>
+
+      // optimization level -O also requires sdk r17
+      // debug requires sdk r17
+      //val debug = if (createDebug) Seq("-g") else Seq.empty
+
+      val cmd = Seq(rs, "-I", rsInclude, "-I", rsClang,
+        "-target-api", target,
+        "-d", (g /
+          (script relativeTo src).get.getParentFile.getPath).getAbsolutePath,
+        //"-O", level, 0 through 3
+        "-MD", "-p", g.getAbsolutePath,
+        "-o", (b / "res" / "raw").getAbsolutePath) :+ script.getAbsolutePath
+
+      val r = cmd !
+
+      if (r != 0)
+        sys.error("renderscript failed: " + r)
+
+      (g ** (script.getName.stripSuffix(".rs") + ".d") get) flatMap { dfile =>
+        val lines = IO.readLines(dfile)
+        // ugly, how do I make this prettier
+        lines zip lines.tail takeWhile (!_._1.endsWith(": \\")) flatMap {
+          case (line, next) =>
+          val path  = line.stripSuffix("\\").trim.stripSuffix(":")
+          val path2 = next.stripSuffix("\\").trim.stripSuffix(":")
+          (if (path.endsWith(".java")) Some(new File(path)) else None) ++
+            (if (path2.endsWith(".java")) Some(new File(path2)) else None)
+        }
+      } toSet
+    }
   }
 
   val aidlTaskDef = ( sdkPath
@@ -342,8 +386,9 @@ object AndroidTasks {
     }
   }
 
-  private def makeAaptOptions(manifest: File, base: File, packageName: String,
-      isLib: Boolean, libraries: Seq[String], androidjar: String, gen: File) = {
+  private def makeAaptOptions(manifest: File, base: File, bin: File,
+      packageName: String, isLib: Boolean, libraries: Seq[String],
+      androidjar: String, gen: File) = {
 
     val nonConstantId = if (isLib) Seq("--non-constant-id") else Seq.empty
     val libraryResources = for {
@@ -358,6 +403,7 @@ object AndroidTasks {
       "--generate-dependencies", // generate R.java.d
       "--custom-package", packageName, // package name
       "-M", manifest.absolutePath, // manifest
+      "-S", (bin / "res").absolutePath, // bin res
       "-S", (base / "res").absolutePath, // resource path
       "-I", androidjar, // platform jar
       "-J", gen.absolutePath) ++ libraryResources ++ nonConstantId
@@ -365,6 +411,7 @@ object AndroidTasks {
 
   val aaptGeneratorOptionsTaskDef = ( manifestPath
                                     , baseDirectory
+                                    , binPath
                                     , packageName
                                     , aaptNonConstantId
                                     , libraryProject
@@ -372,8 +419,8 @@ object AndroidTasks {
                                     , platformJar
                                     , genPath
                                     ) map {
-    (m, b, p, n, i, l, j, g) =>
-    makeAaptOptions(m, b, p, i && n, l, j, g)
+    (m, b, bin, p, n, i, l, j, g) =>
+    makeAaptOptions(m, b, bin, p, i && n, l, j, g)
   }
 
   val aaptGeneratorTaskDef = ( aaptPath
@@ -400,7 +447,8 @@ object AndroidTasks {
         val pname = m.attribute("package") get (0) text
 
         val opts = makeAaptOptions(
-          manifest, base, pname, n, List.empty[String], j, g)
+          manifest, base, findLibraryBinPath(base), pname, n,
+          List.empty[String], j, g)
         val res = (a +: opts) !
 
         if (res != 0) {

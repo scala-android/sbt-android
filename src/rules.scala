@@ -82,6 +82,7 @@ object AndroidSdkPlugin extends Plugin {
     aaptNonConstantId        := true,
     aaptGeneratorOptions    <<= aaptGeneratorOptionsTaskDef,
     aaptGenerator           <<= aaptGeneratorTaskDef,
+    aaptGenerator           <<= aaptGenerator dependsOn renderscript,
     aidl                    <<= aidlTaskDef,
     renderscript            <<= renderscriptTaskDef,
     pngCrunch               <<= pngCrunchTaskDef,
@@ -118,6 +119,11 @@ object AndroidSdkPlugin extends Plugin {
       m.attribute(ANDROID_NS, "versionName") map { _(0) text }},
     packageName             <<= manifest { m =>
       m.attribute("package") get (0) text
+    },
+    targetSdkVersion        <<= manifest { m =>
+      val usesSdk = (m \ "uses-sdk")
+      (usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") orElse
+        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") get (0) text) toInt
     },
     proguardLibraries        := Seq.empty,
     proguardExcludes         := Seq.empty,
