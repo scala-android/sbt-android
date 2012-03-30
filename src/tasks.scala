@@ -77,12 +77,17 @@ object AndroidTasks {
 
       def warn(res: Seq[(String,String)]) = {
         // TODO merge to a common ancestor
-        res.groupBy(r => r._1) filter (_._2.toSet.size > 1) foreach {
-          case (k,v) => s.log.warn("%s was reassigned: %s" format (k,
-            v map (_._2) mkString " => "))
+        //   To View for views or ViewGroup for layouts
+        val overrides = res.groupBy(r => r._1) filter (
+          _._2.toSet.size > 1) collect {
+          case (k,v) =>
+            s.log.warn("%s was reassigned: %s" format (k,
+              v map (_._2) mkString " => "))
+            k -> (if (v endsWith "Layout")
+              "android.view.ViewGroup" else "android.view.View")
         }
 
-        res.toMap
+        (res ++ overrides).toMap
       }
       val layoutTypes = warn(for {
         file   <- layouts
@@ -305,12 +310,36 @@ object AndroidTasks {
   val aidlTaskDef = ( sdkPath
                     , genPath
                     , platform
-                    ) map { (s, g, p) =>
+                    , unmanagedSourceDirectories in Compile
+                    , streams
+                    ) map { (s, g, p, u, l) =>
     import SdkConstants._
     val aidl          = s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
     val frameworkAidl = p.getPath(IAndroidTarget.ANDROID_AIDL)
+    val aidls = for {
+      src <- u
+      idl <- (src ** "*.aidl" get)
+    } yield idl
 
-    Seq.empty[File]
+    aidls flatMap { idl =>
+      val out = g ** (idl.getName.stripSuffix(".aidl") + ".java") get
+      val cmd = Seq(aidl,
+        "-p" + frameworkAidl,
+        "-o" + g.getAbsolutePath,
+        "-a") ++ (u map {
+          "-I" + _.getAbsolutePath
+        }) :+ idl.getAbsolutePath
+
+      // TODO FIXME this doesn't account for other dependencies
+      if (out.isEmpty || (out exists { idl.lastModified > _.lastModified })) {
+        val r = cmd !
+
+        if (r != 0)
+          sys.error("aidl failed")
+
+        g ** (idl.getName.stripSuffix(".aidl") + ".java") get
+      } else out
+    }
   }
 
   private def makeAaptOptions(manifest: File, base: File, packageName: String,
