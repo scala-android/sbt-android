@@ -122,8 +122,9 @@ object AndroidSdkPlugin extends Plugin {
     },
     targetSdkVersion        <<= manifest { m =>
       val usesSdk = (m \ "uses-sdk")
-      (usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") orElse
-        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") get (0) text) toInt
+      if (usesSdk.isEmpty) -1 else
+        ((usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") orElse
+          usesSdk(0).attribute(ANDROID_NS, "minSdkVersion")) get (0) text) toInt
     },
     proguardLibraries        := Seq.empty,
     proguardExcludes         := Seq.empty,
