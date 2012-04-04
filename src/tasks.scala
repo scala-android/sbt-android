@@ -435,33 +435,31 @@ object AndroidTasks {
     (a, o, n, g, l, b, j, s) =>
     g.mkdirs()
 
-    val dfile = (g ** "R.java.d" get)
-    if (dfile.isEmpty || (dfile exists outofdate)) {
-      // put lib R.java generation first so that the project's
-      // dependency file can override
-      l foreach { lib =>
-        val base = b / lib
-        val manifest = base / "AndroidManifest.xml"
+    // TODO re-implement R file dependency checking
+    // put lib R.java generation first so that the project's
+    // dependency file can override
+    l foreach { lib =>
+      val base = b / lib
+      val manifest = base / "AndroidManifest.xml"
 
-        val m = XML.loadFile(manifest)
-        val pname = m.attribute("package") get (0) text
+      val m = XML.loadFile(manifest)
+      val pname = m.attribute("package") get (0) text
 
-        val opts = makeAaptOptions(
-          manifest, base, findLibraryBinPath(base), pname, n,
-          List.empty[String], j, g)
-        val res = (a +: opts) !
+      val opts = makeAaptOptions(
+        manifest, base, findLibraryBinPath(base), pname, n,
+        List.empty[String], j, g)
+      val res = (a +: opts) !
 
-        if (res != 0) {
-          sys.error("library aapt failed")
-        }
+      if (res != 0) {
+        sys.error("library aapt failed")
       }
+    }
 
-      val r = (a +: o) !
+    val r = (a +: o) !
 
-      if (r != 0) {
-        sys.error("failed")
-      }
-    } else s.log.info("R.java is up-to-date")
+    if (r != 0) {
+      sys.error("failed")
+    }
     (g ** "R.java" get) ++ (g ** "Manifest.java" get)
   }
 
