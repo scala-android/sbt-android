@@ -65,6 +65,7 @@ configuration and doesn't load up into Eclipse easily either.
 
     addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "VERSION-SNAPSHOT")
     ```
+
 4. Create a file named `build.sbt` in the root of your project and add the
    following lines with a blank line between each:
    * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
