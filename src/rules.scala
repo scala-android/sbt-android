@@ -18,8 +18,8 @@ object AndroidSdkPlugin extends Plugin {
   // android build steps
   // * handle library dependencies (android.library.reference.N)
   // * ndk TODO
-  // * aidl TODO
-  // * renderscript TODO
+  // * aidl
+  // * renderscript
   // * aapt
   // * compile
   // * obfuscate

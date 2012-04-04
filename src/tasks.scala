@@ -483,15 +483,17 @@ object AndroidTasks {
                    , proguard
                    , classesDex
                    , managedClasspath in Compile
+                   , dependencyClasspath in Compile
                    , unmanagedJars in Compile
                    , classesJar
                    , streams) map {
-    (d, p, c, m, u, j, s) =>
+    (d, p, c, m, e, u, j, s) =>
     val inputs = p map { f => Seq(f) } getOrElse {
-      (m ++ u) collect {
+      ((m ++ u ++ e) collect {
         // no proguard? then we don't need to dex scala!
-        case x if !x.data.getName.startsWith("scala-library") => x.data
-      }
+        case x if !x.data.getName.startsWith("scala-library") &&
+          x.data.getName.endsWith(".jar") => x.data
+      }).toSet.toSeq
     } :+ j
     if (inputs.exists { _.lastModified > c.lastModified }) {
       s.log.info("dexing input")
@@ -524,18 +526,19 @@ object AndroidTasks {
                               , proguardExcludes
                               , managedClasspath in Compile
                               , unmanagedClasspath in Compile
+                              , dependencyClasspath in Compile
                               , platformJar
                               , binPath
                               , classesJar
                               ) map {
-    (s, l, e, m, u, p, b, c) =>
+    (s, l, e, m, u, d, p, b, c) =>
 
     // TODO remove duplicate jars
-    val injars = (((m ++ u) map { _.data }) :+ c) filter {
+    val injars = ((((m ++ u ++ d) map { _.data }) :+ c) filter {
       in =>
       (s || !in.getName.startsWith("scala-library")) &&
         !l.exists { i => i.getName == in.getName}
-    }
+    }).toSet.toSeq
 
     (injars,file(p) +: l)
   }
