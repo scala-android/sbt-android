@@ -46,20 +46,24 @@ configuration and doesn't load up into Eclipse easily either.
 3. Create a directory named `project` within your project and name it
    `plugins.sbt`, in it, add the following lines:
 
+    ```
     resolvers += Resolver.url("scala-sbt releases", new URL(
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
     addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.1.0")
+    ```
 
    * Alternatively, for snapshots (check this repo's build.sbt for current
      snapshot version):
 
+    ```
     resolvers += Resolver.url("scala-sbt snapshots", new URL(
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-snapshots/"))(
       Resolver.ivyStylePatterns)
 
     addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "VERSION-SNAPSHOT")
+    ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
    following lines with a blank line between each:
