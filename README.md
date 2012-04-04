@@ -11,9 +11,9 @@ library projects. 3rd party libraries can be included by placing them in
 `libs` as in regular projects, or they can be added by using sbt's
 `libraryDependencies` feature.
 
-Features not support from the regular android build yet are compiling `AIDL`,
-`RenderScript` and `NDK` code. Although `NDK` libraries will be picked up
-from `libs` as in typical builds.
+Features not support from the regular android build yet are compiling `NDK`
+code. Although `NDK` libraries will be picked up from `libs` as in typical
+ant builds.
 
 ### Differences from jberkel/android-plugin ###
 
@@ -31,11 +31,12 @@ configuration and doesn't load up into Eclipse easily either.
   Eclipse and `android create project`. Additionally, it reads all the
   existing configuration out of the project's `.properties` files.
 * `TR` for typed resources improves upon `TR` in android-plugin. It should be
-  compatible with existing applications that use `TR` and it also adds a
+  compatible with existing applications that use `TR` while also adding a
   type to `TypedLayout[A]`. An implicit conversion on `LayoutInflater` to
   `TypedLayoutInflater` allows calling
   `inflater.inflate(TR.layout.foo, container, optionalBoolean)` and receiving
   a properly typed resulting view object.
+  * Import `TypedResource._` to get the implicit conversions
 
 ## Usage ##
 
@@ -104,6 +105,11 @@ configuration and doesn't load up into Eclipse easily either.
     `android:package` in the app project. So if `package` is called from the
     root, or if `android:package` is called from `appproject`, then the
     right thing happens
+  * Another example of a multi-project build using an android project and
+    common code that is not meant to target only android is available at
+    https://gist.github.com/2296619
+    * This example does the same as above, except allows loading an arbitrary
+      Java or Scala project into the Android app.
 * Configuring `android-sdk-plugin` by editing build.sbt
   * `import AndroidKeys._` at the top to make sure you can use the plugin's
     configuration options
@@ -118,8 +124,8 @@ configuration and doesn't load up into Eclipse easily either.
  * `proguardConfig in Android ...` can be used to replace the entire
    proguard config included with android-sdk-plugin
 * I have found that Scala applications on android build faster if they're
-  using scala 2.8.1. Set the scala version in `build.sbt` by entering
-  `scalaVersion := "2.8.1"`
+  using scala 2.8.2. Set the scala version in `build.sbt` by entering
+  `scalaVersion := "2.8.2"`
 
 ### TODO ###
 
