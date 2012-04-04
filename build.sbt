@@ -37,7 +37,7 @@ sbtPlugin := true
 
 publishTo <<= (version) { version =>
   val scalasbt = "http://scalasbt.artifactoryonline.com/scalasbt/"
-  val (name, url) = if (version endsWith "-SNAPSHOT")
+  val (name, url) = if (version contains "-SNAPSHOT")
     ("sbt-plugin-snapshots", scalasbt + "sbt-plugin-snapshots")
   else
     ("sbt-plugin-releases", scalasbt + "sbt-plugin-releases")
