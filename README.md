@@ -40,20 +40,33 @@ configuration and doesn't load up into Eclipse easily either.
 ## Usage ##
 
 1. Install sbt (https://github.com/harrah/xsbt)
-2. `git clone https://github.com/pfn/android-sdk-plugin.git`
-3. `cd android-sdk-plugin && sbt publish-local`
-4. Create a new android project using `android create project` or Eclipse
+2. Create a new android project using `android create project` or Eclipse
    * Instead of creating a new project, one can also do
      `android update project` to make sure everything is up-to-date.
-5. Create a directory named `project` within your project and name it
-   `plugins.sbt`, in it, add the following line:
-   * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.1.0")`
-6. Create a file named `build.sbt` in the root of your project and add the
+3. Create a directory named `project` within your project and name it
+   `plugins.sbt`, in it, add the following lines:
+
+    resolvers += Resolver.url("scala-sbt releases", new URL(
+      "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
+      Resolver.ivyStylePatterns)
+
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.1.0")
+
+   * Alternatively, for snapshots (check this repo's build.sbt for current
+     snapshot version):
+
+    resolvers += Resolver.url("scala-sbt snapshots", new URL(
+      "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-snapshots/"))(
+      Resolver.ivyStylePatterns)
+
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "VERSION-SNAPSHOT")
+
+4. Create a file named `build.sbt` in the root of your project and add the
    following lines with a blank line between each:
    * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
      if you don't set it)
    * `seq(androidBuildSettings: _*)`
-7. Now you will be able to run SBT, some available commands in sbt are:
+5. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
      * Compiles all the sources in the project, java and scala
      * Compile output is automatically processed through proguard if there
@@ -69,7 +82,7 @@ configuration and doesn't load up into Eclipse easily either.
      by prefixing the command with a `~`. `~ android:package-debug`
      will continuously build a debug build any time one of the project's
      source files is modified.
-8. If you want android-sdk-plugin to automatically sign release packages
+6. If you want android-sdk-plugin to automatically sign release packages
    add the following lines to `local.properties` (or any file.properties of
    your choice that you do not check in to source control):
    * `key.alias: YOUR-KEY-ALIAS`
@@ -108,8 +121,6 @@ configuration and doesn't load up into Eclipse easily either.
 
 * Implement the NDK build process
 * Add adb, direct device interaction, support
-* Find somewhere to publish the plugin so that one does not need to clone
-  and `publish-local` to use it.
 
 #### Thanks to ####
 
