@@ -106,8 +106,8 @@ configuration and doesn't load up into Eclipse easily either.
 
 ### TODO ###
 
-* Implement the missing `AIDL`, `RenderScript` and optionally NDK build
-  processes
+* Implement the NDK build process
+* Add adb, direct device interaction, support
 * Find somewhere to publish the plugin so that one does not need to clone
   and `publish-local` to use it.
 
