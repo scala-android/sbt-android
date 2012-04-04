@@ -34,3 +34,14 @@ products in Compile <<= ( products in Compile
 libraryDependencies += "net.sf.proguard" % "proguard-base" % "4.6" % "compile"
 
 sbtPlugin := true
+
+publishTo <<= (version) { version =>
+  val scalasbt = "http://scalasbt.artifactoryonline.com/scalasbt/"
+  val (name, url) = if (version endsWith "-SNAPSHOT")
+    ("sbt-plugin-snapshots", scalasbt + "sbt-plugin-snapshots")
+  else
+    ("sbt-plugin-releases", scalasbt + "sbt-plugin-releases")
+  Some(Resolver.url(name, new URL(url))(Resolver.ivyStylePatterns))
+}
+
+publishMavenStyle := false
