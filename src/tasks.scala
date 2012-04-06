@@ -396,6 +396,11 @@ object AndroidTasks {
       arg <- Seq("-S", (base / r / "res").getCanonicalPath)
     } yield arg
 
+    val res = (if ((bin / "res").exists)
+      Seq("-S", (bin / "res").absolutePath) // bin res
+    else Seq.empty) ++
+      Seq("-S", (base / "res").absolutePath) // resource path
+
     Seq("package",
       // only required if refs lib projects, doesn't hurt otherwise?
       "--auto-add-overlay",
@@ -403,10 +408,8 @@ object AndroidTasks {
       "--generate-dependencies", // generate R.java.d
       "--custom-package", packageName, // package name
       "-M", manifest.absolutePath, // manifest
-      "-S", (bin / "res").absolutePath, // bin res
-      "-S", (base / "res").absolutePath, // resource path
       "-I", androidjar, // platform jar
-      "-J", gen.absolutePath) ++ libraryResources ++ nonConstantId
+      "-J", gen.absolutePath) ++ libraryResources ++ nonConstantId ++ res
   }
 
   val aaptGeneratorOptionsTaskDef = ( manifestPath

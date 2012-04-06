@@ -12,6 +12,7 @@ import scala.xml.XML
 import AndroidKeys._
 
 import AndroidTasks._
+import AndroidCommands._
 
 object AndroidSdkPlugin extends Plugin {
 
@@ -20,6 +21,7 @@ object AndroidSdkPlugin extends Plugin {
   // * ndk TODO
   // * aidl
   // * renderscript
+  // * BuildConfig.java
   // * aapt
   // * compile
   // * obfuscate
@@ -38,9 +40,11 @@ object AndroidSdkPlugin extends Plugin {
                                            , classesJar in Android
                                            ) map {
         (c, b, l, j) =>
+        // remove R.java generated code from library projects
         val sources = if (l) {
           c.sources filter {
-            case (f,n) => !f.getName.matches("R\\W+.*class") }
+            case (f,n) => !f.getName.matches("R\\W+.*class")
+          }
         } else {
           c.sources
         }
@@ -168,6 +172,19 @@ object AndroidSdkPlugin extends Plugin {
     cleanFiles    <+= genPath in Android,
     exportJars     := true,
     unmanagedBase <<= baseDirectory (_ / "libs")
+  ) ++ androidCommands
+
+  lazy val androidCommands: Seq[Setting[_]] = Seq(
+    commands ++= Seq(devices, device)
   )
+
+  def device = Command(
+    "device", ("device", "Select a connected android device"),
+    "Select a device (when there are multiple) to apply actions to"
+  )(deviceParser)(deviceAction)
+
+  def devices = Command.command(
+    "devices", "List connected android devices",
+    "List all connected android devices")(devicesAction)
 }
 
