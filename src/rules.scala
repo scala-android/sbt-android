@@ -79,6 +79,8 @@ object AndroidSdkPlugin extends Plugin {
     }
   )) ++ inConfig(Android) (Seq(
     install                 <<= installTaskDef,
+    run                     <<= runTaskDef(install,
+                                           sdkPath, manifest, packageName),
     packageResourcesOptions <<= packageResourcesOptionsTaskDef,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= setDirectory("out.dir", "bin"),

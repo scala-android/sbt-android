@@ -5,11 +5,12 @@ import classpath.ClasspathUtilities
 import scala.io.Source
 import scala.collection.JavaConversions._
 import scala.util.control.Exception._
-import scala.xml.XML
+import scala.xml.{XML, Elem}
 
 import java.util.Properties
 import java.io.{File,FilenameFilter,FileInputStream}
 
+import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.sdklib.{IAndroidTarget,SdkConstants}
 import com.android.sdklib.build.ApkBuilder
 import com.android.sdklib.internal.build.BuildConfigGenerator
@@ -577,22 +578,71 @@ object AndroidTasks {
     } else None
   }
 
-  val installTaskDef = (packageT, sdkPath, streams) map { (p, k, s) =>
+  private def targetDevice(path: String, log: Logger): Option[IDevice] = {
     AndroidCommands.initAdb
 
-    val devices = AndroidCommands.deviceList(Some(k), s.log)
-    if (devices.isEmpty)
+    val devices = AndroidCommands.deviceList(Some(path), log)
+    if (devices.isEmpty) {
       sys.error("no devices connected")
-    else {
-      val d = AndroidCommands.defaultDevice flatMap { device =>
+    } else {
+      AndroidCommands.defaultDevice flatMap { device =>
         devices find (device == _.getSerialNumber) orElse {
-          s.log.warn("default device not found, falling back to first device")
+          log.warn("default device not found, falling back to first device")
           None
         }
-      } getOrElse {
-        devices(0)
+      } orElse {
+        Some(devices(0))
       }
+    }
+  }
+  def runTaskDef(install: TaskKey[Unit],
+      sdkPath: SettingKey[String],
+      manifest: SettingKey[Elem],
+      packageName: SettingKey[String]) = inputTask { result =>
+    (install, sdkPath, manifest, packageName, result, streams) map {
+      (_, k, m, p, r, s) =>
 
+      targetDevice(k, s.log) foreach { d =>
+        val receiver = new IShellOutputReceiver() {
+          val b = new StringBuilder
+          override def addOutput(data: Array[Byte], offset: Int, length: Int) =
+            b.append(new String(data, offset, length))
+          override def flush() {
+            s.log.info(b.toString)
+            b.clear
+          }
+          override def isCancelled = false
+        }
+        s.log.debug("executing device run command")
+
+        // TODO accept input from args 'r'
+        // runs the first-found activity
+        (m \\ "activity") find { a =>
+          (a \ "intent-filter") exists { filter =>
+            val attrpath = "@{%s}name" format ANDROID_NS
+            (filter \\ attrpath) exists (_.text == "android.intent.action.MAIN")
+          }
+        } map { activity =>
+          val a = activity.attribute(ANDROID_NS, "name") get (0) text
+          val command = "am start %s/%s" format (p, a)
+          s.log.debug("Executing [%s]" format command)
+          d.executeShellCommand(command, receiver)
+          s.log.debug("device run command executed")
+
+          if (receiver.b.toString.length > 0)
+            s.log.info(receiver.b.toString)
+        } getOrElse {
+          sys.error(
+            "No activity found with action 'android.intent.action.MAIN'")
+        }
+      }
+      ()
+    }
+  }
+
+  val installTaskDef = (packageT, sdkPath, streams) map { (p, k, s) =>
+
+    targetDevice(k, s.log) foreach { d =>
       val msg = Option(d.installPackage(p.getAbsolutePath, true))
       msg map { err =>
         sys.error("Install failed: " + err)
