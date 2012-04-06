@@ -83,6 +83,7 @@ object AndroidKeys {
     "proguard task, generates obfuscated.jar")
   val useProguard = SettingKey[Boolean]("use-proguard",
     "whether or not to run proguard, automatically true with scala")
+  val install = TaskKey[Unit]("install", "Install the built app to device")
 
   // alias to ease typing
   val packageT = Keys.`package`

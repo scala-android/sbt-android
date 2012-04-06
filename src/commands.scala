@@ -27,7 +27,7 @@ object AndroidCommands {
   def deviceList(sdkpath: Option[String], log: Logger): Seq[IDevice] = {
     initAdb
 
-    (sdkpath map { path =>
+    val adb = sdkpath map { path =>
       import SdkConstants._
       val adbPath = path + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_ADB
 
@@ -44,11 +44,18 @@ object AndroidCommands {
       }
 
       adb
-    }).getDevices.toSeq
+    }
+
+    val devices = adb.getDevices
+    (if (devices.length == 0) {
+      Thread.sleep(1000)
+      adb.getDevices
+    } else {
+      devices
+    }).toSeq
   }
 
   val devicesAction: State => State = state => {
-    initAdb
 
     val list = deviceList(state)
 
@@ -58,27 +65,32 @@ object AndroidCommands {
       state.log.info("Connected devices:")
       list foreach { dev =>
         val name = Option(dev.getAvdName) getOrElse "device"
-        state.log.info("%24s%s" format (dev.getSerialNumber, name))
+        state.log.info(" %-22s %s" format (dev.getSerialNumber, name))
       }
     }
     state
   }
 
   val deviceParser: State => Parser[String] = state => {
-    initAdb
-    val names: Seq[Parser[String]] = Seq("a","b","c","d")
+    val names: Seq[Parser[String]] = deviceList(state) map (s =>
+      Parser.stringLiteral(s.getSerialNumber, 0))
 
-    Space ~> Parser.oneOf(names)
+    if (names.isEmpty)
+      Space ~> "<no-device>"
+    else
+      Space ~> Parser.oneOf(names)
   }
 
   val deviceAction: (State,String) => State = (state, dev) => {
-    val project = Project.extract(state)
-    val compile = project.get(Keys.compile in Compile)
-    project.runTask(Keys.compile in Compile, state)
+    val devices = deviceList(state)
 
-    state.log.info("selected device: " + dev)
-
-    defaultDevice = Some(dev)
+    devices find (_.getSerialNumber == dev) map { dev =>
+      val serial = dev.getSerialNumber
+      state.log.info("default device: " + serial)
+      defaultDevice = Some(serial)
+    } getOrElse {
+      defaultDevice = None
+    }
     state
   }
 }

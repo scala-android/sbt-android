@@ -577,6 +577,33 @@ object AndroidTasks {
     } else None
   }
 
+  val installTaskDef = (packageT, sdkPath, streams) map { (p, k, s) =>
+    AndroidCommands.initAdb
+
+    val devices = AndroidCommands.deviceList(Some(k), s.log)
+    if (devices.isEmpty)
+      sys.error("no devices connected")
+    else {
+      val d = AndroidCommands.defaultDevice flatMap { device =>
+        devices find (device == _.getSerialNumber) orElse {
+          s.log.warn("default device not found, falling back to first device")
+          None
+        }
+      } getOrElse {
+        devices(0)
+      }
+
+      val msg = Option(d.installPackage(p.getAbsolutePath, true))
+      msg map { err =>
+        sys.error("Install failed: " + err)
+      } getOrElse {
+        s.log.info("Install successful")
+      }
+    }
+
+    ()
+  }
+
   private def findLibraryBinPath(path: File) = {
     val props = loadProperties(path)
     directoriesList("out.dir", "bin", props, path)(0)
