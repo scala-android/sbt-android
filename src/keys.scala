@@ -56,6 +56,8 @@ object AndroidKeys {
   val platform = SettingKey[IAndroidTarget]("platform",
     "IAndroidTarget object representing a target API level")
   val platformJar = SettingKey[String]("platform-jar", "Path to android.jar")
+  val annotationsJar = SettingKey[String]("annotations-jar",
+    "Path to sdk annotations.jar")
   val aaptPath = SettingKey[String]("aapt-path", "path to aapt")
   val aaptNonConstantId = SettingKey[Boolean]("aapt-non-constant-id",
     "generate lib-project R.java files with --non-constant-id, default true")

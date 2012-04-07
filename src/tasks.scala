@@ -533,10 +533,9 @@ object AndroidTasks {
                               , unmanagedClasspath in Compile
                               , dependencyClasspath in Compile
                               , platformJar
-                              , binPath
                               , classesJar
                               ) map {
-    (s, l, e, m, u, d, p, b, c) =>
+    (s, l, e, m, u, d, p, c) =>
 
     // TODO remove duplicate jars
     val injars = ((((m ++ u ++ d) map { _.data }) :+ c) filter {

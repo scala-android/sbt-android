@@ -63,19 +63,24 @@ object AndroidSdkPlugin extends Plugin {
                             _ ++ _ ++ _ ++ _ ++ _),
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile, pngCrunch in Android),
-    javacOptions      <<= (javacOptions, platformJar in Android) {
-      (o, j) =>
+    javacOptions      <<= ( javacOptions
+                          , platformJar in Android
+                          , annotationsJar in Android) {
+      (o, j, a) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (createDebug) Seq("-g") else Seq.empty
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
-      o ++ Seq("-bootclasspath" , j ,
+      o ++ Seq("-bootclasspath" , j + File.pathSeparator + a,
         "-source", "1.5" , "-target", "1.5") ++ debugOptions
     },
-    scalacOptions     <<= (scalacOptions, platformJar in Android) map {
-      (o, j) =>
+    scalacOptions     <<= ( scalacOptions
+                          , platformJar in Android
+                          , annotationsJar in Android) map {
+      (o, j, a) =>
       // scalac has -g:vars by default
-      o ++ Seq("-bootclasspath", j, "-javabootclasspath", j)
+      val bcp = j + File.pathSeparator + a
+      o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Android) (Seq(
     install                 <<= installTaskDef,
@@ -114,6 +119,10 @@ object AndroidSdkPlugin extends Plugin {
       import SdkConstants._
       _ + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
     },
+    annotationsJar           <<= sdkPath {
+      import SdkConstants._
+      _ + OS_SDK_TOOLS_FOLDER + FD_SUPPORT + File.separator + FN_ANNOTATIONS_JAR
+    },
     dex                     <<= dexTaskDef,
     platformJar             <<= platform (
       _.getPath(IAndroidTarget.ANDROID_JAR)),
@@ -133,7 +142,7 @@ object AndroidSdkPlugin extends Plugin {
         ((usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") orElse
           usesSdk(0).attribute(ANDROID_NS, "minSdkVersion")) get (0) text) toInt
     },
-    proguardLibraries        := Seq.empty,
+    proguardLibraries       <<= annotationsJar (j => Seq(file(j))),
     proguardExcludes         := Seq.empty,
     proguardOptions          := Seq.empty,
     proguardConfig           := proguardConfigTaskDef,
