@@ -482,6 +482,7 @@ object AndroidTasks {
     IO.readLinesURL(resourceUrl("android-proguard.config")).toSeq
 
   val dexTaskDef = ( dexPath
+                   , libraryProject
                    , proguard
                    , classesDex
                    , managedClasspath in Compile
@@ -489,7 +490,9 @@ object AndroidTasks {
                    , unmanagedJars in Compile
                    , classesJar
                    , streams) map {
-    (d, p, c, m, e, u, j, s) =>
+    (d, l, p, c, m, e, u, j, s) =>
+    if (l) sys.error("Cannot dex a library project")
+
     val inputs = p map { f => Seq(f) } getOrElse {
       ((m ++ u ++ e) collect {
         // no proguard? then we don't need to dex scala!
@@ -553,8 +556,7 @@ object AndroidTasks {
       , binPath in Android
       , proguardInputs
       , streams
-      ) map {
-    case (p, c, o, l, b, (jars, libjars), s) =>
+      ) map { case (p, c, o, l, b, (jars, libjars), s) =>
     if (p && !l) {
       val t = b / "classes.proguard.jar"
       if ((jars ++ libjars).exists { _.lastModified > t.lastModified }) {
@@ -602,52 +604,56 @@ object AndroidTasks {
     (install, sdkPath, manifest, packageName, result, streams) map {
       (_, k, m, p, r, s) =>
 
-      targetDevice(k, s.log) foreach { d =>
+      // if an arg is specified, try to launch that
+      (if (r.isEmpty) None else Some(r(0))) orElse ((m \\ "activity") find {
+        // runs the first-found activity
+        a => (a \ "intent-filter") exists { filter =>
+          val attrpath = "@{%s}name" format ANDROID_NS
+          (filter \\ attrpath) exists (_.text == "android.intent.action.MAIN")
+        }
+      } map { activity =>
+        "%s/%s" format (p, activity.attribute(ANDROID_NS, "name") get (0) text)
+      }) map { intent =>
         val receiver = new IShellOutputReceiver() {
           val b = new StringBuilder
-          override def addOutput(data: Array[Byte], offset: Int, length: Int) =
-            b.append(new String(data, offset, length))
+          override def addOutput(data: Array[Byte], off: Int, len: Int) =
+            b.append(new String(data, off, len))
           override def flush() {
             s.log.info(b.toString)
             b.clear
           }
           override def isCancelled = false
         }
-        s.log.debug("executing device run command")
-
-        // TODO accept input from args 'r'
-        // runs the first-found activity
-        (m \\ "activity") find { a =>
-          (a \ "intent-filter") exists { filter =>
-            val attrpath = "@{%s}name" format ANDROID_NS
-            (filter \\ attrpath) exists (_.text == "android.intent.action.MAIN")
-          }
-        } map { activity =>
-          val a = activity.attribute(ANDROID_NS, "name") get (0) text
-          val command = "am start %s/%s" format (p, a)
+        targetDevice(k, s.log) map { d =>
+          val command = "am start %s" format intent
           s.log.debug("Executing [%s]" format command)
           d.executeShellCommand(command, receiver)
-          s.log.debug("device run command executed")
 
           if (receiver.b.toString.length > 0)
             s.log.info(receiver.b.toString)
-        } getOrElse {
-          sys.error(
-            "No activity found with action 'android.intent.action.MAIN'")
+
+          s.log.debug("run command executed")
         }
+      } getOrElse {
+        sys.error(
+          "No activity found with action 'android.intent.action.MAIN'")
       }
+
       ()
     }
   }
 
-  val installTaskDef = (packageT, sdkPath, streams) map { (p, k, s) =>
+  val installTaskDef = (packageT, libraryProject, sdkPath, streams) map {
+    (p, l, k, s) =>
 
-    targetDevice(k, s.log) foreach { d =>
-      val msg = Option(d.installPackage(p.getAbsolutePath, true))
-      msg map { err =>
-        sys.error("Install failed: " + err)
-      } getOrElse {
-        s.log.info("Install successful")
+    if (!l) {
+      targetDevice(k, s.log) foreach { d =>
+        val msg = Option(d.installPackage(p.getAbsolutePath, true))
+        msg map { err =>
+          sys.error("Install failed: " + err)
+        } getOrElse {
+          s.log.info("Install successful")
+        }
       }
     }
 
