@@ -35,7 +35,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
     device if there is more than one device. If there is more than one
     device, and no target is selected, all commands will execute against the
     first device in the list.
-  * android:install and android:run are tasks that can be used to install
+  * `android:install` and `android:run` are tasks that can be used to install
     and run the built apk on device respectively.
 * This plugin uses the standard Android project layout as created by
   Eclipse and `android create project`. Additionally, it reads all the
