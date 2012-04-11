@@ -82,6 +82,9 @@ object AndroidSdkPlugin extends Plugin {
       val bcp = j + File.pathSeparator + a
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
+  )) ++ inConfig(Test) (Seq(
+    sourceDirectory            <<= baseDirectory (_ / "test"),
+    unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
   )) ++ inConfig(Android) (Seq(
     install                 <<= installTaskDef,
     run                     <<= runTaskDef(install,
