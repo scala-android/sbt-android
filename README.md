@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.2.1
+Current version is 0.2.2
 
 ## Description ##
 
