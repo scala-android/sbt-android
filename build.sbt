@@ -1,6 +1,6 @@
 name := "android-sdk-plugin"
 
-version := "0.2.2"
+version := "0.2.3-SNAPSHOT"
 
 organization := "com.hanhuy.sbt"
 
@@ -31,7 +31,7 @@ products in Compile <<= ( products in Compile
     jars +: p
 }
 
-libraryDependencies += "net.sf.proguard" % "proguard-base" % "4.6" % "compile"
+libraryDependencies += "net.sf.proguard" % "proguard-base" % "4.7" % "compile"
 
 sbtPlugin := true
 
