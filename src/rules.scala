@@ -83,6 +83,7 @@ object AndroidSdkPlugin extends Plugin {
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
+    scalacOptions in console    := Seq.empty,
     sourceDirectory            <<= baseDirectory (_ / "test"),
     unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
   )) ++ inConfig(Android) (Seq(
