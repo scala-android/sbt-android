@@ -98,7 +98,8 @@ object AndroidSdkPlugin extends Plugin {
     aaptNonConstantId        := true,
     aaptGeneratorOptions    <<= aaptGeneratorOptionsTaskDef,
     aaptGenerator           <<= aaptGeneratorTaskDef,
-    aaptGenerator           <<= aaptGenerator dependsOn renderscript,
+    aaptGenerator           <<= aaptGenerator dependsOn (
+      renderscript, pngCrunch),
     aidl                    <<= aidlTaskDef,
     renderscript            <<= renderscriptTaskDef,
     pngCrunch               <<= pngCrunchTaskDef,

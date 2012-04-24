@@ -132,11 +132,15 @@ object AndroidTasks {
     //val vn = n getOrElse sys.error("versionName is not set")
 
     // crunched path needs to go before uncrunched
-    val libraryResources = for {
-      r <- l
-      arg <- Seq("-S", (findLibraryBinPath(b / r) / "res").getCanonicalPath,
-        "-S", (b / r / "res").getCanonicalPath)
-    } yield arg
+    val resources = (for {
+      r      <- l
+      binPath = (findLibraryBinPath(b / r) / "res")
+      arg <- (if (binPath.exists()) Seq("-S", (binPath.getCanonicalPath)) else
+        Seq.empty[String]) ++ Seq("-S", (b / r / "res").getCanonicalPath)
+    } yield arg) ++ Seq(
+      "-S", (bin / "res").absolutePath, // crunched png path
+      "-S", (b / "res").absolutePath // resource path
+    )
 
     val assets = (b / "assets")
     val assetArgs = if (assets.exists) Seq("-A", assets.getCanonicalPath)
@@ -153,12 +157,10 @@ object AndroidTasks {
       // only required if refs lib projects, doesn't hurt otherwise?
       "--auto-add-overlay",
       "-M", m.absolutePath, // manifest
-      "-S", (bin / "res").absolutePath, // crunched png path
-      "-S", (b / "res").absolutePath, // resource path
       "--generate-dependencies", // generate .d file
       "-I", j,
       "--no-crunch"
-      ) ++ libraryResources ++ assetArgs ++ libraryAssets ++ debug
+      ) ++ resources ++ assetArgs ++ libraryAssets ++ debug
   }
 
   val packageResourcesTaskDef = ( aaptPath
@@ -459,6 +461,7 @@ object AndroidTasks {
       }
     }
 
+    s.log.debug("aapt: " + (a +: o).mkString(" "))
     val r = (a +: o) !
 
     if (r != 0) {
