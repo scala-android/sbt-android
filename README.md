@@ -138,6 +138,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   `scalaVersion := "2.8.2"`
 * Unit testing with robolectric, see my build.sbt for this configuration:
   * https://gist.github.com/2503441
+  * To get rid of robolectric's warnings about not finding certain classes
+    to shadow, change the project target to include google APIs
 
 ### TODO ###
 
