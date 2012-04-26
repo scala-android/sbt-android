@@ -33,6 +33,11 @@ object AndroidSdkPlugin extends Plugin {
   // * zipalign
 
   lazy val androidBuildSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
+    managedClasspath <++= (platform in Android) map { t =>
+      (Option(t.getOptionalLibraries) map {
+        _ map ( j => Attributed.blank(file(j.getJarPath)) )
+      } flatten).toSeq
+    },
     unmanagedSourceDirectories <<= setDirectories("source.dir", "src"),
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
                                            , baseDirectory
@@ -83,6 +88,11 @@ object AndroidSdkPlugin extends Plugin {
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
+    managedClasspath <++= (platform in Android) map { t =>
+      (Option(t.getOptionalLibraries) map {
+        _ map ( j => Attributed.blank(file(j.getJarPath)) )
+      } flatten).toSeq
+    },
     scalacOptions in console    := Seq.empty,
     sourceDirectory            <<= baseDirectory (_ / "test"),
     unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
@@ -185,10 +195,10 @@ object AndroidSdkPlugin extends Plugin {
       m.getTargetFromHashString(p("target"))
     }
   )) ++ Seq(
-    cleanFiles    <+= binPath in Android,
-    cleanFiles    <+= genPath in Android,
-    exportJars     := true,
-    unmanagedBase <<= baseDirectory (_ / "libs")
+    cleanFiles        <+= binPath in Android,
+    cleanFiles        <+= genPath in Android,
+    exportJars         := true,
+    unmanagedBase     <<= baseDirectory (_ / "libs")
   ) ++ androidCommands
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
