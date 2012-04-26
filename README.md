@@ -136,6 +136,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
 * I have found that Scala applications on android build faster if they're
   using scala 2.8.2. Set the scala version in `build.sbt` by entering
   `scalaVersion := "2.8.2"`
+* Unit testing with robolectric, see my build.sbt for this configuration:
+  * https://gist.github.com/2503441
 
 ### TODO ###
 
