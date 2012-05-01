@@ -409,7 +409,6 @@ object AndroidTasks {
       "--auto-add-overlay",
       "-m", // make package directories in gen
       "--generate-dependencies", // generate R.java.d
-      "--custom-package", packageName, // package name
       "-M", manifest.absolutePath, // manifest
       "-I", androidjar, // platform jar
       "-J", gen.absolutePath) ++ libraryResources ++ nonConstantId ++ res
@@ -442,31 +441,25 @@ object AndroidTasks {
     g.mkdirs()
 
     // TODO re-implement R file dependency checking
-    // put lib R.java generation first so that the project's
-    // dependency file can override
-    l foreach { lib =>
+    val libPkgs = l map { lib =>
       val base = b / lib
       val manifest = base / "AndroidManifest.xml"
 
       val m = XML.loadFile(manifest)
-      val pname = m.attribute("package") get (0) text
-
-      val opts = makeAaptOptions(
-        manifest, base, findLibraryBinPath(base), pname, n,
-        List.empty[String], j, g)
-      val res = (a +: opts) !
-
-      if (res != 0) {
-        sys.error("library aapt failed")
-      }
+      m.attribute("package") get (0) text
     }
 
-    s.log.debug("aapt: " + (a +: o).mkString(" "))
-    val r = (a +: o) !
+    // prefix with ":" to match ant scripts
+    val extras = if (libPkgs.isEmpty) Seq.empty
+      else Seq("--extra-packages", ":" + libPkgs mkString ":")
+
+    s.log.debug("aapt: " + (a +: (o ++ extras)).mkString(" "))
+    val r = (a +: (o ++ extras)) !
 
     if (r != 0) {
       sys.error("failed")
     }
+    s.log.info("Generated R.java")
     (g ** "R.java" get) ++ (g ** "Manifest.java" get)
   }
 
