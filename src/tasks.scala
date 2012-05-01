@@ -450,8 +450,9 @@ object AndroidTasks {
     }
 
     // prefix with ":" to match ant scripts
+    s.log.debug("lib packages: " + libPkgs)
     val extras = if (libPkgs.isEmpty) Seq.empty
-      else Seq("--extra-packages", ":" + libPkgs mkString ":")
+      else Seq("--extra-packages", ":" + (libPkgs mkString ":"))
 
     s.log.debug("aapt: " + (a +: (o ++ extras)).mkString(" "))
     val r = (a +: (o ++ extras)) !
