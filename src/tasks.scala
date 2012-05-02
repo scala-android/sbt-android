@@ -494,7 +494,7 @@ object AndroidTasks {
       ((m ++ u ++ e) collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
-          x.data.getName.endsWith(".jar") => x.data
+          x.data.getName.endsWith(".jar") => x.data.getCanonicalFile
       }).toSet.toSeq
     } :+ j
     if (inputs.exists { _.lastModified > c.lastModified }) {
@@ -535,11 +535,12 @@ object AndroidTasks {
     (s, l, e, m, u, d, p, c) =>
 
     // TODO remove duplicate jars
-    val injars = ((((m ++ u ++ d) map { _.data }) :+ c) filter {
-      in =>
-      (s || !in.getName.startsWith("scala-library")) &&
-        !l.exists { i => i.getName == in.getName}
-    }).toSet.toSeq
+    val injars = ((((m ++ u ++ d) map {
+      _.data.getCanonicalFile }) :+ c) filter {
+        in =>
+        (s || !in.getName.startsWith("scala-library")) &&
+          !l.exists { i => i.getName == in.getName}
+      }).toSet.toSeq
 
     (injars,file(p) +: l)
   }
