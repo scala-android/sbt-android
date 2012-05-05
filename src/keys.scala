@@ -39,6 +39,7 @@ object AndroidKeys {
   val manifestPath = SettingKey[File]("manifest-path",
     "android manifest file path")
   val targetSdkVersion = SettingKey[Int]("target-sdk-version", "android target")
+  // TODO turn this and all dependents into a TaskKey, manifest can change
   val manifest = SettingKey[Elem]("manifest", "android manifest xml object")
   val classesJar = SettingKey[File]("classes-jar",
     "generated classes.jar file if in a library project")
@@ -72,6 +73,7 @@ object AndroidKeys {
     "android renderscript source-gen task")
   val dexPath = SettingKey[String]("dex-path", "path to dex")
   val dex = TaskKey[File]("dex", "run bytecode dexer")
+  val dexInputs = TaskKey[Seq[File]]("dex-inputs", "input jars to dex")
   val classesDex = SettingKey[File]("classes-dex", "output classes.dex path")
   val versionName = SettingKey[Option[String]]("version-name",
     "application version name")

@@ -457,10 +457,10 @@ object AndroidTasks {
     s.log.debug("aapt: " + (a +: (o ++ extras)).mkString(" "))
     val r = (a +: (o ++ extras)) !
 
-    if (r != 0) {
+    if (r != 0)
       sys.error("failed")
-    }
-    s.log.info("Generated R.java")
+    else
+      s.log.info("Generated R.java")
     (g ** "R.java" get) ++ (g ** "Manifest.java" get)
   }
 
@@ -478,26 +478,52 @@ object AndroidTasks {
   def proguardConfigTaskDef =
     IO.readLinesURL(resourceUrl("android-proguard.config")).toSeq
 
-  val dexTaskDef = ( dexPath
-                   , libraryProject
-                   , proguard
-                   , classesDex
-                   , managedClasspath in Compile
-                   , dependencyClasspath in Compile
-                   , unmanagedJars in Compile
-                   , classesJar
-                   , streams) map {
-    (d, l, p, c, m, e, u, j, s) =>
-    if (l) sys.error("Cannot dex a library project")
+  def dedupeClasses(bin: File, jars: Seq[File]): Seq[File] = {
+      // only attempt to dedupe if jars with the same name are found
+      if (jars.groupBy(_.getName) exists { case (k,v) => v.size > 1 }) {
+        val combined = bin / "all-classes.jar"
+        val combined_tmp = bin / "all_tmp"
+        if (jars exists (_.lastModified > combined.lastModified)) {
+          IO.createDirectory(combined_tmp)
+          val files = jars.foldLeft (Set.empty[File]) { (acc,j) =>
+            acc ++ IO.unzip(j, combined_tmp, { n: String =>
+              !n.startsWith("META-INF") })
+          }
+          IO.jar(files map { f => (f,IO.relativize(combined_tmp, f).get) },
+            combined, new java.util.jar.Manifest)
+        }
+        IO.delete(combined_tmp)
+        combined :: Nil
+      } else jars
+  }
 
-    val inputs = p map { f => Seq(f) } getOrElse {
-      ((m ++ u ++ e) collect {
+  val dexInputsTaskDef = ( proguard
+                         , binPath
+                         , managedClasspath in Compile
+                         , dependencyClasspath in Compile
+                         , unmanagedJars in Compile
+                         , classesJar
+                         , streams) map {
+    (p, b, m, d, u, j, s) =>
+
+    dedupeClasses(b, p map { f => Seq(f) } getOrElse {
+      ((m ++ u ++ d) collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
           x.data.getName.endsWith(".jar") => x.data.getCanonicalFile
-      }).toSet.toSeq
-    } :+ j
-    if (inputs.exists { _.lastModified > c.lastModified }) {
+      })
+    } :+ j)
+  }
+
+  val dexTaskDef = ( dexPath
+                   , dexInputs
+                   , libraryProject
+                   , classesDex
+                   , streams) map {
+    (d, i, l, c, s) =>
+    if (l) sys.error("Cannot dex a library project")
+
+    if (i.exists { _.lastModified > c.lastModified }) {
       s.log.info("dexing input")
       // TODO maybe split out options into a separate task?
       val cmd = Seq(d, "--dex",
@@ -507,7 +533,7 @@ object AndroidTasks {
         "--num-threads",
         "" + java.lang.Runtime.getRuntime.availableProcessors,
         "--output", c.getAbsolutePath
-        ) ++ (inputs map { _.getAbsolutePath })
+        ) ++ (i map { _.getAbsolutePath })
 
       s.log.debug("dex: " + cmd.mkString(" "))
 
@@ -531,16 +557,17 @@ object AndroidTasks {
                               , dependencyClasspath in Compile
                               , platformJar
                               , classesJar
+                              , binPath
                               ) map {
-    (s, l, e, m, u, d, p, c) =>
+    (s, l, e, m, u, d, p, c, b) =>
 
     // TODO remove duplicate jars
-    val injars = ((((m ++ u ++ d) map {
+    val injars = dedupeClasses(b, ((((m ++ u ++ d) map {
       _.data.getCanonicalFile }) :+ c) filter {
         in =>
         (s || !in.getName.startsWith("scala-library")) &&
           !l.exists { i => i.getName == in.getName}
-      }).toSet.toSeq
+      }))
 
     (injars,file(p) +: l)
   }
@@ -609,7 +636,9 @@ object AndroidTasks {
           (filter \\ attrpath) exists (_.text == "android.intent.action.MAIN")
         }
       } map { activity =>
-        "%s/%s" format (p, activity.attribute(ANDROID_NS, "name") get (0) text)
+        val name = activity.attribute(ANDROID_NS, "name") get (0) text
+
+        "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
       }) map { intent =>
         val receiver = new IShellOutputReceiver() {
           val b = new StringBuilder

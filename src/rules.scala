@@ -138,6 +138,7 @@ object AndroidSdkPlugin extends Plugin {
       import SdkConstants._
       _ + OS_SDK_TOOLS_FOLDER + FD_SUPPORT + File.separator + FN_ANNOTATIONS_JAR
     },
+    dexInputs               <<= dexInputsTaskDef,
     dex                     <<= dexTaskDef,
     platformJar             <<= platform (
       _.getPath(IAndroidTarget.ANDROID_JAR)),
