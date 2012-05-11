@@ -131,6 +131,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   * https://gist.github.com/2503441
   * To get rid of robolectric's warnings about not finding certain classes
     to shadow, change the project target to include google APIs
+  * jberkel has written a Suite trait to be able to use robolectric with
+    scalatest rather than junit, see https://gist.github.com/2654392
 
 ### TODO ###
 
