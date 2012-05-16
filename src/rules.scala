@@ -1,7 +1,7 @@
 import sbt._
 import sbt.Keys._
 
-import com.android.sdklib.{IAndroidTarget,SdkManager,SdkConstants}
+import com.android.sdklib.{IAndroidTarget,SdkManager,SdkConstants,StdSdkLog}
 
 import java.io.File
 import java.util.Properties
@@ -191,7 +191,9 @@ object AndroidSdkPlugin extends Plugin {
     },
     packageRelease          <<= packageRelease dependsOn(setRelease),
     sdkPath                 <<= properties (_("sdk.dir") + File.separator),
-    sdkManager              <<= sdkPath (p => SdkManager.createManager(p,null)),
+    sdkManager              <<= sdkPath { p =>
+      SdkManager.createManager(p, new StdSdkLog)
+    },
     platform                <<= (sdkManager, properties) { (m, p) =>
       m.getTargetFromHashString(p("target"))
     }
