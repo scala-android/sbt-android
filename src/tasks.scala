@@ -651,7 +651,7 @@ object AndroidTasks {
           override def isCancelled = false
         }
         targetDevice(k, s.log) map { d =>
-          val command = "am start %s" format intent
+          val command = "am start -n %s" format intent
           s.log.debug("Executing [%s]" format command)
           d.executeShellCommand(command, receiver)
 
