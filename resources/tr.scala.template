@@ -16,7 +16,7 @@ object TR {
 
 trait TypedViewHolder {
   def findViewById(id: Int): View
-  def fView[A](tr: TypedResource[A]): A =
+  def findView[A](tr: TypedResource[A]): A =
     findViewById(tr.id).asInstanceOf[A]
 }
 
