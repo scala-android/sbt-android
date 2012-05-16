@@ -134,9 +134,13 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   * jberkel has written a Suite trait to be able to use robolectric with
     scalatest rather than junit, see https://gist.github.com/2662806
 
-### TODO ###
+### TODO / Known Issues ###
 
 * Implement the NDK build process
+* Changes to `AndroidManifest.xml` will require the plugin to be reloaded.
+  The manifest data is stored internally as read-only data and does not
+  reload automatically when it is changed. The current workaround is to
+  type `reload` manually everytime `AndroidManifest.xml` is updated.
 
 #### Thanks to ####
 
