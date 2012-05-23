@@ -33,11 +33,6 @@ object AndroidSdkPlugin extends Plugin {
   // * zipalign
 
   lazy val androidBuildSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
-    managedClasspath <++= (platform in Android) map { t =>
-      (Option(t.getOptionalLibraries) map {
-        _ map ( j => Attributed.blank(file(j.getJarPath)) )
-      } flatten).toSeq
-    },
     unmanagedSourceDirectories <<= setDirectories("source.dir", "src"),
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
                                            , baseDirectory
@@ -69,22 +64,25 @@ object AndroidSdkPlugin extends Plugin {
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile, pngCrunch in Android),
     javacOptions      <<= ( javacOptions
-                          , platformJar in Android
+                          , sbtVersion
+                          , platformJars in Android
                           , annotationsJar in Android) {
-      (o, j, a) =>
+      case (o, v, (j, x), a) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (createDebug) Seq("-g") else Seq.empty
+      val bcp = (List(j, a) ++ x) mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
-      o ++ Seq("-bootclasspath" , j + File.pathSeparator + a,
+      // TODO sbt 0.12 expects javacOptions to be a Task, not Setting
+      o ++ Seq("-bootclasspath" , bcp,
         "-source", "1.5" , "-target", "1.5") ++ debugOptions
     },
     scalacOptions     <<= ( scalacOptions
-                          , platformJar in Android
+                          , platformJars in Android
                           , annotationsJar in Android) map {
-      (o, j, a) =>
+      case (o, (j, x), a) =>
       // scalac has -g:vars by default
-      val bcp = j + File.pathSeparator + a
+      val bcp = (List(j, a) ++ x) mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
@@ -140,8 +138,10 @@ object AndroidSdkPlugin extends Plugin {
     },
     dexInputs               <<= dexInputsTaskDef,
     dex                     <<= dexTaskDef,
-    platformJar             <<= platform (
-      _.getPath(IAndroidTarget.ANDROID_JAR)),
+    platformJars            <<= platform { p =>
+      (p.getPath(IAndroidTarget.ANDROID_JAR),
+      (Option(p.getOptionalLibraries) map(_ map(_.getJarPath))).flatten.toSeq)
+    },
     manifestPath            <<= baseDirectory (_ / "AndroidManifest.xml"),
     properties              <<= baseDirectory (b => loadProperties(b)),
     manifest                <<= manifestPath { m => XML.loadFile(m) },

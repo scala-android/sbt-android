@@ -43,13 +43,13 @@ object AndroidTasks {
                                        , aaptGenerator
                                        , packageName
                                        , resourceDirectory in Compile
-                                       , platformJar
+                                       , platformJars
                                        , baseDirectory
                                        , libraryProjects
                                        , genPath
                                        , streams
                                        ) map {
-    (t, a, p, r, j, b, l, g, s) =>
+    case (t, a, p, r, (j, x), b, l, g, s) =>
     val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
     if (!t || !a.exists { _.lastModified > tr.lastModified })
       Seq.empty[File]
@@ -125,9 +125,9 @@ object AndroidTasks {
                                        , baseDirectory
                                        , binPath
                                        , libraryProjects
-                                       , platformJar
+                                       , platformJars
                                        ) map {
-    (m, v, n, b, bin, l, j) =>
+    case (m, v, n, b, bin, l, (j, x)) =>
     //val vc = v getOrElse sys.error("versionCode is not set")
     //val vn = n getOrElse sys.error("versionName is not set")
 
@@ -421,10 +421,10 @@ object AndroidTasks {
                                     , aaptNonConstantId
                                     , libraryProject
                                     , libraryProjects
-                                    , platformJar
+                                    , platformJars
                                     , genPath
                                     ) map {
-    (m, b, bin, p, n, i, l, j, g) =>
+    case (m, b, bin, p, n, i, l, (j, x), g) =>
     makeAaptOptions(m, b, bin, p, i && n, l, j, g)
   }
 
@@ -434,10 +434,10 @@ object AndroidTasks {
                              , genPath
                              , libraryProjects
                              , baseDirectory
-                             , platformJar
+                             , platformJars
                              , streams
                              ) map {
-    (a, o, n, g, l, b, j, s) =>
+    case (a, o, n, g, l, b, (j, x), s) =>
     g.mkdirs()
 
     // TODO re-implement R file dependency checking
@@ -555,11 +555,11 @@ object AndroidTasks {
                               , managedClasspath in Compile
                               , unmanagedClasspath in Compile
                               , dependencyClasspath in Compile
-                              , platformJar
+                              , platformJars
                               , classesJar
                               , binPath
                               ) map {
-    (s, l, e, m, u, d, p, c, b) =>
+    case (s, l, e, m, u, d, (p, x), c, b) =>
 
     // TODO remove duplicate jars
     val injars = dedupeClasses(b, ((((m ++ u ++ d) map {
@@ -569,7 +569,8 @@ object AndroidTasks {
           !l.exists { i => i.getName == in.getName}
       }))
 
-    (injars,file(p) +: l)
+    val extras = x map (f => file(f))
+    (injars,file(p) +: (extras ++ l))
   }
 
   val proguardTaskDef: Project.Initialize[Task[Option[File]]] =

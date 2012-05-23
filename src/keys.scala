@@ -56,7 +56,8 @@ object AndroidKeys {
     "Android SdkManager object")
   val platform = SettingKey[IAndroidTarget]("platform",
     "IAndroidTarget object representing a target API level")
-  val platformJar = SettingKey[String]("platform-jar", "Path to android.jar")
+  val platformJars = SettingKey[(String,Seq[String])]("platform-jars",
+    "Path to android.jar and optional jars (e.g. google apis), if any")
   val annotationsJar = SettingKey[String]("annotations-jar",
     "Path to sdk annotations.jar")
   val aaptPath = SettingKey[String]("aapt-path", "path to aapt")
