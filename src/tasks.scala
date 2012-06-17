@@ -396,7 +396,11 @@ object AndroidTasks {
     val nonConstantId = if (isLib) Seq("--non-constant-id") else Seq.empty
     val libraryResources = for {
       r <- libraries
-      arg <- Seq("-S", (base / r / "res").getCanonicalPath)
+      rbin = findLibraryBinPath(base / r)
+      rbinres = rbin / "res"
+      arg <- (if (rbinres.exists)
+        Seq("-S", rbinres.getCanonicalPath) else Seq.empty) ++
+          Seq("-S", (base / r / "res").getCanonicalPath)
     } yield arg
 
     val res = (if ((bin / "res").exists)
