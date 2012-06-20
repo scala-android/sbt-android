@@ -268,7 +268,10 @@ object AndroidTasks {
                          , signedJar(signed)
                          , keyStore(file(store).toURI.toURL)
                          )
-        sign(a, alias, options) { (jarsigner, args) => (jarsigner +: args) !  }
+        sign(a, alias, options) { (jarsigner, args) =>
+          (jarsigner +: (args ++ Seq(
+            "-digestalg", "SHA1", "-sigalg", "MD5withRSA"))) !
+        }
 
         s.log.info("Signed: " + signed.getName)
         signed
@@ -600,7 +603,20 @@ object AndroidTasks {
           (b / "mappings.txt").getAbsolutePath)
         val cfg = c ++ o ++ libraryjars ++ printmappings :+ injars :+ outjars
         val config = new PgConfig
-        new ConfigurationParser(cfg.toArray[String]).parse(config)
+        val cpclass = classOf[ConfigurationParser]
+        import java.util.Properties
+        // support proguard 4.8+ in the getOrElse case
+        // if the api changes again, it will be a runtime error
+        val parser: ConfigurationParser =
+          catching(classOf[NoSuchMethodException]) opt {
+            val ctor = cpclass.getConstructor(classOf[Array[String]])
+            ctor.newInstance(cfg.toArray[String])
+          } getOrElse {
+            val ctor = cpclass.getConstructor(classOf[Array[String]],
+              classOf[Properties])
+            ctor.newInstance(cfg.toArray[String], new Properties)
+          }
+        parser.parse(config)
         new ProGuard(config).execute
       } else {
         s.log.info(t.getName + " is up-to-date")
