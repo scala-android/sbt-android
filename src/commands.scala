@@ -64,7 +64,9 @@ object AndroidCommands {
     } else {
       state.log.info("Connected devices:")
       list foreach { dev =>
-        val name = Option(dev.getAvdName) getOrElse "device"
+        val name = Option(dev.getAvdName) orElse
+          Option(dev.getProperty("ro.build.product")) getOrElse "device"
+
         state.log.info(" %-22s %s" format (dev.getSerialNumber, name))
       }
     }
