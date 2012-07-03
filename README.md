@@ -141,6 +141,10 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   The manifest data is stored internally as read-only data and does not
   reload automatically when it is changed. The current workaround is to
   type `reload` manually everytime `AndroidManifest.xml` is updated.
+* Adding new resource files without updating existing resource files will
+  result in `resources.ap_` not being rebuilt. Symptom: weird crashes
+  around resource inflation. Workaround: clean or touch an existing resource
+  file.
 * sbt `0.12` breaks compatibility with this plugin. Don't have a solution yet,
   the current workaround is to change `javacOptions <<= (....) { .... }` to
   `javacOptions <<= (....) map { .... }` and use a locally published plugin.
