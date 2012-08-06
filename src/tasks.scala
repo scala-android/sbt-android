@@ -753,6 +753,9 @@ object AndroidTasks {
     }) ++ (for {
         d <- l
         j <- findLibraryLibPath(b / d) * "*.jar" get
+      } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
+        d <- Seq(b / "libs", b / "lib")
+        j <- d * "*.jar" get
       } yield Attributed.blank(j.getCanonicalFile))
     ) filter { !_.data.getName.startsWith("scala-library") }
   }
