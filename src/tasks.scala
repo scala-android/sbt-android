@@ -132,15 +132,15 @@ object AndroidTasks {
     //val vn = n getOrElse sys.error("versionName is not set")
 
     // crunched path needs to go before uncrunched
-    val resources = (for {
+    val resources = Seq(
+      "-S", (bin / "res").absolutePath, // crunched png path
+      "-S", (b / "res").absolutePath // resource path
+    ) ++ (for {
       r      <- l
       binPath = (findLibraryBinPath(b / r) / "res")
       arg <- (if (binPath.exists()) Seq("-S", (binPath.getCanonicalPath)) else
         Seq.empty[String]) ++ Seq("-S", (b / r / "res").getCanonicalPath)
-    } yield arg) ++ Seq(
-      "-S", (bin / "res").absolutePath, // crunched png path
-      "-S", (b / "res").absolutePath // resource path
-    )
+    } yield arg)
 
     val assets = (b / "assets")
     val assetArgs = if (assets.exists) Seq("-A", assets.getCanonicalPath)
@@ -418,7 +418,7 @@ object AndroidTasks {
       "--generate-dependencies", // generate R.java.d
       "-M", manifest.absolutePath, // manifest
       "-I", androidjar, // platform jar
-      "-J", gen.absolutePath) ++ libraryResources ++ nonConstantId ++ res
+      "-J", gen.absolutePath) ++ res ++ libraryResources ++ nonConstantId
   }
 
   val aaptGeneratorOptionsTaskDef = ( manifestPath
