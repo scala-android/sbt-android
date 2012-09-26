@@ -190,7 +190,11 @@ object AndroidSdkPlugin extends Plugin {
       _ getOrElse sys.error("package failed")
     },
     packageRelease          <<= packageRelease dependsOn(setRelease),
-    sdkPath                 <<= properties (_("sdk.dir") + File.separator),
+    sdkPath                 <<= (thisProject,properties) { (p,props) =>
+        Option(props get "sdk.dir") map (_+File.separator) getOrElse (
+        sys.error("please run 'android update project -p %s'" format p.base)
+      )
+    },
     sdkManager              <<= sdkPath { p =>
       SdkManager.createManager(p, new StdSdkLog)
     },
