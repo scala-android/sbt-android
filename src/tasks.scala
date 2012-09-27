@@ -190,26 +190,27 @@ object AndroidTasks {
   }
 
   // TODO this fails when new files are added but none are modified
-  // TODO fix for form: file1 file2 : dependency list
   private def outofdate(dfile: File): Boolean = {
-    val dependencies = (IO.readLines(dfile).foldLeft(
-      (Map.empty[String,Seq[String]], Option[String](null))) {
-        case ((deps, dep), line) =>
-        val d = if (dep.isEmpty) {
-          Option(line.init.trim)
-        } else if (!line.endsWith("\\")) {
-          None
-        } else dep
+    val (targets, dependencies, _) = IO.readLines(dfile).foldLeft(
+      (Seq.empty[String],Seq.empty[String],false)) {
+      case ((target, dep, doingDeps), line) =>
+      val l = line.stripSuffix("\\").trim
+      val l2 = l.stripPrefix(":").trim
+      if (l == l2 && !doingDeps) {
+        (target :+ l,dep,doingDeps)
+      } else if (l == l2 && doingDeps) {
+        (target,dep :+ l,doingDeps)
+      } else if (l != l2) {
+        (target,dep :+ l2,true)
+      } else {
+        sys.error("unexpected state: " + l)
+      }
+    }
 
-      ((dep map { n =>
-        val l = line.stripSuffix("\\").trim.stripPrefix(":").trim
-        deps + (n -> ((deps.get(n) getOrElse Seq.empty) :+ l))
-      } getOrElse deps), d)
-    })._1
-
-    dependencies.exists { case (d,l) =>
-      val f = new File(d)
-      l.exists { i => new File(i).lastModified > f.lastModified }
+    val dependencyFiles = dependencies map { d => new File(d) }
+    targets exists { t =>
+      val target = new File(t)
+      dependencyFiles exists { _.lastModified > target.lastModified }
     }
   }
 
@@ -447,27 +448,32 @@ object AndroidTasks {
     case (a, o, n, g, l, b, (j, x), s) =>
     g.mkdirs()
 
-    // TODO re-implement R file dependency checking
-    val libPkgs = l map { lib =>
-      val base = b / lib
-      val manifest = base / "AndroidManifest.xml"
+    val dfile = g * "R.java.d" get
 
-      val m = XML.loadFile(manifest)
-      m.attribute("package") get (0) text
-    }
+    if (dfile.isEmpty || (dfile exists outofdate)) {
 
-    // prefix with ":" to match ant scripts
-    s.log.debug("lib packages: " + libPkgs)
-    val extras = if (libPkgs.isEmpty) Seq.empty
-      else Seq("--extra-packages", ":" + (libPkgs mkString ":"))
+      val libPkgs = l map { lib =>
+        val base = b / lib
+        val manifest = base / "AndroidManifest.xml"
 
-    s.log.debug("aapt: " + (a +: (o ++ extras)).mkString(" "))
-    val r = (a +: (o ++ extras)) !
+        val m = XML.loadFile(manifest)
+        m.attribute("package") get (0) text
+      }
 
-    if (r != 0)
-      sys.error("failed")
-    else
-      s.log.info("Generated R.java")
+      // prefix with ":" to match ant scripts
+      s.log.debug("lib packages: " + libPkgs)
+      val extras = if (libPkgs.isEmpty) Seq.empty
+        else Seq("--extra-packages", ":" + (libPkgs mkString ":"))
+
+      s.log.debug("aapt: " + (a +: (o ++ extras)).mkString(" "))
+      val r = (a +: (o ++ extras)) !
+
+      if (r != 0)
+        sys.error("failed")
+      else
+        s.log.info("Generated R.java")
+    } else
+      s.log.info("R.java is up-to-date")
     (g ** "R.java" get) ++ (g ** "Manifest.java" get)
   }
 
