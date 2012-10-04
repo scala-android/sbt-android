@@ -96,6 +96,7 @@ object AndroidSdkPlugin extends Plugin {
     unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
   )) ++ inConfig(Android) (Seq(
     install                 <<= installTaskDef,
+    uninstall               <<= uninstallTaskDef,
     run                     <<= runTaskDef(install,
                                            sdkPath, manifest, packageName),
     packageResourcesOptions <<= packageResourcesOptionsTaskDef,

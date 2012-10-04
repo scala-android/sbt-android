@@ -721,16 +721,23 @@ object AndroidTasks {
 
     if (!l) {
       targetDevice(k, s.log) foreach { d =>
-        val msg = Option(d.installPackage(p.getAbsolutePath, true))
-        msg map { err =>
+        Option(d.installPackage(p.getAbsolutePath, true)) map { err =>
           sys.error("Install failed: " + err)
         } getOrElse {
           s.log.info("Install successful")
         }
       }
     }
+  }
 
-    ()
+  val uninstallTaskDef = (sdkPath, packageName, streams) map { (k,p,s) =>
+    targetDevice(k, s.log) foreach { d =>
+      Option(d.uninstallPackage(p)) map { err =>
+        sys.error("Uninstall failed: " + err)
+      } getOrElse {
+        s.log.info("Uninstall successful")
+      }
+    }
   }
 
   private def findLibraryBinPath(path: File) = {
