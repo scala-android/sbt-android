@@ -159,6 +159,7 @@ object AndroidTasks {
       "-M", m.absolutePath, // manifest
       "--generate-dependencies", // generate .d file
       "-I", j,
+      "-G", (bin / "proguard.txt").absolutePath,
       "--no-crunch"
       ) ++ resources ++ assetArgs ++ libraryAssets ++ debug
   }
@@ -488,8 +489,25 @@ object AndroidTasks {
     ()
   }
 
-  def proguardConfigTaskDef =
-    IO.readLinesURL(resourceUrl("android-proguard.config")).toSeq
+  val proguardConfigTaskDef = ( baseDirectory
+                              , binPath
+                              , sdkPath
+                              , useSdkProguard) map {
+    (base,bin,p,u) =>
+    if (!u)
+      IO.readLinesURL(resourceUrl("android-proguard.config")).toSeq
+    else {
+      import SdkConstants._
+      import File.{separator => S}
+      val c1 = file(p + OS_SDK_TOOLS_FOLDER + FD_PROGUARD + S +
+        FN_ANDROID_PROGUARD_FILE)
+
+      val c2 = base / "proguard-project.txt"
+      val c3 = bin / "proguard.txt"
+      (IO.readLines(c1) ++ (if (c2.exists) IO.readLines(c2) else Seq.empty) ++
+        (if (c3.exists) IO.readLines(c3) else Seq.empty)).toSeq: Seq[String]
+    }
+  }
 
   def dedupeClasses(bin: File, jars: Seq[File]): Seq[File] = {
       // only attempt to dedupe if jars with the same name are found
@@ -588,14 +606,15 @@ object AndroidTasks {
 
   val proguardTaskDef: Project.Initialize[Task[Option[File]]] =
       ( useProguard
+      , useProguardInDebug
       , proguardConfig
       , proguardOptions
       , libraryProject
       , binPath in Android
       , proguardInputs
       , streams
-      ) map { case (p, c, o, l, b, (jars, libjars), s) =>
-    if (p && !l) {
+      ) map { case (p, d, c, o, l, b, (jars, libjars), s) =>
+    if ((p && !createDebug && !l) || ((d && createDebug) && !l)) {
       val t = b / "classes.proguard.jar"
       if ((jars ++ libjars).exists { _.lastModified > t.lastModified }) {
         val injars = "-injars " + (jars map {
@@ -608,6 +627,7 @@ object AndroidTasks {
         val printmappings = Seq("-printmapping",
           (b / "mappings.txt").getAbsolutePath)
         val cfg = c ++ o ++ libraryjars ++ printmappings :+ injars :+ outjars
+        cfg foreach (l => s.log.debug(l))
         val config = new PgConfig
         val cpclass = classOf[ConfigurationParser]
         import java.util.Properties

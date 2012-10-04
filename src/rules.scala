@@ -161,7 +161,7 @@ object AndroidSdkPlugin extends Plugin {
     proguardLibraries       <<= annotationsJar (j => Seq(file(j))),
     proguardExcludes         := Seq.empty,
     proguardOptions          := Seq.empty,
-    proguardConfig           := proguardConfigTaskDef,
+    proguardConfig          <<= proguardConfigTaskDef,
     proguard                <<= proguardTaskDef,
     proguard                <<= proguard dependsOn (packageT in Compile),
     proguardInputs          <<= proguardInputsTaskDef,
@@ -171,6 +171,8 @@ object AndroidSdkPlugin extends Plugin {
     typedResources          <<= proguardScala,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
     useProguard             <<= proguardScala,
+    useSdkProguard          <<= proguardScala (!_),
+    useProguardInDebug      <<= proguardScala,
     packageResources        <<= packageResourcesTaskDef,
     // packageResources needs to happen after all other project's crunches
     packageResources        <<= packageResources dependsOn(pngCrunch, dex),
