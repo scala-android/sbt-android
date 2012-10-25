@@ -67,6 +67,7 @@ object AndroidKeys {
     "generate BuildConfig.java")
   val aaptGeneratorOptions = TaskKey[Seq[String]]("aapt-generator-options",
     "android aapt source-gen options task")
+  val cleanAapt = TaskKey[Unit]("clean-aapt", "clean aapt generated files")
   val aaptGenerator = TaskKey[Seq[File]]("aapt-generator",
     "android aapt source-gen task")
   val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task")

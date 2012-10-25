@@ -55,6 +55,7 @@ object AndroidSdkPlugin extends Plugin {
     resourceDirectory <<= baseDirectory (_ / "res"),
     unmanagedJars     <<= unmanagedJarsTaskDef,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
+    cleanAapt         <<= cleanAaptTaskDef,
     sourceGenerators  <+= (aaptGenerator in Android
                           , typedResourcesGenerator in Android
                           , aidl in Android

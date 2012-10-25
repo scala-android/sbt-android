@@ -164,6 +164,13 @@ object AndroidTasks {
       ) ++ resources ++ assetArgs ++ libraryAssets ++ debug
   }
 
+  val cleanAaptTaskDef = ( binPath, genPath ) map { (b,g) =>
+    val rel = if (createDebug) "-debug" else "-release"
+    val basename = "resources" + rel + ".ap_"
+    val p = b / basename
+    p.delete()
+    IO.delete(g)
+  }
   val packageResourcesTaskDef = ( aaptPath
                                 , packageResourcesOptions
                                 , baseDirectory
