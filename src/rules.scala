@@ -55,7 +55,6 @@ object AndroidSdkPlugin extends Plugin {
     resourceDirectory <<= baseDirectory (_ / "res"),
     unmanagedJars     <<= unmanagedJarsTaskDef,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
-    cleanAapt         <<= cleanAaptTaskDef,
     sourceGenerators  <+= (aaptGenerator in Android
                           , typedResourcesGenerator in Android
                           , aidl in Android
@@ -100,6 +99,7 @@ object AndroidSdkPlugin extends Plugin {
     uninstall               <<= uninstallTaskDef,
     run                     <<= runTaskDef(install,
                                            sdkPath, manifest, packageName),
+    cleanAapt               <<= cleanAaptTaskDef,
     packageResourcesOptions <<= packageResourcesOptionsTaskDef,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= setDirectory("out.dir", "bin"),
