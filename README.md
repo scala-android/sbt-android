@@ -111,7 +111,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
     https://gist.github.com/2296619
     * This example does the same as above, except allows loading an arbitrary
       Java or Scala project into the Android app.
-  * See [Working with Android library projects](/wiki/Working-with-Android-library-projects) 
+  * See [Working with Android library projects](https://github.com/pfn/android-sdk-plugin/wiki/Working-with-Android-library-projects) 
     in the Wiki for detailed instructions on configuring Android library projects
 * Configuring `android-sdk-plugin` by editing build.sbt
   * `import AndroidKeys._` at the top to make sure you can use the plugin's
