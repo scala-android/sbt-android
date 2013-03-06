@@ -757,6 +757,14 @@ object AndroidTasks {
     Seq("libs", "lib") map { path / _ } find { _.exists } getOrElse (
       path / "libs")
 
+  def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):
+  Seq[String] = {
+      p.stringPropertyNames.collect {
+        case k if k.startsWith("android.library.reference") => k
+      }.toList.sortWith { (a,b) => a < b } map { k =>
+        p(k) +: loadLibraryReferences(b, loadProperties(b/p(k)), k) } flatten
+  }
+
   def loadProperties(path: File): Properties = {
     val p = new Properties
     (path * "*.properties" get) foreach { f =>

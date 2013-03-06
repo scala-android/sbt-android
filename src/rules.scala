@@ -114,10 +114,8 @@ object AndroidSdkPlugin extends Plugin {
     renderscript            <<= renderscriptTaskDef,
     pngCrunch               <<= pngCrunchTaskDef,
     genPath                 <<= baseDirectory (_ / "gen"),
-    libraryProjects         <<= properties { p =>
-      p.stringPropertyNames.collect {
-        case k if k.startsWith("android.library.reference") => k
-      }.toList.sortWith { (a,b) => a < b } map { k => p(k) }
+    libraryProjects         <<= (baseDirectory, properties) { (b,p) =>
+	  loadLibraryReferences(b, p)
     },
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
