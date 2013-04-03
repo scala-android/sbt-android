@@ -148,8 +148,9 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   around resource inflation. Workaround: clean or touch an existing resource
   file.
 * sbt `0.12` currently has a bug where jars specified in javac's -bootclasspath
-  option forces a full rebuild of all classes everytime. Currently waiting on
-  sbt 0.12.3 for a fix.
+  option forces a full rebuild of all classes everytime. sbt 0.12.3 has a hack
+  that should workaround this problem, add -Dxsbt.skip.cp.lookup=true to your
+  sbt launcher script's java command.
 
 #### Thanks to ####
 
