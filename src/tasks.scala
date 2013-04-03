@@ -549,8 +549,11 @@ object AndroidTasks {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
           x.data.getName.endsWith(".jar") => x.data.getCanonicalFile
-      })
-    } :+ j).groupBy (_.getName) map (_._2.head) toSeq
+      }) :+ j
+    }).groupBy (_.getName).collect {
+      case ("classes.jar",xs) => xs.distinct
+      case (_,xs) => xs.head :: Nil
+    }.flatten.toSeq
   }
 
   val dexTaskDef = ( dexPath
