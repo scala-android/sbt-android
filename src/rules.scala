@@ -68,7 +68,7 @@ object AndroidSdkPlugin extends Plugin {
     javacOptions      <<= ( javacOptions
                           , sbtVersion
                           , platformJars in Android
-                          , annotationsJar in Android) map {
+                          , annotationsJar in Android) {
       case (o, v, (j, x), a) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (createDebug) Seq("-g") else Seq.empty
