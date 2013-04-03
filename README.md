@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.3.14
+Current version is 0.3.15
 
 ## Description ##
 
@@ -64,7 +64,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.3.14")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.3.15")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
@@ -149,8 +149,10 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   file.
 * sbt `0.12` currently has a bug where jars specified in javac's -bootclasspath
   option forces a full rebuild of all classes everytime. sbt 0.12.3 has a hack
-  that should workaround this problem, add -Dxsbt.skip.cp.lookup=true to your
-  sbt launcher script's java command.
+  that should workaround this problem. The plugin sets the system property
+  `xsbt.skip.cp.lookup` to `true` to bypass this issue; this disables certain
+  incremental compilation checks, but should not be an issue for the majority
+  of use-cases.
 
 #### Thanks to ####
 
