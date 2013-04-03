@@ -544,13 +544,13 @@ object AndroidTasks {
                          , streams) map {
     (p, b, m, d, u, j, s) =>
 
-    dedupeClasses(b, p map { f => Seq(f) } getOrElse {
+    (p map { f => dedupeClasses(b, Seq(f)) } getOrElse {
       ((m ++ u ++ d) collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
           x.data.getName.endsWith(".jar") => x.data.getCanonicalFile
       })
-    } :+ j)
+    } :+ j).groupBy (_.getName) map (_._2.head) toSeq
   }
 
   val dexTaskDef = ( dexPath
@@ -568,6 +568,7 @@ object AndroidTasks {
         // TODO support instrumented builds
         // --no-locals if instrumented
         // --verbose
+        "--incremental",
         "--num-threads",
         "" + java.lang.Runtime.getRuntime.availableProcessors,
         "--output", c.getAbsolutePath
