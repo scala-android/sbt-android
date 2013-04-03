@@ -16,8 +16,6 @@ import AndroidCommands._
 
 object AndroidSdkPlugin extends Plugin {
 
-  System.setProperty("xsbt.skip.cp.lookup", "true")
-
   // android build steps
   // * handle library dependencies (android.library.reference.N)
   // * ndk TODO
