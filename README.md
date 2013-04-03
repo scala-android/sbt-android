@@ -147,9 +147,9 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   result in `resources.ap_` not being rebuilt. Symptom: weird crashes
   around resource inflation. Workaround: clean or touch an existing resource
   file.
-* sbt `0.12` breaks compatibility with this plugin. Don't have a solution yet,
-  the current workaround is to change `javacOptions <<= (....) { .... }` to
-  `javacOptions <<= (....) map { .... }` and use a locally published plugin.
+* sbt `0.12` currently has a bug where jars specified in javac's -bootclasspath
+  option forces a full rebuild of all classes everytime. Currently waiting on
+  sbt 0.12.3 for a fix.
 
 #### Thanks to ####
 
