@@ -25,6 +25,8 @@ object AndroidKeys {
   val signRelease = TaskKey[File]("sign-release", "sign the release build")
   val zipalignPath = SettingKey[String]("zipalign-path",
     "path to the zipalign executable")
+  val apklibs = TaskKey[Seq[LibraryProject]]("apklibs",
+    "unpack the set of referenced apklibs")
   val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
   val setRelease = TaskKey[Unit]("set-release", "set release build")
   val pngCrunch = TaskKey[Unit]("png-crunch", "optimize png files")
@@ -43,7 +45,7 @@ object AndroidKeys {
   val manifest = SettingKey[Elem]("manifest", "android manifest xml object")
   val classesJar = SettingKey[File]("classes-jar",
     "generated classes.jar file if in a library project")
-  val libraryProjects = SettingKey[Seq[String]]("library-projects",
+  val libraryProjects = TaskKey[Seq[LibraryProject]]("library-projects",
     "android library projects to reference, must be built separately")
   val libraryProject = SettingKey[Boolean]("library-project",
     "flag indicating whether or not a library project")
@@ -99,4 +101,6 @@ object AndroidKeys {
   // alias to ease typing
   val packageT = Keys.`package`
   val Android = config("android")
+
+  case class LibraryProject(path: File, pkg: String)
 }

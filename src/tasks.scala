@@ -39,6 +39,22 @@ object AndroidTasks {
     generator.generate()
     g ** "BuildConfig.java" get
   }
+  val apklibsTaskDef = (update in Compile, target, streams) map { (u,t,s) =>
+    val libs = u.matching(artifactFilter(`type` = "apklib"))
+    val dest = t / "apklibs"
+    libs map { l =>
+      val d = dest / l.base
+      if (d.lastModified < l.lastModified) {
+        s.log.info("Unpacking apklib: " + l.base)
+        d.mkdirs()
+        IO.unzip(l, d)
+      }
+      val m = d / "AndroidManifest.xml"
+      val pkg = XML.loadFile(m).attribute("package").get(0).text
+      LibraryProject(d, pkg)//, (d ** "*.java" get) ++ (d ** "*.scala" get))
+    }
+  }
+
   val typedResourcesGeneratorTaskDef = ( typedResources
                                        , aaptGenerator
                                        , packageName
@@ -58,7 +74,7 @@ object AndroidTasks {
       val layouts = (r ** "layout*" ** "*.xml" get) ++
         (for {
           lib <- l
-          xml <- (b / lib) ** "layout*" ** "*.xml" get
+          xml <- (lib.path) ** "layout*" ** "*.xml" get
         } yield xml)
 
       // XXX handle package references? @id/android:ID or @id:android/ID
@@ -137,9 +153,9 @@ object AndroidTasks {
       "-S", (b / "res").absolutePath // resource path
     ) ++ (for {
       r      <- l
-      binPath = (findLibraryBinPath(b / r) / "res")
+      binPath = (findLibraryBinPath(r.path) / "res")
       arg <- (if (binPath.exists()) Seq("-S", (binPath.getCanonicalPath)) else
-        Seq.empty[String]) ++ Seq("-S", (b / r / "res").getCanonicalPath)
+        Seq.empty[String]) ++ Seq("-S", (r.path / "res").getCanonicalPath)
     } yield arg)
 
     val assets = (b / "assets")
@@ -147,8 +163,8 @@ object AndroidTasks {
       else Seq.empty
 
     val libraryAssets = for {
-      d <- l collect { case r if (b / r / "assets").exists =>
-        (b/r/"assets").getCanonicalPath }
+      d <- l collect { case r if (r.path / "assets").exists =>
+        (r.path/"assets").getCanonicalPath }
       arg <- Seq("-A", d)
     } yield arg
 
@@ -242,9 +258,10 @@ object AndroidTasks {
       if (createDebug) ApkBuilder.getDebugKeystore else null, null)
 
     builder.setDebugMode(createDebug)
-    (m ++ u) foreach { j => builder.addResourcesFromJar(j.data) }
+    (m ++ u) filter (_.data.exists) foreach {
+      j => builder.addResourcesFromJar(j.data) }
 
-    val nativeLibraries = (p map { z => findLibraryLibPath(base / z) } collect {
+    val nativeLibraries = (p map { z => findLibraryLibPath(z.path) } collect {
       case f if f.exists => f
     } map {
         ApkBuilder.getNativeFiles(_, createDebug)
@@ -402,17 +419,17 @@ object AndroidTasks {
   }
 
   private def makeAaptOptions(manifest: File, base: File, bin: File,
-      packageName: String, isLib: Boolean, libraries: Seq[String],
+      packageName: String, isLib: Boolean, libraries: Seq[LibraryProject],
       androidjar: String, gen: File) = {
 
     val nonConstantId = if (isLib) Seq("--non-constant-id") else Seq.empty
     val libraryResources = for {
       r <- libraries
-      rbin = findLibraryBinPath(base / r)
+      rbin = findLibraryBinPath(r.path)
       rbinres = rbin / "res"
       arg <- (if (rbinres.exists)
         Seq("-S", rbinres.getCanonicalPath) else Seq.empty) ++
-          Seq("-S", (base / r / "res").getCanonicalPath)
+          Seq("-S", (r.path / "res").getCanonicalPath)
     } yield arg
 
     val res = (if ((bin / "res").exists)
@@ -460,13 +477,7 @@ object AndroidTasks {
 
     if (dfile.isEmpty || (dfile exists outofdate)) {
 
-      val libPkgs = l map { lib =>
-        val base = b / lib
-        val manifest = base / "AndroidManifest.xml"
-
-        val m = XML.loadFile(manifest)
-        m.attribute("package") get (0) text
-      }
+      val libPkgs = l map { _.pkg }
 
       // prefix with ":" to match ant scripts
       s.log.debug("lib packages: " + libPkgs)
@@ -523,7 +534,8 @@ object AndroidTasks {
         val combined_tmp = bin / "all_tmp"
         if (jars exists (_.lastModified > combined.lastModified)) {
           IO.createDirectory(combined_tmp)
-          val files = jars.foldLeft (Set.empty[File]) { (acc,j) =>
+          val files = jars.filter(_.exists).foldLeft (Set.empty[File]) {
+            (acc,j) =>
             acc ++ IO.unzip(j, combined_tmp, { n: String =>
               !n.startsWith("META-INF") })
           }
@@ -553,7 +565,7 @@ object AndroidTasks {
     }).groupBy (_.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
-    }.flatten.toSeq
+    }.flatten.toSeq filter (_.exists)
   }
 
   val dexTaskDef = ( dexPath
@@ -762,11 +774,15 @@ object AndroidTasks {
       path / "libs")
 
   def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):
-  Seq[String] = {
+  Seq[LibraryProject] = {
       p.stringPropertyNames.collect {
         case k if k.startsWith("android.library.reference") => k
       }.toList.sortWith { (a,b) => a < b } map { k =>
-        p(k) +: loadLibraryReferences(b, loadProperties(b/p(k)), k) } flatten
+        val manifest = b/p(k)/"AndroidManifest.xml"
+        val pkg = XML.loadFile(manifest).attribute("package").get(0).text
+        LibraryProject(b/p(k), pkg) +:
+          loadLibraryReferences(b, loadProperties(b/p(k)), k)
+      } flatten
   }
 
   def loadProperties(path: File): Properties = {
@@ -800,11 +816,11 @@ object AndroidTasks {
 
     // remove scala-library if present
     // add all dependent library projects' classes.jar files
-    (u ++ (l map { p => Attributed.blank((findLibraryBinPath(b / p) /
+    (u ++ (l map { p => Attributed.blank((findLibraryBinPath(p.path) /
       "classes.jar").getCanonicalFile)
     }) ++ (for {
         d <- l
-        j <- findLibraryLibPath(b / d) * "*.jar" get
+        j <- findLibraryLibPath(d.path) * "*.jar" get
       } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
         d <- Seq(b / "libs", b / "lib")
         j <- d * "*.jar" get
