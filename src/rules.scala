@@ -57,10 +57,18 @@ object AndroidSdkPlugin extends Plugin {
     classDirectory    <<= (binPath in Android) (_ / "classes"),
     sourceGenerators  <+= (aaptGenerator in Android
                           , typedResourcesGenerator in Android
+                          , apklibs in Android
                           , aidl in Android
                           , buildConfigGenerator in Android
-                          , renderscript in Android) map (
-                            _ ++ _ ++ _ ++ _ ++ _),
+                          , renderscript in Android) map {
+      (a, tr, apkl, aidl, bcg, rs) =>
+      val apkls = apkl map { l =>
+        ((l.path / "src") ** "*.java" get) ++
+          ((l.path / "src") ** "*.scala" get)
+      } flatten
+
+      a ++ tr ++ aidl ++ bcg ++ rs ++ apkls
+    },
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile, pngCrunch in Android),
     javacOptions      <<= ( javacOptions
@@ -95,6 +103,7 @@ object AndroidSdkPlugin extends Plugin {
     sourceDirectory            <<= baseDirectory (_ / "test"),
     unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
   )) ++ inConfig(Android) (Seq(
+    apklibs           <<= apklibsTaskDef,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
     run                     <<= runTaskDef(install,
@@ -114,8 +123,9 @@ object AndroidSdkPlugin extends Plugin {
     renderscript            <<= renderscriptTaskDef,
     pngCrunch               <<= pngCrunchTaskDef,
     genPath                 <<= baseDirectory (_ / "gen"),
-    libraryProjects         <<= (baseDirectory, properties) { (b,p) =>
-	  loadLibraryReferences(b, p)
+    libraryProjects         <<= (baseDirectory, properties, apklibs) map {
+      (b,p,a) =>
+	  a ++ loadLibraryReferences(b, p)
     },
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
