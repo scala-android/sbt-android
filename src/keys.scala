@@ -2,6 +2,7 @@ import sbt._
 import sbt.Keys._
 
 import scala.xml.Elem
+import scala.xml.XML
 
 import java.io.File
 import java.util.Properties
@@ -102,5 +103,12 @@ object AndroidKeys {
   val packageT = Keys.`package`
   val Android = config("android")
 
-  case class LibraryProject(path: File, pkg: String)
+  case class LibraryProject(path: File, apklib: Boolean) {
+    private val manifest = path / "AndroidManifest.xml"
+    val pkg = XML.loadFile(manifest).attribute("package").get(0).text
+    val binPath = AndroidTasks.directoriesList(
+      "out.dir", "bin", AndroidTasks.loadProperties(path), path)(0)
+    val libPath = Seq("libs", "lib") map { path / _ } find {
+      _.exists } getOrElse (path / "libs")
+  }
 }

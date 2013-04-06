@@ -49,9 +49,7 @@ object AndroidTasks {
         d.mkdirs()
         IO.unzip(l, d)
       }
-      val m = d / "AndroidManifest.xml"
-      val pkg = XML.loadFile(m).attribute("package").get(0).text
-      LibraryProject(d, pkg)//, (d ** "*.java" get) ++ (d ** "*.scala" get))
+      LibraryProject(d, true)
     }
   }
 
@@ -153,7 +151,7 @@ object AndroidTasks {
       "-S", (b / "res").absolutePath // resource path
     ) ++ (for {
       r      <- l
-      binPath = (findLibraryBinPath(r.path) / "res")
+      binPath = (r.binPath / "res")
       arg <- (if (binPath.exists()) Seq("-S", (binPath.getCanonicalPath)) else
         Seq.empty[String]) ++ Seq("-S", (r.path / "res").getCanonicalPath)
     } yield arg)
@@ -261,9 +259,7 @@ object AndroidTasks {
     (m ++ u) filter (_.data.exists) foreach {
       j => builder.addResourcesFromJar(j.data) }
 
-    val nativeLibraries = (p map { z => findLibraryLibPath(z.path) } collect {
-      case f if f.exists => f
-    } map {
+    val nativeLibraries = (p map { z => z.libPath } filter { _.exists } map {
         ApkBuilder.getNativeFiles(_, createDebug)
     } flatten) ++ (
       if (l.exists) ApkBuilder.getNativeFiles(l, createDebug) else Seq.empty)
@@ -425,8 +421,7 @@ object AndroidTasks {
     val nonConstantId = if (isLib) Seq("--non-constant-id") else Seq.empty
     val libraryResources = for {
       r <- libraries
-      rbin = findLibraryBinPath(r.path)
-      rbinres = rbin / "res"
+      rbinres = r.binPath / "res"
       arg <- (if (rbinres.exists)
         Seq("-S", rbinres.getCanonicalPath) else Seq.empty) ++
           Seq("-S", (r.path / "res").getCanonicalPath)
@@ -534,7 +529,7 @@ object AndroidTasks {
         val combined_tmp = bin / "all_tmp"
         if (jars exists (_.lastModified > combined.lastModified)) {
           IO.createDirectory(combined_tmp)
-          val files = jars.filter(_.exists).foldLeft (Set.empty[File]) {
+          val files = jars.foldLeft (Set.empty[File]) {
             (acc,j) =>
             acc ++ IO.unzip(j, combined_tmp, { n: String =>
               !n.startsWith("META-INF") })
@@ -565,7 +560,7 @@ object AndroidTasks {
     }).groupBy (_.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
-    }.flatten.toSeq filter (_.exists)
+    }.flatten.toSeq
   }
 
   val dexTaskDef = ( dexPath
@@ -763,24 +758,12 @@ object AndroidTasks {
     }
   }
 
-  private def findLibraryBinPath(path: File) = {
-    val props = loadProperties(path)
-    directoriesList("out.dir", "bin", props, path)(0)
-  }
-
-  // any way to get rid of the second path / "libs" ?
-  private def findLibraryLibPath(path: File) =
-    Seq("libs", "lib") map { path / _ } find { _.exists } getOrElse (
-      path / "libs")
-
   def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):
   Seq[LibraryProject] = {
       p.stringPropertyNames.collect {
         case k if k.startsWith("android.library.reference") => k
       }.toList.sortWith { (a,b) => a < b } map { k =>
-        val manifest = b/p(k)/"AndroidManifest.xml"
-        val pkg = XML.loadFile(manifest).attribute("package").get(0).text
-        LibraryProject(b/p(k), pkg) +:
+        LibraryProject(b/p(k), false) +:
           loadLibraryReferences(b, loadProperties(b/p(k)), k)
       } flatten
   }
@@ -793,7 +776,7 @@ object AndroidTasks {
     p
   }
 
-  private def directoriesList(prop: String, default: String,
+  def directoriesList(prop: String, default: String,
       props: Properties, base: File) =
     Option(props.getProperty(prop)) map { s =>
       (s.split(":") map { base / _ }).toSeq
@@ -816,11 +799,11 @@ object AndroidTasks {
 
     // remove scala-library if present
     // add all dependent library projects' classes.jar files
-    (u ++ (l map { p => Attributed.blank((findLibraryBinPath(p.path) /
-      "classes.jar").getCanonicalFile)
+    (u ++ (l filter (!_.apklib) map { p =>
+      Attributed.blank((p.binPath / "classes.jar").getCanonicalFile)
     }) ++ (for {
         d <- l
-        j <- findLibraryLibPath(d.path) * "*.jar" get
+        j <- d.libPath * "*.jar" get
       } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
         d <- Seq(b / "libs", b / "lib")
         j <- d * "*.jar" get
