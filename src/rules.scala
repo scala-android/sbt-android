@@ -203,9 +203,14 @@ object AndroidSdkPlugin extends Plugin {
     },
     packageRelease          <<= packageRelease dependsOn(setRelease),
     sdkPath                 <<= (thisProject,properties) { (p,props) =>
-        Option(props get "sdk.dir") map (_+File.separator) getOrElse (
-        sys.error("please run 'android update project -p %s'" format p.base)
-      )
+        Option(props get "sdk.dir") flatMap { p =>
+          val f = file(p + File.separator)
+          if (f.exists && f.isDirectory)
+            Some(p + File.separator)
+          else
+            None
+        } getOrElse (
+          sys.error("please run 'android update project -p %s'" format p.base))
     },
     sdkManager              <<= sdkPath { p =>
       SdkManager.createManager(p, new StdSdkLog)
