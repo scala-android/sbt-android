@@ -156,15 +156,16 @@ object AndroidTasks {
         Seq.empty[String]) ++ Seq("-S", (r.path / "res").getCanonicalPath)
     } yield arg)
 
-    val assets = (b / "assets")
-    val assetArgs = if (assets.exists) Seq("-A", assets.getCanonicalPath)
-      else Seq.empty
+    val assetBin = bin / "assets"
+    val assets = b / "assets"
 
-    val libraryAssets = for {
-      d <- l collect { case r if (r.path / "assets").exists =>
-        (r.path/"assets").getCanonicalPath }
-      arg <- Seq("-A", d)
-    } yield arg
+    l collect {
+      case r if (r.path / "assets").exists => r.path / "assets"
+    } foreach { a => IO.copyDirectory(a, assetBin, true, true) }
+
+    assetBin.mkdirs
+    if (assets.exists) IO.copyDirectory(assets, assetBin, true, true)
+    val assetArgs = Seq("-A", assetBin.getCanonicalPath)
 
     val debug = if (createDebug) Seq("--debug-mode") else Seq.empty
     Seq("package", "-f",
@@ -175,7 +176,7 @@ object AndroidTasks {
       "-I", j,
       "-G", (bin / "proguard.txt").absolutePath,
       "--no-crunch"
-      ) ++ resources ++ assetArgs ++ libraryAssets ++ debug
+      ) ++ resources ++ assetArgs ++ debug
   }
 
   val cleanAaptTaskDef = ( binPath, genPath ) map { (b,g) =>
