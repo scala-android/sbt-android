@@ -161,10 +161,10 @@ object AndroidTasks {
 
     l collect {
       case r if (r.path / "assets").exists => r.path / "assets"
-    } foreach { a => IO.copyDirectory(a, assetBin, true, true) }
+    } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
 
     assetBin.mkdirs
-    if (assets.exists) IO.copyDirectory(assets, assetBin, true, true)
+    if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
     val assetArgs = Seq("-A", assetBin.getCanonicalPath)
 
     val debug = if (createDebug) Seq("--debug-mode") else Seq.empty
