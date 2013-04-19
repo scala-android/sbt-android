@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.3.16
+Current version is 0.4.0
 
 ## Description ##
 
@@ -47,8 +47,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   `inflater.inflate(TR.layout.foo, container, optionalBoolean)` and receiving
   a properly typed resulting view object.
   * Import `TypedResource._` to get the implicit conversions
-* No apklib support, someone enlighten me, why do I want this and/or how do
-  I support it?
+* No apklib creation support yet.
 
 ## Usage ##
 
@@ -60,11 +59,12 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
    `plugins.sbt`, in it, add the following lines:
 
     ```
+    // not required for sbt 0.12
     resolvers += Resolver.url("scala-sbt releases", new URL(
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.3.16")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.4.0")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
