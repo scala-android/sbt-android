@@ -237,7 +237,7 @@ object AndroidSdkPlugin extends Plugin {
   )(deviceParser)(deviceAction)
 
   def devices = Command.command(
-    "devices", "List connected android devices",
-    "List all connected android devices")(devicesAction)
+    "devices", "List connected and online android devices",
+    "List all connected and online android devices")(devicesAction)
 }
 
