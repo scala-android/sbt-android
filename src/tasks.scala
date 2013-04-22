@@ -133,6 +133,17 @@ object AndroidTasks {
     }
   }
 
+  def makeAaptResOptions(base: File, bin: File,
+      libraries: Seq[LibraryProject]): Seq[String] = {
+    // crunched path needs to go before uncrunched
+    val resources = Seq((bin / "res"), (base / "res")) ++ (for {
+      r      <- libraries
+      binPath = (r.binPath / "res")
+    } yield Seq(binPath, r.path / "res")).flatten
+
+    resources collect { case p if p.exists && p.isDirectory => p } map {
+      r => Seq("-S", r.absolutePath) } flatten
+  }
   val packageResourcesOptionsTaskDef = ( manifestPath
                                        , versionCode
                                        , versionName
@@ -144,17 +155,6 @@ object AndroidTasks {
     case (m, v, n, b, bin, l, (j, x)) =>
     //val vc = v getOrElse sys.error("versionCode is not set")
     //val vn = n getOrElse sys.error("versionName is not set")
-
-    // crunched path needs to go before uncrunched
-    val resources = Seq(
-      "-S", (bin / "res").absolutePath, // crunched png path
-      "-S", (b / "res").absolutePath // resource path
-    ) ++ (for {
-      r      <- l
-      binPath = (r.binPath / "res")
-      arg <- (if (binPath.exists()) Seq("-S", (binPath.getCanonicalPath)) else
-        Seq.empty[String]) ++ Seq("-S", (r.path / "res").getCanonicalPath)
-    } yield arg)
 
     val assetBin = bin / "assets"
     val assets = b / "assets"
@@ -176,7 +176,7 @@ object AndroidTasks {
       "-I", j,
       "-G", (bin / "proguard.txt").absolutePath,
       "--no-crunch"
-      ) ++ resources ++ assetArgs ++ debug
+      ) ++ makeAaptResOptions(b, bin, l) ++ assetArgs ++ debug
   }
 
   val cleanAaptTaskDef = ( binPath, genPath ) map { (b,g) =>
@@ -420,18 +420,6 @@ object AndroidTasks {
       androidjar: String, gen: File) = {
 
     val nonConstantId = if (isLib) Seq("--non-constant-id") else Seq.empty
-    val libraryResources = for {
-      r <- libraries
-      rbinres = r.binPath / "res"
-      arg <- (if (rbinres.exists)
-        Seq("-S", rbinres.getCanonicalPath) else Seq.empty) ++
-          Seq("-S", (r.path / "res").getCanonicalPath)
-    } yield arg
-
-    val res = (if ((bin / "res").exists)
-      Seq("-S", (bin / "res").absolutePath) // bin res
-    else Seq.empty) ++
-      Seq("-S", (base / "res").absolutePath) // resource path
 
     Seq("package",
       // only required if refs lib projects, doesn't hurt otherwise?
@@ -440,7 +428,8 @@ object AndroidTasks {
       "--generate-dependencies", // generate R.java.d
       "-M", manifest.absolutePath, // manifest
       "-I", androidjar, // platform jar
-      "-J", gen.absolutePath) ++ res ++ libraryResources ++ nonConstantId
+      "-J", gen.absolutePath) ++
+      makeAaptResOptions(base, bin, libraries) ++ nonConstantId
   }
 
   val aaptGeneratorOptionsTaskDef = ( manifestPath
@@ -494,11 +483,13 @@ object AndroidTasks {
 
   val pngCrunchTaskDef = (aaptPath, binPath, baseDirectory) map {
     (a, bin, base) =>
-    val res = bin / "res"
-    res.mkdirs()
-    Seq(a, "crunch", "-v",
-      "-S", (base / "res").absolutePath,
-      "-C", res.absolutePath) !
+    val res = base / "res"
+    val binres = bin / "res"
+    binres.mkdirs()
+    if (res.exists && res.isDirectory)
+      Seq(a, "crunch", "-v",
+        "-S", res.absolutePath,
+        "-C", binres.absolutePath) !
 
     ()
   }
