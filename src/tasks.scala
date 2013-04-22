@@ -257,8 +257,10 @@ object AndroidTasks {
       if (createDebug) ApkBuilder.getDebugKeystore else null, null)
 
     builder.setDebugMode(createDebug)
-    (m ++ u) filter (_.data.exists) foreach {
-      j => builder.addResourcesFromJar(j.data) }
+    (m ++ u).filter(_.data.exists).groupBy(_.data.getName).collect {
+      case ("classes.jar",xs) => xs.distinct
+      case (_,xs) => xs.head :: Nil
+    }.flatten.foreach { j => builder.addResourcesFromJar(j.data) }
 
     val nativeLibraries = (p map { z => z.libPath } filter { _.exists } map {
         ApkBuilder.getNativeFiles(_, createDebug)
