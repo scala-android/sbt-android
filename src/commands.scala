@@ -51,7 +51,7 @@ object AndroidCommands {
       Thread.sleep(1000)
       adb.getDevices
     } else {
-      devices
+      devices filter { _.isOnline }
     }).toSeq
   }
 
