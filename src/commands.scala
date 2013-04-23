@@ -47,12 +47,12 @@ object AndroidCommands {
     }
 
     val devices = adb.getDevices
-    (if (devices.length == 0) {
+    if (devices.length == 0) {
       Thread.sleep(1000)
-      adb.getDevices
+      adb.getDevices filter { _.isOnline }
     } else {
       devices filter { _.isOnline }
-    }).toSeq
+    }
   }
 
   val devicesAction: State => State = state => {
