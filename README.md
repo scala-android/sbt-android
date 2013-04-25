@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.4.3
+Current version is 0.4.4
 
 ## Description ##
 
@@ -59,12 +59,12 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
    `plugins.sbt`, in it, add the following lines:
 
     ```
-    // not required for sbt 0.12
+    // not required for sbt 0.11.3 and above
     resolvers += Resolver.url("scala-sbt releases", new URL(
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.4.3")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.4.4")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
