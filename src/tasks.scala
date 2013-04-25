@@ -728,15 +728,29 @@ object AndroidTasks {
     }
   }
 
+  val KB = 1024 * 1.0
+  val MB = KB * KB
   val installTaskDef = (packageT, libraryProject, sdkPath, streams) map {
     (p, l, k, s) =>
 
     if (!l) {
+      s.log.info("Installing...")
+      val start = System.currentTimeMillis
       targetDevice(k, s.log) foreach { d =>
         Option(d.installPackage(p.getAbsolutePath, true)) map { err =>
           sys.error("Install failed: " + err)
         } getOrElse {
-          s.log.info("Install successful")
+          val size = p.length();
+          val sizeString = size match {
+            case s if s < MB  => "%.2fKB" format (s/KB)
+            case s if s >= MB => "%.2fMB" format (s/MB)
+          }
+          val end = System.currentTimeMillis
+          val secs = (end - start) / 1000d
+          val rate = size/KB/secs
+          val mrate = if (rate > MB) rate / MB else rate
+          s.log.info("Install finished: %s in %.2fs. %.2f%s/s" format (
+            sizeString, secs, mrate, if (rate > MB) "MB" else "KB"))
         }
       }
     }
