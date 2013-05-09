@@ -1,7 +1,9 @@
 import sbt._
 import sbt.Keys._
 
-import com.android.sdklib.{IAndroidTarget,SdkManager,SdkConstants,StdSdkLog}
+import com.android.sdklib.{IAndroidTarget,SdkManager}
+import com.android.SdkConstants
+import com.android.utils.StdLogger
 
 import java.io.File
 import java.util.Properties
@@ -215,7 +217,7 @@ object AndroidSdkPlugin extends Plugin {
           sys.error("please run 'android update project -p %s'" format p.base))
     },
     sdkManager              <<= sdkPath { p =>
-      SdkManager.createManager(p, new StdSdkLog)
+      SdkManager.createManager(p, new StdLogger(StdLogger.Level.VERBOSE))
     },
     platform                <<= (sdkManager, properties) { (m, p) =>
       m.getTargetFromHashString(p("target"))

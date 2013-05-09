@@ -6,7 +6,7 @@ import scala.collection.JavaConversions._
 
 import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.IDevice
-import com.android.sdklib.SdkConstants
+import com.android.SdkConstants
 
 object AndroidCommands {
 
