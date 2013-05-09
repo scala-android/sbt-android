@@ -11,9 +11,10 @@ import java.util.Properties
 import java.io.{File,FilenameFilter,FileInputStream}
 
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
-import com.android.sdklib.{IAndroidTarget,SdkConstants}
+import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.build.ApkBuilder
 import com.android.sdklib.internal.build.BuildConfigGenerator
+import com.android.SdkConstants
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 
