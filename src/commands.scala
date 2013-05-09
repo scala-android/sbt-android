@@ -68,7 +68,10 @@ object AndroidCommands {
           Option(dev.getProperty("ro.build.product")) getOrElse (
             if (dev.isEmulator) "emulator" else "device")
 
-        state.log.info(" %-22s %s" format (dev.getSerialNumber, name))
+        val sel = defaultDevice map { d =>
+          if (d == dev.getSerialNumber) "*" else " " } getOrElse " "
+
+        state.log.info(" %s%-22s %s" format (sel, dev.getSerialNumber, name))
       }
     }
     state
