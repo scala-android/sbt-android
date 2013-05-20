@@ -2,6 +2,7 @@ import sbt._
 import sbt.Keys._
 
 import com.android.sdklib.{IAndroidTarget,SdkManager}
+import com.android.sdklib.BuildToolInfo.PathId
 import com.android.SdkConstants
 import com.android.utils.StdLogger
 
@@ -134,13 +135,11 @@ object AndroidSdkPlugin extends Plugin {
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
         _.equals("true") } getOrElse false },
-    aaptPath                <<= sdkPath {
-      import SdkConstants._
-      _ + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AAPT
+    aaptPath                <<= sdkManager {
+      _.getLatestBuildTool.getPath(PathId.AAPT)
     },
-    dexPath                 <<= sdkPath {
-      import SdkConstants._
-      _ + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_DX
+    dexPath                 <<= sdkManager {
+      _.getLatestBuildTool.getPath(PathId.DX)
     },
     zipalignPath            <<= sdkPath {
       import SdkConstants._

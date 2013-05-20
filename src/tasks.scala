@@ -14,6 +14,7 @@ import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.build.ApkBuilder
 import com.android.sdklib.internal.build.BuildConfigGenerator
+import com.android.sdklib.BuildToolInfo.PathId
 import com.android.SdkConstants
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
@@ -328,7 +329,7 @@ object AndroidTasks {
     }
   }
 
-  val renderscriptTaskDef = ( sdkPath
+  val renderscriptTaskDef = ( sdkManager
                             , binPath
                             , genPath
                             , targetSdkVersion
@@ -337,9 +338,9 @@ object AndroidTasks {
                             ) map { (s, b, g, t, u, l) =>
     import SdkConstants._
 
-    val rs        = s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_RENDERSCRIPT
-    val rsInclude = s + OS_SDK_PLATFORM_TOOLS_FOLDER + OS_FRAMEWORK_RS
-    val rsClang   = s + OS_SDK_PLATFORM_TOOLS_FOLDER + OS_FRAMEWORK_RS_CLANG
+    val rs        = s.getLatestBuildTool.getPath(PathId.LLVM_RS_CC)
+    val rsInclude = s.getLatestBuildTool.getPath(PathId.ANDROID_RS)
+    val rsClang   = s.getLatestBuildTool.getPath(PathId.ANDROID_RS_CLANG)
 
     val scripts = for {
       src    <- u
@@ -383,14 +384,14 @@ object AndroidTasks {
     }
   }
 
-  val aidlTaskDef = ( sdkPath
+  val aidlTaskDef = ( sdkManager
                     , genPath
                     , platform
                     , unmanagedSourceDirectories in Compile
                     , streams
                     ) map { (s, g, p, u, l) =>
     import SdkConstants._
-    val aidl          = s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
+    val aidl          = s.getLatestBuildTool.getPath(PathId.AIDL)
     val frameworkAidl = p.getPath(IAndroidTarget.ANDROID_AIDL)
     val aidls = for {
       src <- u
