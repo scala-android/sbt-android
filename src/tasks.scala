@@ -329,18 +329,28 @@ object AndroidTasks {
     }
   }
 
-  val renderscriptTaskDef = ( sdkManager
+  val renderscriptTaskDef = ( sdkPath
+                            , sdkManager
                             , binPath
                             , genPath
                             , targetSdkVersion
                             , unmanagedSourceDirectories in Compile
                             , streams
-                            ) map { (s, b, g, t, u, l) =>
+                            ) map { (s, m, b, g, t, u, l) =>
     import SdkConstants._
 
-    val rs        = s.getLatestBuildTool.getPath(PathId.LLVM_RS_CC)
-    val rsInclude = s.getLatestBuildTool.getPath(PathId.ANDROID_RS)
-    val rsClang   = s.getLatestBuildTool.getPath(PathId.ANDROID_RS_CLANG)
+    val tools = Option(m.getLatestBuildTool)
+    val (rs, rsInclude, rsClang) = tools map { t =>
+      (t.getPath(PathId.LLVM_RS_CC)
+      ,t.getPath(PathId.ANDROID_RS)
+      ,t.getPath(PathId.ANDROID_RS_CLANG))
+    } getOrElse {
+      val prefix = s + OS_SDK_PLATFORM_TOOLS_FOLDER
+      (prefix + FN_RENDERSCRIPT
+      ,prefix + OS_FRAMEWORK_RS
+      ,prefix + OS_FRAMEWORK_RS_CLANG
+      )
+    }
 
     val scripts = for {
       src    <- u
@@ -384,14 +394,18 @@ object AndroidTasks {
     }
   }
 
-  val aidlTaskDef = ( sdkManager
+  val aidlTaskDef = ( sdkPath
+                    , sdkManager
                     , genPath
                     , platform
                     , unmanagedSourceDirectories in Compile
                     , streams
-                    ) map { (s, g, p, u, l) =>
+                    ) map { (s, m, g, p, u, l) =>
     import SdkConstants._
-    val aidl          = s.getLatestBuildTool.getPath(PathId.AIDL)
+    val tools = Option(m.getLatestBuildTool)
+    val aidl          = tools map (_.getPath(PathId.AIDL)) getOrElse {
+        s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
+    }
     val frameworkAidl = p.getPath(IAndroidTarget.ANDROID_AIDL)
     val aidls = for {
       src <- u

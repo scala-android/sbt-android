@@ -135,11 +135,19 @@ object AndroidSdkPlugin extends Plugin {
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
         _.equals("true") } getOrElse false },
-    aaptPath                <<= sdkManager {
-      _.getLatestBuildTool.getPath(PathId.AAPT)
+      aaptPath                <<= (sdkPath,sdkManager) { (p,m) =>
+      import SdkConstants._
+      val tool = Option(m.getLatestBuildTool)
+      tool map (_.getPath(PathId.AAPT)) getOrElse {
+        p + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AAPT
+      }
     },
-    dexPath                 <<= sdkManager {
-      _.getLatestBuildTool.getPath(PathId.DX)
+    dexPath                 <<= (sdkPath,sdkManager) { (p,m) =>
+      import SdkConstants._
+      val tool = Option(m.getLatestBuildTool)
+      tool map (_.getPath(PathId.DX)) getOrElse {
+        p + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_DX
+      }
     },
     zipalignPath            <<= sdkPath {
       import SdkConstants._
