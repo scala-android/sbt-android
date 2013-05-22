@@ -98,6 +98,8 @@ object AndroidKeys {
     "whether or not to run proguard in debug, automatically true with scala")
   val install = TaskKey[Unit]("install", "Install the built app to device")
   val uninstall = TaskKey[Unit]("uninstall", "Remove the app from the device")
+  val cleanForR = TaskKey[Seq[File]]("clean-for-r",
+    "Clean all .class files when R.java changes")
 
   // alias to ease typing
   val packageT = Keys.`package`
