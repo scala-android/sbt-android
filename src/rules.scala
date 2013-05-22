@@ -63,8 +63,10 @@ object AndroidSdkPlugin extends Plugin {
                           , apklibs in Android
                           , aidl in Android
                           , buildConfigGenerator in Android
-                          , renderscript in Android) map {
-      (a, tr, apkl, aidl, bcg, rs) =>
+                          , renderscript in Android
+                          , cleanForR in Android
+                          ) map {
+      (a, tr, apkl, aidl, bcg, rs, _) =>
       val apkls = apkl map { l =>
         ((l.path / "src") ** "*.java" get) ++
           ((l.path / "src") ** "*.scala" get)
@@ -112,6 +114,20 @@ object AndroidSdkPlugin extends Plugin {
     run                     <<= runTaskDef(install,
                                            sdkPath, manifest, packageName),
     cleanAapt               <<= cleanAaptTaskDef,
+    cleanForR               <<= (cacheDirectory,
+                                 genPath, classDirectory in Compile,
+                                 streams) map {
+      (c, g, d, s) =>
+      (FileFunction.cached(c / "clean-for-r",
+          FilesInfo.hash, FilesInfo.exists) { in =>
+        if (!in.isEmpty) {
+          s.log.info("Rebuilding all classes because R.java has changed")
+          IO.delete(d)
+        }
+        in
+      })(Set(g ** "R.java" get: _*))
+      Seq.empty[File]
+    },
     packageResourcesOptions <<= packageResourcesOptionsTaskDef,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= setDirectory("out.dir", "bin"),
