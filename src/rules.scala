@@ -2,6 +2,7 @@ import sbt._
 import sbt.Keys._
 
 import com.android.sdklib.{IAndroidTarget,SdkManager}
+import com.android.sdklib.BuildToolInfo.PathId
 import com.android.SdkConstants
 import com.android.utils.StdLogger
 
@@ -62,8 +63,10 @@ object AndroidSdkPlugin extends Plugin {
                           , apklibs in Android
                           , aidl in Android
                           , buildConfigGenerator in Android
-                          , renderscript in Android) map {
-      (a, tr, apkl, aidl, bcg, rs) =>
+                          , renderscript in Android
+                          , cleanForR in Android
+                          ) map {
+      (a, tr, apkl, aidl, bcg, rs, _) =>
       val apkls = apkl map { l =>
         ((l.path / "src") ** "*.java" get) ++
           ((l.path / "src") ** "*.scala" get)
@@ -111,6 +114,20 @@ object AndroidSdkPlugin extends Plugin {
     run                     <<= runTaskDef(install,
                                            sdkPath, manifest, packageName),
     cleanAapt               <<= cleanAaptTaskDef,
+    cleanForR               <<= (cacheDirectory,
+                                 genPath, classDirectory in Compile,
+                                 streams) map {
+      (c, g, d, s) =>
+      (FileFunction.cached(c / "clean-for-r",
+          FilesInfo.hash, FilesInfo.exists) { in =>
+        if (!in.isEmpty) {
+          s.log.info("Rebuilding all classes because R.java has changed")
+          IO.delete(d)
+        }
+        in
+      })(Set(g ** "R.java" get: _*))
+      Seq.empty[File]
+    },
     packageResourcesOptions <<= packageResourcesOptionsTaskDef,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= setDirectory("out.dir", "bin"),
@@ -132,13 +149,19 @@ object AndroidSdkPlugin extends Plugin {
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
         _.equals("true") } getOrElse false },
-    aaptPath                <<= sdkPath {
+      aaptPath                <<= (sdkPath,sdkManager) { (p,m) =>
       import SdkConstants._
-      _ + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AAPT
+      val tool = Option(m.getLatestBuildTool)
+      tool map (_.getPath(PathId.AAPT)) getOrElse {
+        p + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AAPT
+      }
     },
-    dexPath                 <<= sdkPath {
+    dexPath                 <<= (sdkPath,sdkManager) { (p,m) =>
       import SdkConstants._
-      _ + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_DX
+      val tool = Option(m.getLatestBuildTool)
+      tool map (_.getPath(PathId.DX)) getOrElse {
+        p + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_DX
+      }
     },
     zipalignPath            <<= sdkPath {
       import SdkConstants._

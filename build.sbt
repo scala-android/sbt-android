@@ -1,6 +1,6 @@
 name := "android-sdk-plugin"
 
-version := "0.4.7"
+version := "0.5.0"
 
 organization := "com.hanhuy.sbt"
 
@@ -33,7 +33,9 @@ products in Compile <<= ( products in Compile
 
 libraryDependencies ++= Seq(
   "net.sf.proguard" % "proguard-base" % "4.7" % "compile",
-  "com.google.guava" % "guava" % "13.0.1" % "compile"
+  "com.google.guava" % "guava" % "13.0.1" % "compile",
+  "org.bouncycastle" % "bcpkix-jdk15on" % "1.48",
+  "org.bouncycastle" % "bcprov-jdk15on" % "1.48"
 )
 
 sbtPlugin := true
