@@ -116,10 +116,13 @@ object AndroidSdkPlugin extends Plugin {
     run                     <<= runTaskDef(install,
                                            sdkPath, manifest, packageName),
     cleanAapt               <<= cleanAaptTaskDef,
-    cleanForR               <<= (cacheDirectory,
-                                 genPath, classDirectory in Compile,
-                                 streams) map {
-      (c, g, d, s) =>
+    cleanForR               <<= (aaptGenerator
+                                , cacheDirectory
+                                , genPath
+                                , classDirectory in Compile
+                                , streams
+                                ) map {
+      (_, c, g, d, s) =>
       (FileFunction.cached(c / "clean-for-r",
           FilesInfo.hash, FilesInfo.exists) { in =>
         if (!in.isEmpty) {
