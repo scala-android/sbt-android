@@ -473,9 +473,10 @@ object AndroidTasks {
                              , libraryProjects
                              , baseDirectory
                              , platformJars
+                             , customPackage
                              , streams
                              ) map {
-    case (a, o, n, g, l, b, (j, x), s) =>
+    case (a, o, n, g, l, b, (j, x), p, s) =>
     g.mkdirs()
 
     val dfile = g * "R.java.d" get
@@ -489,8 +490,10 @@ object AndroidTasks {
       val extras = if (libPkgs.isEmpty) Seq.empty
         else Seq("--extra-packages", ":" + (libPkgs mkString ":"))
 
+      val custompackage = p map {
+        c => Seq("--custom-package", c) } getOrElse Seq.empty
       s.log.debug("aapt: " + (a +: (o ++ extras)).mkString(" "))
-      val r = (a +: (o ++ extras)) !
+      val r = (a +: (o ++ extras ++ custompackage)) !
 
       if (r != 0)
         sys.error("failed")

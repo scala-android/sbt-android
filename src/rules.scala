@@ -131,6 +131,7 @@ object AndroidSdkPlugin extends Plugin {
       })(Set(g ** "R.java" get: _*))
       Seq.empty[File]
     },
+    customPackage            := None,
     packageResourcesOptions <<= packageResourcesOptionsTaskDef,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= setDirectory("out.dir", "bin"),
