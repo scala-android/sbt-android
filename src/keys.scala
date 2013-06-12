@@ -39,6 +39,8 @@ object AndroidKeys {
     "package-resources-options", "options to package-resources")
   val packageResources = TaskKey[File]("package-resources",
     "package android resources")
+  val customPackage = SettingKey[Option[String]]("custom-package",
+    "Custom package name for aapt --custom-package")
   val manifestPath = SettingKey[File]("manifest-path",
     "android manifest file path")
   val targetSdkVersion = SettingKey[Int]("target-sdk-version", "android target")
