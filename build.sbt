@@ -1,6 +1,6 @@
 name := "android-sdk-plugin"
 
-version := "0.5.2"
+version := "0.5.3"
 
 organization := "com.hanhuy.sbt"
 
@@ -32,7 +32,7 @@ products in Compile <<= ( products in Compile
 }
 
 libraryDependencies ++= Seq(
-  "net.sf.proguard" % "proguard-base" % "4.7" % "compile",
+  "net.sf.proguard" % "proguard-base" % "4.9" % "compile",
   "com.google.guava" % "guava" % "13.0.1" % "compile",
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.48",
   "org.bouncycastle" % "bcprov-jdk15on" % "1.48"
