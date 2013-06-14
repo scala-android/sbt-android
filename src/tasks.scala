@@ -60,12 +60,18 @@ object AndroidTasks {
                                        , packageName
                                        , resourceDirectory in Compile
                                        , platformJars
-                                       , baseDirectory
+                                       , state
                                        , libraryProjects
                                        , genPath
                                        , streams
                                        ) map {
-    case (t, a, p, r, (j, x), b, l, g, s) =>
+    case (t, a, p, r, (j, x), e, l, g, s) =>
+
+    // hack because tasks can only take 9 params
+    val extracted = Project.extract(e)
+    val b = extracted.get(baseDirectory)
+    val sv = extracted.get(scalaVersion)
+
     val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
     if (!t || !a.exists { _.lastModified > tr.lastModified })
       Seq.empty[File]
@@ -123,8 +129,12 @@ object AndroidTasks {
       val trTemplate = IO.readLinesURL(
         resourceUrl("tr.scala.template")) mkString "\n"
 
+      val gte210 = ((sv split "\\.")(1) toInt) >= 10
+      val implicitsImport = if (!gte210) "" else
+        "import scala.language.implicitConversions"
+
       tr.delete()
-      IO.write(tr, trTemplate format (p,
+      IO.write(tr, trTemplate format (p, implicitsImport,
         resources map { case (k,v) =>
           "  val `%s` = TypedResource[%s](R.id.`%s`)" format (k,v,k)
         } mkString "\n",
