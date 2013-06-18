@@ -69,80 +69,87 @@ object AndroidTasks {
 
     // hack because tasks can only take 9 params
     val extracted = Project.extract(e)
-    val b = extracted.get(baseDirectory)
+    val b  = extracted.get(baseDirectory)
     val sv = extracted.get(scalaVersion)
+    val c  = extracted.get(cacheDirectory)
 
     val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
-    if (!t || !a.exists { _.lastModified > tr.lastModified })
+
+    if (!t)
       Seq.empty[File]
-    else {
-      val androidjar = ClasspathUtilities.toLoader(file(j))
-      val layouts = (r ** "layout*" ** "*.xml" get) ++
-        (for {
-          lib <- l
-          xml <- (lib.path) ** "layout*" ** "*.xml" get
-        } yield xml)
+    else
+      (FileFunction.cached(c / "typed-resources-generator",
+          FilesInfo.hash, FilesInfo.hash) { in =>
+        if (!in.isEmpty) {
+          s.log.info("Regenerating TR.scala because R.java has changed")
+          val androidjar = ClasspathUtilities.toLoader(file(j))
+          val layouts = (r ** "layout*" ** "*.xml" get) ++
+            (for {
+              lib <- l
+              xml <- (lib.path) ** "layout*" ** "*.xml" get
+            } yield xml)
 
-      // XXX handle package references? @id/android:ID or @id:android/ID
-      val re = "@\\+id/(.*)".r
+          // XXX handle package references? @id/android:ID or @id:android/ID
+          val re = "@\\+id/(.*)".r
 
-      def classForLabel(l: String) = {
-        if (l contains ".") Some(l)
-        else {
-          Seq("android.widget.", "android.view.", "android.webkit.").flatMap {
-            pkg =>
-            catching(classOf[ClassNotFoundException]) opt {
-              androidjar.loadClass(pkg + l).getName
+          def classForLabel(l: String) = {
+            if (l contains ".") Some(l)
+            else {
+              Seq("android.widget.", "android.view.", "android.webkit.").flatMap {
+                pkg =>
+                catching(classOf[ClassNotFoundException]) opt {
+                  androidjar.loadClass(pkg + l).getName
+                }
+              }.headOption
             }
-          }.headOption
-        }
-      }
+          }
 
-      def warn(res: Seq[(String,String)]) = {
-        // TODO merge to a common ancestor
-        //   To View for views or ViewGroup for layouts
-        val overrides = res.groupBy(r => r._1) filter (
-          _._2.toSet.size > 1) collect {
-          case (k,v) =>
-            s.log.warn("%s was reassigned: %s" format (k,
-              v map (_._2) mkString " => "))
-            k -> (if (v endsWith "Layout")
-              "android.view.ViewGroup" else "android.view.View")
-        }
+          def warn(res: Seq[(String,String)]) = {
+            // TODO merge to a common ancestor
+            //   To View for views or ViewGroup for layouts
+            val overrides = res.groupBy(r => r._1) filter (
+              _._2.toSet.size > 1) collect {
+              case (k,v) =>
+                s.log.warn("%s was reassigned: %s" format (k,
+                  v map (_._2) mkString " => "))
+                k -> (if (v endsWith "Layout")
+                  "android.view.ViewGroup" else "android.view.View")
+            }
 
-        (res ++ overrides).toMap
-      }
-      val layoutTypes = warn(for {
-        file   <- layouts
-        layout  = XML loadFile file
-        l      <- classForLabel(layout.label)
-      } yield file.getName.stripSuffix(".xml") -> l)
+            (res ++ overrides).toMap
+          }
+          val layoutTypes = warn(for {
+            file   <- layouts
+            layout  = XML loadFile file
+            l      <- classForLabel(layout.label)
+          } yield file.getName.stripSuffix(".xml") -> l)
 
-      val resources = warn(for {
-        b      <- layouts
-        layout  = XML loadFile b
-        n      <- layout.descendant_or_self
-        re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
-        l      <- classForLabel(n.label)
-      } yield id -> l)
+          val resources = warn(for {
+            b      <- layouts
+            layout  = XML loadFile b
+            n      <- layout.descendant_or_self
+            re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
+            l      <- classForLabel(n.label)
+          } yield id -> l)
 
-      val trTemplate = IO.readLinesURL(
-        resourceUrl("tr.scala.template")) mkString "\n"
+          val trTemplate = IO.readLinesURL(
+            resourceUrl("tr.scala.template")) mkString "\n"
 
-      val gte210 = ((sv split "\\.")(1) toInt) >= 10
-      val implicitsImport = if (!gte210) "" else
-        "import scala.language.implicitConversions"
+          val gte210 = ((sv split "\\.")(1) toInt) >= 10
+          val implicitsImport = if (!gte210) "" else
+            "import scala.language.implicitConversions"
 
-      tr.delete()
-      IO.write(tr, trTemplate format (p, implicitsImport,
-        resources map { case (k,v) =>
-          "  val `%s` = TypedResource[%s](R.id.`%s`)" format (k,v,k)
-        } mkString "\n",
-        layoutTypes map { case (k,v) =>
-          "    val `%s` = TypedLayout[%s](R.layout.`%s`)" format (k,v,k)
-        } mkString "\n"))
-      Seq(tr)
-    }
+          tr.delete()
+          IO.write(tr, trTemplate format (p, implicitsImport,
+            resources map { case (k,v) =>
+              "  val `%s` = TypedResource[%s](R.id.`%s`)" format (k,v,k)
+            } mkString "\n",
+            layoutTypes map { case (k,v) =>
+              "    val `%s` = TypedLayout[%s](R.layout.`%s`)" format (k,v,k)
+            } mkString "\n"))
+          Set(tr)
+        } else Set.empty
+      })(a.toSet).toSeq
   }
 
   def makeAaptResOptions(base: File, bin: File,
