@@ -701,23 +701,6 @@ object AndroidTasks {
     } else None
   }
 
-  private def targetDevice(path: String, log: Logger): Option[IDevice] = {
-    AndroidCommands.initAdb
-
-    val devices = AndroidCommands.deviceList(Some(path), log)
-    if (devices.isEmpty) {
-      sys.error("no devices connected")
-    } else {
-      AndroidCommands.defaultDevice flatMap { device =>
-        devices find (device == _.getSerialNumber) orElse {
-          log.warn("default device not found, falling back to first device")
-          None
-        }
-      } orElse {
-        Some(devices(0))
-      }
-    }
-  }
   def runTaskDef(install: TaskKey[Unit],
       sdkPath: SettingKey[String],
       manifest: SettingKey[Elem],
@@ -747,7 +730,7 @@ object AndroidTasks {
           }
           override def isCancelled = false
         }
-        targetDevice(k, s.log) map { d =>
+        AndroidCommands.targetDevice(k, s.log) map { d =>
           val command = "am start -n %s" format intent
           s.log.debug("Executing [%s]" format command)
           d.executeShellCommand(command, receiver)
@@ -774,7 +757,7 @@ object AndroidTasks {
     if (!l) {
       s.log.info("Installing...")
       val start = System.currentTimeMillis
-      targetDevice(k, s.log) foreach { d =>
+      AndroidCommands.targetDevice(k, s.log) foreach { d =>
         Option(d.installPackage(p.getAbsolutePath, true)) map { err =>
           sys.error("Install failed: " + err)
         } getOrElse {
@@ -795,7 +778,7 @@ object AndroidTasks {
   }
 
   val uninstallTaskDef = (sdkPath, packageName, streams) map { (k,p,s) =>
-    targetDevice(k, s.log) foreach { d =>
+    AndroidCommands.targetDevice(k, s.log) foreach { d =>
       Option(d.uninstallPackage(p)) map { err =>
         sys.error("Uninstall failed: " + err)
       } getOrElse {
