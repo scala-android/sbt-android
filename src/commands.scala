@@ -78,7 +78,7 @@ object AndroidCommands {
   }
 
   val rebootParser: State => Parser[Any] = state => {
-    EOF | (Space ~> Parser.oneOf(Seq("bootloader", "recovery")))
+    not(any) | (Space ~> Parser.oneOf(Seq("bootloader", "recovery")))
   }
 
   val adbWifiAction: State => State = state => {
