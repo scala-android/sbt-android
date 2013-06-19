@@ -232,14 +232,16 @@ object AndroidSdkPlugin extends Plugin {
     },
     packageRelease          <<= packageRelease dependsOn(setRelease),
     sdkPath                 <<= (thisProject,properties) { (p,props) =>
-        Option(props get "sdk.dir") flatMap { p =>
-          val f = file(p + File.separator)
-          if (f.exists && f.isDirectory)
-            Some(p + File.separator)
-          else
-            None
-        } getOrElse (
-          sys.error("please run 'android update project -p %s'" format p.base))
+        (Option(props get "sdk.dir") orElse
+          Option(System getenv "ANDROID_HOME")) flatMap { p =>
+            val f = file(p + File.separator)
+            if (f.exists && f.isDirectory)
+              Some(p + File.separator)
+            else
+              None
+          } getOrElse (
+            sys.error("set ANDROID_HOME or run 'android update project -p %s'"
+              format p.base))
     },
     sdkManager              <<= sdkPath { p =>
       SdkManager.createManager(p, new StdLogger(StdLogger.Level.VERBOSE))
@@ -257,14 +259,30 @@ object AndroidSdkPlugin extends Plugin {
     unmanagedBase     <<= baseDirectory (_ / "libs")
   ) ++ androidCommands
 
+  /*
+  lazy val androidGradleSettings: Seq[Setting[_]] = androidBuildSettings ++
+    inConfig(Compile) (Seq(
+    ))
+  */
+
   lazy val androidCommands: Seq[Setting[_]] = Seq(
-    commands ++= Seq(devices, device)
+    commands ++= Seq(devices, device, reboot, adbWifi)
   )
 
   def device = Command(
     "device", ("device", "Select a connected android device"),
     "Select a device (when there are multiple) to apply actions to"
   )(deviceParser)(deviceAction)
+
+  def adbWifi = Command.command(
+    "adb-wifi", "Enable/disable ADB-over-wifi for selected device",
+    "Toggle ADB-over-wifi for the selected device"
+  )(adbWifiAction)
+
+  def reboot = Command(
+    "reboot-device", ("reboot-device", "Reboot selected device"),
+    "Reboot the selected device into the specified mode"
+  )(rebootParser)(rebootAction)
 
   def devices = Command.command(
     "devices", "List connected and online android devices",
