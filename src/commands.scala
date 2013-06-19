@@ -5,7 +5,7 @@ import complete.DefaultParsers._
 import scala.collection.JavaConversions._
 
 import com.android.ddmlib.AndroidDebugBridge
-import com.android.ddmlib.IDevice
+import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.SdkConstants
 
 object AndroidCommands {
@@ -77,6 +77,78 @@ object AndroidCommands {
     state
   }
 
+  val rebootParser: State => Parser[Any] = state => {
+    EOF | (Space ~> Parser.oneOf(Seq("bootloader", "recovery")))
+  }
+
+  val adbWifiAction: State => State = state => {
+    val sdkpath = Project.extract(state).get(
+      AndroidKeys.sdkPath in AndroidKeys.Android)
+    import SdkConstants._
+    val adbPath = sdkpath + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_ADB
+
+    val adbWifiOn = defaultDevice map { s =>
+      (s indexOf ":") > 0
+    } getOrElse sys.error("no device selected")
+
+    val receiver = new IShellOutputReceiver {
+      val b = new StringBuilder
+      var _result = ""
+      override def addOutput(data: Array[Byte], off: Int, len: Int) =
+        b.append(new String(data, off, len))
+      override def flush() {
+        _result = b.toString
+        b.clear
+      }
+      override def isCancelled = false
+      def result = _result
+    }
+    val d = targetDevice(sdkpath, state.log).get
+    if (adbWifiOn) {
+      state.log.info("turning ADB-over-wifi off")
+      d.executeShellCommand("ps | grep -w [a]dbd", receiver)
+      val pid = receiver.result.split(" +")(1)
+      state.log.debug("current adbd pid: %s" format pid)
+      d.executeShellCommand("setprop service.adb.tcp.port 0", receiver)
+      d.executeShellCommand("kill %s" format pid, receiver)
+
+    } else {
+      state.log.info("turning ADB-over-wifi on")
+
+      d.executeShellCommand("ifconfig wlan0", receiver)
+      val ip = receiver.result.split(" +")(2)
+      state.log.debug("device ip: %s" format ip)
+      d.executeShellCommand("ps | grep -w [a]dbd", receiver)
+      val pid = receiver.result.split(" +")(1)
+      state.log.debug("current adbd pid: %s" format pid)
+      d.executeShellCommand("setprop service.adb.tcp.port 5555", receiver)
+      d.executeShellCommand("kill %s" format pid, receiver)
+
+      val r = Seq(adbPath, "connect", ip) !
+
+      if (r != 0)
+        sys.error("failed to connect ADB-over-wifi")
+    }
+
+    state
+  }
+
+  val rebootAction: (State,Any) => State = (state, mode) => {
+    val sdkpath = Project.extract(state).get(
+      AndroidKeys.sdkPath in AndroidKeys.Android)
+    defaultDevice map { s =>
+      val rebootMode = mode match {
+        case m: String => m
+        case _ => null
+      }
+      targetDevice(sdkpath, state.log) map { d =>
+        d.reboot(rebootMode)
+      }
+
+      state
+    } getOrElse sys.error("no device selected")
+  }
+
   val deviceParser: State => Parser[String] = state => {
     val names: Seq[Parser[String]] = deviceList(state) map (s =>
       Parser.stringLiteral(s.getSerialNumber, 0))
@@ -98,5 +170,22 @@ object AndroidCommands {
       defaultDevice = None
     }
     state
+  }
+  def targetDevice(path: String, log: Logger): Option[IDevice] = {
+    AndroidCommands.initAdb
+
+    val devices = AndroidCommands.deviceList(Some(path), log)
+    if (devices.isEmpty) {
+      sys.error("no devices connected")
+    } else {
+      AndroidCommands.defaultDevice flatMap { device =>
+        devices find (device == _.getSerialNumber) orElse {
+          log.warn("default device not found, falling back to first device")
+          None
+        }
+      } orElse {
+        Some(devices(0))
+      }
+    }
   }
 }
