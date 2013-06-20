@@ -59,6 +59,8 @@ object AndroidKeys {
   val sdkPath = SettingKey[String]("sdk-path", "Path to the Android SDK")
   val sdkManager = SettingKey[SdkManager]("sdk-manager",
     "Android SdkManager object")
+  val platformTarget = SettingKey[String]("platform-target",
+    "target API level as described by 'android list targets' (the ID string)")
   val platform = SettingKey[IAndroidTarget]("platform",
     "IAndroidTarget object representing a target API level")
   val platformJars = SettingKey[(String,Seq[String])]("platform-jars",

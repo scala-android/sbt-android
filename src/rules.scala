@@ -248,11 +248,12 @@ object AndroidSdkPlugin extends Plugin {
     sdkManager              <<= sdkPath { p =>
       SdkManager.createManager(p, new StdLogger(StdLogger.Level.VERBOSE))
     },
-    platform                <<= (sdkManager, properties, thisProject) {
+
+    platformTarget          <<= properties (_("target")),
+    platform                <<= (sdkManager, platformTarget, thisProject) {
       (m, p, prj) =>
-      val plat = Option(m.getTargetFromHashString(p("target")))
-      plat getOrElse
-        sys.error("Platform %s unknown in %s" format (p("target"), prj.base))
+      val plat = Option(m.getTargetFromHashString(p))
+      plat getOrElse sys.error("Platform %s unknown in %s" format (p, prj.base))
     }
   )) ++ Seq(
     cleanFiles        <+= binPath in Android,

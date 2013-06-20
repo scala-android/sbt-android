@@ -10,12 +10,14 @@ import scala.xml.{XML, Elem}
 import java.util.Properties
 import java.io.{File,FilenameFilter,FileInputStream}
 
+import com.android.SdkConstants
+import com.android.builder.AndroidBuilder
+import com.android.builder.DefaultSdkParser
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.build.ApkBuilder
-import com.android.sdklib.internal.build.BuildConfigGenerator
 import com.android.sdklib.BuildToolInfo.PathId
-import com.android.SdkConstants
+import com.android.utils.StdLogger
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 
@@ -33,12 +35,21 @@ object AndroidTasks {
   def resourceUrl =
     AndroidSdkPlugin.getClass.getClassLoader.getResource _
 
-  val buildConfigGeneratorTaskDef = ( genPath
+  val buildConfigGeneratorTaskDef = ( sdkManager
+                                    , platformTarget
+                                    , genPath
                                     , packageName
                                     ) map {
-    (g, p) =>
-    val generator = new BuildConfigGenerator(g.getAbsolutePath, p, createDebug)
-    generator.generate()
+    (m, t, g, p) =>
+    // This probably fails if not on at least SDK rev22
+    val logger = new StdLogger(StdLogger.Level.VERBOSE)
+    val parser = new DefaultSdkParser(m.getLocation)
+
+    parser.initParser(t, m.getLatestBuildTool.getRevision, logger)
+
+    val builder = new AndroidBuilder(parser, "android-sdk-plugin", logger, true)
+    builder.generateBuildConfig(p, createDebug,
+      Seq.empty[String], g.getAbsolutePath)
     g ** "BuildConfig.java" get
   }
   val apklibsTaskDef = (update in Compile, target, streams) map { (u,t,s) =>
