@@ -4,6 +4,8 @@ import complete.DefaultParsers._
 
 import scala.collection.JavaConversions._
 
+import java.io.File
+
 import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.SdkConstants
@@ -21,30 +23,15 @@ object AndroidCommands {
   }
 
   def deviceList(state: State): Seq[IDevice] =
-    deviceList(Project.extract(state).getOpt(
-      AndroidKeys.sdkPath in AndroidKeys.Android), state.log)
+    deviceList(sdkpath(state), state.log)
 
-  def deviceList(sdkpath: Option[String], log: Logger): Seq[IDevice] = {
+  def deviceList(sdkpath: String, log: Logger): Seq[IDevice] = {
     initAdb
 
-    val adb = sdkpath map { path =>
-      import SdkConstants._
-      val adbPath = path + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_ADB
+    import SdkConstants._
+    val adbPath = sdkpath + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_ADB
 
-      AndroidDebugBridge.createBridge(adbPath, false)
-    } getOrElse {
-      val adb = AndroidDebugBridge.createBridge()
-
-      while (!adb.isConnected) {
-        Thread.sleep(1000)
-        if (!adb.isConnected) {
-          log.warn(
-            "adb is not connected, run 'adb start-server' manually")
-        }
-      }
-
-      adb
-    }
+    val adb = AndroidDebugBridge.createBridge(adbPath, false)
 
     val devices = adb.getDevices
     if (devices.length == 0) {
@@ -82,10 +69,9 @@ object AndroidCommands {
   }
 
   val adbWifiAction: State => State = state => {
-    val sdkpath = Project.extract(state).get(
-      AndroidKeys.sdkPath in AndroidKeys.Android)
+    val sdk = sdkpath(state)
     import SdkConstants._
-    val adbPath = sdkpath + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_ADB
+    val adbPath = sdk + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_ADB
 
     val adbWifiOn = defaultDevice map { s =>
       (s indexOf ":") > 0
@@ -103,7 +89,7 @@ object AndroidCommands {
       override def isCancelled = false
       def result = _result
     }
-    val d = targetDevice(sdkpath, state.log).get
+    val d = targetDevice(sdk, state.log).get
     if (adbWifiOn) {
       state.log.info("turning ADB-over-wifi off")
       d.executeShellCommand("ps | grep -w [a]dbd", receiver)
@@ -134,14 +120,13 @@ object AndroidCommands {
   }
 
   val rebootAction: (State,Any) => State = (state, mode) => {
-    val sdkpath = Project.extract(state).get(
-      AndroidKeys.sdkPath in AndroidKeys.Android)
+    val sdk = sdkpath(state)
     defaultDevice map { s =>
       val rebootMode = mode match {
         case m: String => m
         case _ => null
       }
-      targetDevice(sdkpath, state.log) map { d =>
+      targetDevice(sdk, state.log) map { d =>
         d.reboot(rebootMode)
       }
 
@@ -174,7 +159,7 @@ object AndroidCommands {
   def targetDevice(path: String, log: Logger): Option[IDevice] = {
     AndroidCommands.initAdb
 
-    val devices = AndroidCommands.deviceList(Some(path), log)
+    val devices = AndroidCommands.deviceList(path, log)
     if (devices.isEmpty) {
       sys.error("no devices connected")
     } else {
@@ -187,5 +172,17 @@ object AndroidCommands {
         Some(devices(0))
       }
     }
+  }
+
+  private def sdkpath(state: State): String = {
+    Project.extract(state).getOpt(
+      AndroidKeys.sdkPath in AndroidKeys.Android) orElse (
+        Option(System getenv "ANDROID_HOME") flatMap { p =>
+          val f = file(p)
+          if (f.exists && f.isDirectory)
+            Some(p + File.separator)
+          else
+            None: Option[String]
+        }) getOrElse sys.error("ANDROID_HOME or sdk.dir is not set")
   }
 }
