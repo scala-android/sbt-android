@@ -97,6 +97,7 @@ object AndroidCommands {
       state.log.debug("current adbd pid: %s" format pid)
       d.executeShellCommand("setprop service.adb.tcp.port 0", receiver)
       d.executeShellCommand("kill %s" format pid, receiver)
+      state
 
     } else {
       state.log.info("turning ADB-over-wifi on")
@@ -114,9 +115,9 @@ object AndroidCommands {
 
       if (r != 0)
         sys.error("failed to connect ADB-over-wifi")
+      deviceAction(state, ip + ":5555")
     }
 
-    state
   }
 
   val rebootAction: (State,Any) => State = (state, mode) => {

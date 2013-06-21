@@ -204,7 +204,6 @@ object AndroidTasks {
       "-M", m.absolutePath, // manifest
       "--generate-dependencies", // generate .d file
       "-I", j,
-      "-G", (bin / "proguard.txt").absolutePath,
       "--no-crunch"
       ) ++ makeAaptResOptions(b, bin, l) ++ assetArgs ++ debug
   }
@@ -476,6 +475,7 @@ object AndroidTasks {
       "--generate-dependencies", // generate R.java.d
       "-M", manifest.absolutePath, // manifest
       "-I", androidjar, // platform jar
+      "-G", (bin / "proguard.txt").absolutePath,
       "-J", gen.absolutePath) ++
       makeAaptResOptions(base, bin, libraries) ++ nonConstantId
   }
@@ -520,8 +520,13 @@ object AndroidTasks {
 
       val custompackage = p map {
         c => Seq("--custom-package", c) } getOrElse Seq.empty
-      s.log.debug("aapt: " + (a +: (o ++ extras)).mkString(" "))
-      val r = (a +: (o ++ extras ++ custompackage)) !
+
+      val rTxt = Seq("--output-text-symbols", g.getAbsolutePath)
+
+      val aapt = Seq(a) ++ o ++ extras ++ custompackage ++ rTxt
+      s.log.debug("aapt: " + aapt.mkString(" "))
+
+      val r = aapt !
 
       if (r != 0)
         sys.error("failed")
