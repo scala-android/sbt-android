@@ -38,9 +38,10 @@ object AndroidTasks {
   val buildConfigGeneratorTaskDef = ( sdkManager
                                     , platformTarget
                                     , genPath
+                                    , libraryProjects
                                     , packageName
                                     ) map {
-    (m, t, g, p) =>
+    (m, t, g, l, p) =>
     // This probably fails if not on at least SDK rev22
     val logger = new StdLogger(StdLogger.Level.VERBOSE)
     val parser = new DefaultSdkParser(m.getLocation)
@@ -50,6 +51,10 @@ object AndroidTasks {
     val builder = new AndroidBuilder(parser, "android-sdk-plugin", logger, true)
     builder.generateBuildConfig(p, createDebug,
       Seq.empty[String], g.getAbsolutePath)
+    l filter (_.apklib) foreach { lib =>
+      builder.generateBuildConfig(lib.pkg, createDebug,
+        Seq.empty[String], g.getAbsolutePath)
+    }
     g ** "BuildConfig.java" get
   }
   val apklibsTaskDef = (update in Compile, target, streams) map { (u,t,s) =>
@@ -808,7 +813,7 @@ object AndroidTasks {
       p.stringPropertyNames.collect {
         case k if k.startsWith("android.library.reference") => k
       }.toList.sortWith { (a,b) => a < b } map { k =>
-        LibraryProject(b/p(k), false) +:
+        LibraryProject(b/p(k)) +:
           loadLibraryReferences(b, loadProperties(b/p(k)), k)
       } flatten
   }

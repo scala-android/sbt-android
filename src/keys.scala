@@ -109,7 +109,7 @@ object AndroidKeys {
   val packageT = Keys.`package`
   val Android = config("android")
 
-  case class LibraryProject(path: File, apklib: Boolean) {
+  case class LibraryProject(path: File, apklib: Boolean = false) {
     private val manifest = path / "AndroidManifest.xml"
     val pkg = XML.loadFile(manifest).attribute("package").get(0).text
     val binPath = AndroidTasks.directoriesList(
