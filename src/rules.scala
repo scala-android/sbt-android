@@ -290,5 +290,6 @@ object AndroidSdkPlugin extends Plugin {
   def devices = Command.command(
     "devices", "List connected and online android devices",
     "List all connected and online android devices")(devicesAction)
+
 }
 
