@@ -14,11 +14,17 @@ import com.android.SdkConstants
 import com.android.builder.AaptOptions
 import com.android.builder.AndroidBuilder
 import com.android.builder.DefaultSdkParser
+import com.android.builder.DexOptions
 import com.android.builder.VariantConfiguration
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
+import com.android.ide.common.res2.FileStatus
+import com.android.ide.common.res2.MergedResourceWriter
+import com.android.ide.common.res2.ResourceMerger
+import com.android.ide.common.res2.ResourceSet
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.build.ApkBuilder
 import com.android.sdklib.BuildToolInfo.PathId
+import com.android.utils.ILogger
 import com.android.utils.StdLogger
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
@@ -46,13 +52,19 @@ object AndroidTasks {
     (b, t, g, l, p) =>
     b.generateBuildConfig(p, createDebug,
       Seq.empty[String], g.getAbsolutePath)
-    l filter (_.apklib) foreach { lib =>
+    l collect { case a: ApkLibrary => a } foreach { lib =>
       b.generateBuildConfig(lib.pkg, createDebug,
         Seq.empty[String], g.getAbsolutePath)
     }
     g ** "BuildConfig.java" get
   }
-  val apklibsTaskDef = (update in Compile, target, streams) map { (u,t,s) =>
+
+  val apklibsTaskDef = ( update in Compile
+                       , target
+                       , streams
+                       , builder
+                       ) map {
+    (u,t,s,bldr) =>
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = t / "apklibs"
     libs map { l =>
@@ -62,7 +74,11 @@ object AndroidTasks {
         d.mkdirs()
         IO.unzip(l, d)
       }
-      LibraryProject(d, true)
+      val lib = ApkLibrary(d)
+      aapt(bldr, lib.getManifest, None, Seq.empty, true,
+          lib.getResFolder, lib.getAssetsFolder, null,
+          lib.path / "gen", (lib.path / "proguard.txt").getAbsolutePath)
+      lib: LibraryDependency
     }
   }
 
@@ -106,7 +122,9 @@ object AndroidTasks {
           def classForLabel(l: String) = {
             if (l contains ".") Some(l)
             else {
-              Seq("android.widget.", "android.view.", "android.webkit.").flatMap {
+              Seq("android.widget."
+                , "android.view."
+                , "android.webkit.").flatMap {
                 pkg =>
                 catching(classOf[ClassNotFoundException]) opt {
                   androidjar.loadClass(pkg + l).getName
@@ -163,63 +181,95 @@ object AndroidTasks {
       })(a.toSet).toSeq
   }
 
-  def makeAaptResOptions(base: File, bin: File,
-      libraries: Seq[LibraryProject]): Seq[String] = {
-    // crunched path needs to go before uncrunched
-    val resources = Seq((bin / "res"), (base / "res")) ++ (for {
-      r      <- libraries
-      binPath = (r.binPath / "res")
-    } yield Seq(binPath, r.path / "res")).flatten
-
-    resources collect { case p if p.exists && p.isDirectory => p } map {
-      r => Seq("-S", r.absolutePath) } flatten
-  }
-
-  val collectResourcesTaskDef = ( baseDirectory
+  val collectResourcesTaskDef = ( builder
+                                , baseDirectory
                                 , aaptPath
                                 , libraryProject
                                 , libraryProjects
                                 , binPath
+                                , ilogger
+                                , cacheDirectory
                                 ) map {
-    (base, aapt, isLib, libs, bin) =>
+    (bldr, base, aapt, isLib, libs, bin, logger, cache) =>
+
     val assetBin = bin / "assets"
     val assets = base / "assets"
     val resTarget = bin / "resources" / "res"
-    if (!isLib) {
-      resTarget.mkdirs()
-      assetBin.mkdirs
 
-      libs collect {
-        case r if (r.path / "assets").exists => r.path / "assets"
-      } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
+    resTarget.mkdirs()
+    assetBin.mkdirs
 
-      if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
+    // copy assets to single location
+    libs collect {
+      case r if (r.path / "assets").exists => r.path / "assets"
+    } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
 
-      val resources = Seq((bin / "res"), (base / "res")) ++ (for {
-        r <- libs
-        binPath = (r.binPath / "res")
-      } yield Seq(binPath, r.path / "res")).flatten
+    if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
 
-      resources collect { case p if p.exists && p.isDirectory => p } foreach {
-        r =>
-        //Seq(aapt, "crunch", "-v",
-        //  "-S", r.absolutePath, "-C", resTarget.absolutePath) !
-
-        IO.copyDirectory(r, resTarget, false, true)
-      }
+    // prepare resource sets for merge
+    val res = Seq((bin / "res"), (base / "res")) ++ (for {
+      r <- libs
+      binPath = (r.binPath / "res")
+    } yield Seq(binPath, r.path / "res")).flatten collect {
+      case p if p.exists && p.isDirectory => p 
+    } map { r =>
+      val set = new ResourceSet(r.getAbsolutePath)
+      set.addSource(r)
+      set
     }
+
+    val res1 = new ResourceSet("current-project")
+    res1.addSource(base / "res")
+
+    incrResourceMerge(base, resTarget, isLib, libs,
+      cache / "collect-resources", logger, bldr, ((res.reverse) :+ res1))
     (assets, resTarget)
   }
 
-  val packageResourcesTaskDef2 = ( builder
+  def incrResourceMerge(base: File, resTarget: File, isLib: Boolean,
+    libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
+    bldr: AndroidBuilder, resources: Seq[ResourceSet]) {
+
+    def merge() = fullResourceMerge(base, resTarget, isLib, libs, blobDir,
+      logger, bldr, resources)
+    val merger = new ResourceMerger
+    if (!merger.loadFromBlob(blobDir, true))
+      merge()
+    else if (!merger.checkValidUpdate(resources))
+      merge()
+    else {
+      val writer = new MergedResourceWriter(resTarget, bldr.getAaptRunner)
+      merger.mergeData(writer, false)
+      merger.writeBlobTo(blobDir)
+    }
+  }
+  def fullResourceMerge(base: File, resTarget: File, isLib: Boolean,
+    libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
+    bldr: AndroidBuilder, resources: Seq[ResourceSet]) {
+
+    val merger = new ResourceMerger
+
+    resTarget.mkdirs()
+
+    resources foreach { r =>
+      r.loadFromFiles(logger)
+      merger.addDataSet(r)
+    }
+    val writer = new MergedResourceWriter(resTarget, bldr.getAaptRunner)
+    merger.mergeData(writer, false)
+    merger.writeBlobTo(blobDir)
+  }
+
+  val packageResourcesTaskDef = ( builder
                                  , manifestPath
                                  , collectResources
                                  , customPackage
+                                 , libraryProject
                                  , libraryProjects
                                  , genPath
                                  , binPath
                                  ) map {
-    case (bldr, m, (assets, res), pkg, libs, gen, bin) => bin
+    case (bldr, m, (assets, res), pkg, lib, libs, gen, bin) => bin
     val proguardTxt = (bin / "proguard.txt").getAbsolutePath
     val genPath = gen.getAbsolutePath
 
@@ -228,85 +278,10 @@ object AndroidTasks {
     val dfile = bin * (basename + ".d") get
     val p = bin / basename
 
-    val options = new AaptOptions {
-      override def getIgnoreAssets = null
-      override def getNoCompress = null
-    }
     if (dfile.isEmpty || (dfile exists outofdate)) {
-      bldr.processResources(m, res, assets, libs,
-        pkg getOrElse null,
-        genPath, genPath, p.getAbsolutePath, proguardTxt,
-        VariantConfiguration.Type.DEFAULT, createDebug, options)
+      aapt(bldr, m, pkg, libs, lib, res, assets, p.getAbsolutePath,
+        gen, proguardTxt)
     }
-    p
-  }
-
-  val packageResourcesOptionsTaskDef = ( manifestPath
-                                       , versionCode
-                                       , versionName
-                                       , baseDirectory
-                                       , binPath
-                                       , libraryProjects
-                                       , platformJars
-                                       ) map {
-    case (m, v, n, b, bin, l, (j, x)) =>
-    //val vc = v getOrElse sys.error("versionCode is not set")
-    //val vn = n getOrElse sys.error("versionName is not set")
-
-    val assetBin = bin / "assets"
-    val assets = b / "assets"
-
-    l collect {
-      case r if (r.path / "assets").exists => r.path / "assets"
-    } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
-
-    assetBin.mkdirs
-    if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
-    val assetArgs = Seq("-A", assetBin.getCanonicalPath)
-
-    val debug = if (createDebug) Seq("--debug-mode") else Seq.empty
-    Seq("package", "-f",
-      // only required if refs lib projects, doesn't hurt otherwise?
-      "--auto-add-overlay",
-      "-M", m.absolutePath, // manifest
-      "--generate-dependencies", // generate .d file
-      "-I", j,
-      "--no-crunch"
-      ) ++ makeAaptResOptions(b, bin, l) ++ assetArgs ++ debug
-  }
-
-  val cleanAaptTaskDef = ( binPath, genPath, classDirectory in Compile) map {
-    (b,g,d) =>
-    val rel = if (createDebug) "-debug" else "-release"
-    val basename = "resources" + rel + ".ap_"
-    val p = b / basename
-    p.delete()
-    IO.delete(g)
-    IO.delete(d)
-  }
-  val packageResourcesTaskDef = ( aaptPath
-                                , packageResourcesOptions
-                                , baseDirectory
-                                , binPath
-                                , streams
-                                ) map {
-    (a, o, b, bin, s) =>
-    val rel = if (createDebug) "-debug" else "-release"
-    val basename = "resources" + rel + ".ap_"
-    val dfile = bin * (basename + ".d") get
-    val p = bin / basename
-
-    if (dfile.isEmpty || (dfile exists outofdate)) {
-      val cmd = a +: (o ++ Seq("-F", p.getAbsolutePath))
-
-      s.log.debug("aapt: " + cmd.mkString(" "))
-
-      val r = cmd !
-
-      if (r != 0) {
-        sys.error("failed")
-      }
-    } else s.log.info(p.getName + " is up-to-date")
     p
   }
 
@@ -469,7 +444,8 @@ object AndroidTasks {
           (script relativeTo src).get.getParentFile.getPath).getAbsolutePath,
         //"-O", level, 0 through 3
         "-MD", "-p", g.getAbsolutePath,
-        "-o", (b / "res" / "raw").getAbsolutePath) :+ script.getAbsolutePath
+        "-o", (b / "resources" / "res" / "raw").getAbsolutePath) :+
+          script.getAbsolutePath
 
       val r = cmd !
 
@@ -529,79 +505,40 @@ object AndroidTasks {
     }
   }
 
-  private def makeAaptOptions(manifest: File, base: File, bin: File,
-      packageName: String, isLib: Boolean, libraries: Seq[LibraryProject],
-      androidjar: String, gen: File) = {
+  val aaptGeneratorTaskDef = ( builder
+                              , manifestPath
+                              , collectResources
+                              , customPackage
+                              , libraryProject
+                              , libraryProjects
+                              , genPath
+                              , binPath
+                              ) map {
+    case (bldr, m, (assets, res), pkg, lib, libs, gen, bin) => bin
+    val proguardTxt = (bin / "proguard.txt").getAbsolutePath
 
-    val nonConstantId = if (isLib) Seq("--non-constant-id") else Seq.empty
-
-    Seq("package",
-      // only required if refs lib projects, doesn't hurt otherwise?
-      "--auto-add-overlay",
-      "-m", // make package directories in gen
-      "--generate-dependencies", // generate R.java.d
-      "-M", manifest.absolutePath, // manifest
-      "-I", androidjar, // platform jar
-      "-G", (bin / "proguard.txt").absolutePath,
-      "-J", gen.absolutePath) ++
-      makeAaptResOptions(base, bin, libraries) ++ nonConstantId
-  }
-
-  val aaptGeneratorOptionsTaskDef = ( manifestPath
-                                    , baseDirectory
-                                    , binPath
-                                    , packageName
-                                    , aaptNonConstantId
-                                    , libraryProject
-                                    , libraryProjects
-                                    , platformJars
-                                    , genPath
-                                    ) map {
-    case (m, b, bin, p, n, i, l, (j, x), g) =>
-    makeAaptOptions(m, b, bin, p, i && n, l, j, g)
-  }
-
-  val aaptGeneratorTaskDef = ( aaptPath
-                             , aaptGeneratorOptions
-                             , aaptNonConstantId
-                             , genPath
-                             , libraryProjects
-                             , baseDirectory
-                             , platformJars
-                             , customPackage
-                             , streams
-                             ) map {
-    case (a, o, n, g, l, b, (j, x), p, s) =>
-    g.mkdirs()
-
-    val dfile = g * "R.java.d" get
+    val dfile = gen * "R.java.d" get
 
     if (dfile.isEmpty || (dfile exists outofdate)) {
+      aapt(bldr, m, pkg, libs, lib, res, assets, null, gen, proguardTxt)
+    }
+    (gen ** "R.java" get) ++ (gen ** "Manifest.java" get)
+  }
 
-      val libPkgs = l map { _.pkg }
+  def aapt(bldr: AndroidBuilder, manifest: File, pkg: Option[String],
+      libs: Seq[LibraryDependency], lib: Boolean,
+      res: File, assets: File, resApk: String, gen: File, proguardTxt: String) {
 
-      // prefix with ":" to match ant scripts
-      s.log.debug("lib packages: " + libPkgs)
-      val extras = if (libPkgs.isEmpty) Seq.empty
-        else Seq("--extra-packages", ":" + (libPkgs mkString ":"))
-
-      val custompackage = p map {
-        c => Seq("--custom-package", c) } getOrElse Seq.empty
-
-      val rTxt = Seq("--output-text-symbols", g.getAbsolutePath)
-
-      val aapt = Seq(a) ++ o ++ extras ++ custompackage ++ rTxt
-      s.log.debug("aapt: " + aapt.mkString(" "))
-
-      val r = aapt !
-
-      if (r != 0)
-        sys.error("failed")
-      else
-        s.log.info("Generated R.java")
-    } else
-      s.log.info("R.java is up-to-date")
-    (g ** "R.java" get) ++ (g ** "Manifest.java" get)
+    gen.mkdirs()
+    val options = new AaptOptions {
+      override def getIgnoreAssets = null
+      override def getNoCompress = null
+    }
+    val genPath = gen.getAbsolutePath
+    bldr.processResources(manifest, res, assets, libs,
+      pkg getOrElse null, genPath, genPath, resApk, proguardTxt,
+      if (lib) VariantConfiguration.Type.LIBRARY else
+        VariantConfiguration.Type.DEFAULT, createDebug, options)
   }
 
   val proguardConfigTaskDef = ( baseDirectory
@@ -665,39 +602,23 @@ object AndroidTasks {
     }.flatten.toSeq
   }
 
-  val dexTaskDef = ( dexPath
+  val dexTaskDef = ( builder
                    , dexInputs
                    , libraryProject
                    , classesDex
                    , streams) map {
-    (d, i, l, c, s) =>
-    if (l) sys.error("Cannot dex a library project")
-
-    if (i.exists { _.lastModified > c.lastModified }) {
-      s.log.info("dexing input")
-      // TODO maybe split out options into a separate task?
-      val cmd = Seq(d, "--dex",
-        // TODO support instrumented builds
-        // --no-locals if instrumented
-        // --verbose
-        "--incremental",
-        "--num-threads",
-        "" + java.lang.Runtime.getRuntime.availableProcessors,
-        "--output", c.getAbsolutePath
-        ) ++ (i map { _.getAbsolutePath })
-
-      s.log.debug("dex: " + cmd.mkString(" "))
-
-      val r = cmd !
-
-      if (r != 0) {
-        sys.error("failed")
+    (bldr, inputs, lib, outDex, s) =>
+    if (inputs exists { _.lastModified > outDex.lastModified }) {
+      val options = new DexOptions {
+        def isCoreLibrary = false
+        def getIncremental = true
       }
+      bldr.convertByteCode(Seq.empty[File],
+        inputs, null, outDex.getAbsolutePath, options, true)
     } else {
-      s.log.info(c.getName + " is up-to-date")
+      s.log.info(outDex.getName + " is up-to-date")
     }
-
-    c
+    outDex
   }
 
   val proguardInputsTaskDef = ( proguardScala
@@ -898,7 +819,7 @@ object AndroidTasks {
 
     // remove scala-library if present
     // add all dependent library projects' classes.jar files
-    (u ++ (l filter (!_.apklib) map { p =>
+    (u ++ (l filter (!_.isInstanceOf[ApkLibrary]) map { p =>
       Attributed.blank((p.binPath / "classes.jar").getCanonicalFile)
     }) ++ (for {
         d <- l

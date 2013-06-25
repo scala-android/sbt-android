@@ -110,12 +110,11 @@ object AndroidSdkPlugin extends Plugin {
     sourceDirectory            <<= baseDirectory (_ / "test"),
     unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
   )) ++ inConfig(Android) (Seq(
-    apklibs           <<= apklibsTaskDef,
+    apklibs                 <<= apklibsTaskDef,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
     run                     <<= runTaskDef(install,
                                            sdkPath, manifest, packageName),
-    cleanAapt               <<= cleanAaptTaskDef,
     cleanForR               <<= (aaptGenerator
                                 , cacheDirectory
                                 , genPath
@@ -134,13 +133,11 @@ object AndroidSdkPlugin extends Plugin {
       Seq.empty[File]
     },
     customPackage            := None,
-    packageResourcesOptions <<= packageResourcesOptionsTaskDef,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= setDirectory("out.dir", "bin"),
     classesJar              <<= binPath (_ / "classes.jar"),
     classesDex              <<= binPath (_ / "classes.dex"),
     aaptNonConstantId        := true,
-    aaptGeneratorOptions    <<= aaptGeneratorOptionsTaskDef,
     aaptGenerator           <<= aaptGeneratorTaskDef,
     aaptGenerator           <<= aaptGenerator dependsOn (renderscript),
     aidl                    <<= aidlTaskDef,
@@ -213,7 +210,7 @@ object AndroidSdkPlugin extends Plugin {
     useSdkProguard          <<= proguardScala (!_),
     useProguardInDebug      <<= proguardScala,
     collectResources        <<= collectResourcesTaskDef,
-    packageResources        <<= packageResourcesTaskDef2,
+    packageResources        <<= packageResourcesTaskDef,
     apkbuild                <<= apkbuildTaskDef,
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
@@ -242,16 +239,17 @@ object AndroidSdkPlugin extends Plugin {
             sys.error("set ANDROID_HOME or run 'android update project -p %s'"
               format p.base))
     },
-    builder                 <<= (sdkManager, platformTarget) { (m, t) =>
-      val logger = new StdLogger(StdLogger.Level.VERBOSE)
+    ilogger                  := new StdLogger(StdLogger.Level.WARNING),
+    builder                 <<= (sdkManager, platformTarget, ilogger) {
+      (m, t, l) =>
       val parser = new DefaultSdkParser(m.getLocation)
 
-      parser.initParser(t, m.getLatestBuildTool.getRevision, logger)
+      parser.initParser(t, m.getLatestBuildTool.getRevision, l)
 
-      new AndroidBuilder(parser, "android-sdk-plugin", logger, true)
+      new AndroidBuilder(parser, "android-sdk-plugin", l, false)
     },
-    sdkManager              <<= sdkPath { p =>
-      SdkManager.createManager(p, new StdLogger(StdLogger.Level.VERBOSE))
+    sdkManager              <<= (sdkPath,ilogger) { (p, l) =>
+      SdkManager.createManager(p, l)
     },
 
     platformTarget          <<= properties (_("target")),
