@@ -1,12 +1,16 @@
 import sbt._
 import sbt.Keys._
 
+import scala.collection.JavaConversions._
 import scala.xml.Elem
 import scala.xml.XML
 
 import java.io.File
 import java.util.Properties
 
+import com.android.builder.AndroidBuilder
+import com.android.builder.dependency.JarDependency
+import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 
 object AndroidKeys {
@@ -33,8 +37,11 @@ object AndroidKeys {
   val pngCrunch = TaskKey[Unit]("png-crunch", "optimize png files")
   val packageName = SettingKey[String]("package-name", "android package name")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")
+  val builder = SettingKey[AndroidBuilder]("builder", "AndroidBuilder object")
   val packageRelease = TaskKey[File]("package-release", "create a release apk")
   val packageDebug = TaskKey[File]("package-debug", "create a debug apk")
+  val collectResources = TaskKey[(File,File)]("collect-resources",
+    "copy all resources and assets to a single location for packaging")
   val packageResourcesOptions = TaskKey[Seq[String]](
     "package-resources-options", "options to package-resources")
   val packageResources = TaskKey[File]("package-resources",
@@ -109,12 +116,51 @@ object AndroidKeys {
   val packageT = Keys.`package`
   val Android = config("android")
 
-  case class LibraryProject(path: File, apklib: Boolean = false) {
-    private val manifest = path / "AndroidManifest.xml"
+  class LibraryDependency(path: File) extends AndroidLibrary {
+    import com.android.SdkConstants._
+    private val manifest = Seq(path / FN_ANDROID_MANIFEST_XML,
+      path / "src" / "main" / FN_ANDROID_MANIFEST_XML) collect {
+      case f if f.exists => f
+    } head
+
     val pkg = XML.loadFile(manifest).attribute("package").get(0).text
+
     val binPath = AndroidTasks.directoriesList(
       "out.dir", "bin", AndroidTasks.loadProperties(path), path)(0)
+
     val libPath = Seq("libs", "lib") map { path / _ } find {
       _.exists } getOrElse (path / "libs")
+
+    override def getManifest = manifest
+    override def getFolder = path
+    override def getJarFile = path / FN_CLASSES_JAR
+    override def getLocalJars = (path / LIBS_FOLDER) ** ".jar" get
+    override def getResFolder = path / FD_RES
+    override def getAssetsFolder = path / FD_ASSETS
+    override def getJniFolder = path / "jni"
+    override def getSymbolFile = path / "R.txt"
+    override def getAidlFolder = path / FD_AIDL
+    override def getRenderscriptFolder = path / FD_RENDERSCRIPT
+    override def getLintJar = path / "lint.jar"
+    override def getProguardRules = path / "proguard.txt"
+
+    override def getLibraryDependencies = Seq.empty[LibraryDependency]
+    override def getDependencies = Seq.empty[AndroidLibrary]
+    override def getManifestDependencies = Seq.empty[AndroidLibrary]
+
+    override def getLocalDependencies = getLocalJars map {
+      j => new JarDependency(j)
+    }
+  }
+
+  case class ApkLibrary(path: File) extends LibraryDependency(path)
+  case class AarLibrary(path: File) extends LibraryDependency(path)
+
+  case class LibraryProject(path: File, apklib: Boolean = false)
+  extends LibraryDependency(path) {
+    import com.android.SdkConstants._
+    override def getSymbolFile = path / "gen" / "R.txt"
+    override def getJarFile = path / "bin" / FN_CLASSES_JAR
+    override def getProguardRules = path / "bin" / "proguard.txt"
   }
 }
