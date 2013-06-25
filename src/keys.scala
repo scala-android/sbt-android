@@ -12,8 +12,10 @@ import com.android.builder.AndroidBuilder
 import com.android.builder.dependency.JarDependency
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.sdklib.{IAndroidTarget,SdkManager}
+import com.android.utils.ILogger
 
 object AndroidKeys {
+  val ilogger = SettingKey[ILogger]("ilogger", "internal Android SDK logger")
   val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
     "TR.scala generating task")
   val typedResources = SettingKey[Boolean]("typed-resources",
@@ -30,7 +32,7 @@ object AndroidKeys {
   val signRelease = TaskKey[File]("sign-release", "sign the release build")
   val zipalignPath = SettingKey[String]("zipalign-path",
     "path to the zipalign executable")
-  val apklibs = TaskKey[Seq[LibraryProject]]("apklibs",
+  val apklibs = TaskKey[Seq[LibraryDependency]]("apklibs",
     "unpack the set of referenced apklibs")
   val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
   val setRelease = TaskKey[Unit]("set-release", "set release build")
@@ -42,8 +44,6 @@ object AndroidKeys {
   val packageDebug = TaskKey[File]("package-debug", "create a debug apk")
   val collectResources = TaskKey[(File,File)]("collect-resources",
     "copy all resources and assets to a single location for packaging")
-  val packageResourcesOptions = TaskKey[Seq[String]](
-    "package-resources-options", "options to package-resources")
   val packageResources = TaskKey[File]("package-resources",
     "package android resources")
   val customPackage = SettingKey[Option[String]]("custom-package",
@@ -55,7 +55,7 @@ object AndroidKeys {
   val manifest = SettingKey[Elem]("manifest", "android manifest xml object")
   val classesJar = SettingKey[File]("classes-jar",
     "generated classes.jar file if in a library project")
-  val libraryProjects = TaskKey[Seq[LibraryProject]]("library-projects",
+  val libraryProjects = TaskKey[Seq[LibraryDependency]]("library-projects",
     "android library projects to reference, must be built separately")
   val libraryProject = SettingKey[Boolean]("library-project",
     "flag indicating whether or not a library project")
@@ -79,9 +79,6 @@ object AndroidKeys {
     "generate lib-project R.java files with --non-constant-id, default true")
   val buildConfigGenerator = TaskKey[Seq[File]]("build-config-generator",
     "generate BuildConfig.java")
-  val aaptGeneratorOptions = TaskKey[Seq[String]]("aapt-generator-options",
-    "android aapt source-gen options task")
-  val cleanAapt = TaskKey[Unit]("clean-aapt", "clean aapt generated files")
   val aaptGenerator = TaskKey[Seq[File]]("aapt-generator",
     "android aapt source-gen task")
   val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task")
@@ -116,7 +113,7 @@ object AndroidKeys {
   val packageT = Keys.`package`
   val Android = config("android")
 
-  class LibraryDependency(path: File) extends AndroidLibrary {
+  class LibraryDependency(val path: File) extends AndroidLibrary {
     import com.android.SdkConstants._
     private val manifest = Seq(path / FN_ANDROID_MANIFEST_XML,
       path / "src" / "main" / FN_ANDROID_MANIFEST_XML) collect {
@@ -153,10 +150,14 @@ object AndroidKeys {
     }
   }
 
-  case class ApkLibrary(path: File) extends LibraryDependency(path)
-  case class AarLibrary(path: File) extends LibraryDependency(path)
-
-  case class LibraryProject(path: File, apklib: Boolean = false)
+  case class ApkLibrary(override val path: File)
+  extends LibraryDependency(path) {
+    import com.android.SdkConstants._
+    override def getSymbolFile = path / "gen" / "R.txt"
+    override def getJarFile = path / "bin" / FN_CLASSES_JAR
+  }
+  case class AarLibrary(override val path: File) extends LibraryDependency(path)
+  case class LibraryProject(override val path: File)
   extends LibraryDependency(path) {
     import com.android.SdkConstants._
     override def getSymbolFile = path / "gen" / "R.txt"
