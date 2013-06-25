@@ -1,6 +1,8 @@
 import sbt._
 import sbt.Keys._
 
+import com.android.builder.AndroidBuilder
+import com.android.builder.DefaultSdkParser
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 import com.android.sdklib.BuildToolInfo.PathId
 import com.android.SdkConstants
@@ -75,7 +77,7 @@ object AndroidSdkPlugin extends Plugin {
       a ++ tr ++ aidl ++ bcg ++ rs ++ apkls
     },
     copyResources      := { Seq.empty },
-    packageT          <<= packageT dependsOn(compile, pngCrunch in Android),
+    packageT          <<= packageT dependsOn(compile),
     javacOptions      <<= ( javacOptions
                           , sbtVersion
                           , platformJars in Android
@@ -140,11 +142,9 @@ object AndroidSdkPlugin extends Plugin {
     aaptNonConstantId        := true,
     aaptGeneratorOptions    <<= aaptGeneratorOptionsTaskDef,
     aaptGenerator           <<= aaptGeneratorTaskDef,
-    aaptGenerator           <<= aaptGenerator dependsOn (
-      renderscript, pngCrunch),
+    aaptGenerator           <<= aaptGenerator dependsOn (renderscript),
     aidl                    <<= aidlTaskDef,
     renderscript            <<= renderscriptTaskDef,
-    pngCrunch               <<= pngCrunchTaskDef,
     genPath                 <<= baseDirectory (_ / "gen"),
     libraryProjects         <<= (baseDirectory, properties, apklibs) map {
       (b,p,a) =>
@@ -212,9 +212,8 @@ object AndroidSdkPlugin extends Plugin {
     useProguard             <<= proguardScala,
     useSdkProguard          <<= proguardScala (!_),
     useProguardInDebug      <<= proguardScala,
-    packageResources        <<= packageResourcesTaskDef,
-    // packageResources needs to happen after all other project's crunches
-    packageResources        <<= packageResources dependsOn(pngCrunch, dex),
+    collectResources        <<= collectResourcesTaskDef,
+    packageResources        <<= packageResourcesTaskDef2,
     apkbuild                <<= apkbuildTaskDef,
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
@@ -242,6 +241,14 @@ object AndroidSdkPlugin extends Plugin {
           } getOrElse (
             sys.error("set ANDROID_HOME or run 'android update project -p %s'"
               format p.base))
+    },
+    builder                 <<= (sdkManager, platformTarget) { (m, t) =>
+      val logger = new StdLogger(StdLogger.Level.VERBOSE)
+      val parser = new DefaultSdkParser(m.getLocation)
+
+      parser.initParser(t, m.getLatestBuildTool.getRevision, logger)
+
+      new AndroidBuilder(parser, "android-sdk-plugin", logger, true)
     },
     sdkManager              <<= sdkPath { p =>
       SdkManager.createManager(p, new StdLogger(StdLogger.Level.VERBOSE))
