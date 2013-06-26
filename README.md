@@ -81,6 +81,9 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
    * `android.Plugin.androidBuild`
    * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
      if you don't set it)
+   * An example of what build.sbt should look like can be found at
+     https://gist.github.com/pfn/5872691
+
 5. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
      * Compiles all the sources in the project, java and scala
@@ -119,18 +122,12 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
       * Alternatively, the `androidBuild()` overload may be used to specify
         all dependency library-projects which should relieve this problem.
 * Multi-project builds
-  * See https://gist.github.com/1897936 for an example of how to setup the
-    root project
-  * The example config makes `package` in the app project depend on `package`
-    in the library project.  `package` in the root project depends on
-    `android:package` in the app project. So if `package` is called from the
-    root, or if `android:package` is called from `appproject`, then the
-    right thing happens
-  * Another example of a multi-project build using an android project and
-    common code that is not meant to target only android is available at
-    https://gist.github.com/2296619
-    * This example does the same as above, except allows loading an arbitrary
-      Java or Scala project into the Android app.
+  * Several documented examples can be found at the following links, they
+    cover a variety of situations, from multiple java projects, to mixed
+    java and android projects and fully scala projects.
+    * https://gist.github.com/pfn/5872427
+    * https://gist.github.com/pfn/5872679
+    * https://gist.github.com/pfn/5872770
   * See [Working with Android library projects](https://github.com/pfn/android-sdk-plugin/wiki/Working-with-Android-library-projects) 
     in the Wiki for detailed instructions on configuring Android library projects
 * Configuring `android-sdk-plugin` by editing build.sbt
@@ -149,7 +146,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
 * I have found that Scala applications on android build faster if they're
   using scala 2.8.2. Set the scala version in `build.sbt` by entering
   `scalaVersion := "2.8.2"`
-* Unit testing with robolectric, see my build.sbt for this configuration:
+* OLD EXAMPLE (Needs massaging for 0.7.0 and newer) Unit testing with
+  robolectric, see my build.sbt for this configuration:
   * https://gist.github.com/2503441
   * To get rid of robolectric's warnings about not finding certain classes
     to shadow, change the project target to include google APIs
