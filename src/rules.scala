@@ -37,12 +37,24 @@ object Plugin extends sbt.Plugin {
   // * sign
   // * zipalign
 
-  lazy val androidBuild = {
+  lazy val androidBuild: Project.SettingsDefinition = {
     // only set the property below if this plugin is actually used
     // this property is a workaround for bootclasspath messing things
     // up and causing full-recompiles
     System.setProperty("xsbt.skip.cp.lookup", "true")
     seq(allPluginSettings:_*)
+  }
+
+  def androidBuild(projects: Project*): Project.SettingsDefinition = {
+    androidBuild ++
+      (projects map { p =>
+        Seq(
+          collectResources in Android <<=
+            collectResources in Android dependsOn (compile in Compile in p),
+          compile in Compile <<= compile in Compile dependsOn(
+            packageT in Compile in p)
+        )
+      }).flatten
   }
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
@@ -274,12 +286,6 @@ object Plugin extends sbt.Plugin {
     exportJars         := true,
     unmanagedBase     <<= baseDirectory (_ / "libs")
   ) ++ androidCommands
-
-  /*
-  lazy val androidGradleSettings: Seq[Setting[_]] = androidBuildSettings ++
-    inConfig(Compile) (Seq(
-    ))
-  */
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
     commands ++= Seq(devices, device, reboot, adbWifi)
