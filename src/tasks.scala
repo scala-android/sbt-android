@@ -619,7 +619,7 @@ object Tasks {
         val combined_tmp = bin / "all_tmp"
         if (jars exists (_.lastModified > combined.lastModified)) {
           IO.createDirectory(combined_tmp)
-          val files = jars.foldLeft (Set.empty[File]) {
+          val files = (jars filter (_.isFile)).foldLeft (Set.empty[File]) {
             (acc,j) =>
             acc ++ IO.unzip(j, combined_tmp, { n: String =>
               !n.startsWith("META-INF") })
@@ -641,7 +641,7 @@ object Tasks {
                          , streams) map {
     (p, b, m, d, u, j, s) =>
 
-    (p map { f => dedupeClasses(b, Seq(f)) } getOrElse {
+    (p map { f => Seq(f) } getOrElse {
       ((m ++ u ++ d) collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
@@ -664,36 +664,40 @@ object Tasks {
         def isCoreLibrary = false
         def getIncremental = true
       }
+      s.log.info("Generating " + outDex.getName)
+      s.log.debug("Dex inputs: " + inputs)
       bldr.convertByteCode(Seq.empty[File],
-        inputs, null, outDex.getAbsolutePath, options, true)
+        inputs filter (_.isFile), null, outDex.getAbsolutePath, options, true)
     } else {
       s.log.info(outDex.getName + " is up-to-date")
     }
     outDex
   }
 
-  val proguardInputsTaskDef = ( proguardScala
+  val proguardInputsTaskDef = ( useProguard
+                              , proguardScala
                               , proguardLibraries
                               , proguardExcludes
                               , managedClasspath in Compile
-                              , unmanagedClasspath in Compile
-                              , dependencyClasspath in Compile
+                              , externalDependencyClasspath in Compile
                               , platformJars
                               , classesJar
                               , binPath
                               ) map {
-    case (s, l, e, m, u, d, (p, x), c, b) =>
+    case (u, s, l, e, m, ud, (p, x), c, b) =>
 
-    // TODO remove duplicate jars
-    val injars = dedupeClasses(b, ((((m ++ u ++ d) map {
-      _.data.getCanonicalFile }) :+ c) filter {
-        in =>
-        (s || !in.getName.startsWith("scala-library")) &&
-          !l.exists { i => i.getName == in.getName}
-      }))
+    if (u) {
+      val injars = dedupeClasses(b, ((((m ++ ud) map {
+        _.data.getCanonicalFile }) :+ c) filter {
+          in =>
+          (s || !in.getName.startsWith("scala-library")) &&
+            !l.exists { i => i.getName == in.getName}
+        }))
 
-    val extras = x map (f => file(f))
-    (injars,file(p) +: (extras ++ l))
+      val extras = x map (f => file(f))
+      (injars,file(p) +: (extras ++ l))
+    } else
+      (Seq.empty,Seq.empty)
   }
 
   val proguardTaskDef: Project.Initialize[Task[Option[File]]] =

@@ -50,7 +50,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   `inflater.inflate(TR.layout.foo, container, optionalBoolean)` and receiving
   a properly typed resulting view object.
   * Import `TypedResource._` to get the implicit conversions
-* No apklib creation support yet.
+* No apklib or aar creation support yet.
+* All plugin classes are not namespaced under the `android` package
 
 ## Usage ##
 
@@ -115,6 +116,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
       either aar or apklibs, you will need to add a dependency statement
       into your main-project's settings:
       * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
+      * Alternatively, the `androidBuild()` overload may be used to specify
+        all dependency library-projects which should relieve this problem.
 * Multi-project builds
   * See https://gist.github.com/1897936 for an example of how to setup the
     root project
