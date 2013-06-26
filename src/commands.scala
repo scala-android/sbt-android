@@ -1,3 +1,5 @@
+package android
+
 import sbt._
 import complete.Parser
 import complete.DefaultParsers._
@@ -10,7 +12,7 @@ import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.SdkConstants
 
-object AndroidCommands {
+object Commands {
 
   var defaultDevice: Option[String] = None
 
@@ -158,13 +160,13 @@ object AndroidCommands {
     state
   }
   def targetDevice(path: String, log: Logger): Option[IDevice] = {
-    AndroidCommands.initAdb
+    initAdb
 
-    val devices = AndroidCommands.deviceList(path, log)
+    val devices = deviceList(path, log)
     if (devices.isEmpty) {
       sys.error("no devices connected")
     } else {
-      AndroidCommands.defaultDevice flatMap { device =>
+      defaultDevice flatMap { device =>
         devices find (device == _.getSerialNumber) orElse {
           log.warn("default device not found, falling back to first device")
           None
@@ -177,7 +179,7 @@ object AndroidCommands {
 
   private def sdkpath(state: State): String = {
     Project.extract(state).getOpt(
-      AndroidKeys.sdkPath in AndroidKeys.Android) orElse (
+      Keys.sdkPath in Keys.Android) orElse (
         Option(System getenv "ANDROID_HOME") flatMap { p =>
           val f = file(p)
           if (f.exists && f.isDirectory)

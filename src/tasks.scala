@@ -1,3 +1,5 @@
+package android
+
 import sbt._
 import sbt.Keys._
 import classpath.ClasspathUtilities
@@ -16,6 +18,7 @@ import com.android.builder.AndroidBuilder
 import com.android.builder.DefaultSdkParser
 import com.android.builder.DexOptions
 import com.android.builder.VariantConfiguration
+import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.ide.common.res2.FileStatus
 import com.android.ide.common.res2.MergedResourceWriter
@@ -29,9 +32,10 @@ import com.android.utils.StdLogger
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 
-import AndroidKeys._
+import Keys._
+import Dependencies._
 
-object AndroidTasks {
+object Tasks {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
 
   // wish this could be protected
@@ -41,7 +45,7 @@ object AndroidTasks {
   private def createDebug_=(d: Boolean) = _createDebug = d
 
   def resourceUrl =
-    AndroidSdkPlugin.getClass.getClassLoader.getResource _
+    Plugin.getClass.getClassLoader.getResource _
 
   val buildConfigGeneratorTaskDef = ( builder
                                     , platformTarget
@@ -59,12 +63,34 @@ object AndroidTasks {
     g ** "BuildConfig.java" get
   }
 
+  val aarsTaskDef = ( update in Compile
+                    , target
+                    , streams
+                    ) map {
+    (u,t,s) =>
+    val libs = u.matching(artifactFilter(`type` = "aar"))
+    val dest = t / "aars"
+    libs map { l =>
+      val d = dest / l.base
+      if (d.lastModified < l.lastModified) {
+        s.log.info("Unpacking aar: " + l.base)
+        d.mkdirs()
+        IO.unzip(l, d)
+      }
+      val lib = AarLibrary(d)
+      lib: LibraryDependency
+    }
+  }
+
   val apklibsTaskDef = ( update in Compile
+                       , genPath
+                       , libraryProject
                        , target
                        , streams
                        , builder
+                       , streams
                        ) map {
-    (u,t,s,bldr) =>
+    (u,gen,isLib,t,s,bldr,st) =>
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = t / "apklibs"
     libs map { l =>
@@ -77,7 +103,10 @@ object AndroidTasks {
       val lib = ApkLibrary(d)
       aapt(bldr, lib.getManifest, None, Seq.empty, true,
           lib.getResFolder, lib.getAssetsFolder, null,
-          lib.path / "gen", (lib.path / "proguard.txt").getAbsolutePath)
+          lib.path / "gen", (lib.path / "proguard.txt").getAbsolutePath,
+          st.log)
+      if (isLib)
+        IO.copyDirectory(lib.path / "gen", gen, false, true)
       lib: LibraryDependency
     }
   }
@@ -183,14 +212,14 @@ object AndroidTasks {
 
   val collectResourcesTaskDef = ( builder
                                 , baseDirectory
-                                , aaptPath
                                 , libraryProject
                                 , libraryProjects
                                 , binPath
                                 , ilogger
                                 , cacheDirectory
+                                , streams
                                 ) map {
-    (bldr, base, aapt, isLib, libs, bin, logger, cache) =>
+    (bldr, base, isLib, libs, bin, logger, cache, s) =>
 
     val assetBin = bin / "assets"
     val assets = base / "assets"
@@ -218,11 +247,24 @@ object AndroidTasks {
       set
     }
 
+    // TODO this needs to wait for other projects to at least finish their
+    // apklibs tasks
+    val depres = collectdeps(libs) collect {
+      case m: ApkLibrary => m
+      case n: AarLibrary => n
+    } filter (_.getResFolder.isDirectory) map {
+      l =>
+      val set = new ResourceSet(l.path.getAbsolutePath)
+      set.addSource(l.getResFolder)
+      set
+    }
+
     val res1 = new ResourceSet("current-project")
     res1.addSource(base / "res")
 
     incrResourceMerge(base, resTarget, isLib, libs,
-      cache / "collect-resources", logger, bldr, ((res.reverse) :+ res1))
+      cache / "collect-resources", logger, bldr,
+      (depres ++ res.reverse :+ res1))
     (assets, resTarget)
   }
 
@@ -268,8 +310,9 @@ object AndroidTasks {
                                  , libraryProjects
                                  , genPath
                                  , binPath
+                                 , streams
                                  ) map {
-    case (bldr, m, (assets, res), pkg, lib, libs, gen, bin) => bin
+    case (bldr, m, (assets, res), pkg, lib, libs, gen, bin, s) => bin
     val proguardTxt = (bin / "proguard.txt").getAbsolutePath
     val genPath = gen.getAbsolutePath
 
@@ -280,7 +323,7 @@ object AndroidTasks {
 
     if (dfile.isEmpty || (dfile exists outofdate)) {
       aapt(bldr, m, pkg, libs, lib, res, assets, p.getAbsolutePath,
-        gen, proguardTxt)
+        gen, proguardTxt, s.log)
     }
     p
   }
@@ -513,21 +556,23 @@ object AndroidTasks {
                               , libraryProjects
                               , genPath
                               , binPath
+                              , streams
                               ) map {
-    case (bldr, m, (assets, res), pkg, lib, libs, gen, bin) => bin
+    case (bldr, m, (assets, res), pkg, lib, libs, gen, bin, s) => bin
     val proguardTxt = (bin / "proguard.txt").getAbsolutePath
 
     val dfile = gen * "R.java.d" get
 
     if (dfile.isEmpty || (dfile exists outofdate)) {
-      aapt(bldr, m, pkg, libs, lib, res, assets, null, gen, proguardTxt)
+      aapt(bldr, m, pkg, libs, lib, res, assets, null, gen, proguardTxt, s.log)
     }
     (gen ** "R.java" get) ++ (gen ** "Manifest.java" get)
   }
 
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: Option[String],
       libs: Seq[LibraryDependency], lib: Boolean,
-      res: File, assets: File, resApk: String, gen: File, proguardTxt: String) {
+      res: File, assets: File, resApk: String, gen: File, proguardTxt: String,
+      logger: Logger) {
 
     gen.mkdirs()
     val options = new AaptOptions {
@@ -535,10 +580,16 @@ object AndroidTasks {
       override def getNoCompress = null
     }
     val genPath = gen.getAbsolutePath
-    bldr.processResources(manifest, res, assets, libs,
+    bldr.processResources(manifest, res, assets, collectdeps(libs) ++ libs,
       pkg getOrElse null, genPath, genPath, resApk, proguardTxt,
       if (lib) VariantConfiguration.Type.LIBRARY else
         VariantConfiguration.Type.DEFAULT, createDebug, options)
+  }
+
+  def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
+    val deps = libs map (_.getDependencies) flatten
+
+    if (libs.isEmpty) Seq.empty else (collectdeps(deps) ++ deps)
   }
 
   val proguardConfigTaskDef = ( baseDirectory
@@ -721,7 +772,7 @@ object AndroidTasks {
           }
           override def isCancelled = false
         }
-        AndroidCommands.targetDevice(k, s.log) map { d =>
+        Commands.targetDevice(k, s.log) map { d =>
           val command = "am start -n %s" format intent
           s.log.debug("Executing [%s]" format command)
           d.executeShellCommand(command, receiver)
@@ -748,7 +799,7 @@ object AndroidTasks {
     if (!l) {
       s.log.info("Installing...")
       val start = System.currentTimeMillis
-      AndroidCommands.targetDevice(k, s.log) foreach { d =>
+      Commands.targetDevice(k, s.log) foreach { d =>
         Option(d.installPackage(p.getAbsolutePath, true)) map { err =>
           sys.error("Install failed: " + err)
         } getOrElse {
@@ -769,7 +820,7 @@ object AndroidTasks {
   }
 
   val uninstallTaskDef = (sdkPath, packageName, streams) map { (k,p,s) =>
-    AndroidCommands.targetDevice(k, s.log) foreach { d =>
+    Commands.targetDevice(k, s.log) foreach { d =>
       Option(d.uninstallPackage(p)) map { err =>
         sys.error("Uninstall failed: " + err)
       } getOrElse {
@@ -820,7 +871,7 @@ object AndroidTasks {
     // remove scala-library if present
     // add all dependent library projects' classes.jar files
     (u ++ (l filter (!_.isInstanceOf[ApkLibrary]) map { p =>
-      Attributed.blank((p.binPath / "classes.jar").getCanonicalFile)
+      Attributed.blank((p.getJarFile).getCanonicalFile)
     }) ++ (for {
         d <- l
         j <- d.libPath * "*.jar" get

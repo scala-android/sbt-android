@@ -1,3 +1,4 @@
+package android
 import sbt._
 import sbt.Keys._
 
@@ -14,14 +15,11 @@ import java.util.Properties
 import scala.collection.JavaConversions._
 import scala.xml.XML
 
-import AndroidKeys._
+import Keys._
+import Tasks._
+import Commands._
 
-import AndroidTasks._
-import AndroidCommands._
-
-object AndroidSdkPlugin extends Plugin {
-
-  System.setProperty("xsbt.skip.cp.lookup", "true")
+object Plugin extends sbt.Plugin {
 
   // android build steps
   // * handle library dependencies (android.library.reference.N)
@@ -39,7 +37,15 @@ object AndroidSdkPlugin extends Plugin {
   // * sign
   // * zipalign
 
-  lazy val androidBuildSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
+  lazy val androidBuild = {
+    // only set the property below if this plugin is actually used
+    // this property is a workaround for bootclasspath messing things
+    // up and causing full-recompiles
+    System.setProperty("xsbt.skip.cp.lookup", "true")
+    seq(allPluginSettings:_*)
+  }
+
+  private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
     unmanagedSourceDirectories <<= setDirectories("source.dir", "src"),
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
                                            , baseDirectory
@@ -81,13 +87,11 @@ object AndroidSdkPlugin extends Plugin {
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile),
     javacOptions      <<= ( javacOptions
-                          , sbtVersion
-                          , platformJars in Android
-                          , annotationsJar in Android) map {
-      case (o, v, (j, x), a) =>
+                          , sdkParser in Android) map {
+      case (o, p) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (createDebug) Seq("-g") else Seq.empty
-      val bcp = (List(j, a) ++ x) mkString File.pathSeparator
+      val bcp = AndroidBuilder.getBootClasspath(p) mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
       // TODO sbt 0.12 expects javacOptions to be a Task, not Setting
@@ -95,11 +99,10 @@ object AndroidSdkPlugin extends Plugin {
         "-source", "1.5" , "-target", "1.5") ++ debugOptions
     },
     scalacOptions     <<= ( scalacOptions
-                          , platformJars in Android
-                          , annotationsJar in Android) map {
-      case (o, (j, x), a) =>
+                          , sdkParser in Android) map {
+      case (o, p) =>
       // scalac has -g:vars by default
-      val bcp = (List(j, a) ++ x) mkString File.pathSeparator
+      val bcp = AndroidBuilder.getBootClasspath(p) mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
@@ -113,6 +116,7 @@ object AndroidSdkPlugin extends Plugin {
     unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
   )) ++ inConfig(Android) (Seq(
     apklibs                 <<= apklibsTaskDef,
+    aars                    <<= aarsTaskDef,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
     run                     <<= runTaskDef(install,
@@ -145,9 +149,9 @@ object AndroidSdkPlugin extends Plugin {
     aidl                    <<= aidlTaskDef,
     renderscript            <<= renderscriptTaskDef,
     genPath                 <<= baseDirectory (_ / "gen"),
-    libraryProjects         <<= (baseDirectory, properties, apklibs) map {
-      (b,p,a) =>
-	  a ++ loadLibraryReferences(b, p)
+    libraryProjects         <<= (baseDirectory, properties, apklibs, aars) map {
+      (b,p,a,aa) =>
+	  a ++ aa ++ loadLibraryReferences(b, p)
     },
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
@@ -242,11 +246,15 @@ object AndroidSdkPlugin extends Plugin {
               format p.base))
     },
     ilogger                  := new StdLogger(StdLogger.Level.WARNING),
-    builder                 <<= (sdkManager, platformTarget, ilogger) {
+    sdkParser               <<= (sdkManager, platformTarget, ilogger) {
       (m, t, l) =>
       val parser = new DefaultSdkParser(m.getLocation)
 
       parser.initParser(t, m.getLatestBuildTool.getRevision, l)
+      parser
+    },
+    builder                 <<= (sdkParser, ilogger) {
+      (parser, l) =>
 
       new AndroidBuilder(parser, "android-sdk-plugin", l, false)
     },
@@ -277,24 +285,22 @@ object AndroidSdkPlugin extends Plugin {
     commands ++= Seq(devices, device, reboot, adbWifi)
   )
 
-  def device = Command(
+  private def device = Command(
     "device", ("device", "Select a connected android device"),
     "Select a device (when there are multiple) to apply actions to"
   )(deviceParser)(deviceAction)
 
-  def adbWifi = Command.command(
+  private def adbWifi = Command.command(
     "adb-wifi", "Enable/disable ADB-over-wifi for selected device",
     "Toggle ADB-over-wifi for the selected device"
   )(adbWifiAction)
 
-  def reboot = Command(
+  private def reboot = Command(
     "reboot-device", ("reboot-device", "Reboot selected device"),
     "Reboot the selected device into the specified mode"
   )(rebootParser)(rebootAction)
 
-  def devices = Command.command(
+  private def devices = Command.command(
     "devices", "List connected and online android devices",
     "List all connected and online android devices")(devicesAction)
-
 }
-

@@ -1,21 +1,25 @@
+package android
+
 import sbt._
 import sbt.Keys._
 
-import scala.collection.JavaConversions._
 import scala.xml.Elem
-import scala.xml.XML
 
 import java.io.File
 import java.util.Properties
 
 import com.android.builder.AndroidBuilder
-import com.android.builder.dependency.JarDependency
+import com.android.builder.SdkParser
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 import com.android.utils.ILogger
 
-object AndroidKeys {
+import Dependencies._
+
+object Keys {
   val ilogger = SettingKey[ILogger]("ilogger", "internal Android SDK logger")
+  val sdkParser = SettingKey[SdkParser]("sdk-parser",
+    "internal Android SdkParser object")
   val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
     "TR.scala generating task")
   val typedResources = SettingKey[Boolean]("typed-resources",
@@ -34,6 +38,8 @@ object AndroidKeys {
     "path to the zipalign executable")
   val apklibs = TaskKey[Seq[LibraryDependency]]("apklibs",
     "unpack the set of referenced apklibs")
+  val aars = TaskKey[Seq[LibraryDependency]]("aars",
+    "unpack the set of referenced aars")
   val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
   val setRelease = TaskKey[Unit]("set-release", "set release build")
   val pngCrunch = TaskKey[Unit]("png-crunch", "optimize png files")
@@ -110,58 +116,7 @@ object AndroidKeys {
     "Clean all .class files when R.java changes")
 
   // alias to ease typing
-  val packageT = Keys.`package`
+  val packageT = sbt.Keys.`package`
   val Android = config("android")
 
-  class LibraryDependency(val path: File) extends AndroidLibrary {
-    import com.android.SdkConstants._
-    private val manifest = Seq(path / FN_ANDROID_MANIFEST_XML,
-      path / "src" / "main" / FN_ANDROID_MANIFEST_XML) collect {
-      case f if f.exists => f
-    } head
-
-    val pkg = XML.loadFile(manifest).attribute("package").get(0).text
-
-    val binPath = AndroidTasks.directoriesList(
-      "out.dir", "bin", AndroidTasks.loadProperties(path), path)(0)
-
-    val libPath = Seq("libs", "lib") map { path / _ } find {
-      _.exists } getOrElse (path / "libs")
-
-    override def getManifest = manifest
-    override def getFolder = path
-    override def getJarFile = path / FN_CLASSES_JAR
-    override def getLocalJars = (path / LIBS_FOLDER) ** ".jar" get
-    override def getResFolder = path / FD_RES
-    override def getAssetsFolder = path / FD_ASSETS
-    override def getJniFolder = path / "jni"
-    override def getSymbolFile = path / "R.txt"
-    override def getAidlFolder = path / FD_AIDL
-    override def getRenderscriptFolder = path / FD_RENDERSCRIPT
-    override def getLintJar = path / "lint.jar"
-    override def getProguardRules = path / "proguard.txt"
-
-    override def getLibraryDependencies = Seq.empty[LibraryDependency]
-    override def getDependencies = Seq.empty[AndroidLibrary]
-    override def getManifestDependencies = Seq.empty[AndroidLibrary]
-
-    override def getLocalDependencies = getLocalJars map {
-      j => new JarDependency(j)
-    }
-  }
-
-  case class ApkLibrary(override val path: File)
-  extends LibraryDependency(path) {
-    import com.android.SdkConstants._
-    override def getSymbolFile = path / "gen" / "R.txt"
-    override def getJarFile = path / "bin" / FN_CLASSES_JAR
-  }
-  case class AarLibrary(override val path: File) extends LibraryDependency(path)
-  case class LibraryProject(override val path: File)
-  extends LibraryDependency(path) {
-    import com.android.SdkConstants._
-    override def getSymbolFile = path / "gen" / "R.txt"
-    override def getJarFile = path / "bin" / FN_CLASSES_JAR
-    override def getProguardRules = path / "bin" / "proguard.txt"
-  }
 }
