@@ -1,12 +1,15 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.6.1
+Current version is 0.7.0-SNAPSHOT
+
+Note: 0.7.0 and later is incompatible with build files for previous versions
+of the plugin.
 
 ## Description ##
 
 This is a simple plugin for existing and newly created android projects.
-It is tested and developed against sbt 0.11.2; I have not verified whether
-other versions work.
+It is tested and developed against sbt 0.11.2 and 0.12.3; I have not
+verified whether other versions work.
 
 The plugin supports normal android projects and projects that reference
 library projects. 3rd party libraries can be included by placing them in
@@ -51,27 +54,32 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
 
 ## Usage ##
 
-1. Install sbt (https://github.com/harrah/xsbt)
+1. Install sbt (http://www.scala-sbt.org) or macports, etc.
 2. Create a new android project using `android create project` or Eclipse
    * Instead of creating a new project, one can also do
-     `android update project` to make sure everything is up-to-date.
-3. Create a directory named `project` within your project and name it
+     `android update project` to make sure everything is properly setup
+     in an existing project.
+   * Instead of keeping local.properties up-to-date, you may set the
+     environment variable `ANDROID_HOME` pointing to the path where the
+     Android SDK is unpacked. This will bypass the requirement of having
+     to run `android update project` on existing projects.
+3. Create a directory named `project` within your project and add a file
    `plugins.sbt`, in it, add the following lines:
 
     ```
-    // not required for sbt 0.11.3 and above
+    // this directive is not required for sbt 0.11.3 and above
     resolvers += Resolver.url("scala-sbt releases", new URL(
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.6.1")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.0")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
    following lines with a blank line between each:
+   * `android.Plugin.androidBuild`
    * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
      if you don't set it)
-   * `seq(androidBuildSettings: _*)`
 5. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
      * Compiles all the sources in the project, java and scala
@@ -90,7 +98,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
      source files is modified.
 6. If you want android-sdk-plugin to automatically sign release packages
    add the following lines to `local.properties` (or any file.properties of
-   your choice that you do not check in to source control):
+   your choice that you will not check in to source control):
    * `key.alias: YOUR-KEY-ALIAS`
    * `key.store: /path/to/your/.keystore`
    * `key.store.password: YOUR-KEY-PASSWORD`
@@ -98,6 +106,15 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
 
 ## Advanced Usage ##
 
+* Consuming apklib and aar artifacts from other projects
+  * `import android.Dependencies.{apklib,aar}` to use apklib() and aar()
+  * `libraryDependencies += apklib("groupId" % "artifactId" % "version", "optionalArtifactFilename")`
+    * Basically, wrap the typical dependency specification with either
+      apklib() or aar() to consume the library
+    * For library projects in a multi-project build that transitively include
+      either aar or apklibs, you will need to add a dependency statement
+      into your main-project's settings:
+      * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
 * Multi-project builds
   * See https://gist.github.com/1897936 for an example of how to setup the
     root project
@@ -114,7 +131,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   * See [Working with Android library projects](https://github.com/pfn/android-sdk-plugin/wiki/Working-with-Android-library-projects) 
     in the Wiki for detailed instructions on configuring Android library projects
 * Configuring `android-sdk-plugin` by editing build.sbt
-  * `import AndroidKeys._` at the top to make sure you can use the plugin's
+  * `import android.Keys._` at the top to make sure you can use the plugin's
     configuration options
   * Add configuration options according to the sbt style:
     * `useProguard in Android := true` to enable proguard
@@ -147,12 +164,15 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   result in `resources.ap_` not being rebuilt. Symptom: weird crashes
   around resource inflation. Workaround: clean or touch an existing resource
   file.
-* sbt `0.12` currently has a bug where jars specified in javac's -bootclasspath
-  option forces a full rebuild of all classes everytime. sbt 0.12.3 has a hack
-  that should workaround this problem. The plugin sets the system property
-  `xsbt.skip.cp.lookup` to `true` to bypass this issue; this disables certain
-  incremental compilation checks, but should not be an issue for the majority
-  of use-cases.
+* sbt `0.12` and `0.13` currently have a bug where jars specified in javac's
+  -bootclasspath option forces a full rebuild of all classes everytime. sbt
+  `0.12.3` and later has a hack that should workaround this problem. The
+  plugin sets the system property `xsbt.skip.cp.lookup` to `true` to bypass
+  this issue; this disables certain incremental compilation checks, but should
+  not be an issue for the majority of use-cases.
+* apklib and aar artifact generation are to be implemented soon
+* Supporting maven-style (and by association, gradle-style) android project
+  layouts is coming soon
 
 #### Thanks to ####
 
