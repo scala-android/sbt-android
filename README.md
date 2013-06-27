@@ -7,6 +7,13 @@ of the plugin.
 
 ## New features in 0.7.0 ##
 
+* Projects can now follow an ant-style or gradle-style layout. The location
+  of `AndroidManifest.xml` will auto-select which layout to use, if it is
+  at the top-level, ant-style will be selected and under `src/main` will
+  choose gradle-style. (more testing needs to be performed against the
+  gradle-style layouts)
+  * Gradle-style project layouts need to be created by other means, either
+    using the gradle plugin, IDEA, maven, sbt-android or by hand.
 * Consuming apklib and aar artifacts from maven or ivy
 * Producing and publishing apklib and aar artifacts to maven or ivy
 * Switch to using `com.android.build.AndroidBuilder` for many operations
@@ -130,9 +137,19 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
     * For library projects in a multi-project build that transitively include
       either aar or apklibs, you will need to add a dependency statement
       into your main-project's settings:
-      * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
-      * Alternatively, the `androidBuild()` overload may be used to specify
-        all dependency library-projects which should relieve this problem.
+    * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
+    * Alternatively, the `androidBuild()` overload may be used to specify
+      all dependency library-projects which should relieve this problem.
+* Using the google gms play-services aar:
+
+    ```
+    resolvers <+= (sdkPath in Android) { p =>
+      "gms" at (file(p) / "extras" / "google" / "m2repository").toURI.toString
+    },
+    libraryDependencies +=
+      aar("com.google.android.gms" % "play-services" % "3.1.36")
+    ```
+
 * Generating apklib and/or aar artifacts
   * To specify that your project will generate and publish either an `aar`
     or `apklib` artifact simply change the `android.Plugin.androidBuild`
@@ -197,8 +214,6 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   plugin sets the system property `xsbt.skip.cp.lookup` to `true` to bypass
   this issue; this disables certain incremental compilation checks, but should
   not be an issue for the majority of use-cases.
-* Supporting maven-style (and by association, gradle-style) android project
-  layouts is coming soon
 
 #### Thanks to ####
 

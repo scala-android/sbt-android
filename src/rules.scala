@@ -73,7 +73,8 @@ object Plugin extends sbt.Plugin {
     addArtifact(apklibArtifact in Android, packageApklib in Android)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
-    unmanagedSourceDirectories <<= setDirectories("source.dir", "src"),
+    unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
+      Seq(l.sources)),
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
                                            , baseDirectory
                                            , libraryProject in Android
@@ -92,9 +93,9 @@ object Plugin extends sbt.Plugin {
     },
     publishArtifact in packageBin := false,
     publishArtifact in packageSrc := false,
-    scalaSource       <<= setDirectory("source.dir", "src"),
-    javaSource        <<= setDirectory("source.dir", "src"),
-    resourceDirectory <<= baseDirectory (_ / "res"),
+    scalaSource       <<= (projectLayout in Android) (_.scalaSource),
+    javaSource        <<= (projectLayout in Android) (_.javaSource),
+    resourceDirectory <<= (projectLayout in Android) (_.res),
     unmanagedJars     <<= unmanagedJarsTaskDef,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
     sourceGenerators  <+= (rGenerator in Android
@@ -107,8 +108,8 @@ object Plugin extends sbt.Plugin {
                           ) map {
       (a, tr, apkl, aidl, bcg, rs, _) =>
       val apkls = apkl map { l =>
-        ((l.path / "src") ** "*.java" get) ++
-          ((l.path / "src") ** "*.scala" get)
+        (l.layout.javaSource ** "*.java" get) ++
+          (l.layout.scalaSource ** "*.scala" get)
       } flatten
 
       a ++ tr ++ aidl ++ bcg ++ rs ++ apkls
@@ -173,14 +174,14 @@ object Plugin extends sbt.Plugin {
     },
     packageForR              := None,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
-    binPath                 <<= setDirectory("out.dir", "bin"),
+    binPath                 <<= projectLayout (_.bin),
     classesJar              <<= binPath (_ / "classes.jar"),
     classesDex              <<= binPath (_ / "classes.dex"),
     rGenerator              <<= rGeneratorTaskDef,
     rGenerator              <<= rGenerator dependsOn (renderscript),
     aidl                    <<= aidlTaskDef,
     renderscript            <<= renderscriptTaskDef,
-    genPath                 <<= baseDirectory (_ / "gen"),
+    genPath                 <<= projectLayout (_.gen),
     libraryProjects         <<= (baseDirectory, properties, apklibs, aars) map {
       (b,p,a,aa) =>
 	  a ++ aa ++ loadLibraryReferences(b, p)
@@ -198,7 +199,10 @@ object Plugin extends sbt.Plugin {
       (p.getPath(IAndroidTarget.ANDROID_JAR),
       (Option(p.getOptionalLibraries) map(_ map(_.getJarPath))).flatten.toSeq)
     },
-    manifestPath            <<= baseDirectory (_ / "AndroidManifest.xml"),
+    projectLayout           <<= baseDirectory (ProjectLayout.apply),
+    manifestPath            <<= projectLayout { l =>
+      l.manifest
+    },
     properties              <<= baseDirectory (b => loadProperties(b)),
     manifest                <<= manifestPath { m => XML.loadFile(m) },
     versionCode             <<= manifest { m =>
@@ -289,7 +293,7 @@ object Plugin extends sbt.Plugin {
     cleanFiles        <+= binPath in Android,
     cleanFiles        <+= genPath in Android,
     exportJars         := true,
-    unmanagedBase     <<= baseDirectory (_ / "libs")
+    unmanagedBase     <<= (projectLayout in Android) (_.libs)
   ) ++ androidCommands
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
