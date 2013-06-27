@@ -42,7 +42,6 @@ object Keys {
     "unpack the set of referenced aars")
   val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
   val setRelease = TaskKey[Unit]("set-release", "set release build")
-  val pngCrunch = TaskKey[Unit]("png-crunch", "optimize png files")
   val packageName = SettingKey[String]("package-name", "android package name")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")
   val builder = SettingKey[AndroidBuilder]("builder", "AndroidBuilder object")
@@ -52,7 +51,13 @@ object Keys {
     "copy all resources and assets to a single location for packaging")
   val packageResources = TaskKey[File]("package-resources",
     "package android resources")
-  val customPackage = SettingKey[Option[String]]("custom-package",
+  val packageAar = TaskKey[File]("package-aar", "package aar artifact")
+  val packageApklib = TaskKey[File]("package-apklib", "package apklib artifact")
+  val apklibArtifact = SettingKey[Artifact]("apklib-artifact",
+    "artifact object for publishing apklibs")
+  val aarArtifact = SettingKey[Artifact]("aar-artifact",
+    "artifact object for publishing aars")
+  val packageForR = SettingKey[Option[String]]("packageForR",
     "Custom package name for aapt --custom-package")
   val manifestPath = SettingKey[File]("manifest-path",
     "android manifest file path")
@@ -64,7 +69,7 @@ object Keys {
   val libraryProjects = TaskKey[Seq[LibraryDependency]]("library-projects",
     "android library projects to reference, must be built separately")
   val libraryProject = SettingKey[Boolean]("library-project",
-    "flag indicating whether or not a library project")
+    "setting indicating whether or not this is a library project")
   val binPath = SettingKey[File]("bin-path", "android compiled bin path")
   val genPath = SettingKey[File]("gen-path", "android generated code path")
   val properties = SettingKey[Properties]("properties",
@@ -78,19 +83,13 @@ object Keys {
     "IAndroidTarget object representing a target API level")
   val platformJars = SettingKey[(String,Seq[String])]("platform-jars",
     "Path to android.jar and optional jars (e.g. google apis), if any")
-  val annotationsJar = SettingKey[String]("annotations-jar",
-    "Path to sdk annotations.jar")
-  val aaptPath = SettingKey[String]("aapt-path", "path to aapt")
-  val aaptNonConstantId = SettingKey[Boolean]("aapt-non-constant-id",
-    "generate lib-project R.java files with --non-constant-id, default true")
   val buildConfigGenerator = TaskKey[Seq[File]]("build-config-generator",
     "generate BuildConfig.java")
-  val aaptGenerator = TaskKey[Seq[File]]("aapt-generator",
-    "android aapt source-gen task")
+  val rGenerator = TaskKey[Seq[File]]("r-generator",
+    "android aapt source-gen task; generate R.java")
   val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task")
   val renderscript = TaskKey[Seq[File]]("renderscript",
     "android renderscript source-gen task")
-  val dexPath = SettingKey[String]("dex-path", "path to dex")
   val dex = TaskKey[File]("dex", "run bytecode dexer")
   val dexInputs = TaskKey[Seq[File]]("dex-inputs", "input jars to dex")
   val classesDex = SettingKey[File]("classes-dex", "output classes.dex path")
