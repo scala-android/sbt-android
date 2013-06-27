@@ -1,3 +1,5 @@
+package android
+
 import sbt._
 import complete.Parser
 import complete.DefaultParsers._
@@ -10,7 +12,7 @@ import com.android.ddmlib.AndroidDebugBridge
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.SdkConstants
 
-object AndroidCommands {
+object Commands {
 
   var defaultDevice: Option[String] = None
 
@@ -97,6 +99,7 @@ object AndroidCommands {
       state.log.debug("current adbd pid: %s" format pid)
       d.executeShellCommand("setprop service.adb.tcp.port 0", receiver)
       d.executeShellCommand("kill %s" format pid, receiver)
+      state
 
     } else {
       state.log.info("turning ADB-over-wifi on")
@@ -114,9 +117,9 @@ object AndroidCommands {
 
       if (r != 0)
         sys.error("failed to connect ADB-over-wifi")
+      deviceAction(state, ip + ":5555")
     }
 
-    state
   }
 
   val rebootAction: (State,Any) => State = (state, mode) => {
@@ -157,13 +160,13 @@ object AndroidCommands {
     state
   }
   def targetDevice(path: String, log: Logger): Option[IDevice] = {
-    AndroidCommands.initAdb
+    initAdb
 
-    val devices = AndroidCommands.deviceList(path, log)
+    val devices = deviceList(path, log)
     if (devices.isEmpty) {
       sys.error("no devices connected")
     } else {
-      AndroidCommands.defaultDevice flatMap { device =>
+      defaultDevice flatMap { device =>
         devices find (device == _.getSerialNumber) orElse {
           log.warn("default device not found, falling back to first device")
           None
@@ -176,7 +179,7 @@ object AndroidCommands {
 
   private def sdkpath(state: State): String = {
     Project.extract(state).getOpt(
-      AndroidKeys.sdkPath in AndroidKeys.Android) orElse (
+      Keys.sdkPath in Keys.Android) orElse (
         Option(System getenv "ANDROID_HOME") flatMap { p =>
           val f = file(p)
           if (f.exists && f.isDirectory)

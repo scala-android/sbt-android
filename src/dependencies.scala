@@ -1,0 +1,87 @@
+package android
+import sbt._
+
+import scala.collection.JavaConversions._
+import scala.xml.XML
+
+import com.android.builder.dependency.JarDependency
+import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
+
+object Dependencies {
+  // excludes are temporary until everything/one uses libraryDependencies
+  // and only one version of the support libs
+  def artifacts(m: ModuleID, name: String, exttype: String) =
+    m.artifacts(Artifact(name, exttype, exttype)) exclude (
+      "com.google.android", "support-v4") exclude (
+      "com.google.android", "support-v13") exclude (
+      "com.android.support", "support-v4") exclude (
+      "com.android.support", "support-v13")
+
+  def apklib(m: ModuleID): ModuleID            = artifacts(m, m.name, "apklib")
+  def aar(m: ModuleID): ModuleID               = artifacts(m, m.name, "aar")
+  def apklib(m: ModuleID, n: String): ModuleID = artifacts(m, n, "apklib")
+  def aar(m: ModuleID, n: String): ModuleID    = artifacts(m, n, "aar")
+
+  trait LibraryDependency extends AndroidLibrary {
+    import com.android.SdkConstants._
+    def path: File
+    val layout = Keys.ProjectLayout(path)
+
+    override def getManifest = layout.manifest
+    override def getFolder = path
+    override def getJarFile = path / FN_CLASSES_JAR
+    override def getLocalJars = (path / LIBS_FOLDER) ** ".jar" get
+    override def getResFolder = path / FD_RES
+    override def getAssetsFolder = path / FD_ASSETS
+    override def getJniFolder = path / "jni"
+    override def getSymbolFile = path / "R.txt"
+    override def getAidlFolder = path / FD_AIDL
+    override def getRenderscriptFolder = path / FD_RENDERSCRIPT
+    override def getLintJar = path / "lint.jar"
+    override def getProguardRules = path / "proguard.txt"
+
+    override def getDependencies = Seq.empty[LibraryDependency]
+    override def getLibraryDependencies = getDependencies
+    override def getManifestDependencies = getDependencies
+
+    override def getLocalDependencies = getLocalJars map {
+      j => new JarDependency(j)
+    }
+  }
+
+  case class ApkLibrary(val path: File) extends LibraryDependency {
+    import com.android.SdkConstants._
+    lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
+    override def getSymbolFile = path / "gen" / "R.txt"
+    override def getJarFile = path / "bin" / FN_CLASSES_JAR
+  }
+  case class AarLibrary(val path: File) extends LibraryDependency
+
+  case class LibraryProject(val path: File) extends LibraryDependency {
+    import com.android.SdkConstants._
+
+    override def getSymbolFile = layout.gen / "R.txt"
+    override def getJarFile = layout.bin / FN_CLASSES_JAR
+    override def getProguardRules = layout.bin / "proguard.txt"
+    override def getJniFolder = layout.libs
+    override def getLocalJars = layout.libs ** ".jar" get
+    override def getResFolder = layout.res
+    override def getAssetsFolder = layout.assets
+    override def getAidlFolder = layout.aidl
+    override def getRenderscriptFolder = layout.renderscript
+
+    override def getDependencies = {
+      (Option((path / "target" / "aars").listFiles).map { list =>
+        list filter (_.isDirectory) map { d =>
+          AarLibrary(d): LibraryDependency
+        }
+      }.flatten.toSeq) ++
+        (Option((path / "target" / "apklibs").listFiles).map { list =>
+          list filter (_.isDirectory) map { d =>
+            ApkLibrary(d): LibraryDependency
+          }
+        }.flatten.toSeq)
+    }
+  }
+}
+// vim: set ts=2 sw=2 et:

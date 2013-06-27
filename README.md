@@ -1,12 +1,34 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.6.1
+Current version is 0.7.0-SNAPSHOT
+
+Note: 0.7.0 and later is incompatible with build files for previous versions
+of the plugin.
+
+## New features in 0.7.0 ##
+
+* Projects can now follow an ant-style or gradle-style layout. The location
+  of `AndroidManifest.xml` will auto-select which layout to use, if it is
+  at the top-level, ant-style will be selected and under `src/main` will
+  choose gradle-style. (more testing needs to be performed against the
+  gradle-style layouts)
+  * Gradle-style project layouts need to be created by other means, either
+    using the gradle plugin, IDEA, maven, sbt-android or by hand.
+* Consuming apklib and aar artifacts from maven or ivy
+* Producing and publishing apklib and aar artifacts to maven or ivy
+* Switch to using `com.android.build.AndroidBuilder` for many operations
+  to maintain parity with Google's own android build process. Like that used
+  in the new Gradle build
+* All plugin classes have been moved into the `android` package namespace.
+* Simplify configuration with the new `androidBuild`, `androidBuildAar`,
+  `androidBuildApklib`, `buildApklib`, and `buildAar` shortcuts located in
+  `android.Plugin`
 
 ## Description ##
 
 This is a simple plugin for existing and newly created android projects.
-It is tested and developed against sbt 0.11.2; I have not verified whether
-other versions work.
+It is tested and developed against sbt 0.11.2 and 0.12.3; I have not
+verified whether other versions work.
 
 The plugin supports normal android projects and projects that reference
 library projects. 3rd party libraries can be included by placing them in
@@ -47,31 +69,40 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   `inflater.inflate(TR.layout.foo, container, optionalBoolean)` and receiving
   a properly typed resulting view object.
   * Import `TypedResource._` to get the implicit conversions
-* No apklib creation support yet.
+* No apklib or aar creation support yet.
+* All plugin classes are not namespaced under the `android` package
 
 ## Usage ##
 
-1. Install sbt (https://github.com/harrah/xsbt)
+1. Install sbt (http://www.scala-sbt.org) or macports, etc.
 2. Create a new android project using `android create project` or Eclipse
    * Instead of creating a new project, one can also do
-     `android update project` to make sure everything is up-to-date.
-3. Create a directory named `project` within your project and name it
+     `android update project` to make sure everything is properly setup
+     in an existing project.
+   * Instead of keeping local.properties up-to-date, you may set the
+     environment variable `ANDROID_HOME` pointing to the path where the
+     Android SDK is unpacked. This will bypass the requirement of having
+     to run `android update project` on existing projects.
+3. Create a directory named `project` within your project and add a file
    `plugins.sbt`, in it, add the following lines:
 
     ```
-    // not required for sbt 0.11.3 and above
+    // this directive is not required for sbt 0.11.3 and above
     resolvers += Resolver.url("scala-sbt releases", new URL(
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.6.1")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.0")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
    following lines with a blank line between each:
+   * `android.Plugin.androidBuild`
    * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
      if you don't set it)
-   * `seq(androidBuildSettings: _*)`
+   * An example of what build.sbt should look like can be found at
+     https://gist.github.com/pfn/5872691
+
 5. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
      * Compiles all the sources in the project, java and scala
@@ -90,7 +121,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
      source files is modified.
 6. If you want android-sdk-plugin to automatically sign release packages
    add the following lines to `local.properties` (or any file.properties of
-   your choice that you do not check in to source control):
+   your choice that you will not check in to source control):
    * `key.alias: YOUR-KEY-ALIAS`
    * `key.store: /path/to/your/.keystore`
    * `key.store.password: YOUR-KEY-PASSWORD`
@@ -98,23 +129,51 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
 
 ## Advanced Usage ##
 
+* Consuming apklib and aar artifacts from other projects
+  * `import android.Dependencies.{apklib,aar}` to use apklib() and aar()
+  * `libraryDependencies += apklib("groupId" % "artifactId" % "version", "optionalArtifactFilename")`
+    * Basically, wrap the typical dependency specification with either
+      apklib() or aar() to consume the library
+    * For library projects in a multi-project build that transitively include
+      either aar or apklibs, you will need to add a dependency statement
+      into your main-project's settings:
+    * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
+    * Alternatively, the `androidBuild()` overload may be used to specify
+      all dependency library-projects which should relieve this problem.
+* Using the google gms play-services aar:
+
+    ```
+    resolvers <+= (sdkPath in Android) { p =>
+      "gms" at (file(p) / "extras" / "google" / "m2repository").toURI.toString
+    },
+    libraryDependencies +=
+      aar("com.google.android.gms" % "play-services" % "3.1.36")
+    ```
+
+* Generating apklib and/or aar artifacts
+  * To specify that your project will generate and publish either an `aar`
+    or `apklib` artifact simply change the `android.Plugin.androidBuild`
+    line to one of the variants that will build the desired output type.
+    * For `apklib` use `android.Plugin.androidBuildApklib`
+    * For `aar` use `android.Plugin.androidBuildAar`
+  * Alternatively, use `android.Plugin.buildAar` and/or
+    `android.Plugin.buildApklib` in addition to any of the variants above
+    * In build.sbt, add `android.Plugin.buildAar` and/or
+      `android.Plugin.buildApklib` on a new line.
+    * It could also be specified, for example, like so:
+      `android.Plugin.androidBuild ++ android.Plugin.buildAar`
 * Multi-project builds
-  * See https://gist.github.com/1897936 for an example of how to setup the
-    root project
-  * The example config makes `package` in the app project depend on `package`
-    in the library project.  `package` in the root project depends on
-    `android:package` in the app project. So if `package` is called from the
-    root, or if `android:package` is called from `appproject`, then the
-    right thing happens
-  * Another example of a multi-project build using an android project and
-    common code that is not meant to target only android is available at
-    https://gist.github.com/2296619
-    * This example does the same as above, except allows loading an arbitrary
-      Java or Scala project into the Android app.
+  * Several documented examples can be found at the following links, they
+    cover a variety of situations, from multiple java projects, to mixed
+    java and android projects and fully scala projects.
+    * https://gist.github.com/pfn/5872427
+    * https://gist.github.com/pfn/5872679
+    * https://gist.github.com/pfn/5872770
   * See [Working with Android library projects](https://github.com/pfn/android-sdk-plugin/wiki/Working-with-Android-library-projects) 
-    in the Wiki for detailed instructions on configuring Android library projects
+    in the Wiki for detailed instructions on configuring Android library
+    projects
 * Configuring `android-sdk-plugin` by editing build.sbt
-  * `import AndroidKeys._` at the top to make sure you can use the plugin's
+  * `import android.Keys._` at the top to make sure you can use the plugin's
     configuration options
   * Add configuration options according to the sbt style:
     * `useProguard in Android := true` to enable proguard
@@ -129,8 +188,10 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
 * I have found that Scala applications on android build faster if they're
   using scala 2.8.2. Set the scala version in `build.sbt` by entering
   `scalaVersion := "2.8.2"`
-* Unit testing with robolectric, see my build.sbt for this configuration:
-  * https://gist.github.com/2503441
+*  Unit testing with robolectric, see my build.scala for this configuration:
+  * https://gist.github.com/pfn/5872909
+  * This example is somewhat old and may include settings that are no longer
+    necessary, this project hasn't been touched in nearly a year.
   * To get rid of robolectric's warnings about not finding certain classes
     to shadow, change the project target to include google APIs
   * jberkel has written a Suite trait to be able to use robolectric with
@@ -147,12 +208,12 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   result in `resources.ap_` not being rebuilt. Symptom: weird crashes
   around resource inflation. Workaround: clean or touch an existing resource
   file.
-* sbt `0.12` currently has a bug where jars specified in javac's -bootclasspath
-  option forces a full rebuild of all classes everytime. sbt 0.12.3 has a hack
-  that should workaround this problem. The plugin sets the system property
-  `xsbt.skip.cp.lookup` to `true` to bypass this issue; this disables certain
-  incremental compilation checks, but should not be an issue for the majority
-  of use-cases.
+* sbt `0.12` and `0.13` currently have a bug where jars specified in javac's
+  -bootclasspath option forces a full rebuild of all classes everytime. sbt
+  `0.12.3` and later has a hack that should workaround this problem. The
+  plugin sets the system property `xsbt.skip.cp.lookup` to `true` to bypass
+  this issue; this disables certain incremental compilation checks, but should
+  not be an issue for the majority of use-cases.
 
 #### Thanks to ####
 
