@@ -146,9 +146,10 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
 * I have found that Scala applications on android build faster if they're
   using scala 2.8.2. Set the scala version in `build.sbt` by entering
   `scalaVersion := "2.8.2"`
-* OLD EXAMPLE (Needs massaging for 0.7.0 and newer) Unit testing with
-  robolectric, see my build.sbt for this configuration:
-  * https://gist.github.com/2503441
+*  Unit testing with robolectric, see my build.scala for this configuration:
+  * https://gist.github.com/pfn/5872909
+  * This example is somewhat old and may include settings that are no longer
+    necessary, this project hasn't been touched in nearly a year.
   * To get rid of robolectric's warnings about not finding certain classes
     to shadow, change the project target to include google APIs
   * jberkel has written a Suite trait to be able to use robolectric with
