@@ -22,6 +22,8 @@ object Keys {
     "internal Android SdkParser object")
   val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
     "TR.scala generating task")
+  val projectLayout = SettingKey[ProjectLayout]("project-layout",
+    "setting to determine whether the project is laid out ant or gradle-style")
   val typedResources = SettingKey[Boolean]("typed-resources",
     "flag indicating whether to generated TR.scala")
   val proguardScala = SettingKey[Boolean]("proguard-scala",
@@ -118,4 +120,53 @@ object Keys {
   val packageT = sbt.Keys.`package`
   val Android = config("android")
 
+  sealed trait ProjectLayout {
+    def base: File
+    def scalaSource: File
+    def javaSource: File
+    def sources: File
+    def res: File
+    def assets: File
+    def manifest: File
+    def gen: File
+    def bin: File
+    def libs: File
+    def aidl: File
+    def renderscript: File
+  }
+  object ProjectLayout {
+    def apply(base: File) = {
+      if ((base / "src" / "main" / "AndroidManifest.xml").isFile)
+        ProjectLayout.Gradle(base)
+      else
+        ProjectLayout.Ant(base)
+    }
+    case class Ant(base: File) extends ProjectLayout {
+      override def sources = base / "src"
+      override def scalaSource = sources
+      override def javaSource = sources
+      override def res = base / "res"
+      override def assets = base / "assets"
+      override def manifest = base / "AndroidManifest.xml"
+      override def gen = base / "gen"
+      override def bin = base / "bin"
+      override def libs = base / "libs"
+      override def aidl = sources
+      override def renderscript = sources
+    }
+    case class Gradle(base: File) extends ProjectLayout {
+      override def manifest = sources / "AndroidManifest.xml"
+      override def sources = base / "src" / "main"
+      override def scalaSource = sources / "scala"
+      override def javaSource = sources / "java"
+      override def res = sources / "res"
+      override def assets = sources / "assets"
+      override def gen = base / "target" / "android-gen"
+      override def bin = base / "target" / "android-bin"
+      // XXX gradle project layouts don't really have a "libs"
+      override def libs = base / "libs"
+      override def aidl = sources / "aidl"
+      override def renderscript = sources / "rs"
+    }
+  }
 }
