@@ -57,6 +57,21 @@ object Plugin extends sbt.Plugin {
       }).flatten
   }
 
+  lazy val androidBuildAar: Project.SettingsDefinition = androidBuildAar()
+  lazy val androidBuildApklib: Project.SettingsDefinition = androidBuildApklib()
+  def androidBuildAar(projects: Project*): Project.SettingsDefinition = {
+    androidBuild(projects:_*) ++ buildAar
+  }
+  def androidBuildApklib(projects: Project*): Project.SettingsDefinition = {
+    androidBuild(projects:_*) ++ buildApklib
+  }
+
+  def buildAar =
+      addArtifact(aarArtifact in Android, packageAar in Android)
+
+  def buildApklib =
+    addArtifact(apklibArtifact in Android, packageApklib in Android)
+
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
     unmanagedSourceDirectories <<= setDirectories("source.dir", "src"),
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
@@ -75,12 +90,14 @@ object Plugin extends sbt.Plugin {
         }
         new Package.Configuration(sources, j, c.options)
     },
+    publishArtifact in packageBin := false,
+    publishArtifact in packageSrc := false,
     scalaSource       <<= setDirectory("source.dir", "src"),
     javaSource        <<= setDirectory("source.dir", "src"),
     resourceDirectory <<= baseDirectory (_ / "res"),
     unmanagedJars     <<= unmanagedJarsTaskDef,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
-    sourceGenerators  <+= (aaptGenerator in Android
+    sourceGenerators  <+= (rGenerator in Android
                           , typedResourcesGenerator in Android
                           , apklibs in Android
                           , aidl in Android
@@ -129,11 +146,15 @@ object Plugin extends sbt.Plugin {
   )) ++ inConfig(Android) (Seq(
     apklibs                 <<= apklibsTaskDef,
     aars                    <<= aarsTaskDef,
+    aarArtifact             <<= name { n => Artifact(n, "aar", "aar") },
+    apklibArtifact          <<= name { n => Artifact(n, "apklib", "apklib") },
+    packageAar              <<= packageAarTaskDef,
+    packageApklib           <<= packageApklibTaskDef,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
     run                     <<= runTaskDef(install,
                                            sdkPath, manifest, packageName),
-    cleanForR               <<= (aaptGenerator
+    cleanForR               <<= (rGenerator
                                 , cacheDirectory
                                 , genPath
                                 , classDirectory in Compile
@@ -150,14 +171,13 @@ object Plugin extends sbt.Plugin {
       })(Set(g ** "R.java" get: _*))
       Seq.empty[File]
     },
-    customPackage            := None,
+    packageForR              := None,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= setDirectory("out.dir", "bin"),
     classesJar              <<= binPath (_ / "classes.jar"),
     classesDex              <<= binPath (_ / "classes.dex"),
-    aaptNonConstantId        := true,
-    aaptGenerator           <<= aaptGeneratorTaskDef,
-    aaptGenerator           <<= aaptGenerator dependsOn (renderscript),
+    rGenerator              <<= rGeneratorTaskDef,
+    rGenerator              <<= rGenerator dependsOn (renderscript),
     aidl                    <<= aidlTaskDef,
     renderscript            <<= renderscriptTaskDef,
     genPath                 <<= baseDirectory (_ / "gen"),
@@ -168,27 +188,9 @@ object Plugin extends sbt.Plugin {
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
         _.equals("true") } getOrElse false },
-      aaptPath                <<= (sdkPath,sdkManager) { (p,m) =>
-      import SdkConstants._
-      val tool = Option(m.getLatestBuildTool)
-      tool map (_.getPath(PathId.AAPT)) getOrElse {
-        p + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AAPT
-      }
-    },
-    dexPath                 <<= (sdkPath,sdkManager) { (p,m) =>
-      import SdkConstants._
-      val tool = Option(m.getLatestBuildTool)
-      tool map (_.getPath(PathId.DX)) getOrElse {
-        p + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_DX
-      }
-    },
     zipalignPath            <<= sdkPath {
       import SdkConstants._
       _ + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
-    },
-    annotationsJar           <<= sdkPath {
-      import SdkConstants._
-      _ + OS_SDK_TOOLS_FOLDER + FD_SUPPORT + File.separator + FN_ANNOTATIONS_JAR
     },
     dexInputs               <<= dexInputsTaskDef,
     dex                     <<= dexTaskDef,
@@ -212,7 +214,7 @@ object Plugin extends sbt.Plugin {
         ((usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") orElse
           usesSdk(0).attribute(ANDROID_NS, "minSdkVersion")) get (0) text) toInt
     },
-    proguardLibraries       <<= annotationsJar (j => Seq(file(j))),
+    proguardLibraries        := Seq.empty,
     proguardExcludes         := Seq.empty,
     proguardOptions          := Seq.empty,
     proguardConfig          <<= proguardConfigTaskDef,
@@ -281,6 +283,9 @@ object Plugin extends sbt.Plugin {
       plat getOrElse sys.error("Platform %s unknown in %s" format (p, prj.base))
     }
   )) ++ Seq(
+    crossPaths      <<= (scalaSource in Compile) { src =>
+      (src ** "*.scala").get.size > 0
+    },
     cleanFiles        <+= binPath in Android,
     cleanFiles        <+= genPath in Android,
     exportJars         := true,

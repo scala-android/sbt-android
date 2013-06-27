@@ -5,6 +5,18 @@ Current version is 0.7.0-SNAPSHOT
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
 
+## New features in 0.7.0 ##
+
+* Consuming apklib and aar artifacts from maven or ivy
+* Producing and publishing apklib and aar artifacts to maven or ivy
+* Switch to using `com.android.build.AndroidBuilder` for many operations
+  to maintain parity with Google's own android build process. Like that used
+  in the new Gradle build
+* All plugin classes have been moved into the `android` package namespace.
+* Simplify configuration with the new `androidBuild`, `androidBuildAar`,
+  `androidBuildApklib`, `buildApklib`, and `buildAar` shortcuts located in
+  `android.Plugin`
+
 ## Description ##
 
 This is a simple plugin for existing and newly created android projects.
@@ -121,6 +133,18 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
       * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
       * Alternatively, the `androidBuild()` overload may be used to specify
         all dependency library-projects which should relieve this problem.
+* Generating apklib and/or aar artifacts
+  * To specify that your project will generate and publish either an `aar`
+    or `apklib` artifact simply change the `android.Plugin.androidBuild`
+    line to one of the variants that will build the desired output type.
+    * For `apklib` use `android.Plugin.androidBuildApklib`
+    * For `aar` use `android.Plugin.androidBuildAar`
+  * Alternatively, use `android.Plugin.buildAar` and/or
+    `android.Plugin.buildApklib` in addition to any of the variants above
+    * In build.sbt, add `android.Plugin.buildAar` and/or
+      `android.Plugin.buildApklib` on a new line.
+    * It could also be specified, for example, like so:
+      `android.Plugin.androidBuild ++ android.Plugin.buildAar`
 * Multi-project builds
   * Several documented examples can be found at the following links, they
     cover a variety of situations, from multiple java projects, to mixed
@@ -129,7 +153,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
     * https://gist.github.com/pfn/5872679
     * https://gist.github.com/pfn/5872770
   * See [Working with Android library projects](https://github.com/pfn/android-sdk-plugin/wiki/Working-with-Android-library-projects) 
-    in the Wiki for detailed instructions on configuring Android library projects
+    in the Wiki for detailed instructions on configuring Android library
+    projects
 * Configuring `android-sdk-plugin` by editing build.sbt
   * `import android.Keys._` at the top to make sure you can use the plugin's
     configuration options
@@ -172,7 +197,6 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   plugin sets the system property `xsbt.skip.cp.lookup` to `true` to bypass
   this issue; this disables certain incremental compilation checks, but should
   not be an issue for the majority of use-cases.
-* apklib and aar artifact generation are to be implemented soon
 * Supporting maven-style (and by association, gradle-style) android project
   layouts is coming soon
 

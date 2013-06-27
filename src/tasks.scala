@@ -112,7 +112,7 @@ object Tasks {
   }
 
   val typedResourcesGeneratorTaskDef = ( typedResources
-                                       , aaptGenerator
+                                       , rGenerator
                                        , packageName
                                        , resourceDirectory in Compile
                                        , platformJars
@@ -302,16 +302,58 @@ object Tasks {
     merger.writeBlobTo(blobDir)
   }
 
+  val packageApklibTaskDef = ( manifestPath
+                             , baseDirectory
+                             , resourceDirectory in Compile
+                             , javaSource in Compile
+                             , scalaSource in Compile
+                             , binPath
+                             , name
+                             , streams
+                             ) map { (m, b, r, j, s, bin, n, st) =>
+    val assets = b / "assets"
+    val outfile = bin / (n + ".apklib")
+    st.log.info("Packaging " + outfile.getName)
+    val mapping =
+      (PathFinder(m)              x flat) ++
+      (PathFinder(j) ** "*.java"  x rebase(j,      "src")) ++
+      (PathFinder(s) ** "*.scala" x rebase(s,      "src")) ++
+      ((PathFinder(r) ***)        x rebase(r,      "res")) ++
+      ((PathFinder(assets) ***)   x rebase(assets, "assets"))
+    IO.jar(mapping, outfile, new java.util.jar.Manifest)
+    outfile
+  }
+  val packageAarTaskDef = ( manifestPath
+                          , packageT in Compile
+                          , baseDirectory
+                          , collectResources
+                          , genPath
+                          , binPath
+                          , name
+                          , streams
+                          ) map { case (m, j, b, (_, r), g, bin, n, s) =>
+    val assets = b / "assets"
+    val outfile = bin / (n + ".aar")
+    s.log.info("Packaging " + outfile.getName)
+    val mapping =
+      (PathFinder(m)              x flat) ++
+      (PathFinder(g / "R.txt")    x flat) ++
+      (PathFinder(j)              x flat) ++
+      ((PathFinder(r) ***)        x rebase(r,      "res")) ++
+      ((PathFinder(assets) ***)   x rebase(assets, "assets"))
+    IO.jar(mapping, outfile, new java.util.jar.Manifest)
+    outfile
+  }
   val packageResourcesTaskDef = ( builder
-                                 , manifestPath
-                                 , collectResources
-                                 , customPackage
-                                 , libraryProject
-                                 , libraryProjects
-                                 , genPath
-                                 , binPath
-                                 , streams
-                                 ) map {
+                                , manifestPath
+                                , collectResources
+                                , packageForR
+                                , libraryProject
+                                , libraryProjects
+                                , genPath
+                                , binPath
+                                , streams
+                                ) map {
     case (bldr, m, (assets, res), pkg, lib, libs, gen, bin, s) => bin
     val proguardTxt = (bin / "proguard.txt").getAbsolutePath
     val genPath = gen.getAbsolutePath
@@ -548,16 +590,16 @@ object Tasks {
     }
   }
 
-  val aaptGeneratorTaskDef = ( builder
-                              , manifestPath
-                              , collectResources
-                              , customPackage
-                              , libraryProject
-                              , libraryProjects
-                              , genPath
-                              , binPath
-                              , streams
-                              ) map {
+  val rGeneratorTaskDef = ( builder
+                          , manifestPath
+                          , collectResources
+                          , packageForR
+                          , libraryProject
+                          , libraryProjects
+                          , genPath
+                          , binPath
+                          , streams
+                          ) map {
     case (bldr, m, (assets, res), pkg, lib, libs, gen, bin, s) => bin
     val proguardTxt = (bin / "proguard.txt").getAbsolutePath
 
