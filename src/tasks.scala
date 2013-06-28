@@ -21,6 +21,7 @@ import com.android.builder.VariantConfiguration
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
 import com.android.ide.common.res2.FileStatus
+//import com.android.ide.common.res2.FileValidity
 import com.android.ide.common.res2.MergedResourceWriter
 import com.android.ide.common.res2.ResourceMerger
 import com.android.ide.common.res2.ResourceSet
@@ -229,43 +230,48 @@ object Tasks {
 
     // copy assets to single location
     libs collect {
-      case r if (r.layout.assets).exists => r.layout.assets
+      case r if r.layout.assets.isDirectory => r.layout.assets
     } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
 
     if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
 
     // prepare resource sets for merge
     val res = Seq(layout.res) ++ (libs map { _.layout.res } filter {
-        p => p.exists && p.isDirectory }) map { r =>
-      val set = new ResourceSet(r.getAbsolutePath)
-      set.addSource(r)
-      set
-    }
+        _.isDirectory })
 
     // this needs to wait for other projects to at least finish their
     // apklibs tasks--handled if androidBuild() is called properly
     val depres = collectdeps(libs) collect {
       case m: ApkLibrary => m
       case n: AarLibrary => n
-    } filter (_.getResFolder.isDirectory) map {
-      l =>
-      val set = new ResourceSet(l.path.getAbsolutePath)
-      set.addSource(l.getResFolder)
+    } collect { case n if n.getResFolder.isDirectory => n.getResFolder }
+
+    val respaths = depres ++ res.reverse ++
+      (if (layout.res.isDirectory) Seq(layout.res) else Seq.empty)
+    val sets = respaths map { r =>
+      val set = new ResourceSet(r.getAbsolutePath)
+      set.addSource(r)
       set
     }
 
-    val res1 = new ResourceSet("current-project")
-    res1.addSource(layout.res)
+    val inputs = (respaths map { r => (r ***) get } flatten) filter (n =>
+      !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
-    incrResourceMerge(layout.base, resTarget, isLib, libs,
-      cache / "collect-resources", logger, bldr,
-      (depres ++ res.reverse :+ res1))
+    FileFunction.cached(cache / "collect-resources")(
+      FilesInfo.hash, FilesInfo.exists) { (inChanges,outChanges) =>
+      s.log.info("Collecting resources")
+      incrResourceMerge(layout.base, resTarget, isLib, libs,
+      cache / "collect-resources", logger, bldr, sets, inChanges)
+      Set(resTarget)
+    }(inputs toSet)
+
     (assets, resTarget)
   }
 
   def incrResourceMerge(base: File, resTarget: File, isLib: Boolean,
-    libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
-    bldr: AndroidBuilder, resources: Seq[ResourceSet]) {
+      libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
+      bldr: AndroidBuilder, resources: Seq[ResourceSet],
+      changes: ChangeReport[File]) {
 
     def merge() = fullResourceMerge(base, resTarget, isLib, libs, blobDir,
       logger, bldr, resources)
@@ -275,9 +281,37 @@ object Tasks {
     else if (!merger.checkValidUpdate(resources))
       merge()
     else {
+      /* this currently doesn't function properly, force a full merge even
+         though it should only be incremental  :-(
+      //val fileValidity = new FileValidity[ResourceSet]
+      changes.added ++ changes.removed ++ changes.modified foreach { file =>
+        val status = if (changes.added contains file)
+          FileStatus.NEW
+        else if (changes.removed contains file)
+          FileStatus.REMOVED
+        else if (changes.modified contains file)
+          FileStatus.CHANGED
+        else
+          sys.error("Unknown file status: " + file)
+        val result = merger.getDataSetContaining(file)
+        logger.warning("Result: " + result)
+        if (result == null) {
+          merge()
+          return
+        }
+        // this has changed in latest aosp
+        if (!result.getFirst().updateWith(
+            result.getSecond(), file, status, logger)) {
+          logger.warning("Failed to process %s:%s" format (status,file))
+          merge()
+          return
+        }
+      }
       val writer = new MergedResourceWriter(resTarget, bldr.getAaptRunner)
       merger.mergeData(writer, false)
       merger.writeBlobTo(blobDir)
+      */
+      merge()
     }
   }
   def fullResourceMerge(base: File, resTarget: File, isLib: Boolean,
@@ -339,21 +373,27 @@ object Tasks {
                                 , packageForR
                                 , libraryProject
                                 , libraryProjects
+                                , cacheDirectory
                                 , streams
                                 ) map {
-    case (bldr, layout, (assets, res), pkg, lib, libs, s) =>
+    case (bldr, layout, (assets, res), pkg, lib, libs, cache, s) =>
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
     val genPath = layout.gen.getAbsolutePath
 
     val rel = if (createDebug) "-debug" else "-release"
     val basename = "resources" + rel + ".ap_"
-    val dfile = layout.bin * (basename + ".d") get
     val p = layout.bin / basename
 
-    if (dfile.isEmpty || (dfile exists outofdate)) {
+    val inputs = (res ***).get ++ (assets ***).get ++
+      Seq(layout.manifest)filter (
+        n => !n.getName.startsWith(".") && !n.getName.startsWith("_"))
+
+    (FileFunction.cached(cache / "package-resources", FilesInfo.hash) { _ =>
+      s.log.info("Packaging resources: " + p.getName)
       aapt(bldr, layout.manifest, pkg, libs, lib, res, assets,
-        p.getAbsolutePath, layout.gen, proguardTxt, s.log)
-    }
+        p.getAbsolutePath, layout.gen, null, s.log)
+      Set(p)
+    })(inputs.toSet)
     p
   }
 
@@ -577,18 +617,23 @@ object Tasks {
                           , packageForR
                           , libraryProject
                           , libraryProjects
+                          , cacheDirectory
                           , streams
                           ) map {
-    case (bldr, layout, (assets, res), pkg, lib, libs, s) =>
+    case (bldr, layout, (assets, res), pkg, lib, libs, cache, s) =>
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
 
-    val dfile = layout.gen * "R.java.d" get
+    val inputs = (res ***).get ++ (assets ***).get ++
+      Seq(layout.manifest)filter (
+        n => !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
-    if (dfile.isEmpty || (dfile exists outofdate)) {
+    (FileFunction.cached(cache / "r-generator",
+        FilesInfo.hash, FilesInfo.exists) { _ =>
+      s.log.info("Generating R.java")
       aapt(bldr, layout.manifest, pkg, libs, lib, res, assets, null,
         layout.gen, proguardTxt, s.log)
-    }
-    (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get)
+      (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
+    })(inputs.toSet).toSeq
   }
 
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: Option[String],
