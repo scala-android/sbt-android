@@ -164,7 +164,7 @@ object Keys {
       override def gen = base / "target" / "android-gen"
       override def bin = base / "target" / "android-bin"
       // XXX gradle project layouts don't really have a "libs"
-      override def libs = base / "libs"
+      override def libs = sources / "libs"
       override def aidl = sources / "aidl"
       override def renderscript = sources / "rs"
     }
