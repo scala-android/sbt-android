@@ -282,6 +282,7 @@ object Tasks {
       merge()
     else {
       //val fileValidity = new FileValidity[ResourceSet]
+      /* still broken :-(
       changes.added ++ changes.removed ++ changes.modified foreach { file =>
         val status = if (changes.added contains file)
           FileStatus.NEW
@@ -292,7 +293,6 @@ object Tasks {
         else
           sys.error("Unknown file status: " + file)
         val result = merger.getDataSetContaining(file)
-        logger.warning("Result: " + result)
         if (result == null) {
           merge()
           return
@@ -306,8 +306,10 @@ object Tasks {
         }
       }
       val writer = new MergedResourceWriter(resTarget, bldr.getAaptRunner)
-      merger.mergeData(writer)
+      merger.mergeData(writer, true)
       merger.writeBlobTo(blobDir)
+      */
+      merge()
     }
   }
   def fullResourceMerge(base: File, resTarget: File, isLib: Boolean,
