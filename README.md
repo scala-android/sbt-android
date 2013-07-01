@@ -14,6 +14,11 @@ of the plugin.
   gradle-style layouts)
   * Gradle-style project layouts need to be created by other means, either
     using the gradle plugin, IDEA, maven, sbt-android or by hand.
+  * When using Gradle-style project layouts without properties files
+    platformTarget in Android should be set manually to the string name
+    of the platform as listed in `android list targets`. Any settings
+    normally loaded from a `.properties` file should also be configured
+    in the build settings as necessary.
 * Consuming apklib and aar artifacts from maven or ivy
 * Producing and publishing apklib and aar artifacts to maven or ivy
 * Switch to using `com.android.build.AndroidBuilder` for many operations
