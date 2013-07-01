@@ -290,6 +290,12 @@ object Plugin extends sbt.Plugin {
     crossPaths      <<= (scalaSource in Compile) { src =>
       (src ** "*.scala").get.size > 0
     },
+    resolvers        <<+= (sdkPath in Android) { p => Seq(
+      "google libraries" at (
+        file(p) / "extras" / "google" / "m2repository").toURI.toString,
+      "android libraries" at (
+        file(p) / "extras" / "android" / "m2repository").toURI.toString
+    },
     cleanFiles        <+= binPath in Android,
     cleanFiles        <+= genPath in Android,
     exportJars         := true,
