@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.7.1
+Current version is 0.7.2
 
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
@@ -97,7 +97,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.1")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.2")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the

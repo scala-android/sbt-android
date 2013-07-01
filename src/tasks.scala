@@ -281,8 +281,6 @@ object Tasks {
     else if (!merger.checkValidUpdate(resources))
       merge()
     else {
-      /* this currently doesn't function properly, force a full merge even
-         though it should only be incremental  :-(
       //val fileValidity = new FileValidity[ResourceSet]
       changes.added ++ changes.removed ++ changes.modified foreach { file =>
         val status = if (changes.added contains file)
@@ -308,10 +306,8 @@ object Tasks {
         }
       }
       val writer = new MergedResourceWriter(resTarget, bldr.getAaptRunner)
-      merger.mergeData(writer, false)
+      merger.mergeData(writer)
       merger.writeBlobTo(blobDir)
-      */
-      merge()
     }
   }
   def fullResourceMerge(base: File, resTarget: File, isLib: Boolean,
