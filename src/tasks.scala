@@ -115,20 +115,18 @@ object Tasks {
   val typedResourcesGeneratorTaskDef = ( typedResources
                                        , rGenerator
                                        , packageName
-                                       , resourceDirectory in Compile
+                                       , projectLayout
                                        , platformJars
-                                       , state
+                                       , scalaVersion
+                                       , cacheDirectory
                                        , libraryProjects
-                                       , genPath
                                        , streams
                                        ) map {
-    case (t, a, p, r, (j, x), e, l, g, s) =>
+    case (t, a, p, layout, (j, x), sv, c, l, s) =>
 
-    // hack because tasks can only take 9 params
-    val extracted = Project.extract(e)
-    val b  = extracted.get(baseDirectory)
-    val sv = extracted.get(scalaVersion)
-    val c  = extracted.get(cacheDirectory)
+    val r = layout.res
+    val b = layout.base
+    val g = layout.gen
 
     val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
 
@@ -356,11 +354,12 @@ object Tasks {
     val outfile = bin / (n + ".aar")
     s.log.info("Packaging " + outfile.getName)
     val mapping =
-      (PathFinder(manifest)       x flat) ++
-      (PathFinder(gen / "R.txt")  x flat) ++
-      (PathFinder(j)              x flat) ++
-      ((PathFinder(res) ***)      x rebase(res,    "res")) ++
-      ((PathFinder(assets) ***)   x rebase(assets, "assets"))
+      (PathFinder(manifest)             x flat) ++
+      (PathFinder(gen / "R.txt")        x flat) ++
+      (PathFinder(bin / "proguard.txt") x flat) ++
+      (PathFinder(j)                    x flat) ++
+      ((PathFinder(res) ***)            x rebase(res,    "res")) ++
+      ((PathFinder(assets) ***)         x rebase(assets, "assets"))
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
   }
@@ -428,7 +427,7 @@ object Tasks {
                         , libraryProjects
                         , unmanagedBase
                         , unmanagedJars in Compile
-                        , managedClasspath in Compile
+                        , managedClasspath
                         ) map {
     (n, r, d, base, b, p, l, u, m) =>
     val rel = if (createDebug) "-debug-unaligned.apk"
@@ -698,15 +697,13 @@ object Tasks {
 
   val dexInputsTaskDef = ( proguard
                          , binPath
-                         , managedClasspath in Compile
-                         , dependencyClasspath in Compile
-                         , unmanagedJars in Compile
+                         , dependencyClasspath
                          , classesJar
                          , streams) map {
-    (p, b, m, d, u, j, s) =>
+    (p, b, d, j, s) =>
 
     (p map { f => Seq(f) } getOrElse {
-      ((m ++ u ++ d) collect {
+      (d collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
           x.data.getName.endsWith(".jar") => x.data.getCanonicalFile
@@ -742,16 +739,15 @@ object Tasks {
                               , proguardScala
                               , proguardLibraries
                               , proguardExcludes
-                              , managedClasspath in Compile
-                              , externalDependencyClasspath in Compile
+                              , dependencyClasspath
                               , platformJars
                               , classesJar
                               , binPath
                               ) map {
-    case (u, s, l, e, m, ud, (p, x), c, b) =>
+    case (u, s, l, e, d, (p, x), c, b) =>
 
     if (u) {
-      val injars = dedupeClasses(b, ((((m ++ ud) map {
+      val injars = dedupeClasses(b, (((d map {
         _.data.getCanonicalFile }) :+ c) filter {
           in =>
           (s || !in.getName.startsWith("scala-library")) &&
@@ -915,7 +911,8 @@ object Tasks {
     p
   }
 
-  val unmanagedJarsTaskDef = ( unmanagedJars
+  // TODO I need fixing with the values in Android
+  val unmanagedJarsTaskDef = ( unmanagedJars in Compile
                              , baseDirectory
                              , libraryProjects in Android, streams) map {
     (u, b, l, s) =>

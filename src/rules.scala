@@ -144,7 +144,20 @@ object Plugin extends sbt.Plugin {
     scalacOptions in console    := Seq.empty,
     sourceDirectory            <<= baseDirectory (_ / "test"),
     unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
-  )) ++ inConfig(Android) (Seq(
+  )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
+    // productX := Nil is a necessity to use Classpaths.configSettings
+    exportedProducts         := Nil,
+    products                 := Nil,
+    productDirectories       := Nil,
+    classpathConfiguration   := config("compile"),
+    // temporary hack since it doesn't take in dependent project's libs
+    dependencyClasspath     <<= dependencyClasspath in Compile map { cp =>
+      val internals = Configurations.defaultInternal.toSet
+      cp filterNot {
+        a => a.get(configuration.key) map internals getOrElse false
+      }
+    },
+    // end for Classpaths.configSettings
     apklibs                 <<= apklibsTaskDef,
     aars                    <<= aarsTaskDef,
     aarArtifact             <<= name { n => Artifact(n, "aar", "aar") },
