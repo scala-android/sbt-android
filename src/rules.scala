@@ -154,7 +154,8 @@ object Plugin extends sbt.Plugin {
     dependencyClasspath     <<= dependencyClasspath in Compile map { cp =>
       val internals = Configurations.defaultInternal.toSet
       cp filterNot {
-        a => a.get(configuration.key) map internals getOrElse false
+        a => (a.get(configuration.key) map internals getOrElse false) &&
+          !a.data.getName.startsWith("scala-")
       }
     },
     // end for Classpaths.configSettings
