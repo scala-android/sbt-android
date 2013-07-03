@@ -631,6 +631,10 @@ object Tasks {
         layout.gen, proguardTxt, s.log)
       (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
     })(inputs.toSet).toSeq
+
+    // needs to always return something, otherwise compilation fails after
+    // running gen-idea until cleaning
+    (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get)
   }
 
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: Option[String],

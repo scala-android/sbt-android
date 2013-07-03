@@ -150,11 +150,14 @@ object Plugin extends sbt.Plugin {
     products                 := Nil,
     productDirectories       := Nil,
     classpathConfiguration   := config("compile"),
-    // temporary hack since it doesn't take in dependent project's libs
+    // hack since it doesn't take in dependent project's libs
     dependencyClasspath     <<= dependencyClasspath in Compile map { cp =>
       val internals = Configurations.defaultInternal.toSet
+      // do not filter out provided libs for scala, we do that later
       cp filterNot {
-        a => a.get(configuration.key) map internals getOrElse false
+        a => (a.get(configuration.key) map internals getOrElse false) &&
+          (a.get(moduleID.key) map (
+            _.organization != "org.scala-lang") getOrElse false)
       }
     },
     // end for Classpaths.configSettings
