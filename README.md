@@ -2,6 +2,9 @@
 
 Current version is 0.7.2
 
+*WARNING* `0.7.2` has _broken_ scala projects, use `0.7.1` instead! A fix
+will be coming soon.
+
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
 
