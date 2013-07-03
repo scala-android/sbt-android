@@ -1,14 +1,13 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.7.2
+Current version is 0.7.3
 
-*WARNING* `0.7.2` has _broken_ scala projects, use `0.7.1` instead! A fix
-will be coming soon.
+*WARNING* `0.7.2` has _broken_ scala projects. Update or use `0.7.1` instead.
 
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
 
-## New features in 0.7.0 ##
+## New features in 0.7.x ##
 
 * Projects can now follow an ant-style or gradle-style layout. The location
   of `AndroidManifest.xml` will auto-select which layout to use, if it is
@@ -100,7 +99,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.2")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.3")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
