@@ -624,17 +624,17 @@ object Tasks {
       Seq(layout.manifest)filter (
         n => !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
-    (FileFunction.cached(cache / "r-generator",
-        FilesInfo.hash, FilesInfo.exists) { _ =>
+    // need to check output changes, otherwise compile fails after gen-idea
+    FileFunction.cached(cache / "r-generator")(
+        FilesInfo.hash, FilesInfo.hash) { (in,out) =>
       s.log.info("Generating R.java")
       aapt(bldr, layout.manifest, pkg, libs, lib, res, assets, null,
         layout.gen, proguardTxt, s.log)
+      s.log.debug(
+        "In modified: %s\nInRemoved: %s\nOut checked: %s\nOut modified: %s"
+          format (in.modified, in.removed, out.checked, out.modified))
       (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
-    })(inputs.toSet).toSeq
-
-    // needs to always return something, otherwise compilation fails after
-    // running gen-idea until cleaning
-    (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get)
+    }(inputs.toSet).toSeq
   }
 
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: Option[String],
