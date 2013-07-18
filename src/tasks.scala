@@ -489,10 +489,11 @@ object Tasks {
     }
   }
 
-  val zipalignTaskDef = (zipalignPath, signRelease, streams) map {
-    (z, r, s) =>
+  val zipalignTaskDef = (zipalignPath, signRelease, apkFile, streams) map {
+    (z, r, a, s) =>
     if (r.getName.contains("-unsigned")) {
       s.log.warn("Package needs signing and zipaligning: " + r.getName)
+      a.delete()
       r
     } else {
       val bin = r.getParentFile
@@ -505,6 +506,7 @@ object Tasks {
       }
 
       s.log.info("zipaligned: " + aligned.getName)
+      IO.copyFile(aligned, a)
       aligned
     }
   }
