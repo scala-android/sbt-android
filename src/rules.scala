@@ -151,13 +151,26 @@ object Plugin extends sbt.Plugin {
     productDirectories       := Nil,
     classpathConfiguration   := config("compile"),
     // hack since it doesn't take in dependent project's libs
-    dependencyClasspath     <<= dependencyClasspath in Compile map { cp =>
-      val internals = Configurations.defaultInternal.toSet
+    dependencyClasspath     <<= ( dependencyClasspath in Compile
+                                , libraryDependencies
+                                , streams) map { (cp, d, s) =>
+      s.log.debug("Filtering compile:dependency-classpath from: " + cp)
+      val pvd = d filter { dep => dep.configurations exists (_ == "provided") }
+
+      cp foreach { a =>
+        s.log.debug("%s => %s: %s" format (a.data.getName,
+          a.get(configuration.key), a.get(moduleID.key)))
+      }
+      // it seems internal-dependency-classpath already filters out "provided"
+      // from other projects, now, just filter out our own "provided" lib deps
       // do not filter out provided libs for scala, we do that later
       cp filterNot {
-        a => (a.get(configuration.key) map internals getOrElse false) &&
-          (a.get(moduleID.key) map (
-            _.organization != "org.scala-lang") getOrElse false)
+        a =>
+        (a.get(moduleID.key) map { m =>
+          m.organization != "org.scala-lang" &&
+            (pvd exists (p => m.organization == p.organization &&
+              m.name == p.name))
+        } getOrElse false)
       }
     },
     // end for Classpaths.configSettings
