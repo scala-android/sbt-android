@@ -264,6 +264,11 @@ object Plugin extends sbt.Plugin {
     useProguardInDebug      <<= proguardScala,
     collectResources        <<= collectResourcesTaskDef,
     packageResources        <<= packageResourcesTaskDef,
+    apkFile                 <<= (name, projectLayout) { (n,l) =>
+      val apkdir = l.bin / ".build_integration"
+      apkdir.mkdirs()
+      apkdir / (n + "-BUILD-INTEGRATION.apk")
+    },
     apkbuild                <<= apkbuildTaskDef,
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
