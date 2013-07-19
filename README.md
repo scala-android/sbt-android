@@ -215,6 +215,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   result in `resources.ap_` not being rebuilt. Symptom: weird crashes
   around resource inflation. Workaround: clean or touch an existing resource
   file.
+* Properly implement package-for-r and custom-package settings (for producing
+  different package names).
 * sbt `0.12` and `0.13` currently have a bug where jars specified in javac's
   -bootclasspath option forces a full rebuild of all classes everytime. sbt
   `0.12.3` and later has a hack that should workaround this problem. The
