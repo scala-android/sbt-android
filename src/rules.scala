@@ -37,7 +37,7 @@ object Plugin extends sbt.Plugin {
   // * sign
   // * zipalign
 
-  lazy val androidBuild: Project.SettingsDefinition = {
+  lazy val androidBuild: Seq[Setting[_]]= {
     // only set the property below if this plugin is actually used
     // this property is a workaround for bootclasspath messing things
     // up and causing full-recompiles
@@ -45,7 +45,7 @@ object Plugin extends sbt.Plugin {
     seq(allPluginSettings:_*)
   }
 
-  def androidBuild(projects: Project*): Project.SettingsDefinition = {
+  def androidBuild(projects: Project*): Seq[Setting[_]]= {
     androidBuild ++
       (projects map { p =>
         Seq(
@@ -57,12 +57,12 @@ object Plugin extends sbt.Plugin {
       }).flatten
   }
 
-  lazy val androidBuildAar: Project.SettingsDefinition = androidBuildAar()
-  lazy val androidBuildApklib: Project.SettingsDefinition = androidBuildApklib()
-  def androidBuildAar(projects: Project*): Project.SettingsDefinition = {
+  lazy val androidBuildAar: Seq[Setting[_]]= androidBuildAar()
+  lazy val androidBuildApklib: Seq[Setting[_]]= androidBuildApklib()
+  def androidBuildAar(projects: Project*): Seq[Setting[_]]= {
     androidBuild(projects:_*) ++ buildAar
   }
-  def androidBuildApklib(projects: Project*): Project.SettingsDefinition = {
+  def androidBuildApklib(projects: Project*): Seq[Setting[_]]= {
     androidBuild(projects:_*) ++ buildApklib
   }
 
@@ -139,7 +139,7 @@ object Plugin extends sbt.Plugin {
     managedClasspath <++= (platform in Android) map { t =>
       (Option(t.getOptionalLibraries) map {
         _ map ( j => Attributed.blank(file(j.getJarPath)) )
-      } flatten).toSeq
+      } getOrElse Array.empty).toSeq
     },
     scalacOptions in console    := Seq.empty,
     sourceDirectory            <<= baseDirectory (_ / "test"),
@@ -226,7 +226,8 @@ object Plugin extends sbt.Plugin {
     dex                     <<= dexTaskDef,
     platformJars            <<= platform { p =>
       (p.getPath(IAndroidTarget.ANDROID_JAR),
-      (Option(p.getOptionalLibraries) map(_ map(_.getJarPath))).flatten.toSeq)
+      (Option(p.getOptionalLibraries) map(_ map(_.getJarPath))).getOrElse(
+        Array.empty).toSeq)
     },
     projectLayout           <<= baseDirectory (ProjectLayout.apply),
     manifestPath            <<= projectLayout { l =>

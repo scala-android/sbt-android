@@ -75,12 +75,12 @@ object Dependencies {
         list filter (_.isDirectory) map { d =>
           AarLibrary(d): LibraryDependency
         }
-      }.flatten.toSeq) ++
+      }.getOrElse(Array.empty).toSeq) ++
         (Option((path / "target" / "apklibs").listFiles).map { list =>
           list filter (_.isDirectory) map { d =>
             ApkLibrary(d): LibraryDependency
           }
-        }.flatten.toSeq)
+        }.getOrElse(Array.empty).toSeq)
     }
   }
 }
