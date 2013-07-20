@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.7.6
+Current version is 0.7.7
 
 *WARNING* `0.7.2` has _broken_ scala projects. Update or use `0.7.1` instead.
 
@@ -99,7 +99,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.6")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.7")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
@@ -215,6 +215,8 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   result in `resources.ap_` not being rebuilt. Symptom: weird crashes
   around resource inflation. Workaround: clean or touch an existing resource
   file.
+* Properly implement package-for-r and custom-package settings (for producing
+  different package names).
 * sbt `0.12` and `0.13` currently have a bug where jars specified in javac's
   -bootclasspath option forces a full rebuild of all classes everytime. sbt
   `0.12.3` and later has a hack that should workaround this problem. The
