@@ -263,7 +263,7 @@ object Tasks {
       Set(resTarget)
     }(inputs toSet)
 
-    (assets, resTarget)
+    (assetBin, resTarget)
   }
 
   def incrResourceMerge(base: File, resTarget: File, isLib: Boolean,
