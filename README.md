@@ -183,7 +183,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   * `import android.Keys._` at the top to make sure you can use the plugin's
     configuration options
   * Add configuration options according to the sbt style:
-    * `useProguard in Android := true` to enable proguard
+    * `useProguard in Android := true` to enable proguard. Note that if you don't use proguard, you *must* specify uses-library on a pre-installed scala lib on-device. Dexing the scala libs is not supported at this time.
   * Configurable keys can be discovered by typing `android:<tab>` at the
     sbt shell
 * Configuring proguard, some options are available
