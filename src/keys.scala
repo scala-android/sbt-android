@@ -127,6 +127,9 @@ object Keys {
     def scalaSource: File
     def javaSource: File
     def sources: File
+    def testSources: File
+    def testScalaSource: File
+    def testJavaSource: File
     def res: File
     def assets: File
     def manifest: File
@@ -145,6 +148,9 @@ object Keys {
     }
     case class Ant(base: File) extends ProjectLayout {
       override def sources = base / "src"
+      override def testSources = base / "test"
+      override def testJavaSource = testSources
+      override def testScalaSource = testSources
       override def scalaSource = sources
       override def javaSource = sources
       override def res = base / "res"
@@ -158,6 +164,9 @@ object Keys {
     }
     case class Gradle(base: File) extends ProjectLayout {
       override def manifest = sources / "AndroidManifest.xml"
+      override def testSources = base / "src" / "test"
+      override def testJavaSource = testSources / "java"
+      override def testScalaSource = testSources / "scala"
       override def sources = base / "src" / "main"
       override def scalaSource = sources / "scala"
       override def javaSource = sources / "java"

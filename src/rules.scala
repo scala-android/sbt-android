@@ -142,8 +142,9 @@ object Plugin extends sbt.Plugin {
       } getOrElse Array.empty).toSeq
     },
     scalacOptions in console    := Seq.empty,
-    sourceDirectory            <<= baseDirectory (_ / "test"),
-    unmanagedSourceDirectories <<= baseDirectory (b => Seq(b / "test"))
+    sourceDirectory            <<= (projectLayout in Android) (_.testSources),
+    unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
+      Set(l.testSources, l.testJavaSource, l.testScalaSource).toSeq)
   )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
     // productX := Nil is a necessity to use Classpaths.configSettings
     exportedProducts         := Nil,
