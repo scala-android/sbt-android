@@ -1,8 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.7.7
-
-*WARNING* `0.7.2` has _broken_ scala projects. Update or use `0.7.1` instead.
+Current version is 0.7.8
 
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
@@ -76,8 +74,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   `inflater.inflate(TR.layout.foo, container, optionalBoolean)` and receiving
   a properly typed resulting view object.
   * Import `TypedResource._` to get the implicit conversions
-* No apklib or aar creation support yet.
-* All plugin classes are not namespaced under the `android` package
+* All plugin classes are namespaced under the `android` package
 
 ## Usage ##
 
@@ -99,7 +96,7 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
       "http://scalasbt.artifactoryonline.com/scalasbt/sbt-plugin-releases/"))(
       Resolver.ivyStylePatterns)
 
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.7")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.7.8")
     ```
 
 4. Create a file named `build.sbt` in the root of your project and add the
@@ -183,7 +180,10 @@ built-in SDK configuration and doesn't load up into Eclipse easily either.
   * `import android.Keys._` at the top to make sure you can use the plugin's
     configuration options
   * Add configuration options according to the sbt style:
-    * `useProguard in Android := true` to enable proguard. Note that if you don't use proguard, you *must* specify uses-library on a pre-installed scala lib on-device. Dexing the scala libs is not supported at this time.
+    * `useProguard in Android := true` to enable proguard. Note: if you don't
+      use proguard for scala, you *must* specify uses-library on a
+      pre-installed scala lib on-device. Dexing the scala libs is not
+      supported at this time.
   * Configurable keys can be discovered by typing `android:<tab>` at the
     sbt shell
 * Configuring proguard, some options are available
