@@ -64,6 +64,7 @@ object Tasks {
     g ** "BuildConfig.java" get
   }
 
+  // fails poorly if windows' exclusive locks are preventing a proper clean
   val aarsTaskDef = ( update in Compile
                     , target
                     , streams
@@ -83,6 +84,7 @@ object Tasks {
     }
   }
 
+  // fails poorly if windows' exclusive locks are preventing a proper clean
   val apklibsTaskDef = ( update in Compile
                        , genPath
                        , libraryProject
@@ -385,7 +387,7 @@ object Tasks {
       Seq(layout.manifest)filter (
         n => !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
-    (FileFunction.cached(cache / "package-resources", FilesInfo.hash) { _ =>
+    (FileFunction.cached(cache / basename, FilesInfo.hash) { _ =>
       s.log.info("Packaging resources: " + p.getName)
       aapt(bldr, layout.manifest, pkg, libs, lib, res, assets,
         p.getAbsolutePath, layout.gen, null, s.log)
