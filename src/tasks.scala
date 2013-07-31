@@ -262,7 +262,7 @@ object Tasks {
       s.log.info("Collecting resources")
       incrResourceMerge(layout.base, resTarget, isLib, libs,
       cache / "collect-resources", logger, bldr, sets, inChanges)
-      Set(resTarget)
+      (resTarget ***).get.toSet
     }(inputs toSet)
 
     (assetBin, resTarget)
