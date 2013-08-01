@@ -1,6 +1,6 @@
 name := "android-sdk-plugin"
 
-version := "0.7.9-SNAPSHOT"
+version := "0.8.0-SNAPSHOT"
 
 organization := "com.hanhuy.sbt"
 
@@ -17,8 +17,8 @@ unmanagedBase <<= baseDirectory(_ / "libs")
 resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 
 libraryDependencies ++= Seq(
-  "net.sf.proguard" % "proguard-base" % "4.9",
-  "com.android.tools.build" % "builder" % "0.4.2"
+  "net.sf.proguard" % "proguard-base" % "4.10",
+  "com.android.tools.build" % "builder" % "0.5.5"
 )
 
 sbtPlugin := true

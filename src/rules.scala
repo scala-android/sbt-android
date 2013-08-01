@@ -7,11 +7,12 @@ import com.android.builder.DefaultSdkParser
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 import com.android.sdklib.BuildToolInfo.PathId
 import com.android.SdkConstants
-import com.android.utils.StdLogger
+import com.android.utils.ILogger
 
 import java.io.File
 import java.util.Properties
 
+import scala.util.control.Exception._
 import scala.collection.JavaConversions._
 import scala.xml.XML
 
@@ -202,7 +203,6 @@ object Plugin extends sbt.Plugin {
       })(Set(g ** "R.java" get: _*))
       Seq.empty[File]
     },
-    packageForR              := None,
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= projectLayout (_.bin),
     classesJar              <<= binPath (_ / "classes.jar"),
@@ -219,13 +219,9 @@ object Plugin extends sbt.Plugin {
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
         _.equals("true") } getOrElse false },
-    zipalignPath            <<= sdkPath {
-      import SdkConstants._
-      _ + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
-    },
     dexInputs               <<= dexInputsTaskDef,
     dex                     <<= dexTaskDef,
-    platformJars            <<= platform { p =>
+    platformJars            <<= platform map { p =>
       (p.getPath(IAndroidTarget.ANDROID_JAR),
       (Option(p.getOptionalLibraries) map(_ map(_.getJarPath))).getOrElse(
         Array.empty).toSeq)
@@ -235,19 +231,32 @@ object Plugin extends sbt.Plugin {
       l.manifest
     },
     properties              <<= baseDirectory (b => loadProperties(b)),
+    processManifest         <<= processManifestTaskDef,
     manifest                <<= manifestPath { m => XML.loadFile(m) },
     versionCode             <<= manifest { m =>
-      m.attribute(ANDROID_NS, "versionCode") map { _(0) text }},
+      m.attribute(ANDROID_NS, "versionCode") flatMap { v =>
+        catching(classOf[Exception]) opt { (v(0) text) toInt }
+      }
+    },
     versionName             <<= manifest { m =>
       m.attribute(ANDROID_NS, "versionName") map { _(0) text }},
+    packageForR             <<= manifest { m =>
+      m.attribute("package") get (0) text
+    },
     packageName             <<= manifest { m =>
       m.attribute("package") get (0) text
     },
-    targetSdkVersion        <<= manifest { m =>
+    targetSdkVersion        <<= (manifest, minSdkVersion) { (m, min) =>
       val usesSdk = (m \ "uses-sdk")
       if (usesSdk.isEmpty) -1 else
-        ((usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") orElse
-          usesSdk(0).attribute(ANDROID_NS, "minSdkVersion")) get (0) text) toInt
+        usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") map { v =>
+            (v(0) text).toInt } getOrElse min
+    },
+    minSdkVersion        <<= manifest { m =>
+      val usesSdk = (m \ "uses-sdk")
+      if (usesSdk.isEmpty) -1 else
+        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") map { v =>
+          (v(0) text).toInt } getOrElse 1
     },
     proguardLibraries        := Seq.empty,
     proguardExcludes         := Seq.empty,
@@ -271,10 +280,9 @@ object Plugin extends sbt.Plugin {
       apkdir.mkdirs()
       apkdir / (n + "-BUILD-INTEGRATION.apk")
     },
+    collectJni              <<= collectJniTaskDef,
     apkbuild                <<= apkbuildTaskDef,
-    signRelease             <<= signReleaseTaskDef,
-    zipalign                <<= zipalignTaskDef,
-    packageT                <<= zipalign,
+    packageT                <<= apkbuild,
     setDebug                 := { _createDebug = true },
     setRelease               := { _createDebug = false },
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
@@ -299,25 +307,30 @@ object Plugin extends sbt.Plugin {
             sys.error("set ANDROID_HOME or run 'android update project -p %s'"
               format p.base))
     },
-    ilogger                  := new StdLogger(StdLogger.Level.WARNING),
-    sdkParser               <<= (sdkManager, platformTarget, ilogger) {
-      (m, t, l) =>
+    ilogger                  := { l: Logger =>
+      SbtLogger(l)
+    },
+    sdkParser               <<= ( sdkManager
+                                , platformTarget
+                                , ilogger
+                                , streams) map {
+      (m, t, l, s) =>
       val parser = new DefaultSdkParser(m.getLocation)
 
-      parser.initParser(t, m.getLatestBuildTool.getRevision, l)
+      parser.initParser(t, m.getLatestBuildTool.getRevision, l(s.log))
       parser
     },
-    builder                 <<= (sdkParser, ilogger) {
-      (parser, l) =>
+    builder                 <<= (sdkParser, ilogger, streams) map {
+      (parser, l, s) =>
 
-      new AndroidBuilder(parser, "android-sdk-plugin", l, false)
+      new AndroidBuilder(parser, "android-sdk-plugin", l(s.log), false)
     },
-    sdkManager              <<= (sdkPath,ilogger) { (p, l) =>
-      SdkManager.createManager(p, l)
+    sdkManager              <<= (sdkPath,ilogger, streams) map { (p, l, s) =>
+      SdkManager.createManager(p, l(s.log))
     },
 
     platformTarget          <<= properties (_("target")),
-    platform                <<= (sdkManager, platformTarget, thisProject) {
+    platform                <<= (sdkManager, platformTarget, thisProject) map {
       (m, p, prj) =>
       val plat = Option(m.getTargetFromHashString(p))
       plat getOrElse sys.error("Platform %s unknown in %s" format (p, prj.base))
@@ -360,4 +373,21 @@ object Plugin extends sbt.Plugin {
   private def devices = Command.command(
     "devices", "List connected and online android devices",
     "List all connected and online android devices")(devicesAction)
+}
+
+case class SbtLogger(lg: Logger) extends ILogger {
+  override def verbose(fmt: java.lang.String, args: Object*) {
+    lg.debug(String.format(fmt, args:_*))
+  }
+  override def info(fmt: java.lang.String, args: Object*) {
+    lg.debug(String.format(fmt, args:_*))
+  }
+  override def warning(fmt: java.lang.String, args: Object*) {
+    lg.warn(String.format(fmt, args:_*))
+  }
+  override def error(t: Throwable, fmt: java.lang.String, args: Object*) {
+    lg.error(String.format(fmt, args:_*))
+    if (t != null)
+      t.printStackTrace
+  }
 }

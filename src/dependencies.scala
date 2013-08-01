@@ -27,6 +27,8 @@ object Dependencies {
     def path: File
     val layout = Keys.ProjectLayout(path)
 
+    override def getProject = null
+    override def getBundle = null
     override def getManifest = layout.manifest
     override def getFolder = path
     override def getJarFile = path / FN_CLASSES_JAR
@@ -63,7 +65,7 @@ object Dependencies {
     override def getSymbolFile = layout.gen / "R.txt"
     override def getJarFile = layout.bin / FN_CLASSES_JAR
     override def getProguardRules = layout.bin / "proguard.txt"
-    override def getJniFolder = layout.libs
+    override def getJniFolder = layout.jni
     override def getLocalJars = layout.libs ** ".jar" get
     override def getResFolder = layout.res
     override def getAssetsFolder = layout.assets

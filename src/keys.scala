@@ -17,8 +17,9 @@ import com.android.utils.ILogger
 import Dependencies._
 
 object Keys {
-  val ilogger = SettingKey[ILogger]("ilogger", "internal Android SDK logger")
-  val sdkParser = SettingKey[SdkParser]("sdk-parser",
+  val ilogger = SettingKey[Logger => ILogger]("ilogger",
+    "internal Android SDK logger")
+  val sdkParser = TaskKey[SdkParser]("sdk-parser",
     "internal Android SdkParser object")
   val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
     "TR.scala generating task")
@@ -35,22 +36,21 @@ object Keys {
   val proguardInputs = TaskKey[(Seq[File],Seq[File])]("proguard-inputs",
     "a tuple specifying -injars and -libraryjars (in that order)")
   val setDebug = TaskKey[Unit]("set-debug", "set debug build")
-  val signRelease = TaskKey[File]("sign-release", "sign the release build")
-  val zipalignPath = SettingKey[String]("zipalign-path",
-    "path to the zipalign executable")
   val apklibs = TaskKey[Seq[LibraryDependency]]("apklibs",
     "unpack the set of referenced apklibs")
   val aars = TaskKey[Seq[LibraryDependency]]("aars",
     "unpack the set of referenced aars")
-  val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
   val setRelease = TaskKey[Unit]("set-release", "set release build")
-  val packageName = SettingKey[String]("package-name", "android package name")
+  val packageName = SettingKey[String]("package-name",
+    "android package name, can be changed to create a different apk package")
   val apkFile = SettingKey[File]("apk-file",
     "consistent file name for apk output, used for ide integration")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")
-  val builder = SettingKey[AndroidBuilder]("builder", "AndroidBuilder object")
+  val builder = TaskKey[AndroidBuilder]("builder", "AndroidBuilder object")
   val packageRelease = TaskKey[File]("package-release", "create a release apk")
   val packageDebug = TaskKey[File]("package-debug", "create a debug apk")
+  val collectJni = TaskKey[File]("collect-jni",
+    "copy all NDK libraries to a single location for packaging")
   val collectResources = TaskKey[(File,File)]("collect-resources",
     "copy all resources and assets to a single location for packaging")
   val packageResources = TaskKey[File]("package-resources",
@@ -61,11 +61,14 @@ object Keys {
     "artifact object for publishing apklibs")
   val aarArtifact = SettingKey[Artifact]("aar-artifact",
     "artifact object for publishing aars")
-  val packageForR = SettingKey[Option[String]]("packageForR",
-    "Custom package name for aapt --custom-package")
+  val packageForR = SettingKey[String]("packageForR",
+    "Custom package name for aapt --custom-package, defaults to packageName")
   val manifestPath = SettingKey[File]("manifest-path",
     "android manifest file path")
   val targetSdkVersion = SettingKey[Int]("target-sdk-version", "android target")
+  val minSdkVersion = SettingKey[Int]("min-sdk-version", "android minSdk")
+  val processManifest = TaskKey[File]("process-manifest",
+    "manifest munging task")
   // TODO turn this and all dependents into a TaskKey, manifest can change
   val manifest = SettingKey[Elem]("manifest", "android manifest xml object")
   val classesJar = SettingKey[File]("classes-jar",
@@ -79,13 +82,13 @@ object Keys {
   val properties = SettingKey[Properties]("properties",
     "Properties loaded from the project's .property files")
   val sdkPath = SettingKey[String]("sdk-path", "Path to the Android SDK")
-  val sdkManager = SettingKey[SdkManager]("sdk-manager",
+  val sdkManager = TaskKey[SdkManager]("sdk-manager",
     "Android SdkManager object")
   val platformTarget = SettingKey[String]("platform-target",
     "target API level as described by 'android list targets' (the ID string)")
-  val platform = SettingKey[IAndroidTarget]("platform",
+  val platform = TaskKey[IAndroidTarget]("platform",
     "IAndroidTarget object representing a target API level")
-  val platformJars = SettingKey[(String,Seq[String])]("platform-jars",
+  val platformJars = TaskKey[(String,Seq[String])]("platform-jars",
     "Path to android.jar and optional jars (e.g. google apis), if any")
   val buildConfigGenerator = TaskKey[Seq[File]]("build-config-generator",
     "generate BuildConfig.java")
@@ -99,7 +102,7 @@ object Keys {
   val classesDex = SettingKey[File]("classes-dex", "output classes.dex path")
   val versionName = SettingKey[Option[String]]("version-name",
     "application version name")
-  val versionCode = SettingKey[Option[String]]("version-code",
+  val versionCode = SettingKey[Option[Int]]("version-code",
     "application version code")
   val proguardOptions = TaskKey[Seq[String]]("proguard-options",
     "additional options to add to proguard-config")
@@ -137,6 +140,7 @@ object Keys {
     def bin: File
     def libs: File
     def aidl: File
+    def jni: File
     def renderscript: File
   }
   object ProjectLayout {
@@ -160,6 +164,7 @@ object Keys {
       override def bin = base / "bin"
       override def libs = base / "libs"
       override def aidl = sources
+      override def jni = libs
       override def renderscript = sources
     }
     case class Gradle(base: File) extends ProjectLayout {
@@ -168,6 +173,7 @@ object Keys {
       override def testJavaSource = testSources / "java"
       override def testScalaSource = testSources / "scala"
       override def sources = base / "src" / "main"
+      override def jni = sources / "jni"
       override def scalaSource = sources / "scala"
       override def javaSource = sources / "java"
       override def res = sources / "res"
