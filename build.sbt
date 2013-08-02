@@ -1,6 +1,6 @@
 name := "android-sdk-plugin"
 
-version := "0.7.9-SNAPSHOT"
+version := "0.8.0"
 
 organization := "com.hanhuy.sbt"
 
