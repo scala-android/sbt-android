@@ -45,6 +45,10 @@ object Keys {
     "android package name, can be changed to create a different apk package")
   val apkFile = SettingKey[File]("apk-file",
     "consistent file name for apk output, used for ide integration")
+  val signRelease = TaskKey[File]("sign-release", "sign the release build")
+  val zipalignPath = SettingKey[String]("zipalign-path",
+    "path to the zipalign executable")
+  val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")
   val builder = TaskKey[AndroidBuilder]("builder", "AndroidBuilder object")
   val packageRelease = TaskKey[File]("package-release", "create a release apk")

@@ -474,7 +474,6 @@ object Tasks {
     }
   }
 
-  // TODO MUST FIX revert to old signjar and zipalign tasks!
   val apkbuildTaskDef = ( builder
                         , state
                         , thisProjectRef
@@ -492,63 +491,78 @@ object Tasks {
     val n = get(name in prj)
     val props = get(properties in (prj, Android))
     val layout = get(projectLayout in (prj, Android))
-    val integration = get(apkFile in (prj, Android))
-
-    val signingConfig = if (createDebug) {
-      val cfg = new DefaultSigningConfig("debug")
-      cfg.initDebug
-      cfg
-    } else {
-      (Option(props.getProperty("key.alias")),
-        Option(props.getProperty("key.store")),
-        Option(props.getProperty("key.store.password"))) match {
-
-        case (Some(alias),Some(store),Some(passwd)) =>
-          val cfg = new DefaultSigningConfig("release")
-          cfg.setKeyAlias(alias)
-            .setStoreFile(file(store))
-            .setKeyPassword(passwd)
-            .setStorePassword(passwd)
-          Option(props.getProperty("key.store.type")) foreach (
-            cfg.setStoreType _)
-          cfg
-        case _ =>
-          s.log.warn("No valid signing config, APK is unsigned and unaligned!")
-          null
-      }
-    }
 
     val jars = (m ++ u).filter(_.data.exists).groupBy(_.data.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
     }.flatten map (_.data) toList
 
-    val rel = if (createDebug) "-debug.apk"
-      else "-release"
-
-    val pkg = if (createDebug) {
-      n + rel
-    } else if (signingConfig != null) {
-      n + rel + ".apk"
-    } else {
-      n + rel + "-unsigned.apk"
-    }
+    val rel = if (createDebug) "-debug-unaligned.apk"
+      else "-release-unsigned.apk"
+    val pkg = n + rel
     val output = layout.bin / pkg
 
     bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, null,
-      jni.getAbsolutePath, createDebug, signingConfig, output.getAbsolutePath)
-
-    val outdata = Seq(output.getName, sizeString(output.length))
-    if (createDebug) {
-      s.log.info(
-        "Debug package does not need signing: %s (%s)" format (outdata:_*))
-    } else if (signingConfig != null) {
-      s.log.info("Signed: %s (%s)" format (outdata:_*))
-    } else {
-      s.log.warn("Package needs signing: %s (%s)" format (outdata:_*))
-    }
-    IO.copyFile(output, integration)
+      jni.getAbsolutePath, createDebug, null /* sign*/, output.getAbsolutePath)
+    s.log.info("Packaged: %s (%s)" format (
+      output.getName, sizeString(output.length)))
     output
+  }
+
+  val signReleaseTaskDef = (properties, apkbuild, streams) map {
+    (p, a, s) =>
+    val bin = a.getParentFile
+    if (createDebug) {
+      s.log.info("Debug package does not need signing: " + a.getName)
+      a
+    } else {
+      (Option(p.getProperty("key.alias")),
+        Option(p.getProperty("key.store")),
+        Option(p.getProperty("key.store.password"))) match {
+
+        case (Some(alias),Some(store),Some(passwd)) =>
+        import SignJar._
+        val t = Option(p.getProperty("key.store.type")) getOrElse "jks"
+        val signed = bin / a.getName.replace("-unsigned", "-unaligned")
+        val options = Seq( storeType(t)
+                         , storePassword(passwd)
+                         , signedJar(signed)
+                         , keyStore(file(store).toURI.toURL)
+                         )
+        sign(a, alias, options) { (jarsigner, args) =>
+          (jarsigner +: (args ++ Seq(
+            "-digestalg", "SHA1", "-sigalg", "MD5withRSA"))) !
+        }
+
+        s.log.info("Signed: " + signed.getName)
+        signed
+        case _ =>
+        s.log.warn("Package needs signing: " + a.getName)
+        a
+      }
+    }
+  }
+
+  val zipalignTaskDef = (zipalignPath, signRelease, apkFile, streams) map {
+    (z, r, a, s) =>
+    if (r.getName.contains("-unsigned")) {
+      s.log.warn("Package needs signing and zipaligning: " + r.getName)
+      a.delete()
+      r
+    } else {
+      val bin = r.getParentFile
+      val aligned = bin / r.getName.replace("-unaligned", "")
+
+      val rv = Seq(z, "-f", "4", r.getAbsolutePath, aligned.getAbsolutePath) !
+
+      if (rv != 0) {
+        sys.error("failed")
+      }
+
+      s.log.info("zipaligned: " + aligned.getName)
+      IO.copyFile(aligned, a)
+      aligned
+    }
   }
 
   val renderscriptTaskDef = ( sdkPath
@@ -989,7 +1003,6 @@ object Tasks {
     p
   }
 
-  // TODO I need fixing with the values in Android
   val unmanagedJarsTaskDef = ( unmanagedJars in Compile
                              , baseDirectory
                              , libraryProjects in Android, streams) map {

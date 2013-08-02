@@ -282,7 +282,9 @@ object Plugin extends sbt.Plugin {
     },
     collectJni              <<= collectJniTaskDef,
     apkbuild                <<= apkbuildTaskDef,
-    packageT                <<= apkbuild,
+    signRelease             <<= signReleaseTaskDef,
+    zipalign                <<= zipalignTaskDef,
+    packageT                <<= zipalign,
     setDebug                 := { _createDebug = true },
     setRelease               := { _createDebug = false },
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
@@ -306,6 +308,10 @@ object Plugin extends sbt.Plugin {
           } getOrElse (
             sys.error("set ANDROID_HOME or run 'android update project -p %s'"
               format p.base))
+    },
+    zipalignPath            <<= sdkPath {
+      import SdkConstants._
+      _ + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
     },
     ilogger                  := { l: Logger =>
       SbtLogger(l)
@@ -386,7 +392,8 @@ case class SbtLogger(lg: Logger) extends ILogger {
     lg.warn(String.format(fmt, args:_*))
   }
   override def error(t: Throwable, fmt: java.lang.String, args: Object*) {
-    lg.error(String.format(fmt, args:_*))
+    // they don't end the build, so log as a warning
+    lg.warn(String.format(fmt, args:_*))
     if (t != null)
       t.printStackTrace
   }
