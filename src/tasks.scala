@@ -83,9 +83,9 @@ object Tasks {
     val dest = t / "aars"
     libs map { l =>
       val m = moduleForFile(u, l)
-      val d = dest / (m.organization + "-" + m.name + "-" + l.base)
+      val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
       if (d.lastModified < l.lastModified) {
-        s.log.info("Unpacking aar: " + l.base)
+        s.log.info("Unpacking aar: " + m)
         d.mkdirs()
         IO.unzip(l, d)
       }
@@ -108,19 +108,25 @@ object Tasks {
     val dest = t / "apklibs"
     libs map { l =>
       val m = moduleForFile(u, l)
-      val d = dest / (m.organization + "-" + m.name + "-" + l.base)
+      val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
+      val lib = ApkLibrary(d)
       if (d.lastModified < l.lastModified) {
-        s.log.info("Unpacking apklib: " + l.base)
+        s.log.info("Unpacking apklib: " + m)
         d.mkdirs()
         IO.unzip(l, d)
+
+        aapt(bldr, lib.getManifest, null, Seq.empty, true,
+            lib.getResFolder, lib.getAssetsFolder, null,
+            lib.layout.gen, lib.getProguardRules.getAbsolutePath,
+            st.log)
+
       }
-      val lib = ApkLibrary(d)
-      aapt(bldr, lib.getManifest, null, Seq.empty, true,
-          lib.getResFolder, lib.getAssetsFolder, null,
-          lib.layout.gen, lib.getProguardRules.getAbsolutePath,
-          st.log)
+      def copyDirectory(src: File, dst: File) {
+        IO.copy(((src ***) --- (src ** "R.txt")) x Path.rebase(src, dst),
+          false, true)
+      }
       if (isLib)
-        IO.copyDirectory(lib.layout.gen, gen, false, true)
+        copyDirectory(lib.layout.gen, gen)
       lib: LibraryDependency
     }
   }
@@ -320,7 +326,6 @@ object Tasks {
     } else {
 
       val fileValidity = new FileValidity[ResourceSet]
-      // still broken :-(
       val exists = changes.added ++ changes.removed ++ changes.modified exists {
         file =>
         val status = if (changes.added contains file)
@@ -356,7 +361,6 @@ object Tasks {
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
-      //merge()
     }
   }
   def fullResourceMerge(base: File, resTarget: File, isLib: Boolean,
@@ -470,6 +474,7 @@ object Tasks {
     }
   }
 
+  // TODO MUST FIX revert to old signjar and zipalign tasks!
   val apkbuildTaskDef = ( builder
                         , state
                         , thisProjectRef
