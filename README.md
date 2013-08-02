@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.8.0
+Current version is 0.7.8 (0.8.0 is coming soon)
 
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
