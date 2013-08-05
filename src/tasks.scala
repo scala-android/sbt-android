@@ -325,6 +325,7 @@ object Tasks {
       merge()
     } else {
 
+      /*
       val fileValidity = new FileValidity[ResourceSet]
       val exists = changes.added ++ changes.removed ++ changes.modified exists {
         file =>
@@ -361,6 +362,8 @@ object Tasks {
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
+      */
+      merge()
     }
   }
   def fullResourceMerge(base: File, resTarget: File, isLib: Boolean,
