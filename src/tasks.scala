@@ -497,13 +497,17 @@ object Tasks {
       case (_,xs) => xs.head :: Nil
     }.flatten map (_.data) toList
 
+    val debugConfig = new DefaultSigningConfig("debug")
+    debugConfig.initDebug()
+
     val rel = if (createDebug) "-debug-unaligned.apk"
       else "-release-unsigned.apk"
     val pkg = n + rel
     val output = layout.bin / pkg
 
     bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, null,
-      jni.getAbsolutePath, createDebug, null /* sign*/, output.getAbsolutePath)
+      jni.getAbsolutePath, createDebug, if (createDebug) debugConfig else null,
+      output.getAbsolutePath)
     s.log.info("Packaged: %s (%s)" format (
       output.getName, sizeString(output.length)))
     output
