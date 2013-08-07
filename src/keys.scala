@@ -29,11 +29,9 @@ object Keys {
     "flag indicating whether to generated TR.scala")
   val proguardScala = SettingKey[Boolean]("proguard-scala",
     "include scala-library in proguard: true if scala source present")
-  val proguardExcludes = SettingKey[Seq[String]]("proguard-excludes",
-    "file names to exclude from proguard's -injars")
   val proguardLibraries = SettingKey[Seq[File]]("proguard-libraries",
     "files to pass as proguard -libraryjars")
-  val proguardInputs = TaskKey[(Seq[File],Seq[File])]("proguard-inputs",
+  val proguardInputs = TaskKey[ProguardInputs]("proguard-inputs",
     "a tuple specifying -injars and -libraryjars (in that order)")
   val setDebug = TaskKey[Unit]("set-debug", "set debug build")
   val apklibs = TaskKey[Seq[LibraryDependency]]("apklibs",
@@ -124,6 +122,9 @@ object Keys {
   val uninstall = TaskKey[Unit]("uninstall", "Remove the app from the device")
   val cleanForR = TaskKey[Seq[File]]("clean-for-r",
     "Clean all .class files when R.java changes")
+
+  case class ProguardInputs(injars: Seq[File], libraryjars: Seq[File],
+    scalaCache: Option[File] = None)
 
   // alias to ease typing
   val packageT = sbt.Keys.`package`

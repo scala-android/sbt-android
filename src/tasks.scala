@@ -73,29 +73,39 @@ object Tasks {
 
     map(f)
   }
+  def moduleString(m: ModuleID) =
+    m.organization + ":" + m.name + ":" + m.revision
+
   // fails poorly if windows' exclusive locks are preventing a proper clean
   val aarsTaskDef = ( update in Compile
+                    , libraryDependencies in Compile
                     , target
                     , streams
                     ) map {
-    (u,t,s) =>
+    (u,d,t,s) =>
     val libs = u.matching(artifactFilter(`type` = "aar"))
     val dest = t / "aars"
-    libs map { l =>
+    val deps = d.map(moduleString).toSet
+    libs flatMap { l =>
       val m = moduleForFile(u, l)
-      val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
-      if (d.lastModified < l.lastModified) {
-        s.log.info("Unpacking aar: " + m)
-        d.mkdirs()
-        IO.unzip(l, d)
+      if (deps(moduleString(m))) {
+        val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
+        if (d.lastModified < l.lastModified) {
+          s.log.info("Unpacking aar: " + m)
+          d.mkdirs()
+          IO.unzip(l, d)
+        }
+        val lib = AarLibrary(d)
+        Some(lib: LibraryDependency)
+      } else {
+        None
       }
-      val lib = AarLibrary(d)
-      lib: LibraryDependency
     }
   }
 
   // fails poorly if windows' exclusive locks are preventing a proper clean
   val apklibsTaskDef = ( update in Compile
+                       , libraryDependencies in Compile
                        , genPath
                        , libraryProject
                        , target
@@ -103,31 +113,37 @@ object Tasks {
                        , builder
                        , streams
                        ) map {
-    (u,gen,isLib,t,s,bldr,st) =>
+    (u,d,gen,isLib,t,s,bldr,st) =>
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = t / "apklibs"
-    libs map { l =>
+    val deps = d.map(moduleString).toSet
+    libs flatMap { l =>
       val m = moduleForFile(u, l)
-      val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
-      val lib = ApkLibrary(d)
-      if (d.lastModified < l.lastModified) {
-        s.log.info("Unpacking apklib: " + m)
-        d.mkdirs()
-        IO.unzip(l, d)
+      if (deps(moduleString(m))) {
+        val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
+        val lib = ApkLibrary(d)
+        if (d.lastModified < l.lastModified) {
+          s.log.info("Unpacking apklib: " + m)
+          d.mkdirs()
+          IO.unzip(l, d)
 
-        aapt(bldr, lib.getManifest, null, Seq.empty, true,
-            lib.getResFolder, lib.getAssetsFolder, null,
-            lib.layout.gen, lib.getProguardRules.getAbsolutePath,
-            st.log)
+          aapt(bldr, lib.getManifest, null, Seq.empty, true,
+              lib.getResFolder, lib.getAssetsFolder, null,
+              lib.layout.gen, lib.getProguardRules.getAbsolutePath,
+              st.log)
 
+        }
+        def copyDirectory(src: File, dst: File) {
+          IO.copy(((src ***) --- (src ** "R.txt")) x Path.rebase(src, dst),
+            false, true)
+        }
+        if (isLib)
+          copyDirectory(lib.layout.gen, gen)
+        Some(lib: LibraryDependency)
+      } else {
+        s.log.info(m + " is not a part of " + deps)
+        None
       }
-      def copyDirectory(src: File, dst: File) {
-        IO.copy(((src ***) --- (src ** "R.txt")) x Path.rebase(src, dst),
-          false, true)
-      }
-      if (isLib)
-        copyDirectory(lib.layout.gen, gen)
-      lib: LibraryDependency
     }
   }
 
@@ -325,7 +341,6 @@ object Tasks {
       merge()
     } else {
 
-      /*
       val fileValidity = new FileValidity[ResourceSet]
       val exists = changes.added ++ changes.removed ++ changes.modified exists {
         file =>
@@ -346,6 +361,19 @@ object Tasks {
           slog.debug("Incremental merge aborted, unknown file: " + file)
           true
         } else if (vstatus == FileValidity.FileStatus.VALID_FILE) {
+          // begin workaround
+          // resource merger doesn't seem to actually copy changed files over...
+          // values.xml gets merged, but if files are changed...
+          val targetFile = resTarget / (
+            file relativeTo fileValidity.getSourceFile).get.getPath
+          val copy = Seq((file, targetFile))
+          status match {
+            case FileStatus.NEW =>
+            case FileStatus.CHANGED =>
+              if (targetFile.exists) IO.copy(copy, false, true)
+            case FileStatus.REMOVED => targetFile.delete()
+          }
+          // end workaround
           if (!fileValidity.getDataSet.updateWith(
               fileValidity.getSourceFile, file, status, logger)) {
             slog.debug("Unable to handle changed file: " + file)
@@ -362,8 +390,6 @@ object Tasks {
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
-      */
-      merge()
     }
   }
   def fullResourceMerge(base: File, resTarget: File, isLib: Boolean,
@@ -682,6 +708,7 @@ object Tasks {
                                , minSdkVersion
                                ) map {
     (bldr, layout, isLib, libs, pkg, vc, vn, sdk, minSdk) =>
+    layout.bin.mkdirs()
     val output = layout.bin / "AndroidManifest.xml"
     if (isLib)
       layout.manifest
@@ -739,6 +766,7 @@ object Tasks {
       XML.loadFile(l.getManifest).attribute("package").get(0).text
     }))
     logger.debug("packageForR: " + pkg)
+    logger.debug("proguard.txt: " + proguardTxt)
     bldr.processResources(manifest, res, assets, all,
       pkg, genPath, genPath, resApk, proguardTxt,
       if (lib) VariantConfiguration.Type.LIBRARY else
@@ -791,18 +819,19 @@ object Tasks {
   }
 
   val dexInputsTaskDef = ( proguard
+                         , proguardInputs
                          , binPath
                          , dependencyClasspath
                          , classesJar
                          , streams) map {
-    (p, b, d, j, s) =>
+    (p, i, b, d, j, s) =>
 
     (p map { f => Seq(f) } getOrElse {
       (d collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
           x.data.getName.endsWith(".jar") => x.data.getCanonicalFile
-      }) :+ j
+      }) ++ i.scalaCache :+ j
     }).groupBy (_.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
@@ -833,26 +862,52 @@ object Tasks {
   val proguardInputsTaskDef = ( useProguard
                               , proguardScala
                               , proguardLibraries
-                              , proguardExcludes
                               , dependencyClasspath
                               , platformJars
                               , classesJar
                               , binPath
+                              , cacheDirectory
+                              , streams
                               ) map {
-    case (u, s, l, e, d, (p, x), c, b) =>
+    case (u, s, l, d, (p, x), c, b, cacheDir, st) =>
 
     if (u) {
-      val injars = dedupeClasses(b, (((d map {
-        _.data.getCanonicalFile }) :+ c) filter {
-          in =>
-          (s || !in.getName.startsWith("scala-library")) &&
-            !l.exists { i => i.getName == in.getName}
-        }))
-
+      val injars = (d map { _.data.getCanonicalFile }) :+ c filter { in =>
+        (s || !in.getName.startsWith("scala-library")) &&
+          !l.exists { i => i.getName == in.getName}
+      } distinct
       val extras = x map (f => file(f))
-      (injars,file(p) +: (extras ++ l))
+
+      if (s && createDebug) {
+        val deps = (cacheDir / "proguard_deps")
+        val out = (cacheDir / "proguard_cache")
+
+        deps.mkdirs()
+        out.mkdirs()
+
+        val indeps = injars map { f =>
+          deps / (f.getName + "-" + Hash.toHex(Hash(f.getAbsolutePath)))
+        }
+        val todep = indeps zip injars filter { case (d,j) =>
+          !d.exists || d.lastModified < j.lastModified
+        }
+        todep foreach { case (d,j) =>
+          st.log.info("Finding scala dependencies for: " + j.getName)
+          IO.write(d, ReferenceFinder.references(j) mkString "\n")
+        }
+
+        val alldeps = (indeps flatMap {
+          d => IO.readLines(d) }).sortWith(_>_).distinct.mkString("\n")
+
+        val allhash = Hash.toHex(Hash(alldeps))
+
+        val cacheJar = out / ("proguard-scala-" + allhash + ".jar")
+
+        ProguardInputs(injars,
+          file(p) +: (extras ++ l), Some(cacheJar))
+      } else ProguardInputs(injars, file(p) +: (extras ++ l))
     } else
-      (Seq.empty,Seq.empty)
+      ProguardInputs(Seq.empty,Seq.empty)
   }
 
   val proguardTaskDef: Project.Initialize[Task[Option[File]]] =
@@ -862,10 +917,16 @@ object Tasks {
       , proguardOptions
       , libraryProject
       , binPath
+      , cacheDirectory
       , proguardInputs
       , streams
-      ) map { case (p, d, c, o, l, b, (jars, libjars), s) =>
-    if ((p && !createDebug && !l) || ((d && createDebug) && !l)) {
+      ) map { case (p, d, c, o, l, b, cacheDir, inputs, s) =>
+    val jars = inputs.injars
+    val libjars = inputs.libraryjars
+    if (inputs.scalaCache exists (_.exists)) {
+      s.log.info("[debug] Scala library already processed, skipping proguard")
+      None
+    } else if ((p && !createDebug && !l) || ((d && createDebug) && !l)) {
       val t = b / "classes.proguard.jar"
       if ((jars ++ libjars).exists { _.lastModified > t.lastModified }) {
         val injars = "-injars " + (jars map {
@@ -882,21 +943,21 @@ object Tasks {
         val config = new PgConfig
         val cpclass = classOf[ConfigurationParser]
         import java.util.Properties
-        // support proguard 4.8+ in the getOrElse case
-        // if the api changes again, it will be a runtime error
-        val parser: ConfigurationParser =
-          catching(classOf[NoSuchMethodException]) opt {
-            val ctor = cpclass.getConstructor(classOf[Array[String]])
-            ctor.newInstance(cfg.toArray[String])
-          } getOrElse {
-            val ctor = cpclass.getConstructor(classOf[Array[String]],
-              classOf[Properties])
-            ctor.newInstance(cfg.toArray[String], new Properties)
-          }
+        val parser: ConfigurationParser = new ConfigurationParser(
+          cfg.toArray[String], new Properties)
         parser.parse(config)
         new ProGuard(config).execute
       } else {
         s.log.info(t.getName + " is up-to-date")
+      }
+      inputs.scalaCache foreach { f =>
+        val cd = cacheDir / "proguard_cache_tmp"
+        IO.delete(cd)
+        s.log.info("Creating scala cache: " + f.getName)
+        IO.unzip(t, cd, "scala/**")
+        IO.jar((PathFinder(cd) ***) x rebase(cd, ""),
+          f, new java.util.jar.Manifest)
+        IO.delete(cd)
       }
       Option(t)
     } else None

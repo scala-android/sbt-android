@@ -259,12 +259,11 @@ object Plugin extends sbt.Plugin {
           (v(0) text).toInt } getOrElse 1
     },
     proguardLibraries        := Seq.empty,
-    proguardExcludes         := Seq.empty,
     proguardOptions          := Seq.empty,
     proguardConfig          <<= proguardConfigTaskDef,
     proguard                <<= proguardTaskDef,
-    proguard                <<= proguard dependsOn (packageT in Compile),
     proguardInputs          <<= proguardInputsTaskDef,
+    proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),
     proguardScala           <<= (scalaSource in Compile) {
       s => (s ** "*.scala").get.size > 0
     },
