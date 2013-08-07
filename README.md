@@ -2,8 +2,16 @@
 
 Current version is 0.8.2
 
+0.9.0 is coming soon, once thorough testing of the new features is done
+
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
+
+## New features in 0.9.x ##
+
+* Re-enable incremental resource merging
+* Dramatically improve scala-based project build times; proguard-caching is
+  performed automatically on debug builds
 
 ## New features in 0.8.x ##
 
