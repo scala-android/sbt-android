@@ -261,6 +261,7 @@ object Plugin extends sbt.Plugin {
     proguardLibraries        := Seq.empty,
     proguardOptions          := Seq.empty,
     proguardConfig          <<= proguardConfigTaskDef,
+    proguardConfig          <<= proguardConfig dependsOn(packageResources),
     proguard                <<= proguardTaskDef,
     proguardInputs          <<= proguardInputsTaskDef,
     proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),

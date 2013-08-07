@@ -472,7 +472,7 @@ object Tasks {
     (FileFunction.cached(cache / basename, FilesInfo.hash) { _ =>
       s.log.info("Packaging resources: " + p.getName)
       aapt(bldr, manifest, pkg, libs, lib, res, assets,
-        p.getAbsolutePath, layout.gen, null, s.log)
+        p.getAbsolutePath, layout.gen, proguardTxt, s.log)
       Set(p)
     })(inputs.toSet)
     p
@@ -781,20 +781,24 @@ object Tasks {
 
   val proguardConfigTaskDef = ( projectLayout
                               , sdkPath
-                              , useSdkProguard) map {
-    (layout,p,u) =>
-    if (!u)
-      IO.readLinesURL(resourceUrl("android-proguard.config")).toSeq
-    else {
+                              , useSdkProguard
+                              , streams) map {
+    (layout, p, u, s) =>
+    val proguardTxt = layout.bin / "proguard.txt"
+    if (!u) {
+      (IO.readLinesURL(resourceUrl("android-proguard.config")) ++
+        (if (proguardTxt.exists) IO.readLines(proguardTxt) else Seq.empty)
+          ).toSeq: Seq[String]
+    } else {
       import SdkConstants._
       import File.{separator => S}
       val c1 = file(p + OS_SDK_TOOLS_FOLDER + FD_PROGUARD + S +
         FN_ANDROID_PROGUARD_FILE)
 
       val c2 = layout.base / "proguard-project.txt"
-      val c3 = layout.bin / "proguard.txt"
       (IO.readLines(c1) ++ (if (c2.exists) IO.readLines(c2) else Seq.empty) ++
-        (if (c3.exists) IO.readLines(c3) else Seq.empty)).toSeq: Seq[String]
+        (if (proguardTxt.exists) IO.readLines(proguardTxt) else Seq.empty)
+          ).toSeq: Seq[String]
     }
   }
 
