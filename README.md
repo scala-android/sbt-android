@@ -12,6 +12,8 @@ of the plugin.
 * Re-enable incremental resource merging
 * Dramatically improve scala-based project build times; proguard-caching is
   performed automatically on debug builds
+* Better default proguard configuration for scala projects (no need to
+  specify explicit rules unless there's something you absolutely need)
 
 ## New features in 0.8.x ##
 
