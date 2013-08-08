@@ -519,7 +519,6 @@ object Tasks {
     import extracted._
 
     val n = get(name in prj)
-    val props = get(properties in (prj, Android))
     val layout = get(projectLayout in (prj, Android))
 
     val jars = (m ++ u).filter(_.data.exists).groupBy(_.data.getName).collect {

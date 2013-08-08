@@ -75,6 +75,8 @@ object Keys {
   val manifest = SettingKey[Elem]("manifest", "android manifest xml object")
   val classesJar = SettingKey[File]("classes-jar",
     "generated classes.jar file if in a library project")
+  val localProjects = SettingKey[Seq[LibraryDependency]]("local-projects",
+    "local android library projects that need to be built")
   val libraryProjects = TaskKey[Seq[LibraryDependency]]("library-projects",
     "android library projects to reference, must be built separately")
   val libraryProject = SettingKey[Boolean]("library-project",

@@ -214,9 +214,14 @@ object Plugin extends sbt.Plugin {
     aidl                    <<= aidlTaskDef,
     renderscript            <<= renderscriptTaskDef,
     genPath                 <<= projectLayout (_.gen),
-    libraryProjects         <<= (baseDirectory, properties, apklibs, aars) map {
-      (b,p,a,aa) =>
-	  a ++ aa ++ loadLibraryReferences(b, p)
+    localProjects           <<= (baseDirectory, properties) { (b,p) =>
+      loadLibraryReferences(b, p)
+    },
+    libraryProjects         <<= ( baseDirectory
+                                , localProjects
+                                , apklibs
+                                , aars) map {
+      (b,local,a,aa) => a ++ aa ++ local
     },
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) map {
