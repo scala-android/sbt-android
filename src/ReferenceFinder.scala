@@ -17,8 +17,7 @@ object ReferenceFinder {
 
   def references(jar: File): Seq[String] = {
     var current: String = null
-    val map: collection.mutable.HashMap[String,Set[String]] =
-      collection.mutable.HashMap()
+    var map: Map[String,Set[String]] = Map.empty
 
     val handler = new InvocationHandler {
       def invoke(self: Object, m: Method, args: Array[Object]): Object = {
@@ -36,7 +35,7 @@ object ReferenceFinder {
             val dep = name + "(" + (args mkString ",") + ")"
             if ((dep indexOf ",scala/") != -1 &&
                 !(current startsWith "scala/")) {
-              map += ((current, map(current) + dep))
+              map = map + ((current, map(current) + dep))
             }
           case _ =>
         }

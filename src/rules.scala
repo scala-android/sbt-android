@@ -184,6 +184,8 @@ object Plugin extends sbt.Plugin {
     packageApklib           <<= packageApklibTaskDef,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
+    test                    <<= testTaskDef,
+    test                    <<= test dependsOn (compile in Test, install),
     run                     <<= runTaskDef(install,
                                            sdkPath, manifest, packageName),
     cleanForR               <<= (rGenerator

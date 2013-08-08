@@ -21,6 +21,7 @@ import com.android.builder.DexOptions
 import com.android.builder.VariantConfiguration
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
+import com.android.ddmlib.testrunner.ITestRunListener
 import com.android.ide.common.res2.FileStatus
 import com.android.ide.common.res2.FileValidity
 import com.android.ide.common.res2.MergedResourceWriter
@@ -784,22 +785,23 @@ object Tasks {
                               , useSdkProguard
                               , streams) map {
     (layout, p, u, s) =>
-    val proguardTxt = layout.bin / "proguard.txt"
-    if (!u) {
-      (IO.readLinesURL(resourceUrl("android-proguard.config")) ++
-        (if (proguardTxt.exists) IO.readLines(proguardTxt) else Seq.empty)
-          ).toSeq: Seq[String]
+    val proguardTxt     = layout.bin  / "proguard.txt"
+    val proguardProject = layout.base / "proguard-project.txt"
+
+    val base = if (!u) {
+      IO.readLinesURL(resourceUrl("android-proguard.config"))
     } else {
       import SdkConstants._
       import File.{separator => S}
       val c1 = file(p + OS_SDK_TOOLS_FOLDER + FD_PROGUARD + S +
         FN_ANDROID_PROGUARD_FILE)
 
-      val c2 = layout.base / "proguard-project.txt"
-      (IO.readLines(c1) ++ (if (c2.exists) IO.readLines(c2) else Seq.empty) ++
-        (if (proguardTxt.exists) IO.readLines(proguardTxt) else Seq.empty)
-          ).toSeq: Seq[String]
+      IO.readLines(c1)
     }
+    def lines(file: File): Seq[String] =
+      if (file.exists) IO.readLines(file) else Seq.empty
+
+    (base ++ lines(proguardProject) ++ lines(proguardTxt)).toSeq: Seq[String]
   }
 
   def dedupeClasses(bin: File, jars: Seq[File]): Seq[File] = {
@@ -967,6 +969,137 @@ object Tasks {
     } else None
   }
 
+  case class TestListener(log: Logger) extends ITestRunListener {
+    import com.android.ddmlib.testrunner.TestIdentifier
+    import com.android.ddmlib.testrunner.ITestRunListener.TestFailure
+    private var _failures: Seq[TestIdentifier] = Seq.empty
+    def failures = _failures
+
+    type TestMetrics = java.util.Map[String,String]
+    override def testRunStarted(name: String, count: Int) {
+      log.info("testing %s (tests: %d)" format (name, count - 1))
+    }
+
+    override def testStarted(id: TestIdentifier) {
+      if ("testAndroidTestCaseSetupProperly" != id.getTestName)
+        log.info(" - " + id.getTestName)
+    }
+
+    override def testEnded(id: TestIdentifier, metrics: TestMetrics) {
+      log.debug("finished: %s (%s)" format (id.getTestName, metrics))
+    }
+
+    override def testFailed(fail: TestFailure, id: TestIdentifier, m: String) {
+      log.error("%s: %s\n%s" format (fail, id.getTestName, m))
+
+      _failures = _failures :+ id
+    }
+
+    override def testRunFailed(msg: String) {
+      log.error("Testing failed: " + msg)
+    }
+
+    override def testRunStopped(elapsed: Long) {
+      log.info("test run stopped (%dms)" format elapsed)
+    }
+
+    override def testRunEnded(elapsed: Long, metrics: TestMetrics) {
+      log.info("test run finished (%dms)" format elapsed)
+      log.debug("run end metrics: " + metrics)
+    }
+  }
+
+  val testTaskDef = ( projectLayout
+                    , builder
+                    , packageName
+                    , libraryProjects
+                    , classDirectory in Test
+                    , targetSdkVersion
+                    , minSdkVersion
+                    , sdkPath
+                    , streams) map {
+    (layout, bldr, pkg, libs, classes, targetSdk, minSdk, sdk, s) =>
+    val testManifest = layout.testSources / "AndroidManifest.xml"
+    if (testManifest.exists) {
+      classes.mkdirs()
+      val manifest = XML.loadFile(testManifest)
+      val testPackage = manifest.attribute("package") get (0) text
+      val instr = manifest \\ "instrumentation"
+      val instrData = (instr map { i =>
+        (i.attribute(ANDROID_NS, "name") map (_(0).text),
+        i.attribute(ANDROID_NS, "targetPackage") map (_(0).text))
+      }).headOption
+      val runner = instrData flatMap (
+        _._1) getOrElse "android.test.InstrumentationTestRunner"
+      val tpkg = instrData flatMap (_._2) getOrElse pkg
+      val processedManifest = classes / "AndroidManifest.xml"
+      bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, runner,
+        libs, processedManifest.getAbsolutePath)
+      val options = new DexOptions {
+        def isCoreLibrary = false
+        def getIncremental = true
+      }
+      val rTxt = classes / "R.txt"
+      val dex = layout.bin / "classes-test.dex"
+      val res = layout.bin / "resources-test.ap_"
+      val apk = layout.bin / "instrumentation-test.ap_"
+
+      if (!rTxt.exists) rTxt.createNewFile()
+      aapt(bldr, processedManifest, testPackage, libs, false,
+        layout.testSources / "res", layout.testSources / "assets",
+        res.getAbsolutePath, classes, null, s.log)
+
+      bldr.convertByteCode(Seq(classes), Seq.empty[File], null,
+        dex.getAbsolutePath, options, false)
+
+      if (!dex.exists)
+        sys.error("No test classes (no dex)")
+      val debugConfig = new DefaultSigningConfig("debug")
+      debugConfig.initDebug
+
+      bldr.packageApk(res.getAbsolutePath, dex.getAbsolutePath,
+        Seq.empty[File], null, null, true, debugConfig, apk.getAbsolutePath)
+      s.log.info("Testing...")
+      s.log.debug("Installing test apk: " + apk)
+      installPackage(apk, sdk, s.log)
+      try {
+        val listener = TestListener(s.log)
+        import com.android.ddmlib.testrunner.InstrumentationResultParser
+        val p = new InstrumentationResultParser(testPackage, listener)
+        val receiver = new IShellOutputReceiver() {
+          val b = new StringBuilder
+          override def addOutput(data: Array[Byte], off: Int, len: Int) =
+            b.append(new String(data, off, len))
+          override def flush() {
+            p.processNewLines(b.toString.split("\\n").map(_.trim))
+            b.clear
+          }
+          override def isCancelled = false
+        }
+        val intent = testPackage + "/" + runner
+        Commands.targetDevice(sdk, s.log) map { d =>
+          val command = "am instrument -r -w %s" format intent
+          s.log.debug("Executing [%s]" format command)
+          d.executeShellCommand(command, receiver)
+
+          if (receiver.b.toString.length > 0)
+            s.log.info(receiver.b.toString)
+
+          s.log.debug("instrument command executed")
+        }
+        if (!listener.failures.isEmpty) {
+          sys.error("Tests failed:\n" +
+            (listener.failures map (" - " + _)).mkString("\n"))
+        }
+      } finally {
+        uninstallPackage(testPackage, sdk, s.log)
+      }
+    } else {
+      s.log.warn("No test manifest found")
+    }
+    ()
+  }
+
   def runTaskDef(install: TaskKey[Unit],
       sdkPath: SettingKey[String],
       manifest: SettingKey[Elem],
@@ -1022,23 +1155,37 @@ object Tasks {
 
     if (!l) {
       s.log.info("Installing...")
-      val start = System.currentTimeMillis
-      Commands.targetDevice(k, s.log) foreach { d =>
-        Option(d.installPackage(p.getAbsolutePath, true)) map { err =>
-          sys.error("Install failed: " + err)
-        } getOrElse {
-          val size = p.length;
-          val end = System.currentTimeMillis
-          val secs = (end - start) / 1000d
-          val rate = size/KB/secs
-          val mrate = if (rate > MB) rate / MB else rate
-          s.log.info("Install finished: %s in %.2fs. %.2f%s/s" format (
-            sizeString(size), secs, mrate, if (rate > MB) "MB" else "KB"))
-        }
+      installPackage(p, k, s.log)
+    }
+  }
+
+  def installPackage(apk: File, sdkPath: String, log: Logger) {
+    val start = System.currentTimeMillis
+    Commands.targetDevice(sdkPath, log) foreach { d =>
+      Option(d.installPackage(apk.getAbsolutePath, true)) map { err =>
+        sys.error("Install failed: " + err)
+      } getOrElse {
+        val size = apk.length;
+        val end = System.currentTimeMillis
+        val secs = (end - start) / 1000d
+        val rate = size/KB/secs
+        val mrate = if (rate > MB) rate / MB else rate
+        log.info("[%s] Install finished: %s in %.2fs. %.2f%s/s" format (
+          apk.getName, sizeString(size), secs, mrate,
+          if (rate > MB) "MB" else "KB"))
       }
     }
   }
 
+  def uninstallPackage(packageName: String, sdkPath: String, log: Logger) {
+    Commands.targetDevice(sdkPath, log) foreach { d =>
+      Option(d.uninstallPackage(packageName)) map { err =>
+        sys.error("[%s] Uninstall failed: %s" format (packageName, err))
+      } getOrElse {
+        log.info("[%s] Uninstall finished" format packageName)
+      }
+    }
+  }
   private def sizeString(len: Long) = {
     val KB = 1024 * 1.0
     val MB = KB * KB
@@ -1048,13 +1195,7 @@ object Tasks {
     }
   }
   val uninstallTaskDef = (sdkPath, packageName, streams) map { (k,p,s) =>
-    Commands.targetDevice(k, s.log) foreach { d =>
-      Option(d.uninstallPackage(p)) map { err =>
-        sys.error("Uninstall failed: " + err)
-      } getOrElse {
-        s.log.info("Uninstall successful")
-      }
-    }
+    uninstallPackage(p, k, s.log)
   }
 
   def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):
