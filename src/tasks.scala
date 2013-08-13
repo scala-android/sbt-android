@@ -520,6 +520,7 @@ object Tasks {
 
     val n = get(name in prj)
     val layout = get(projectLayout in (prj, Android))
+    val cacheDir = get(cacheDirectory in prj)
 
     val jars = (m ++ u).filter(_.data.exists).groupBy(_.data.getName).collect {
       case ("classes.jar",xs) => xs.distinct
@@ -534,11 +535,18 @@ object Tasks {
     val pkg = n + rel
     val output = layout.bin / pkg
 
-    bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, null,
-      jni.getAbsolutePath, createDebug, if (createDebug) debugConfig else null,
-      output.getAbsolutePath)
-    s.log.info("Packaged: %s (%s)" format (
-      output.getName, sizeString(output.length)))
+    val deps = Set(r +: d +: jars:_*)
+
+
+    (FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
+      bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, null,
+        jni.getAbsolutePath, createDebug,
+        if (createDebug) debugConfig else null, output.getAbsolutePath)
+      s.log.info("Packaged: %s (%s)" format (
+        output.getName, sizeString(output.length)))
+      Set(output)
+    })(deps)
+
     output
   }
 
@@ -1149,12 +1157,22 @@ object Tasks {
 
   val KB = 1024 * 1.0
   val MB = KB * KB
-  val installTaskDef = (packageT, libraryProject, sdkPath, streams) map {
-    (p, l, k, s) =>
+  val installTaskDef = ( packageT
+                       , libraryProject
+                       , sdkPath
+                       , cacheDirectory
+                       , streams) map {
+    (p, l, k, c, s) =>
 
     if (!l) {
-      s.log.info("Installing...")
-      installPackage(p, k, s.log)
+      Commands.targetDevice(k, s.log) foreach { d =>
+        val cacheName = "install-" + d.getSerialNumber
+        FileFunction.cached(c / cacheName, FilesInfo.hash) { in =>
+          s.log.info("Installing...")
+          installPackage(p, k, s.log)
+          in
+        }(Set(p))
+      }
     }
   }
 
