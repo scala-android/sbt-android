@@ -186,8 +186,10 @@ object Plugin extends sbt.Plugin {
     uninstall               <<= uninstallTaskDef,
     test                    <<= testTaskDef,
     test                    <<= test dependsOn (compile in Test, install),
-    run                     <<= runTaskDef(install,
-                                           sdkPath, manifest, packageName),
+    run                     <<= runTaskDef( install
+                                          , sdkPath
+                                          , projectLayout
+                                          , packageName),
     cleanForR               <<= (rGenerator
                                 , cacheDirectory
                                 , genPath

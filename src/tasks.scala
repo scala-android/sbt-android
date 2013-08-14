@@ -1109,11 +1109,13 @@ object Tasks {
 
   def runTaskDef(install: TaskKey[Unit],
       sdkPath: SettingKey[String],
-      manifest: SettingKey[Elem],
+      layout: SettingKey[ProjectLayout],
       packageName: SettingKey[String]) = inputTask { result =>
-    (install, sdkPath, manifest, packageName, result, streams) map {
-      (_, k, m, p, r, s) =>
+    (install, sdkPath, layout, packageName, result, streams) map {
+      (_, k, l, p, r, s) =>
 
+      val manifestXml = l.bin / "AndroidManifest.xml"
+      val m = XML.loadFile(manifestXml)
       // if an arg is specified, try to launch that
       (if (r.isEmpty) None else Some(r(0))) orElse ((m \\ "activity") find {
         // runs the first-found activity
