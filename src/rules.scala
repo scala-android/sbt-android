@@ -241,7 +241,11 @@ object Plugin extends sbt.Plugin {
     },
     properties              <<= baseDirectory (b => loadProperties(b)),
     processManifest         <<= processManifestTaskDef,
-    manifest                <<= manifestPath { m => XML.loadFile(m) },
+    manifest                <<= manifestPath { m =>
+      if (!m.exists)
+        sys.error("cannot find AndroidManifest.xml: " + m)
+      XML.loadFile(m)
+    },
     versionCode             <<= manifest { m =>
       m.attribute(ANDROID_NS, "versionCode") flatMap { v =>
         catching(classOf[Exception]) opt { (v(0) text) toInt }
@@ -344,7 +348,10 @@ object Plugin extends sbt.Plugin {
       SdkManager.createManager(p, l(s.log))
     },
 
-    platformTarget          <<= properties (_("target")),
+    platformTarget          <<= properties { p =>
+      Option(p.getProperty("target")) getOrElse sys.error(
+        "configure project.properties or set 'platformTarget in Android'")
+    },
     platform                <<= (sdkManager, platformTarget, thisProject) map {
       (m, p, prj) =>
       val plat = Option(m.getTargetFromHashString(p))
