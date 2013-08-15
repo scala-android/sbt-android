@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.9.1
+Current version is 0.9.2
 
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
@@ -20,6 +20,9 @@ of the plugin.
   specify explicit rules unless there's something you absolutely need)
 * Add a better method of specifying local-projects besides only in
   project.properties, or overriding library-projects in a convoluted manner.
+* Add `local-aars` setting to allow the use of AARs without a repo.
+* Add `android.ArbitraryProject` load any project you want from a git repo,
+  see [this example](https://gist.github.com/pfn/6238004) for details.
 
 ## New features in 0.8.x ##
 
