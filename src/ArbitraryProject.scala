@@ -13,11 +13,30 @@ object ArbitraryProject {
   import sbt.RichURI.fromURI
   // this part is totally ghetto, plucking a State out of thin air
   private object Config extends xsbti.AppConfiguration {
-    override def baseDirectory = file("")
-    override def arguments = Array.empty
-    override def provider = null
+    override def baseDirectory = ???
+    override def arguments = ???
+    override def provider = new xsbti.AppProvider {
+      override def components(): xsbti.ComponentProvider = ???
+      override def id() = new xsbti.ApplicationID {
+        override def classpathExtra(): Array[java.io.File] = ???
+        override def crossVersioned(): Boolean = ???
+        override def crossVersionedValue(): xsbti.CrossValue = ???
+        override def groupID(): String = ???
+        override def mainClass(): String = ???
+        override def mainComponents(): Array[String] = ???
+        override def name(): String = ???
+        override def version(): String = "0.13"
+      }
+      override def loader(): ClassLoader = ???
+      override def mainClass(): Class[_ <: xsbti.AppMain] = ???
+      override def mainClasspath(): Array[java.io.File] = ???
+      override def newMain(): xsbti.AppMain = ???
+      override def scalaProvider(): xsbti.ScalaProvider = ???
+    }
   }
-  private val st = StandardMain.initialState(Config, Nil, Nil)
+  private val st = State(Config, Nil, Set.empty, None, Nil, State.newHistory,
+    BuiltinCommands.initialAttributes,
+    StandardMain.initialGlobalLogging, State.Continue )
   // end ghetto part
   private val globalBase = BuildPaths.getGlobalBase(st)
   private val staging = BuildPaths.getStagingDirectory(st, globalBase)
@@ -47,18 +66,19 @@ object ArbitraryProject {
           override val projects = oldBuild.projects
           override def projectDefinitions(b: File) = {
             val newProject = (oldBuild projectDefinitions b).head match {
-              case p: ProjectDefinition[_] =>
-                Project(p.id, p.base, p.aggregate, p.dependencies, p.delegates,
-                  Defaults.defaultSettings ++ settingsMap(in.uri),
-                  p.configurations)
+              case p: ProjectDefinition[_] => p.copy(
+                settings = Defaults.defaultSettings ++ settingsMap(in.uri))
             }
             Seq(newProject)
           }
         }
-        val newDefns = new Load.LoadedDefinitions(
-          oldDefns.base, oldDefns.target, oldDefns.loader, Seq(newBuild),
-          oldDefns.buildNames)
-        new Load.BuildUnit(
+
+        val newDefns = new LoadedDefinitions(
+          oldDefns.base, oldDefns.target, oldDefns.loader,
+          Seq(newBuild), oldDefns.projects map { p =>
+            p.copy(settings = Defaults.defaultSettings ++ settingsMap(in.uri))
+          }, oldDefns.buildNames)
+        new BuildUnit(
           in.unit.uri, in.unit.localBase, newDefns, in.unit.plugins)
       } else in.unit
     }) :: Nil
