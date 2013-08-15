@@ -43,7 +43,7 @@ object Plugin extends sbt.Plugin {
     // this property is a workaround for bootclasspath messing things
     // up and causing full-recompiles
     System.setProperty("xsbt.skip.cp.lookup", "true")
-    seq(allPluginSettings:_*)
+    allPluginSettings
   }
 
   def androidBuild(projects: Project*): Seq[Setting[_]]= {
@@ -177,6 +177,7 @@ object Plugin extends sbt.Plugin {
     },
     // end for Classpaths.configSettings
     apklibs                 <<= apklibsTaskDef,
+    localAars                := Nil,
     aars                    <<= aarsTaskDef,
     aarArtifact             <<= name { n => Artifact(n, "aar", "aar") },
     apklibArtifact          <<= name { n => Artifact(n, "apklib", "apklib") },

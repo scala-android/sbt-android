@@ -36,6 +36,7 @@ object Keys {
   val setDebug = TaskKey[Unit]("set-debug", "set debug build")
   val apklibs = TaskKey[Seq[LibraryDependency]]("apklibs",
     "unpack the set of referenced apklibs")
+  val localAars = SettingKey[Seq[File]]("local-aars", "local aar files")
   val aars = TaskKey[Seq[LibraryDependency]]("aars",
     "unpack the set of referenced aars")
   val setRelease = TaskKey[Unit]("set-release", "set release build")

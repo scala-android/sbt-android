@@ -79,29 +79,36 @@ object Tasks {
 
   // fails poorly if windows' exclusive locks are preventing a proper clean
   val aarsTaskDef = ( update in Compile
+                    , localAars
                     , libraryDependencies in Compile
                     , target
                     , streams
                     ) map {
-    (u,d,t,s) =>
+    (u,local,d,t,s) =>
     val libs = u.matching(artifactFilter(`type` = "aar"))
     val dest = t / "aars"
     val deps = d.map(moduleString).toSet
-    libs flatMap { l =>
+    (libs flatMap { l =>
       val m = moduleForFile(u, l)
       if (deps(moduleString(m))) {
         val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
-        if (d.lastModified < l.lastModified) {
-          s.log.info("Unpacking aar: " + m)
-          d.mkdirs()
-          IO.unzip(l, d)
-        }
-        val lib = AarLibrary(d)
-        Some(lib: LibraryDependency)
+        Some(unpackAar(l, d, s.log): LibraryDependency)
       } else {
         None
       }
+    }) ++ (local map { a =>
+      unpackAar(a, dest / ("localAAR-" + a.getName), s.log)
+    })
+  }
+
+  def unpackAar(aar: File, dest: File, log: Logger): LibraryDependency = {
+    if (dest.lastModified < aar.lastModified) {
+      dest.delete()
+      log.info("Unpacking aar: %s to %s" format (aar.getName, dest.getName))
+      dest.mkdirs()
+      IO.unzip(aar, dest)
     }
+    AarLibrary(dest)
   }
 
   // fails poorly if windows' exclusive locks are preventing a proper clean
