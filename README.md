@@ -1,12 +1,14 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.9.2
+Current version is 0.9.3
 
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
 
 ## New features in 0.9.x ##
 
+* If sbt-idea is used, 1.6.0 and newer is required (alternatively, can use
+  `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.6.0-SNAPSHOT")`)
 * Instrumented (on-device) testing
   * Test cases may *only* use a subset of scala used by the main application,
     referencing anything above and beyond that used by the main application
@@ -99,7 +101,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.9.1")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.9.3")
     ```
 
 4. Create `project/build.properties` and add the following line:
