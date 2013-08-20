@@ -262,7 +262,7 @@ object Tasks {
     if (!isLib) {
       jni.mkdirs()
       // TODO traverse entire library dependency graph, goes 2 deep currently
-      libs ++ libs.flatMap { l =>
+      Seq(LibraryProject(layout.base)) ++ libs ++ libs.flatMap { l =>
         l.getDependencies map { _.asInstanceOf[LibraryDependency] }
       } collect {
         case r if r.layout.jni.isDirectory => r.layout.jni
