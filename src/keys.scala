@@ -167,6 +167,10 @@ object Keys {
     def matches(file: File) = jarFile map {
       _.getCanonicalFile == file.getCanonicalFile } getOrElse false
 
+    def matches(file: Attributed[File], state: State): Boolean = {
+      matches(file.data) || (file.get(moduleID.key) exists (matches(_, state)))
+    }
+
     def matches(module: ModuleID, state: State): Boolean = {
       (moduleOrg,moduleName,cross) match {
         case (Some(org),Some(name),Some(cross)) =>
@@ -186,7 +190,7 @@ object Keys {
   }
 
   case class ProguardInputs(//injars: Seq[Attributed[File]],
-    injars: Seq[File],
+    injars: Seq[Attributed[File]],
     libraryjars: Seq[File],
     proguardCache: Option[File] = None)
 

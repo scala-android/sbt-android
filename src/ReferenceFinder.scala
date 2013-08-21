@@ -15,7 +15,8 @@ object ReferenceFinder {
   type Visitor = ClassVisitor with MethodVisitor with FieldVisitor
     with AnnotationVisitor with SignatureVisitor
 
-  def references(jar: File): Seq[String] = {
+  def references(jar: File, rules: Seq[Keys.ProguardCache]): Seq[String] = {
+    val prefixes = rules flatMap (_.packagePrefixes)
     var current: String = null
     var map: Map[String,Set[String]] = Map.empty
 
@@ -25,7 +26,7 @@ object ReferenceFinder {
           case "visit" =>
             if (args.length > 2) {
               current = args(2).toString
-              if (!(current startsWith "scala/"))
+              if (!(prefixes exists (current startsWith _)))
                 map += ((current, Set.empty))
             }
           case name@("visitAnnotation"          | "visitTypeInsn"     |
@@ -33,8 +34,8 @@ object ReferenceFinder {
                      "visitFormalTypeParameter" | "visitTypeVariable" |
                      "visitClassType"           | "visitMethodInsn"   ) =>
             val dep = name + "(" + (args mkString ",") + ")"
-            if ((dep indexOf ",scala/") != -1 &&
-                !(current startsWith "scala/")) {
+            if ((prefixes exists (p => (dep indexOf ("," + p)) != -1)) &&
+                !(prefixes exists (current startsWith _))) {
               map = map + ((current, map(current) + dep))
             }
           case _ =>
