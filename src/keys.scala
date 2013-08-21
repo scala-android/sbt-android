@@ -113,6 +113,8 @@ object Keys {
     "additional options to add to proguard-config")
   val proguardConfig = TaskKey[Seq[String]]("proguard-config",
     "base proguard configuration")
+  val proguardCache = SettingKey[Seq[ProguardCache]]("proguard-cache",
+    "rules for caching proguard outputs, more rules => more cache misses")
   val proguard = TaskKey[Option[File]]("proguard",
     "proguard task, generates obfuscated.jar")
   val useSdkProguard = SettingKey[Boolean]("use-sdk-proguard",
@@ -126,8 +128,67 @@ object Keys {
   val cleanForR = TaskKey[Seq[File]]("clean-for-r",
     "Clean all .class files when R.java changes")
 
-  case class ProguardInputs(injars: Seq[File], libraryjars: Seq[File],
-    scalaCache: Option[File] = None)
+  object ProguardCache{
+    def apply(prefixes: String*): ProguardCache = {
+      prefixes map { prefix =>
+        val p = prefix.replaceAll("""\.""", "/")
+        if (!p.endsWith("/")) p + "/" else p
+      }
+      ProguardCache(prefixes, None, None, None, None)
+    }
+    def apply(prefix: String, org: String): ProguardCache =
+      apply(prefix).copy(moduleOrg = Some(org))
+    def apply(prefix: String, org: String, name: String): ProguardCache =
+      apply(prefix).copy(moduleOrg = Some(org), moduleName = Some(name))
+    def apply(prefix: String, file: File): ProguardCache =
+      apply(prefix).copy(jarFile = some(file))
+  }
+  case class ProguardCache ( packagePrefixes: Seq[String]
+                           , moduleOrg: Option[String]
+                           , moduleName: Option[String]
+                           , cross: Option[CrossVersion]
+                           , jarFile: Option[File] ) {
+
+    def %(orgOrName: String) = if (moduleOrg.isEmpty) {
+      copy(moduleOrg = Some(orgOrName))
+    } else {
+      copy(moduleName = Some(orgOrName))
+    }
+
+    def %%(name: String) = {
+      copy(moduleName = Some(name), cross = Some(CrossVersion.binary))
+    }
+
+    def <<(file: File) = copy(jarFile = Some(file))
+
+    def matches(classFile: String) = packagePrefixes exists {
+      classFile.startsWith(_) && classFile.endsWith(".class")
+    }
+    def matches(file: File) = jarFile map {
+      _.getCanonicalFile == file.getCanonicalFile } getOrElse false
+
+    def matches(module: ModuleID, state: State): Boolean = {
+      (moduleOrg,moduleName,cross) match {
+        case (Some(org),Some(name),Some(cross)) =>
+          val extracted = Project.extract(state)
+          val scalaVersion = extracted.get(sbt.Keys.scalaVersion)
+          val scalaBinaryVersion = extracted.get(sbt.Keys.scalaBinaryVersion)
+          val cv = CrossVersion(cross, scalaVersion, scalaBinaryVersion)
+          val crossName = CrossVersion.applyCross(name, cv)
+          org == module.organization &&
+            (name == module.name || crossName == module.name)
+        case (Some(org),Some(name),None) =>
+          org == module.organization && name == module.name
+        case (Some(org),None,None) => org == module.organization
+        case _ => false
+      }
+    }
+  }
+
+  case class ProguardInputs(//injars: Seq[Attributed[File]],
+    injars: Seq[File],
+    libraryjars: Seq[File],
+    proguardCache: Option[File] = None)
 
   // alias to ease typing
   val packageT = sbt.Keys.`package`

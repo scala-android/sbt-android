@@ -818,40 +818,29 @@ object Tasks {
     (base ++ lines(proguardProject) ++ lines(proguardTxt)).toSeq: Seq[String]
   }
 
-  def dedupeClasses(bin: File, jars: Seq[File]): Seq[File] = {
-      // only attempt to dedupe if jars with the same name are found
-      if (jars.groupBy(_.getName) exists { case (k,v) => v.size > 1 }) {
-        val combined = bin / "all-classes.jar"
-        val combined_tmp = bin / "all_tmp"
-        if (jars exists (_.lastModified > combined.lastModified)) {
-          IO.createDirectory(combined_tmp)
-          val files = (jars filter (_.isFile)).foldLeft (Set.empty[File]) {
-            (acc,j) =>
-            acc ++ IO.unzip(j, combined_tmp, { n: String =>
-              !n.startsWith("META-INF") })
-          }
-          IO.jar(files map { f => (f,IO.relativize(combined_tmp, f).get) },
-            combined, new java.util.jar.Manifest)
-        }
-        IO.delete(combined_tmp)
-        combined :: Nil
-      } else jars
-  }
-
   val dexInputsTaskDef = ( proguard
                          , proguardInputs
                          , binPath
                          , dependencyClasspath
                          , classesJar
+                         , classesDex
                          , streams) map {
-    (p, i, b, d, j, s) =>
+    (p, i, b, d, j, cd, s) =>
 
-    (p map { f => Seq(f) } getOrElse {
+    val proguardedDexMarker = b / ".proguarded-dex"
+    (p map { f =>
+      IO.touch(proguardedDexMarker, false)
+      Seq(f)
+    } getOrElse {
+      if (proguardedDexMarker.exists) {
+        cd.delete() // force a clean dex on first non-proguard dex run
+        proguardedDexMarker.delete()
+      }
       (d collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
           x.data.getName.endsWith(".jar") => x.data.getCanonicalFile
-      }) ++ i.scalaCache :+ j
+      }) ++ i.proguardCache :+ j
     }).groupBy (_.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
@@ -881,21 +870,25 @@ object Tasks {
 
   val proguardInputsTaskDef = ( useProguard
                               , proguardScala
+                              , proguardCache
                               , proguardLibraries
                               , dependencyClasspath
                               , platformJars
                               , classesJar
                               , binPath
                               , cacheDirectory
+                              , state
                               , streams
                               ) map {
-    case (u, s, l, d, (p, x), c, b, cacheDir, st) =>
+    case (u, s, pc, l, d, (p, x), c, b, cacheDir, stat, st) =>
 
     if (u) {
-      val injars = (d map { _.data.getCanonicalFile }) :+ c filter { in =>
+      val injars = d.filter { a =>
+        st.log.info("mid: " + a.get(moduleID.key) + " => " + a.data.getName)
+        val in = a.data
         (s || !in.getName.startsWith("scala-library")) &&
           !l.exists { i => i.getName == in.getName}
-      } distinct
+      }.map(_.data.getCanonicalFile).distinct :+ c
       val extras = x map (f => file(f))
 
       if (s && createDebug) {
@@ -912,7 +905,7 @@ object Tasks {
           !d.exists || d.lastModified < j.lastModified
         }
         todep foreach { case (d,j) =>
-          st.log.info("Finding scala dependencies for: " + j.getName)
+          st.log.info("Finding dependency references for: " + j.getName)
           IO.write(d, ReferenceFinder.references(j) mkString "\n")
         }
 
@@ -921,7 +914,7 @@ object Tasks {
 
         val allhash = Hash.toHex(Hash(alldeps))
 
-        val cacheJar = out / ("proguard-scala-" + allhash + ".jar")
+        val cacheJar = out / ("proguard-cache-" + allhash + ".jar")
 
         ProguardInputs(injars,
           file(p) +: (extras ++ l), Some(cacheJar))
@@ -935,15 +928,16 @@ object Tasks {
       , useProguardInDebug
       , proguardConfig
       , proguardOptions
+      , proguardCache
       , libraryProject
       , binPath
       , cacheDirectory
       , proguardInputs
       , streams
-      ) map { case (p, d, c, o, l, b, cacheDir, inputs, s) =>
+      ) map { case (p, d, c, o, pc, l, b, cacheDir, inputs, s) =>
     val jars = inputs.injars
     val libjars = inputs.libraryjars
-    if (inputs.scalaCache exists (_.exists)) {
+    if (inputs.proguardCache exists (_.exists)) {
       s.log.info("[debug] Scala library already processed, skipping proguard")
       None
     } else if ((p && !createDebug && !l) || ((d && createDebug) && !l)) {
@@ -970,11 +964,11 @@ object Tasks {
       } else {
         s.log.info(t.getName + " is up-to-date")
       }
-      inputs.scalaCache foreach { f =>
+      inputs.proguardCache foreach { f =>
         val cd = cacheDir / "proguard_cache_tmp"
         IO.delete(cd)
-        s.log.info("Creating scala cache: " + f.getName)
-        IO.unzip(t, cd, "scala/**")
+        s.log.info("Creating proguard cache: " + f.getName)
+        IO.unzip(t, cd, { n: String => pc.exists (_ matches n) })
         IO.jar((PathFinder(cd) ***) x rebase(cd, ""),
           f, new java.util.jar.Manifest)
         IO.delete(cd)
