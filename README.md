@@ -1,14 +1,50 @@
 # Android SDK Plugin for SBT #
 
-Current version is 0.9.3
+Current version is 1.0.0
 
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
 
+## New features in 1.0.x ##
+
+* Customizable proguard caching!
+* Proguard cache rules are defined using the `proguardCache in Android`
+  setting, the rules are of type `android.Keys.ProguardCache` and can be
+  defined like so:
+  * The default cache rule is defined as
+    `ProguardCache("scala") % "org.scala-lang"`, this caches all scala
+    core libraries automatically.
+  * `proguardCache in Android += ProguardCache("play") % "play" %% "play-json"`
+    will match all packages and classes contained in `play.**` from the
+    module defined by the organization name `play` and module name `play-json`.
+    `%%` specifies that the module name should be cross-versioned for
+    detecting a match. `%` can be used to select the plain module name
+    without scala cross-versioning. If a module name is not specified,
+    all libraries in the selected organization will be cached with the
+    package names passed to `ProguardCache()`
+  * `... <+= baseDirectory (b => ProguardCache("android.support.v4") << (b / "libs / "android-support-v4.jar))"`
+    will cache `android.support.v4.**` from the local jar
+    `libs/android-support-v4.jar`
+  * Multiple packages may be specified in a cache rule:
+    `ProguardCache("package1", "package2", "package3") ...`
+  * All ProguardCache rules must be associated with a module-org+name or a
+    local jar file.
+  * Defining many cache rules will result in a higher cache-miss rate, but
+    will dramatically speed up builds on cache-hits; choose libraries and
+    caching rules carefully to balance the the cache-hit ratio. Large,
+    multi-megabyte libraries should always be cached to avoid hitting the
+    dex-file method-limit.
+  * Transitive dependencies are not cached automatically, those rules need
+    to be defined explicitly.
+* Fixes NoSuchMethodError sometimes occuring when re-building after a
+  proguard cache-miss (clear dex file on the first cache-hit build after
+  proguarding; caused by dex incremental builds)
+
 ## New features in 0.9.x ##
 
-* If sbt-idea is used, 1.6.0 and newer is required (alternatively, can use
-  `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.6.0-SNAPSHOT")`)
+* If sbt-idea is used, 1.6.0 and newer is required (alternatively, can use my
+  fork at
+  `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.6.0")`)
 * Instrumented (on-device) testing
   * Test cases may *only* use a subset of scala used by the main application,
     referencing anything above and beyond that used by the main application
@@ -101,7 +137,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "0.9.3")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.0.0")
     ```
 
 4. Create `project/build.properties` and add the following line:
