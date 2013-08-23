@@ -151,6 +151,9 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    * `android.Plugin.androidBuild`
    * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
      if you don't set it)
+   * If you are not using an ant-based project, you will need to specify
+     the android build target, you do this with
+     `platformTarget in Android := "android-N"`
    * An example of what build.sbt should look like can be found at
      https://gist.github.com/pfn/5872691
 
