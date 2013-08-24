@@ -119,6 +119,16 @@ Features not support from the regular android build yet are compiling `NDK`
 code. Although, `NDK` libraries will be picked up from `libs` as in typical
 ant builds (or `src/main/jni` if you're using the new Gradle layout).
 
+## Example projects ##
+
+* A large variety of my own projects can be found on github that use this
+  plugin
+* In addition to this, a growing collection of tests can be found under
+  `sbt-test/android-sdk-plugin/`. Over time, this will grow to be a larger
+  set of examples of how to use the plugin in various configurations.
+* Tests can be run via `sbt scripted` and require `ANDROID_HOME` to be set
+  in addition to having platform `android-17` installed.
+
 ## Usage ##
 
 1. Install sbt (from http://www.scala-sbt.org or use your local packaging
