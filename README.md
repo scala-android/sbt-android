@@ -5,6 +5,20 @@ Current version is 1.0.0
 Note: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
 
+## Description ##
+
+This is an easy-to-use plugin for existing and newly created android
+projects.  It is tested and developed against 0.12.x and 0.13.x.
+
+The plugin supports normal android projects and projects that reference
+library projects. 3rd party libraries can be included by placing them in
+`libs` as in regular projects, or they can be added by using sbt's
+`libraryDependencies` feature.
+
+Features not support from the regular android build yet are compiling `NDK`
+code. Although, `NDK` libraries will be picked up from `libs` as in typical
+ant builds (or `src/main/jni` if you're using the new Gradle layout).
+
 ## New features in 1.0.x ##
 
 * Customizable proguard caching!
@@ -161,6 +175,9 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    * `android.Plugin.androidBuild`
    * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
      if you don't set it)
+   * If you are not using an ant-based project, you will need to specify
+     the android build target, you do this with
+     `platformTarget in Android := "android-N"`
    * An example of what build.sbt should look like can be found at
      https://gist.github.com/pfn/5872691
 
