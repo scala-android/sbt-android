@@ -1,6 +1,8 @@
+import ScriptedPlugin._
+
 name := "android-sdk-plugin"
 
-version := "1.0.0"
+version := "1.0.1-SNAPSHOT"
 
 organization := "com.hanhuy.sbt"
 
@@ -34,3 +36,34 @@ publishTo <<= (version) { version =>
 }
 
 publishMavenStyle := false
+
+// scripted-test settings
+scriptedSettings
+
+sbtTestDirectory <<= baseDirectory (_ / "sbt-test")
+
+scriptedDependencies <<= ( sbtTestDirectory
+                         , streams
+                         , organization
+                         , name
+                         , version
+                         , sbtVersion) map {
+  (dir,s, org, n, v, sbtv) =>
+  val testBase = dir / "android-sdk-plugin"
+  val tests = testBase.listFiles(DirectoryFilter) filter { d =>
+    (d ** "*.sbt").get.size > 0 || (d / "project").isDirectory
+  }
+  tests foreach { test =>
+    val project = test / "project"
+    project.mkdirs()
+    val pluginsFile = project / "auto_plugins.sbt"
+    val propertiesFile = project / "build.properties"
+    pluginsFile.delete()
+    propertiesFile.delete()
+    IO.write(pluginsFile,
+      """addSbtPlugin("%s" %% "%s" %% "%s")""" format (org, n, v))
+    IO.write(propertiesFile, """sbt.version=%s""" format sbtv)
+  }
+}
+
+scriptedDependencies <<= scriptedDependencies dependsOn publishLocal
