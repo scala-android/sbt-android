@@ -1,0 +1,3 @@
+> android:proguard-cache
+> android:platform-target
+> verify-package
