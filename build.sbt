@@ -40,8 +40,12 @@ publishMavenStyle := false
 // scripted-test settings
 scriptedSettings
 
+//scriptedBufferLog := false
+
 sbtTestDirectory <<= baseDirectory (_ / "sbt-test")
 
+// TODO reorganize tests better, ditch android-sdk-plugin prefix
+// group by test config type
 scriptedDependencies <<= ( sbtTestDirectory
                          , streams
                          , organization
