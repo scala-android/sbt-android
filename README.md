@@ -2,7 +2,7 @@
 
 Current version is 1.0.0
 
-Note: 0.7.0 and later is incompatible with build files for previous versions
+*Note*: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
 
 ## Description ##
@@ -148,7 +148,8 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 ## Usage ##
 
 1. Install sbt (from http://www.scala-sbt.org or use your local packaging
-   system like macports, brew, etc.)
+   system like macports, brew, etc.) -- make sure the Android SDK is fully
+   updated (minimum build-tools 17.0.0 and up)
 2. Create a new android project using `android create project` or Eclipse
    * Instead of creating a new project, one can also do
      `android update project` to make sure everything is properly setup
@@ -214,8 +215,9 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     nor Eclipse.
   * To generate project files for loading into IntelliJ, use the `sbt-idea`
     plugin by adding
-    `addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.5.1")` to your
-    `project/plugins.sbt` and running the command `sbt gen-idea`
+    `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.6.0")` to your
+    `project/plugins.sbt` and running the command `sbt gen-idea` (*NOTE*:
+    temporarily use my sbt-idea fork until my pull request is merged).
   * When loading a project into IntelliJ, it is recommended that the `SBT`
     and `Scala` plugins are installed; the `SBT` plugin allows replacing the
     default `Make` builder with sbt, enabling seamless builds from the IDE.
@@ -268,10 +270,10 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   * `import android.Keys._` at the top to make sure you can use the plugin's
     configuration options
   * Add configuration options according to the sbt style:
-    * `useProguard in Android := true` to enable proguard. Note: if you don't
-      use proguard for scala, you *must* specify uses-library on a
-      pre-installed scala lib on-device. Dexing the scala libs is not
-      supported at this time.
+    * `useProguard in Android := true` to enable proguard. Note: if you
+      disable proguard for scala, you *must* specify uses-library on a
+      pre-installed scala lib on-device. Pre-dexing the scala libs is not
+      supported.
   * Configurable keys can be discovered by typing `android:<tab>` at the
     sbt shell
 * Configuring proguard, some options are available
@@ -300,7 +302,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     device, and no target is selected, all commands will execute against the
     first device in the list.
   * `android:install`, `android:run` and `android:test` are tasks that can
-    be used to install, run and testthe built apk on-device, respectively.
+    be used to install, run and test the built apk on-device, respectively.
 
 ### Differences from jberkel/android-plugin ###
 
