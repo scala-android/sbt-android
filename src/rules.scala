@@ -338,7 +338,9 @@ object Plugin extends sbt.Plugin {
       (m, t, l, s) =>
       val parser = new DefaultSdkParser(m.getLocation)
 
-      parser.initParser(t, m.getLatestBuildTool.getRevision, l(s.log))
+      val bt = m.getLatestBuildTool
+      if (bt == null) sys.error("Android SDK build-tools not available")
+      parser.initParser(t, bt.getRevision, l(s.log))
       parser
     },
     builder                 <<= (sdkParser, ilogger, streams) map {
