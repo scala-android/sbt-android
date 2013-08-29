@@ -1027,11 +1027,13 @@ object Tasks {
                     , packageName
                     , libraryProjects
                     , classDirectory in Test
+                    , externalDependencyClasspath in Compile
+                    , externalDependencyClasspath in Test
                     , targetSdkVersion
                     , minSdkVersion
                     , sdkPath
                     , streams) map {
-    (layout, bldr, pkg, libs, classes, targetSdk, minSdk, sdk, s) =>
+    (layout, bldr, pkg, libs, classes, clib, tlib, targetSdk, minSdk, sdk, s) =>
     val testManifest = layout.testSources / "AndroidManifest.xml"
     if (testManifest.exists) {
       classes.mkdirs()
@@ -1062,7 +1064,8 @@ object Tasks {
         layout.testSources / "res", layout.testSources / "assets",
         res.getAbsolutePath, classes, null, s.log)
 
-      bldr.convertByteCode(Seq(classes), Seq.empty[File], null,
+      val deps = tlib filterNot (clib contains)
+      bldr.convertByteCode(Seq(classes), deps map (_.data), null,
         dex.getAbsolutePath, options, false)
 
       if (!dex.exists)

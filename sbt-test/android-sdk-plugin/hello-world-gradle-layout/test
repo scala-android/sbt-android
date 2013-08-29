@@ -1,2 +1,7 @@
 > android:package
 $ exists target/android-bin/hello-world-debug.apk
+> android:test
+> android:uninstall
+$ exists target/android-bin/instrumentation-test.ap_
+$ exists target/android-bin/classes-test.dex
+> check-test-dex

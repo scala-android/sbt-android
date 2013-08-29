@@ -40,6 +40,8 @@ publishMavenStyle := false
 // scripted-test settings
 scriptedSettings
 
+scriptedLaunchOpts += "-Xmx1024m"
+
 //scriptedBufferLog := false
 
 sbtTestDirectory <<= baseDirectory (_ / "sbt-test")
