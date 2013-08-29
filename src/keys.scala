@@ -226,7 +226,7 @@ object Keys {
     }
     case class Ant(base: File) extends ProjectLayout {
       override def sources = base / "src"
-      override def testSources = base / "test"
+      override def testSources = base / "tests"
       override def testJavaSource = testSources
       override def testScalaSource = testSources
       override def scalaSource = sources
