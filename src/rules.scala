@@ -75,7 +75,7 @@ object Plugin extends sbt.Plugin {
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
     unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
-      Seq(l.sources)),
+      Set(l.sources, l.javaSource, l.scalaSource).toSeq),
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
                                            , baseDirectory
                                            , libraryProject in Android
