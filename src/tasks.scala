@@ -184,9 +184,10 @@ object Tasks {
           val layouts = (r ** "layout*" ** "*.xml" get) ++
             (for {
               lib <- l
-              xml <- (lib.path) ** "layout*" ** "*.xml" get
+              xml <- (lib.getResFolder) ** "layout*" ** "*.xml" get
             } yield xml)
 
+          s.log.debug("Layouts: " + layouts)
           // XXX handle package references? @id/android:ID or @id:android/ID
           val re = "@\\+id/(.*)".r
 
@@ -382,13 +383,20 @@ object Tasks {
             case FileStatus.REMOVED => targetFile.delete()
           }
           // end workaround
-          if (!fileValidity.getDataSet.updateWith(
-              fileValidity.getSourceFile, file, status, logger)) {
-            slog.debug("Unable to handle changed file: " + file)
-            merge()
-            true
-          } else
-            false
+          try {
+            if (!fileValidity.getDataSet.updateWith(
+                fileValidity.getSourceFile, file, status, logger)) {
+              slog.debug("Unable to handle changed file: " + file)
+              merge()
+              true
+            } else
+              false
+          } catch {
+            case e: RuntimeException =>
+              slog.warn("Unable to handle changed file: " + file + ": " + e)
+              merge()
+              true
+          }
         } else
           false
       }
@@ -1104,7 +1112,7 @@ object Tasks {
           s.log.debug("instrument command executed")
         }
         if (!listener.failures.isEmpty) {
-          sys.error("Tests failed:\n" +
+          sys.error("Tests failed: " + listener.failures.size + "\n" +
             (listener.failures map (" - " + _)).mkString("\n"))
         }
       } finally {
