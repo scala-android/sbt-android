@@ -324,7 +324,7 @@ object Tasks {
       !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
     FileFunction.cached(cache / "collect-resources")(
-      FilesInfo.hash, FilesInfo.exists) { (inChanges,outChanges) =>
+      FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
       incrResourceMerge(layout.base, resTarget, isLib, libs,
       cache / "collect-resources", logger(s.log), bldr, sets, inChanges, s.log)
@@ -761,7 +761,7 @@ object Tasks {
 
     // need to check output changes, otherwise compile fails after gen-idea
     FileFunction.cached(cache / "r-generator")(
-        FilesInfo.hash, FilesInfo.hash) { (in,out) =>
+        FilesInfo.lastModified, FilesInfo.hash) { (in,out) =>
       s.log.info("Generating R.java")
       aapt(bldr, manifest, pkg, libs, lib, res, assets, null,
         layout.gen, proguardTxt, s.log)
