@@ -537,10 +537,16 @@ object Tasks {
     val layout = get(projectLayout in (prj, Android))
     val cacheDir = get(cacheDirectory in prj)
 
-    val jars = (m ++ u).filter(_.data.exists).groupBy(_.data.getName).collect {
+    val jars = (m ++ u).filter {
+      a => (a.get(moduleID.key) map { mid =>
+        mid.organization != "org.scala-lang"
+      } getOrElse true) && a.data.exists
+    }.groupBy(_.data.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
     }.flatten map (_.data) toList
+
+    s.log.debug("jars to process for resources: " + jars)
 
     val debugConfig = new DefaultSigningConfig("debug")
     debugConfig.initDebug()
@@ -550,6 +556,8 @@ object Tasks {
     val pkg = n + rel
     val output = layout.bin / pkg
 
+    // filtering out org.scala-lang above should not cause an issue
+    // they should not be changing on us anyway
     val deps = Set(r +: d +: jars:_*)
 
 
@@ -957,7 +965,8 @@ object Tasks {
       val t = b / "classes.proguard.jar"
       if (jars exists { _.data.lastModified > t.lastModified }) {
         val injars = "-injars " + (jars map {
-          _.data.getPath + "(!META-INF/**)" } mkString(File.pathSeparator))
+          _.data.getPath + "(!META-INF/**,!rootdoc.txt)"
+        } mkString(File.pathSeparator))
         val libraryjars = for {
           j <- libjars
           a <- Seq("-libraryjars", j.getAbsolutePath)
