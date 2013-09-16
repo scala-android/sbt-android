@@ -39,6 +39,8 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   * `... <+= baseDirectory (b => ProguardCache("android.support.v4") << (b / "libs / "android-support-v4.jar))"`
     will cache `android.support.v4.**` from the local jar
     `libs/android-support-v4.jar`
+  * All packages within a jar to be cached _MUST_ be declared in the rule
+    or else many NoClassDefFound errors will ensue!
   * Multiple packages may be specified in a cache rule:
     `ProguardCache("package1", "package2", "package3") ...`
   * All ProguardCache rules must be associated with a module-org+name or a
