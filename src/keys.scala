@@ -131,11 +131,11 @@ object Keys {
   object ProguardCache{
     def apply(prefixes: String*): ProguardCache = {
       if (prefixes.isEmpty) sys.error("ProguardCache prefixes may not be empty")
-      prefixes map { prefix =>
+      val prefixesWithSlashes = prefixes map { prefix =>
         val p = prefix.replaceAll("""\.""", "/")
         if (!p.endsWith("/")) p + "/" else p
       }
-      ProguardCache(prefixes, None, None, None, None)
+      ProguardCache(prefixesWithSlashes, None, None, None, None)
     }
     def apply(prefix: String, org: String): ProguardCache =
       apply(prefix).copy(moduleOrg = Some(org))

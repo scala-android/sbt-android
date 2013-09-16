@@ -1,0 +1,13 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <android.support.v4.view.ViewPager android:id="@+id/view_pager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+        <TextView
+            android:id="@+id/test_textview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="Hello, world"/>
+    </android.support.v4.view.ViewPager>
+</FrameLayout>

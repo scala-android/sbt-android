@@ -1,0 +1,11 @@
+> android:package
+$ exists target/android-bin/hello-world-debug.apk
+$ exists target/android-gen/com/example/app/TR.scala
+$ exists target/android-bin/classes.proguard.jar
+> last android:proguard-inputs
+> last android:proguard
+> check-dex
+> check-cache
+$ copy-file MainActivity.scala-tmp src/main/scala/com/example/app/MainActivity.scala
+> android:package
+> check-dex

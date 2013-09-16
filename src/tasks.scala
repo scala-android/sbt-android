@@ -876,6 +876,7 @@ object Tasks {
       val options = new DexOptions {
         def isCoreLibrary = false
         def getIncremental = true
+        def getJavaMaxHeapSize = "1024m"
       }
       s.log.info("Generating " + outDex.getName)
       s.log.debug("Dex inputs: " + inputs)
@@ -910,6 +911,7 @@ object Tasks {
       val extras = x map (f => file(f))
 
       if (s && createDebug) {
+        st.log.debug("Proguard cache rules: " + pc)
         val deps = (cacheDir / "proguard_deps")
         val out = (cacheDir / "proguard_cache")
 
@@ -1070,6 +1072,7 @@ object Tasks {
       val options = new DexOptions {
         def isCoreLibrary = false
         def getIncremental = true
+        def getJavaMaxHeapSize = "1024m"
       }
       val rTxt = classes / "R.txt"
       val dex = layout.bin / "classes-test.dex"

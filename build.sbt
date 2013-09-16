@@ -2,7 +2,7 @@ import ScriptedPlugin._
 
 name := "android-sdk-plugin"
 
-version := "1.0.3"
+version := "1.0.4"
 
 organization := "com.hanhuy.sbt"
 
@@ -21,7 +21,7 @@ resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 libraryDependencies ++= Seq(
   "asm" % "asm-all" % "3.3.1",
   "net.sf.proguard" % "proguard-base" % "4.10",
-  "com.android.tools.build" % "builder" % "0.5.6"
+  "com.android.tools.build" % "builder" % "0.5.7"
 )
 
 sbtPlugin := true
