@@ -268,6 +268,10 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   * See [Working with Android library projects](https://github.com/pfn/android-sdk-plugin/wiki/Working-with-Android-library-projects) 
     in the Wiki for detailed instructions on configuring Android library
     projects
+  * When using multi-project builds in Scala, where library projects have
+    scala code, but the main project(s) do(es) not, you will need to specify
+    that proguard must run. To do this, the following must be set for each
+    main project: `proguardScala in Android := true`
 * Configuring `android-sdk-plugin` by editing build.sbt
   * `import android.Keys._` at the top to make sure you can use the plugin's
     configuration options
