@@ -32,7 +32,7 @@ object Dependencies {
     override def getManifest = layout.manifest
     override def getFolder = path
     override def getJarFile = path / FN_CLASSES_JAR
-    override def getLocalJars = (path / LIBS_FOLDER) ** ".jar" get
+    override def getLocalJars = (path / LIBS_FOLDER) ** "*.jar" get
     override def getResFolder = path / FD_RES
     override def getAssetsFolder = path / FD_ASSETS
     override def getJniFolder = path / "jni"
@@ -66,7 +66,7 @@ object Dependencies {
     override def getJarFile = layout.bin / FN_CLASSES_JAR
     override def getProguardRules = layout.bin / "proguard.txt"
     override def getJniFolder = layout.jni
-    override def getLocalJars = layout.libs ** ".jar" get
+    override def getLocalJars = layout.libs ** "*.jar" get
     override def getResFolder = layout.res
     override def getAssetsFolder = layout.assets
     override def getAidlFolder = layout.aidl

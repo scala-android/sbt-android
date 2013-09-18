@@ -527,10 +527,9 @@ object Tasks {
                         , unmanagedJars in Compile
                         , managedClasspath
                         , collectJni
-                        , libraryProjects
                         , streams
                         ) map {
-    (bldr, st, prj, r, d, u, m, jni, libs, s) =>
+    (bldr, st, prj, r, d, u, m, jni, s) =>
     val extracted = Project.extract(st)
     import extracted._
 
@@ -545,7 +544,7 @@ object Tasks {
     }.groupBy(_.data.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
-    }.flatten.map (_.data).toList ++ (libs flatMap (_.getLocalJars))
+    }.flatten.map (_.data).toList
 
     s.log.debug("jars to process for resources: " + jars)
 
