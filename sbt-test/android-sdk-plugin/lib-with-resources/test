@@ -1,0 +1,6 @@
+> android:package
+$ exists target/android-bin/lib-with-resources-debug.apk
+> check-for-properties
+> check-for-bin
+> last android:apkbuild
+> show list-apk
