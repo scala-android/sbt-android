@@ -74,6 +74,9 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   specify explicit rules unless there's something you absolutely need)
 * Add a better method of specifying local-projects besides only in
   project.properties, or overriding library-projects in a convoluted manner.
+  use `localProjects in Android += android.Dependencies.LibraryProject(lib_project.base)`
+  settings to add library projects without declaring them in
+  `project.properties` or otherwise
 * Add `local-aars` setting to allow the use of AARs without a repo.
 * Add `android.ArbitraryProject` load any project you want from a git repo,
   see [this example](https://gist.github.com/pfn/6238004) for details.
