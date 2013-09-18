@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.0.4
+Current version is 1.0.5
 
 *Note*: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
@@ -166,7 +166,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.0.4")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.0.5")
     ```
 
 4. Create `project/build.properties` and add the following line:
