@@ -6,6 +6,7 @@ import com.android.builder.AndroidBuilder
 import com.android.builder.DefaultSdkParser
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 import com.android.sdklib.BuildToolInfo.PathId
+import com.android.sdklib.repository.FullRevision
 import com.android.SdkConstants
 import com.android.utils.ILogger
 
@@ -231,6 +232,7 @@ object Plugin extends sbt.Plugin {
         _.equals("true") } getOrElse false },
     dexInputs               <<= dexInputsTaskDef,
     dex                     <<= dexTaskDef,
+    dexMaxHeap               := "1024m",
     platformJars            <<= platform map { p =>
       (p.getPath(IAndroidTarget.ANDROID_JAR),
       (Option(p.getOptionalLibraries) map(_ map(_.getJarPath))).getOrElse(
@@ -328,18 +330,28 @@ object Plugin extends sbt.Plugin {
       import SdkConstants._
       _ + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
     },
-    ilogger                  := { l: Logger =>
-      SbtLogger(l)
-    },
+    ilogger                  := { l: Logger => SbtLogger(l) },
+    buildToolsVersion        := None,
     sdkParser               <<= ( sdkManager
                                 , platformTarget
+                                , buildToolsVersion
                                 , ilogger
                                 , streams) map {
-      (m, t, l, s) =>
+      (m, t, v, l, s) =>
       val parser = new DefaultSdkParser(m.getLocation)
 
-      val bt = m.getLatestBuildTool
-      if (bt == null) sys.error("Android SDK build-tools not available")
+      val bt = v map { version =>
+        m.getBuildTool(FullRevision.parseRevision(version))
+      } getOrElse {
+        val tools = m.getLatestBuildTool
+        s.log.debug("Using Android build-tools: " + tools)
+        tools
+      }
+      if (bt == null) {
+        s.log.info("Available build tools: \n  " +
+          (m.getBuildTools mkString "\n  "))
+        sys.error("Android SDK build-tools not found: " + v)
+      }
       parser.initParser(t, bt.getRevision, l(s.log))
       parser
     },

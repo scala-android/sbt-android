@@ -868,15 +868,16 @@ object Tasks {
 
   val dexTaskDef = ( builder
                    , dexInputs
+                   , dexMaxHeap
                    , libraryProject
                    , classesDex
                    , streams) map {
-    (bldr, inputs, lib, outDex, s) =>
+    (bldr, inputs, xmx, lib, outDex, s) =>
     if (inputs exists { _.lastModified > outDex.lastModified }) {
       val options = new DexOptions {
         def isCoreLibrary = false
         def getIncremental = true
-        def getJavaMaxHeapSize = "1024m"
+        def getJavaMaxHeapSize = xmx
       }
       s.log.info("Generating " + outDex.getName)
       s.log.debug("Dex inputs: " + inputs)

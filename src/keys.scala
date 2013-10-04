@@ -19,6 +19,8 @@ import Dependencies._
 object Keys {
   val ilogger = SettingKey[Logger => ILogger]("ilogger",
     "internal Android SDK logger")
+  val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
+    "Version of Android build-tools to utilize, None (default) for latest")
   val sdkParser = TaskKey[SdkParser]("sdk-parser",
     "internal Android SdkParser object")
   val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
@@ -104,6 +106,8 @@ object Keys {
     "android renderscript source-gen task")
   val dex = TaskKey[File]("dex", "run bytecode dexer")
   val dexInputs = TaskKey[Seq[File]]("dex-inputs", "input jars to dex")
+  val dexMaxHeap = SettingKey[String]("dex-max-heap",
+   "Maximum heapsize for dx, default 1024m")
   val classesDex = SettingKey[File]("classes-dex", "output classes.dex path")
   val versionName = SettingKey[Option[String]]("version-name",
     "application version name")
