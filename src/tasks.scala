@@ -332,19 +332,21 @@ object Tasks {
     val res = Seq(layout.res) ++ (libs map { _.layout.res } filter {
         _.isDirectory })
 
+    s.log.debug("Local/library-project resources: " + res)
     // this needs to wait for other projects to at least finish their
     // apklibs tasks--handled if androidBuild() is called properly
     val depres = collectdeps(libs) collect {
-      case m: ApkLibrary         => m
-      case a: AutoLibraryProject => a
-      case n: AarLibrary         => n
+      case m: ApkLibrary => m
+      case n: AarLibrary => n
     } collect { case n if n.getResFolder.isDirectory => n.getResFolder }
+    s.log.debug("apklib/aar resources: " + depres)
 
     val respaths = depres ++ res.reverse ++
       (if (layout.res.isDirectory) Seq(layout.res) else Seq.empty)
-    val sets = respaths map { r =>
+    val sets = respaths.distinct map { r =>
       val set = new ResourceSet(r.getAbsolutePath)
       set.addSource(r)
+      s.log.debug("Adding resource path: " + r)
       set
     }
 
