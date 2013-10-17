@@ -59,12 +59,12 @@ object Plugin extends sbt.Plugin {
       }).flatten
   }
 
-  lazy val androidBuildAar: Seq[Setting[_]]= androidBuildAar()
-  lazy val androidBuildApklib: Seq[Setting[_]]= androidBuildApklib()
-  def androidBuildAar(projects: Project*): Seq[Setting[_]]= {
+  lazy val androidBuildAar: Seq[Setting[_]] = androidBuildAar()
+  lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
+  def androidBuildAar(projects: Project*): Seq[Setting[_]] = {
     androidBuild(projects:_*) ++ buildAar
   }
-  def androidBuildApklib(projects: Project*): Seq[Setting[_]]= {
+  def androidBuildApklib(projects: Project*): Seq[Setting[_]] = {
     androidBuild(projects:_*) ++ buildApklib
   }
 
@@ -103,18 +103,19 @@ object Plugin extends sbt.Plugin {
     sourceGenerators  <+= (rGenerator in Android
                           , typedResourcesGenerator in Android
                           , apklibs in Android
+                          , autolibs in Android
                           , aidl in Android
                           , buildConfigGenerator in Android
                           , renderscript in Android
                           , cleanForR in Android
                           ) map {
-      (a, tr, apkl, aidl, bcg, rs, _) =>
-      val apkls = apkl map { l =>
+      (a, tr, apkl, autos, aidl, bcg, rs, _) =>
+      val autosrcs = (apkl ++ autos) map { l =>
         (l.layout.javaSource ** "*.java" get) ++
           (l.layout.scalaSource ** "*.scala" get)
       } flatten
 
-      a ++ tr ++ aidl ++ bcg ++ rs ++ apkls
+      a ++ tr ++ aidl ++ bcg ++ rs ++ autosrcs
     },
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile),
@@ -177,6 +178,7 @@ object Plugin extends sbt.Plugin {
       }
     },
     // end for Classpaths.configSettings
+    autolibs                <<= autolibsTaskDef,
     apklibs                 <<= apklibsTaskDef,
     localAars                := Nil,
     aars                    <<= aarsTaskDef,
@@ -249,13 +251,8 @@ object Plugin extends sbt.Plugin {
         sys.error("cannot find AndroidManifest.xml: " + m)
       XML.loadFile(m)
     },
-    versionCode             <<= manifest { m =>
-      m.attribute(ANDROID_NS, "versionCode") flatMap { v =>
-        catching(classOf[Exception]) opt { (v(0) text) toInt }
-      }
-    },
-    versionName             <<= manifest { m =>
-      m.attribute(ANDROID_NS, "versionName") map { _(0) text }},
+    versionCode              := None,
+    versionName              := None,
     packageForR             <<= manifest { m =>
       m.attribute("package") get (0) text
     },

@@ -59,7 +59,10 @@ object Tasks {
     (b, t, g, l, p) =>
     b.generateBuildConfig(p, createDebug,
       Seq.empty[String], g.getAbsolutePath)
-    l collect { case a: ApkLibrary => a } foreach { lib =>
+    l collect {
+      case a: ApkLibrary         => a
+      case a: AutoLibraryProject => a
+    } foreach { lib =>
       b.generateBuildConfig(lib.pkg, createDebug,
         Seq.empty[String], g.getAbsolutePath)
     }
@@ -111,6 +114,30 @@ object Tasks {
     AarLibrary(dest)
   }
 
+  val autolibsTaskDef = ( localProjects
+                        , genPath
+                        , libraryProject
+                        , builder
+                        , streams ) map {
+   (prjs,gen,isLib,bldr,s) =>
+     prjs collect { case a: AutoLibraryProject => a } flatMap { lib =>
+      s.log.info("Processing library project: " + lib.pkg)
+
+      lib.getProguardRules.getParentFile.mkdirs
+      aapt(bldr, lib.getManifest, null, Seq.empty, true,
+          lib.getResFolder, lib.getAssetsFolder, null,
+          lib.layout.gen, lib.getProguardRules.getAbsolutePath,
+          s.log)
+
+      def copyDirectory(src: File, dst: File) {
+        IO.copy(((src ***) --- (src ** "R.txt")) x Path.rebase(src, dst),
+          false, true)
+      }
+      if (isLib)
+        copyDirectory(lib.layout.gen, gen)
+      Some(lib: LibraryDependency)
+    }
+  }
   // fails poorly if windows' exclusive locks are preventing a proper clean
   val apklibsTaskDef = ( update in Compile
                        , libraryDependencies in Compile
@@ -308,8 +335,9 @@ object Tasks {
     // this needs to wait for other projects to at least finish their
     // apklibs tasks--handled if androidBuild() is called properly
     val depres = collectdeps(libs) collect {
-      case m: ApkLibrary => m
-      case n: AarLibrary => n
+      case m: ApkLibrary         => m
+      case a: AutoLibraryProject => a
+      case n: AarLibrary         => n
     } collect { case n if n.getResFolder.isDirectory => n.getResFolder }
 
     val respaths = depres ++ res.reverse ++
@@ -1248,11 +1276,11 @@ object Tasks {
   }
 
   def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):
-  Seq[LibraryProject] = {
+  Seq[AutoLibraryProject] = {
       p.stringPropertyNames.collect {
         case k if k.startsWith("android.library.reference") => k
       }.toList.sortWith { (a,b) => a < b } map { k =>
-        LibraryProject(b/p(k)) +:
+        AutoLibraryProject(b/p(k)) +:
           loadLibraryReferences(b, loadProperties(b/p(k)), k)
       } flatten
   }
@@ -1272,8 +1300,11 @@ object Tasks {
 
     // remove scala-library if present
     // add all dependent library projects' classes.jar files
-    (u ++ (l filter (!_.isInstanceOf[ApkLibrary]) map { p =>
-      Attributed.blank((p.getJarFile).getCanonicalFile)
+    (u ++ (l filterNot (_ match {
+        case _: ApkLibrary         => true
+        case _: AutoLibraryProject => true
+        case _ => false
+      }) map { p => Attributed.blank((p.getJarFile).getCanonicalFile)
     }) ++ (for {
         d <- l
         j <- d.getLocalJars

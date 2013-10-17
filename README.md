@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.0.8
+Current version is 1.1.0
 
 *Note*: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
@@ -18,6 +18,27 @@ library projects. 3rd party libraries can be included by placing them in
 Features not support from the regular android build yet are compiling `NDK`
 code. Although, `NDK` libraries will be picked up from `libs` as in typical
 ant builds (or `src/main/jni` if you're using the new Gradle layout).
+
+## New features in 1.1.x ##
+
+* Automatically load declared library projects from `project.properties`,
+  `build.scala` is no longer necessary to configure the library projects,
+  unless other advanced features are necessary (this means that any
+  android project that only uses library projects does not need to use
+  multi-project configurations).
+  * For those not using `project.properties` an alternative is to add
+    `android.Dependencies.AutoLibraryProject(path)`s to `local-projects`
+
+    ```
+    import android.Keys._
+    import android.Dependencies.AutoLibraryProject
+
+    localProjects in Android <+= (baseDirectory) {
+      b => AutoLibraryProject(b / ".." / "my-library-project")
+    }
+    ```
+* `version-code` and `version-name` are defaulted to no-ops (no overrides)
+  * They can be set programmatically using an sbt `Command`
 
 ## New features in 1.0.x ##
 
@@ -169,7 +190,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.0.8")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.1.0")
     ```
 
 4. Create `project/build.properties` and add the following line:
@@ -350,7 +371,7 @@ Android Java-based applications.
   type `reload` manually anytime `AndroidManifest.xml` is updated if
   necessary. This `reload` is necessary to keep `android:run` working
   properly if activities are changed, and packaging operating correctly
-  when package names, or versions and sdk references change.
+  when package names, or sdk references change.
 * sbt `0.12` and `0.13` currently have a bug where jars specified in javac's
   -bootclasspath option forces a full rebuild of all classes everytime. sbt
   `0.12.3` and later has a hack that should workaround this problem. The

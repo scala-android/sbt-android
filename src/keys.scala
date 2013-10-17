@@ -36,6 +36,8 @@ object Keys {
   val proguardInputs = TaskKey[ProguardInputs]("proguard-inputs",
     "a tuple specifying -injars and -libraryjars (in that order)")
   val setDebug = TaskKey[Unit]("set-debug", "set debug build")
+  val autolibs = TaskKey[Seq[LibraryDependency]]("autolibs",
+    "automatically reference sources in (declared) library projects")
   val apklibs = TaskKey[Seq[LibraryDependency]]("apklibs",
     "unpack the set of referenced apklibs")
   val localAars = SettingKey[Seq[File]]("local-aars", "local aar files")

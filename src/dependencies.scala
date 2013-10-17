@@ -51,7 +51,7 @@ object Dependencies {
     }
   }
 
-  case class ApkLibrary(val path: File) extends LibraryDependency {
+  case class ApkLibrary(val path: File) extends LibraryDependency with Pkg {
     import com.android.SdkConstants._
     lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
     override def getSymbolFile = path / "gen" / "R.txt"
@@ -84,6 +84,16 @@ object Dependencies {
           }
         }.getOrElse(Array.empty).toSeq)
     }
+  }
+  trait Pkg {
+    def pkg: String
+  }
+  object AutoLibraryProject {
+    def apply(path: File) = new AutoLibraryProject(path)
+  }
+  class AutoLibraryProject(override val path: File)
+  extends LibraryProject(path) with Pkg {
+    lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
   }
 }
 // vim: set ts=2 sw=2 et:
