@@ -129,7 +129,7 @@ object Plugin extends sbt.Plugin {
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
       // TODO sbt 0.12 expects javacOptions to be a Task, not Setting
       o ++ Seq("-bootclasspath" , bcp,
-        "-source", "1.5" , "-target", "1.5") ++ debugOptions
+        "-source", "1.5", "-target", "1.5") ++ debugOptions
     },
     scalacOptions     <<= ( scalacOptions
                           , sdkParser in Android) map {

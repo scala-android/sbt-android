@@ -249,7 +249,7 @@ object Keys {
     }
     case class Gradle(base: File) extends ProjectLayout {
       override def manifest = sources / "AndroidManifest.xml"
-      override def testSources = base / "src" / "test"
+      override def testSources = base / "src" / "instrumentTest"
       override def testJavaSource = testSources / "java"
       override def testScalaSource = testSources / "scala"
       override def sources = base / "src" / "main"
