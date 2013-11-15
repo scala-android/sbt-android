@@ -1126,12 +1126,14 @@ object Tasks {
                     , classDirectory in Test
                     , externalDependencyClasspath in Compile
                     , externalDependencyClasspath in Test
-                    , targetSdkVersion
-                    , minSdkVersion
-                    , sdkPath
+                    , state
                     , streams) map {
-    (layout, noTestApk, bldr, pkg, libs, classes,
-      clib, tlib, targetSdk, minSdk, sdk, s) =>
+    (layout, noTestApk, bldr, pkg, libs, classes, clib, tlib, st, s) =>
+    val extracted = Project.extract(st)
+    val targetSdk = extracted.get(targetSdkVersion in Android)
+    val minSdk = extracted.get(minSdkVersion in Android)
+    val sdk = extracted.get(sdkPath in Android)
+
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
     val manifestFile = if (noTestApk || testManifest.exists) {
