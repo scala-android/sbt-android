@@ -31,6 +31,8 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     or does not want to include the test cases in the debug package.
   * If the setting is disabled, test cases will be generated into a test APK
     when running `android:test`
+  * When generating release builds, it is important to `clean`, otherwise
+    test artifacts may be left over and present in the released apk.
 
 ## New features in 1.1.x ##
 
