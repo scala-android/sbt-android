@@ -305,6 +305,7 @@ object Tasks {
     jni
   }
   val collectResourcesTaskDef = ( builder
+                                , debugIncludesTests
                                 , libraryProject
                                 , libraryProjects
                                 , projectLayout
@@ -312,7 +313,7 @@ object Tasks {
                                 , cacheDirectory
                                 , streams
                                 ) map {
-    (bldr, isLib, libs, layout, logger, cache, s) =>
+    (bldr, noTestApk, isLib, libs, layout, logger, cache, s) =>
 
     val assetBin = layout.bin / "assets"
     val assets = layout.assets
@@ -327,7 +328,8 @@ object Tasks {
     } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
 
     if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
-
+    if (noTestApk && layout.testAssets.exists)
+      IO.copyDirectory(layout.testAssets, assetBin, false, true)
     // prepare resource sets for merge
     val res = Seq(layout.res) ++ (libs map { _.layout.res } filter {
         _.isDirectory })
@@ -342,7 +344,9 @@ object Tasks {
     s.log.debug("apklib/aar resources: " + depres)
 
     val respaths = depres ++ res.reverse ++
-      (if (layout.res.isDirectory) Seq(layout.res) else Seq.empty)
+      (if (layout.res.isDirectory) Seq(layout.res) else Seq.empty) ++
+      (if (noTestApk && layout.testRes.isDirectory)
+        Seq(layout.res) else Seq.empty)
     val sets = respaths.distinct map { r =>
       val set = new ResourceSet(r.getAbsolutePath)
       set.addSource(r)
@@ -759,6 +763,7 @@ object Tasks {
   }
 
   val processManifestTaskDef = ( builder
+                               , debugIncludesTests
                                , projectLayout
                                , libraryProject
                                , libraryProjects
@@ -768,7 +773,7 @@ object Tasks {
                                , targetSdkVersion
                                , minSdkVersion
                                ) map {
-    (bldr, layout, isLib, libs, pkg, vc, vn, sdk, minSdk) =>
+    (bldr, noTestApk, layout, isLib, libs, pkg, vc, vn, sdk, minSdk) =>
     layout.bin.mkdirs()
     val output = layout.bin / "AndroidManifest.xml"
     if (isLib)
@@ -777,6 +782,47 @@ object Tasks {
       bldr.processManifest(layout.manifest, Seq.empty[File], libs,
         pkg, vc getOrElse -1, vn getOrElse null, minSdk, sdk,
         output.getAbsolutePath)
+      if (noTestApk) {
+         val top = XML.loadFile(output)
+        val prefix = top.scope.getPrefix(ANDROID_NS)
+        val application = top \ "application"
+        val usesLibraries = top \ "application" \ "uses-library"
+        val instrument = top \ "instrument"
+        if (application.isEmpty) sys.error("no application node")
+        val hasTestRunner = usesLibraries exists (
+          _.attribute(ANDROID_NS, "name") map (
+            _ == "android.test.runner") getOrElse false)
+
+        val last = Some(top) map { top =>
+          if  (!hasTestRunner) {
+            val runner = new PrefixedAttribute(
+              prefix, "name", "android.test.runner", Null)
+            val usesLib = new Elem(null, "uses-library", runner, TopScope)
+            val u = top.copy(
+              child = top.child.updated(top.child.indexOf(application.head),
+                application.head.asInstanceOf[Elem].copy(
+                  child = application.head.child ++ usesLib)))
+            u
+          } else top
+        } map { top =>
+          if (instrument.isEmpty) {
+             val target = new PrefixedAttribute(prefix,
+               "targetPackage", pkg, Null)
+             val label = new PrefixedAttribute(prefix,
+               "label", "Test Runner", target)
+             val name = new PrefixedAttribute(
+               prefix, "name", "android.test.InstrumentationTestRunner", label)
+             val instrumentation = new Elem(null,
+               "instrumentation", name, TopScope)
+            val u = top.copy(child = top.child ++ instrumentation)
+            u
+          } else top
+        }
+
+        val writer = new java.io.FileWriter(output, false)
+        XML.write(writer, last.get, "utf-8", true, null)
+        writer.close()
+      }
       output
     }
   }
@@ -1073,6 +1119,7 @@ object Tasks {
   }
 
   val testTaskDef = ( projectLayout
+                    , debugIncludesTests
                     , builder
                     , packageName
                     , libraryProjects
@@ -1083,10 +1130,11 @@ object Tasks {
                     , minSdkVersion
                     , sdkPath
                     , streams) map {
-    (layout, bldr, pkg, libs, classes, clib, tlib, targetSdk, minSdk, sdk, s) =>
+    (layout, noTestApk, bldr, pkg, libs, classes,
+      clib, tlib, targetSdk, minSdk, sdk, s) =>
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
-    val manifestFile = if (testManifest.exists) {
+    val manifestFile = if (noTestApk || testManifest.exists) {
       testManifest
     } else {
       val vn = new PrefixedAttribute("android", "versionName", "1.0", Null)
@@ -1115,82 +1163,91 @@ object Tasks {
       manifestFile
     }
 
-    classes.mkdirs()
-    val manifest = XML.loadFile(manifestFile)
-    val testPackage = manifest.attribute("package") get (0) text
-    val instr = manifest \\ "instrumentation"
-    val instrData = (instr map { i =>
-      (i.attribute(ANDROID_NS, "name") map (_(0).text),
-      i.attribute(ANDROID_NS, "targetPackage") map (_(0).text))
-    }).headOption
-    val runner = instrData flatMap (
-      _._1) getOrElse "android.test.InstrumentationTestRunner"
-    val tpkg = instrData flatMap (_._2) getOrElse pkg
-    val processedManifest = classes / "AndroidManifest.xml"
-    bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, runner,
-      libs, processedManifest.getAbsolutePath)
-    val options = new DexOptions {
-      def isCoreLibrary = false
-      def getIncremental = true
-      def getJavaMaxHeapSize = "1024m"
-    }
-    val rTxt = classes / "R.txt"
-    val dex = layout.bin / "classes-test.dex"
-    val res = layout.bin / "resources-test.ap_"
-    val apk = layout.bin / "instrumentation-test.ap_"
-
-    if (!rTxt.exists) rTxt.createNewFile()
-    aapt(bldr, processedManifest, testPackage, libs, false,
-      layout.testSources / "res", layout.testSources / "assets",
-      res.getAbsolutePath, classes, null, s.log)
-
-    val deps = tlib filterNot (clib contains)
-    bldr.convertByteCode(Seq(classes), deps map (_.data), null,
-      dex.getAbsolutePath, options, false)
-
-    if (!dex.exists)
-      sys.error("No test classes (no dex)")
-    val debugConfig = new DefaultSigningConfig("debug")
-    debugConfig.initDebug
-
-    bldr.packageApk(res.getAbsolutePath, dex.getAbsolutePath,
-      Seq.empty[File], null, null, true, debugConfig, apk.getAbsolutePath)
-    s.log.info("Testing...")
-    s.log.debug("Installing test apk: " + apk)
-    installPackage(apk, sdk, s.log)
-    try {
-      val listener = TestListener(s.log)
-      import com.android.ddmlib.testrunner.InstrumentationResultParser
-      val p = new InstrumentationResultParser(testPackage, listener)
-      val receiver = new IShellOutputReceiver() {
-        val b = new StringBuilder
-        override def addOutput(data: Array[Byte], off: Int, len: Int) =
-          b.append(new String(data, off, len))
-        override def flush() {
-          p.processNewLines(b.toString.split("\\n").map(_.trim))
-          b.clear
-        }
-        override def isCancelled = false
+    if (!noTestApk) {
+      classes.mkdirs()
+      val manifest = XML.loadFile(manifestFile)
+      val testPackage = manifest.attribute("package") get (0) text
+      val instr = manifest \\ "instrumentation"
+      val instrData = (instr map { i =>
+        (i.attribute(ANDROID_NS, "name") map (_(0).text),
+        i.attribute(ANDROID_NS, "targetPackage") map (_(0).text))
+      }).headOption
+      val runner = instrData flatMap (
+        _._1) getOrElse "android.test.InstrumentationTestRunner"
+      val tpkg = instrData flatMap (_._2) getOrElse pkg
+      val processedManifest = classes / "AndroidManifest.xml"
+      bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, runner,
+        libs, processedManifest.getAbsolutePath)
+      val options = new DexOptions {
+        def isCoreLibrary = false
+        def getIncremental = true
+        def getJavaMaxHeapSize = "1024m"
       }
-      val intent = testPackage + "/" + runner
-      Commands.targetDevice(sdk, s.log) map { d =>
-        val command = "am instrument -r -w %s" format intent
-        s.log.debug("Executing [%s]" format command)
-        d.executeShellCommand(command, receiver)
+      val rTxt = classes / "R.txt"
+      val dex = layout.bin / "classes-test.dex"
+      val res = layout.bin / "resources-test.ap_"
+      val apk = layout.bin / "instrumentation-test.ap_"
 
-        if (receiver.b.toString.length > 0)
-          s.log.info(receiver.b.toString)
+      if (!rTxt.exists) rTxt.createNewFile()
+      aapt(bldr, processedManifest, testPackage, libs, false,
+        layout.testRes, layout.testAssets,
+        res.getAbsolutePath, classes, null, s.log)
 
-        s.log.debug("instrument command executed")
+      val deps = tlib filterNot (clib contains)
+      bldr.convertByteCode(Seq(classes), deps map (_.data), null,
+        dex.getAbsolutePath, options, false)
+
+      if (!dex.exists)
+        sys.error("No test classes (no dex)")
+      val debugConfig = new DefaultSigningConfig("debug")
+      debugConfig.initDebug
+
+      bldr.packageApk(res.getAbsolutePath, dex.getAbsolutePath,
+        Seq.empty[File], null, null, true, debugConfig, apk.getAbsolutePath)
+      s.log.info("Testing...")
+      s.log.debug("Installing test apk: " + apk)
+      installPackage(apk, sdk, s.log)
+      try {
+        runTests(sdk, testPackage, s)
+      } finally {
+        uninstallPackage(testPackage, sdk, s.log)
       }
-      if (!listener.failures.isEmpty) {
-        sys.error("Tests failed: " + listener.failures.size + "\n" +
-          (listener.failures map (" - " + _)).mkString("\n"))
-      }
-    } finally {
-      uninstallPackage(testPackage, sdk, s.log)
+    } else {
+      runTests(sdk, pkg, s)
     }
     ()
+  }
+
+  private def runTests(sdk: String, testPackage: String, s: TaskStreams) {
+        val listener = TestListener(s.log)
+        import com.android.ddmlib.testrunner.InstrumentationResultParser
+        val p = new InstrumentationResultParser(testPackage, listener)
+        val receiver = new IShellOutputReceiver() {
+          val b = new StringBuilder
+          override def addOutput(data: Array[Byte], off: Int, len: Int) =
+            b.append(new String(data, off, len))
+          override def flush() {
+            p.processNewLines(b.toString.split("\\n").map(_.trim))
+            b.clear
+          }
+          override def isCancelled = false
+        }
+        val runner = "android.test.InstrumentationTestRunner"
+        val intent = testPackage + "/" + runner
+        Commands.targetDevice(sdk, s.log) map { d =>
+          val command = "am instrument -r -w %s" format intent
+          s.log.debug("Executing [%s]" format command)
+          d.executeShellCommand(command, receiver)
+
+          if (receiver.b.toString.length > 0)
+            s.log.info(receiver.b.toString)
+
+          s.log.debug("instrument command executed")
+        }
+        if (!listener.failures.isEmpty) {
+          sys.error("Tests failed: " + listener.failures.size + "\n" +
+            (listener.failures map (" - " + _)).mkString("\n"))
+        }
   }
 
   def runTaskDef(install: TaskKey[Unit],

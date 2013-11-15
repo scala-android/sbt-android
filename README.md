@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.1.2
+Current version is 1.2.0
 
 *Note*: 0.7.0 and later is incompatible with build files for previous versions
 of the plugin.
@@ -18,6 +18,19 @@ library projects. 3rd party libraries can be included by placing them in
 Features not support from the regular android build yet are compiling `NDK`
 code. Although, `NDK` libraries will be picked up from `libs` as in typical
 ant builds (or `src/main/jni` if you're using the new Gradle layout).
+
+## New features in 1.2.x ##
+
+* Add setting `android:debug-includes-tests` (default = true) to automatically
+  include instrumented test cases in the debug APK instead of using a separate
+  test APK. This feature improves IntelliJ testing integration.
+  * As a result of this new feature, if there are any `libraryDependencies` in
+    `test` that must be honored, the setting must be disabled, and a separate
+    test APK must be created.
+  * This setting may be ignored, or set to `false` if one does not have tests
+    or does not want to include the test cases in the debug package.
+  * If the setting is disabled, test cases will be generated into a test APK
+    when running `android:test`
 
 ## New features in 1.1.x ##
 
@@ -192,7 +205,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.1.2")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.0")
     ```
 
 4. Create `project/build.properties` and add the following line:

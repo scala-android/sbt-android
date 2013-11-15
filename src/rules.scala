@@ -107,15 +107,16 @@ object Plugin extends sbt.Plugin {
                           , aidl in Android
                           , buildConfigGenerator in Android
                           , renderscript in Android
+                          , debugTestsGenerator in Android
                           , cleanForR in Android
                           ) map {
-      (a, tr, apkl, autos, aidl, bcg, rs, _) =>
+      (a, tr, apkl, autos, aidl, bcg, rs, deb, _) =>
       val autosrcs = (apkl ++ autos) map { l =>
         (l.layout.javaSource ** "*.java" get) ++
           (l.layout.scalaSource ** "*.scala" get)
       } flatten
 
-      a ++ tr ++ aidl ++ bcg ++ rs ++ autosrcs
+      a ++ tr ++ aidl ++ bcg ++ rs ++ autosrcs ++ deb
     },
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile),
@@ -299,6 +300,14 @@ object Plugin extends sbt.Plugin {
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
     packageT                <<= zipalign,
+    debugIncludesTests       := true,
+    debugTestsGenerator     <<= (debugIncludesTests,projectLayout) map {
+      (tests,layout) =>
+      if (tests)
+        (layout.testScalaSource ** "*.scala" get) ++
+          (layout.testJavaSource ** "*.java" get)
+      else Seq.empty
+    },
     setDebug                 := { _createDebug = true },
     setRelease               := { _createDebug = false },
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package

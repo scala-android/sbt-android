@@ -36,6 +36,10 @@ object Keys {
   val proguardInputs = TaskKey[ProguardInputs]("proguard-inputs",
     "a tuple specifying -injars and -libraryjars (in that order)")
   val setDebug = TaskKey[Unit]("set-debug", "set debug build")
+  val debugIncludesTests = SettingKey[Boolean]("debug-includes-tests",
+    "Whether instrumentation tests should be included in the debug apk")
+  val debugTestsGenerator = TaskKey[Seq[File]]("debug-tests-generator",
+    "includes test sources in debug builds if debug-includes-tests")
   val autolibs = TaskKey[Seq[LibraryDependency]]("autolibs",
     "automatically reference sources in (declared) library projects")
   val apklibs = TaskKey[Seq[LibraryDependency]]("apklibs",
@@ -213,6 +217,8 @@ object Keys {
     def testSources: File
     def testScalaSource: File
     def testJavaSource: File
+    def testAssets: File
+    def testRes: File
     def res: File
     def assets: File
     def manifest: File
@@ -235,6 +241,8 @@ object Keys {
       override def testSources = base / "tests"
       override def testJavaSource = testSources
       override def testScalaSource = testSources
+      override def testRes = testSources / "res"
+      override def testAssets = testSources / "assets"
       override def scalaSource = sources
       override def javaSource = sources
       override def res = base / "res"
@@ -252,6 +260,8 @@ object Keys {
       override def testSources = base / "src" / "instrumentTest"
       override def testJavaSource = testSources / "java"
       override def testScalaSource = testSources / "scala"
+      override def testRes = testSources / "res"
+      override def testAssets = testSources / "assets"
       override def sources = base / "src" / "main"
       override def jni = sources / "jni"
       override def scalaSource = sources / "scala"
