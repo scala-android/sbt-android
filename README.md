@@ -1,9 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.2.0
-
-*Note*: 0.7.0 and later is incompatible with build files for previous versions
-of the plugin.
+Current version is 1.2.1
 
 ## Description ##
 
@@ -26,7 +23,9 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   test APK. This feature improves IntelliJ testing integration.
   * As a result of this new feature, if there are any `libraryDependencies` in
     `test` that must be honored, the setting must be disabled, and a separate
-    test APK must be created.
+    test APK must be created. An alternative is to include the test dependencies
+    in the normal compile. Proguard will automatically strip these out in
+    release builds if they are unused.
   * This setting may be ignored, or set to `false` if one does not have tests
     or does not want to include the test cases in the debug package.
   * If the setting is disabled, test cases will be generated into a test APK
@@ -207,7 +206,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.0")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.1")
     ```
 
 4. Create `project/build.properties` and add the following line:

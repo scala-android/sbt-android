@@ -39,6 +39,12 @@ import Dependencies._
 
 object Tasks {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+  val INSTRUMENTATION_TAG = "instrumentation"
+  val USES_LIBRARY_TAG = "uses-library"
+  val APPLICATION_TAG = "application"
+  val ANDROID_PREFIX = "android"
+  val TEST_RUNNER_LIB = "android.test.runner"
+  val TEST_RUNNER = "android.test.InstrumentationTestRunner"
 
   // TODO come up with a better solution
   // wish this could be protected
@@ -785,19 +791,19 @@ object Tasks {
       if (noTestApk) {
          val top = XML.loadFile(output)
         val prefix = top.scope.getPrefix(ANDROID_NS)
-        val application = top \ "application"
-        val usesLibraries = top \ "application" \ "uses-library"
-        val instrument = top \ "instrument"
+        val application = top \ APPLICATION_TAG
+        val usesLibraries = top \ APPLICATION_TAG \ USES_LIBRARY_TAG
+        val instrument = top \ INSTRUMENTATION_TAG
         if (application.isEmpty) sys.error("no application node")
         val hasTestRunner = usesLibraries exists (
           _.attribute(ANDROID_NS, "name") map (
-            _ == "android.test.runner") getOrElse false)
+            _ == TEST_RUNNER_LIB) getOrElse false)
 
         val last = Some(top) map { top =>
           if  (!hasTestRunner) {
             val runner = new PrefixedAttribute(
-              prefix, "name", "android.test.runner", Null)
-            val usesLib = new Elem(null, "uses-library", runner, TopScope)
+              prefix, "name", TEST_RUNNER_LIB, Null)
+            val usesLib = new Elem(null, USES_LIBRARY_TAG, runner, TopScope)
             val u = top.copy(
               child = top.child.updated(top.child.indexOf(application.head),
                 application.head.asInstanceOf[Elem].copy(
@@ -811,9 +817,9 @@ object Tasks {
              val label = new PrefixedAttribute(prefix,
                "label", "Test Runner", target)
              val name = new PrefixedAttribute(
-               prefix, "name", "android.test.InstrumentationTestRunner", label)
+               prefix, "name", TEST_RUNNER, label)
              val instrumentation = new Elem(null,
-               "instrumentation", name, TopScope)
+               INSTRUMENTATION_TAG, name, TopScope)
             val u = top.copy(child = top.child ++ instrumentation)
             u
           } else top
@@ -1139,22 +1145,25 @@ object Tasks {
     val manifestFile = if (noTestApk || testManifest.exists) {
       testManifest
     } else {
-      val vn = new PrefixedAttribute("android", "versionName", "1.0", Null)
-      val vc = new PrefixedAttribute("android", "versionCode", "1", vn)
+      val vn = new PrefixedAttribute(ANDROID_PREFIX, "versionName", "1.0", Null)
+      val vc = new PrefixedAttribute(ANDROID_PREFIX, "versionCode", "1", vn)
       val pkgAttr = new UnprefixedAttribute("package",
         pkg + ".instrumentTest", vc)
-      val ns = NamespaceBinding("android", ANDROID_NS, TopScope)
+      val ns = NamespaceBinding(ANDROID_PREFIX, ANDROID_NS, TopScope)
 
-      val minSdk = new PrefixedAttribute("android", "minSdkVersion", "3", Null)
+      val minSdk = new PrefixedAttribute(
+        ANDROID_PREFIX, "minSdkVersion", "3", Null)
       val usesSdk = new Elem(null, "uses-sdk", minSdk, TopScope)
       val runner = new PrefixedAttribute(
-        "android", "name", "android.test.runner", Null)
-      val usesLib = new Elem(null, "uses-library", runner, TopScope)
-      val app = new Elem(null, "application", Null, TopScope, usesSdk, usesLib)
-      val label = new PrefixedAttribute("android", "label", "Test Runner", Null)
+        ANDROID_PREFIX, "name", TEST_RUNNER_LIB, Null)
+      val usesLib = new Elem(null, USES_LIBRARY_TAG, runner, TopScope)
+      val app = new Elem(null,
+        APPLICATION_TAG, Null, TopScope, usesSdk, usesLib)
+      val label = new PrefixedAttribute(
+          ANDROID_PREFIX, "label", "Test Runner", Null)
       val name = new PrefixedAttribute(
-        "android", "name", "android.test.InstrumentationTestRunner", label)
-      val instrumentation = new Elem(null, "instrumentation", name, TopScope)
+        ANDROID_PREFIX, "name", TEST_RUNNER, label)
+      val instrumentation = new Elem(null, INSTRUMENTATION_TAG, name, TopScope)
       val manifest = new Elem(null,
         "manifest", pkgAttr, ns, app, instrumentation)
 
@@ -1175,7 +1184,7 @@ object Tasks {
         i.attribute(ANDROID_NS, "targetPackage") map (_(0).text))
       }).headOption
       val runner = instrData flatMap (
-        _._1) getOrElse "android.test.InstrumentationTestRunner"
+        _._1) getOrElse TEST_RUNNER
       val tpkg = instrData flatMap (_._2) getOrElse pkg
       val processedManifest = classes / "AndroidManifest.xml"
       bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, runner,
@@ -1234,7 +1243,7 @@ object Tasks {
           }
           override def isCancelled = false
         }
-        val runner = "android.test.InstrumentationTestRunner"
+        val runner = TEST_RUNNER
         val intent = testPackage + "/" + runner
         Commands.targetDevice(sdk, s.log) map { d =>
           val command = "am instrument -r -w %s" format intent
