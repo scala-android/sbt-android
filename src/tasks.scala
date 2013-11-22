@@ -21,6 +21,7 @@ import com.android.builder.DexOptions
 import com.android.builder.VariantConfiguration
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.ddmlib.{IDevice, IShellOutputReceiver}
+import com.android.ddmlib.DdmPreferences
 import com.android.ddmlib.testrunner.ITestRunListener
 import com.android.ide.common.res2.FileStatus
 import com.android.ide.common.res2.FileValidity
@@ -1260,7 +1261,10 @@ object Tasks {
     Commands.targetDevice(sdk, s.log) map { d =>
       val command = "am instrument -r -w %s" format intent
       s.log.debug("Executing [%s]" format command)
+      val timeout = DdmPreferences.getTimeOut()
+      DdmPreferences.setTimeOut(180000) // 3 minute timeout for tests
       d.executeShellCommand(command, receiver)
+      DdmPreferences.setTimeOut(timeout)
 
       if (receiver.b.toString.length > 0)
         s.log.info(receiver.b.toString)

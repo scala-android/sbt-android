@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.2.2
+Current version is 1.2.3
 
 ## Description ##
 
@@ -38,6 +38,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   * Disabling manifest merging will remove automatic import of Activities,
     Services, BroadcastReceivers, etc. from the library's manifest into the
     main application manifest
+* Increase test timeout to 3 minutes, from 5 seconds
 
 ## New features in 1.1.x ##
 
@@ -212,7 +213,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.2")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.3")
     ```
 
 4. Create `project/build.properties` and add the following line:
