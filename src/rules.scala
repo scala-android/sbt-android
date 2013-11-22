@@ -246,6 +246,7 @@ object Plugin extends sbt.Plugin {
       l.manifest
     },
     properties              <<= baseDirectory (b => loadProperties(b)),
+    mergeManifests           := true,
     processManifest         <<= processManifestTaskDef,
     manifest                <<= manifestPath { m =>
       if (!m.exists)
@@ -300,6 +301,7 @@ object Plugin extends sbt.Plugin {
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
     packageT                <<= zipalign,
+    instrumentTestRunner     := "android.test.InstrumentationTestRunner",
     debugIncludesTests       := true,
     debugTestsGenerator     <<= (debugIncludesTests,projectLayout) map {
       (tests,layout) =>

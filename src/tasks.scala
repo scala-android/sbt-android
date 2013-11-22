@@ -44,7 +44,6 @@ object Tasks {
   val APPLICATION_TAG = "application"
   val ANDROID_PREFIX = "android"
   val TEST_RUNNER_LIB = "android.test.runner"
-  val TEST_RUNNER = "android.test.InstrumentationTestRunner"
 
   // TODO come up with a better solution
   // wish this could be protected
@@ -602,6 +601,11 @@ object Tasks {
 
 
     (FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
+      s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s)" format (
+        r.getAbsolutePath, d.getAbsolutePath, jars,
+          jni.getAbsolutePath, createDebug,
+          if (createDebug) debugConfig else null, output.getAbsolutePath
+      ))
       bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, null,
         jni.getAbsolutePath, createDebug,
         if (createDebug) debugConfig else null, output.getAbsolutePath)
@@ -774,18 +778,25 @@ object Tasks {
                                , libraryProject
                                , libraryProjects
                                , packageName
-                               , versionCode
-                               , versionName
-                               , targetSdkVersion
-                               , minSdkVersion
+                               , state
+                               , thisProjectRef
+                               , instrumentTestRunner
                                ) map {
-    (bldr, noTestApk, layout, isLib, libs, pkg, vc, vn, sdk, minSdk) =>
+    (bldr, noTestApk, layout, isLib, libs, pkg, st, prj, trunner) =>
+    val extracted = Project.extract(st)
+    val vc = extracted.get(versionCode in (prj,Android))
+    val vn = extracted.get(versionName in (prj,Android))
+    val sdk = extracted.get(targetSdkVersion in (prj,Android))
+    val minSdk = extracted.get(minSdkVersion in (prj,Android))
+    val merge = extracted.get(mergeManifests in (prj,Android))
+
     layout.bin.mkdirs()
     val output = layout.bin / "AndroidManifest.xml"
     if (isLib)
       layout.manifest
     else {
-      bldr.processManifest(layout.manifest, Seq.empty[File], libs,
+      bldr.processManifest(layout.manifest, Seq.empty[File],
+        if (merge) libs else Seq.empty[LibraryDependency],
         pkg, vc getOrElse -1, vn getOrElse null, minSdk, sdk,
         output.getAbsolutePath)
       if (noTestApk) {
@@ -801,9 +812,9 @@ object Tasks {
 
         val last = Some(top) map { top =>
           if  (!hasTestRunner) {
-            val runner = new PrefixedAttribute(
+            val runnerlib = new PrefixedAttribute(
               prefix, "name", TEST_RUNNER_LIB, Null)
-            val usesLib = new Elem(null, USES_LIBRARY_TAG, runner, TopScope)
+            val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope)
             val u = top.copy(
               child = top.child.updated(top.child.indexOf(application.head),
                 application.head.asInstanceOf[Elem].copy(
@@ -817,7 +828,7 @@ object Tasks {
              val label = new PrefixedAttribute(prefix,
                "label", "Test Runner", target)
              val name = new PrefixedAttribute(
-               prefix, "name", TEST_RUNNER, label)
+               prefix, "name", trunner, label)
              val instrumentation = new Elem(null,
                INSTRUMENTATION_TAG, name, TopScope)
             val u = top.copy(child = top.child ++ instrumentation)
@@ -1139,6 +1150,7 @@ object Tasks {
     val targetSdk = extracted.get(targetSdkVersion in Android)
     val minSdk = extracted.get(minSdkVersion in Android)
     val sdk = extracted.get(sdkPath in Android)
+    val runner = extracted.get(instrumentTestRunner in Android)
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
@@ -1154,15 +1166,15 @@ object Tasks {
       val minSdk = new PrefixedAttribute(
         ANDROID_PREFIX, "minSdkVersion", "3", Null)
       val usesSdk = new Elem(null, "uses-sdk", minSdk, TopScope)
-      val runner = new PrefixedAttribute(
+      val runnerlib = new PrefixedAttribute(
         ANDROID_PREFIX, "name", TEST_RUNNER_LIB, Null)
-      val usesLib = new Elem(null, USES_LIBRARY_TAG, runner, TopScope)
+      val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope)
       val app = new Elem(null,
         APPLICATION_TAG, Null, TopScope, usesSdk, usesLib)
       val label = new PrefixedAttribute(
           ANDROID_PREFIX, "label", "Test Runner", Null)
       val name = new PrefixedAttribute(
-        ANDROID_PREFIX, "name", TEST_RUNNER, label)
+        ANDROID_PREFIX, "name", runner, label)
       val instrumentation = new Elem(null, INSTRUMENTATION_TAG, name, TopScope)
       val manifest = new Elem(null,
         "manifest", pkgAttr, ns, app, instrumentation)
@@ -1183,11 +1195,11 @@ object Tasks {
         (i.attribute(ANDROID_NS, "name") map (_(0).text),
         i.attribute(ANDROID_NS, "targetPackage") map (_(0).text))
       }).headOption
-      val runner = instrData flatMap (
-        _._1) getOrElse TEST_RUNNER
+      val trunner = instrData flatMap (
+        _._1) getOrElse runner
       val tpkg = instrData flatMap (_._2) getOrElse pkg
       val processedManifest = classes / "AndroidManifest.xml"
-      bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, runner,
+      bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, trunner,
         libs, processedManifest.getAbsolutePath)
       val options = new DexOptions {
         def isCoreLibrary = false
@@ -1219,46 +1231,46 @@ object Tasks {
       s.log.debug("Installing test apk: " + apk)
       installPackage(apk, sdk, s.log)
       try {
-        runTests(sdk, testPackage, s)
+        runTests(sdk, testPackage, s, trunner)
       } finally {
         uninstallPackage(testPackage, sdk, s.log)
       }
     } else {
-      runTests(sdk, pkg, s)
+      runTests(sdk, pkg, s, runner)
     }
     ()
   }
 
-  private def runTests(sdk: String, testPackage: String, s: TaskStreams) {
-        val listener = TestListener(s.log)
-        import com.android.ddmlib.testrunner.InstrumentationResultParser
-        val p = new InstrumentationResultParser(testPackage, listener)
-        val receiver = new IShellOutputReceiver() {
-          val b = new StringBuilder
-          override def addOutput(data: Array[Byte], off: Int, len: Int) =
-            b.append(new String(data, off, len))
-          override def flush() {
-            p.processNewLines(b.toString.split("\\n").map(_.trim))
-            b.clear
-          }
-          override def isCancelled = false
-        }
-        val runner = TEST_RUNNER
-        val intent = testPackage + "/" + runner
-        Commands.targetDevice(sdk, s.log) map { d =>
-          val command = "am instrument -r -w %s" format intent
-          s.log.debug("Executing [%s]" format command)
-          d.executeShellCommand(command, receiver)
+  private def runTests(sdk: String, testPackage: String,
+      s: TaskStreams, runner: String) {
+    val listener = TestListener(s.log)
+    import com.android.ddmlib.testrunner.InstrumentationResultParser
+    val p = new InstrumentationResultParser(testPackage, listener)
+    val receiver = new IShellOutputReceiver() {
+      val b = new StringBuilder
+      override def addOutput(data: Array[Byte], off: Int, len: Int) =
+        b.append(new String(data, off, len))
+      override def flush() {
+        p.processNewLines(b.toString.split("\\n").map(_.trim))
+        b.clear
+      }
+      override def isCancelled = false
+    }
+    val intent = testPackage + "/" + runner
+    Commands.targetDevice(sdk, s.log) map { d =>
+      val command = "am instrument -r -w %s" format intent
+      s.log.debug("Executing [%s]" format command)
+      d.executeShellCommand(command, receiver)
 
-          if (receiver.b.toString.length > 0)
-            s.log.info(receiver.b.toString)
+      if (receiver.b.toString.length > 0)
+        s.log.info(receiver.b.toString)
 
-          s.log.debug("instrument command executed")
-        }
-        if (!listener.failures.isEmpty) {
-          sys.error("Tests failed: " + listener.failures.size + "\n" +
-            (listener.failures map (" - " + _)).mkString("\n"))
-        }
+      s.log.debug("instrument command executed")
+    }
+    if (!listener.failures.isEmpty) {
+      sys.error("Tests failed: " + listener.failures.size + "\n" +
+        (listener.failures map (" - " + _)).mkString("\n"))
+    }
   }
 
   def runTaskDef(install: TaskKey[Unit],

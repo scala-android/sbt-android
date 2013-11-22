@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.2.1
+Current version is 1.2.2
 
 ## Description ##
 
@@ -32,6 +32,12 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     when running `android:test`
   * When generating release builds, it is important to `clean`, otherwise
     test artifacts may be left over and present in the released apk.
+* Add ability to disable manifest merging if upstream libraries have bad
+  manifest settings, set `mergeManifests in Android := false`, default is
+  `true`
+  * Disabling manifest merging will remove automatic import of Activities,
+    Services, BroadcastReceivers, etc. from the library's manifest into the
+    main application manifest
 
 ## New features in 1.1.x ##
 
@@ -206,7 +212,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.1")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.2")
     ```
 
 4. Create `project/build.properties` and add the following line:

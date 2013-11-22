@@ -36,6 +36,8 @@ object Keys {
   val proguardInputs = TaskKey[ProguardInputs]("proguard-inputs",
     "a tuple specifying -injars and -libraryjars (in that order)")
   val setDebug = TaskKey[Unit]("set-debug", "set debug build")
+  val instrumentTestRunner = SettingKey[String]("instrumentation-test-runner",
+    "tests runner, default android.test.InstrumentationTestRunner")
   val debugIncludesTests = SettingKey[Boolean]("debug-includes-tests",
     "Whether instrumentation tests should be included in the debug apk")
   val debugTestsGenerator = TaskKey[Seq[File]]("debug-tests-generator",
@@ -78,6 +80,8 @@ object Keys {
     "android manifest file path")
   val targetSdkVersion = SettingKey[Int]("target-sdk-version", "android target")
   val minSdkVersion = SettingKey[Int]("min-sdk-version", "android minSdk")
+  val mergeManifests = SettingKey[Boolean]("merge-manifests",
+    "merge manifests from libs, disable if libraries have bad manifests")
   val processManifest = TaskKey[File]("process-manifest",
     "manifest munging task")
   // TODO turn this and all dependents into a TaskKey, manifest can change

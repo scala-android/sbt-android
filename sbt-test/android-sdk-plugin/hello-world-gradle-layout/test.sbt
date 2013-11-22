@@ -8,7 +8,7 @@ TaskKey[Unit]("check-test-dex") <<= ( sdkParser in Android
   val dexdump = tools / "dexdump"
   val lines = Seq(
     dexdump.getAbsolutePath,
-    (layout.bin / "classes-test.dex").getAbsolutePath).lines
+    (layout.bin / "classes.dex").getAbsolutePath).lines
   val hasJunit = lines exists { l =>
     l.trim.startsWith("Class descriptor") && l.trim.endsWith("junit/Assert;'")}
   if (!hasJunit)
