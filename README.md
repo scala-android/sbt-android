@@ -35,9 +35,10 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   * When using included tests, it is necessary to add the following proguard
     options, or else proguard will mistakenly remove test cases from the
     output:
+
     ```
     proguardOptions in Android ++= Seq(
-      "-keep public class * extends junit.framework.TestCase"
+      "-keep public class * extends junit.framework.TestCase",
       "-keepclass members class * extends junit.framework.TestCase { *; }"
     )
     ```
