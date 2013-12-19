@@ -32,6 +32,15 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     when running `android:test`
   * When generating release builds, it is important to `clean`, otherwise
     test artifacts may be left over and present in the released apk.
+  * When using included tests, it is necessary to add the following proguard
+    options, or else proguard will mistakenly remove test cases from the
+    output:
+    ```
+    proguardOptions in Android ++= Seq(
+      "-keep public class * extends junit.framework.TestCase"
+      "-keepclass members class * extends junit.framework.TestCase { *; }"
+    )
+    ```
 * Add ability to disable manifest merging if upstream libraries have bad
   manifest settings, set `mergeManifests in Android := false`, default is
   `true`
