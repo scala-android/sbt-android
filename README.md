@@ -39,7 +39,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     ```
     proguardOptions in Android ++= Seq(
       "-keep public class * extends junit.framework.TestCase",
-      "-keepclass members class * extends junit.framework.TestCase { *; }"
+      "-keepclassmembers class * extends junit.framework.TestCase { *; }"
     )
     ```
 * Add ability to disable manifest merging if upstream libraries have bad
