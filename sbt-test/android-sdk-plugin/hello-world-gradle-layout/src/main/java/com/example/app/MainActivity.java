@@ -8,5 +8,8 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle b) {
         super.onCreate(b);
         setContentView(R.layout.hello);
+        if (BuildConfig.DEBUG) {
+
+        }
     }
 }

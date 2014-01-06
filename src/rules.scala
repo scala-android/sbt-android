@@ -297,10 +297,12 @@ object Plugin extends sbt.Plugin {
       apkdir / (n + "-BUILD-INTEGRATION.apk")
     },
     collectJni              <<= collectJniTaskDef,
+    apkbuildExcludes         := Seq.empty,
     apkbuild                <<= apkbuildTaskDef,
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
     packageT                <<= zipalign,
+    instrumentTestTimeout    := 180000,
     instrumentTestRunner     := "android.test.InstrumentationTestRunner",
     debugIncludesTests       := true,
     debugTestsGenerator     <<= (debugIncludesTests,projectLayout) map {
@@ -346,7 +348,7 @@ object Plugin extends sbt.Plugin {
                                 , ilogger
                                 , streams) map {
       (m, t, v, l, s) =>
-      val parser = new DefaultSdkParser(m.getLocation)
+      val parser = new DefaultSdkParser(m.getLocation, null)
 
       val bt = v map { version =>
         m.getBuildTool(FullRevision.parseRevision(version))

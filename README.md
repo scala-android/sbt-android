@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.2.4
+Current version is 1.2.5
 
 ## Description ##
 
@@ -48,7 +48,17 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   * Disabling manifest merging will remove automatic import of Activities,
     Services, BroadcastReceivers, etc. from the library's manifest into the
     main application manifest
-* Increase test timeout to 3 minutes, from 5 seconds
+* Increase test timeout to 3 minutes, from 5 seconds, configurable by using the
+  `instrumentTestTimeout` setting key, in milliseconds
+* Add `apkbuildExcludes` setting to skip/ignore duplicate files, an error like
+  this:
+  ```
+  [info] com.android.builder.packaging.DuplicateFileException: Duplicate files copied in APK META-INF/LICENSE.txt
+  [info]  File 1: /path1/some.jar
+  [info]  File 2: /path2/some.jar
+  ```
+  Can be rectified by setting
+  `apkbuildExcludes in Android += "META-INF/LICENSE.txt"`
 
 ## New features in 1.1.x ##
 

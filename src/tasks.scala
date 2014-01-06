@@ -4,23 +4,22 @@ import sbt._
 import sbt.Keys._
 import classpath.ClasspathUtilities
 
-import scala.io.Source
+import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 import scala.util.control.Exception._
 import scala.xml._
 
 import java.util.Properties
-import java.io.{File,FilenameFilter,FileInputStream}
+import java.io.{File,FileInputStream}
 
 import com.android.SdkConstants
-import com.android.builder.model.AaptOptions
+import com.android.builder.model.{PackagingOptions, AaptOptions}
 import com.android.builder.signing.DefaultSigningConfig
 import com.android.builder.AndroidBuilder
-import com.android.builder.DefaultSdkParser
 import com.android.builder.DexOptions
 import com.android.builder.VariantConfiguration
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
-import com.android.ddmlib.{IDevice, IShellOutputReceiver}
+import com.android.ddmlib.IShellOutputReceiver
 import com.android.ddmlib.DdmPreferences
 import com.android.ddmlib.testrunner.ITestRunListener
 import com.android.ide.common.res2.FileStatus
@@ -31,12 +30,12 @@ import com.android.ide.common.res2.ResourceSet
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.BuildToolInfo.PathId
 import com.android.utils.ILogger
-import com.android.utils.StdLogger
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 
 import Keys._
 import Dependencies._
+import com.android.builder.compiling.BuildConfigGenerator
 
 object Tasks {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
@@ -56,21 +55,22 @@ object Tasks {
   def resourceUrl =
     Plugin.getClass.getClassLoader.getResource _
 
-  val buildConfigGeneratorTaskDef = ( builder
-                                    , platformTarget
+  val buildConfigGeneratorTaskDef = ( platformTarget
                                     , genPath
                                     , libraryProjects
                                     , packageForR
                                     ) map {
-    (b, t, g, l, p) =>
-    b.generateBuildConfig(p, createDebug,
-      Seq.empty[String], g.getAbsolutePath)
+    (t, g, l, p) =>
+    val b = new BuildConfigGenerator(g.getAbsolutePath, p)
+    b.addField("boolean", "DEBUG", createDebug.toString)
+    b.generate()
     l collect {
       case a: ApkLibrary         => a
       case a: AutoLibraryProject => a
     } foreach { lib =>
-      b.generateBuildConfig(lib.pkg, createDebug,
-        Seq.empty[String], g.getAbsolutePath)
+      val b = new BuildConfigGenerator(g.getAbsolutePath, lib.pkg)
+      b.addField("boolean", "DEBUG", createDebug.toString)
+      b.generate()
     }
     g ** "BuildConfig.java" get
   }
@@ -567,9 +567,10 @@ object Tasks {
                         , unmanagedJars in Compile
                         , managedClasspath
                         , collectJni
+                        , apkbuildExcludes
                         , streams
                         ) map {
-    (bldr, st, prj, r, d, u, m, jni, s) =>
+    (bldr, st, prj, r, d, u, m, jni, excl, s) =>
     val extracted = Project.extract(st)
     import extracted._
 
@@ -607,9 +608,12 @@ object Tasks {
           jni.getAbsolutePath, createDebug,
           if (createDebug) debugConfig else null, output.getAbsolutePath
       ))
+      val options = new PackagingOptions {
+        def getExcludes = excl.toSet.asJava
+      }
       bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, null,
-        jni.getAbsolutePath, createDebug,
-        if (createDebug) debugConfig else null, output.getAbsolutePath)
+        Seq(jni.getAbsoluteFile), null, createDebug,
+        if (createDebug) debugConfig else null, options, output.getAbsolutePath)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))
       Set(output)
@@ -895,7 +899,7 @@ object Tasks {
     bldr.processResources(manifest, res, assets, all,
       pkg, genPath, genPath, resApk, proguardTxt,
       if (lib) VariantConfiguration.Type.LIBRARY else
-        VariantConfiguration.Type.DEFAULT, createDebug, options)
+        VariantConfiguration.Type.DEFAULT, createDebug, options, Seq.empty[String])
   }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
@@ -939,6 +943,7 @@ object Tasks {
                          , streams) map {
     (p, i, pc, b, d, j, cd, st, s) =>
 
+    // TODO use getIncremental in DexOptions instead
     val proguardedDexMarker = b / ".proguarded-dex"
     (p map { f =>
       IO.touch(proguardedDexMarker, false)
@@ -948,6 +953,10 @@ object Tasks {
         s.log.info("[debug] Forcing clean dex")
         cd.delete() // force a clean dex on first non-proguard dex run
         proguardedDexMarker.delete()
+      }
+      if (!createDebug && cd.exists) {
+        s.log.info("[release] Forcing clean dex")
+        cd.delete() // always force a clean dex in release builds
       }
       (d filterNot { a => pc exists (_.matches(a, st)) } collect {
         // no proguard? then we don't need to dex scala!
@@ -972,11 +981,14 @@ object Tasks {
         def isCoreLibrary = false
         def getIncremental = true
         def getJavaMaxHeapSize = xmx
+        def getPreDexLibraries = false
+        def getJumboMode = false
       }
       s.log.info("Generating " + outDex.getName)
       s.log.debug("Dex inputs: " + inputs)
-      bldr.convertByteCode(Seq.empty[File],
-        inputs filter (_.isFile), null, outDex.getAbsolutePath, options, true)
+      bldr.convertByteCode(Seq.empty[File] ++
+        inputs filter (_.isFile), Seq.empty[File],
+        outDex.getAbsoluteFile, options, true)
     } else {
       s.log.info(outDex.getName + " is up-to-date")
     }
@@ -1137,6 +1149,7 @@ object Tasks {
   }
 
   val testTaskDef = ( projectLayout
+                    , instrumentTestTimeout
                     , debugIncludesTests
                     , builder
                     , packageName
@@ -1146,7 +1159,7 @@ object Tasks {
                     , externalDependencyClasspath in Test
                     , state
                     , streams) map {
-    (layout, noTestApk, bldr, pkg, libs, classes, clib, tlib, st, s) =>
+    (layout, timeo, noTestApk, bldr, pkg, libs, classes, clib, tlib, st, s) =>
     val extracted = Project.extract(st)
     val targetSdk = extracted.get(targetSdkVersion in Android)
     val minSdk = extracted.get(minSdkVersion in Android)
@@ -1200,11 +1213,14 @@ object Tasks {
         _._1) getOrElse runner
       val tpkg = instrData flatMap (_._2) getOrElse pkg
       val processedManifest = classes / "AndroidManifest.xml"
+      // profiling and functional test? false for now
       bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, trunner,
-        libs, processedManifest.getAbsolutePath)
+        false, false, libs, processedManifest.getAbsolutePath)
       val options = new DexOptions {
         def isCoreLibrary = false
         def getIncremental = true
+        def getJumboMode = false
+        def getPreDexLibraries = false
         def getJavaMaxHeapSize = "1024m"
       }
       val rTxt = classes / "R.txt"
@@ -1218,32 +1234,36 @@ object Tasks {
         res.getAbsolutePath, classes, null, s.log)
 
       val deps = tlib filterNot (clib contains)
-      bldr.convertByteCode(Seq(classes), deps map (_.data), null,
-        dex.getAbsolutePath, options, false)
+      bldr.convertByteCode(Seq(classes) ++ (deps map (_.data)), Seq.empty[File],
+        dex.getAbsoluteFile, options, false)
 
       if (!dex.exists)
         sys.error("No test classes (no dex)")
       val debugConfig = new DefaultSigningConfig("debug")
       debugConfig.initDebug
 
+      val opts = new PackagingOptions {
+        def getExcludes = Set.empty[String]
+      }
       bldr.packageApk(res.getAbsolutePath, dex.getAbsolutePath,
-        Seq.empty[File], null, null, true, debugConfig, apk.getAbsolutePath)
+        Seq.empty[File], null, null, null, createDebug, debugConfig,
+        opts, apk.getAbsolutePath)
       s.log.info("Testing...")
       s.log.debug("Installing test apk: " + apk)
       installPackage(apk, sdk, s.log)
       try {
-        runTests(sdk, testPackage, s, trunner)
+        runTests(sdk, testPackage, s, trunner, timeo)
       } finally {
         uninstallPackage(testPackage, sdk, s.log)
       }
     } else {
-      runTests(sdk, pkg, s, runner)
+      runTests(sdk, pkg, s, runner, timeo)
     }
     ()
   }
 
   private def runTests(sdk: String, testPackage: String,
-      s: TaskStreams, runner: String) {
+      s: TaskStreams, runner: String, timeo: Int) {
     val listener = TestListener(s.log)
     import com.android.ddmlib.testrunner.InstrumentationResultParser
     val p = new InstrumentationResultParser(testPackage, listener)
@@ -1262,7 +1282,7 @@ object Tasks {
       val command = "am instrument -r -w %s" format intent
       s.log.debug("Executing [%s]" format command)
       val timeout = DdmPreferences.getTimeOut()
-      DdmPreferences.setTimeOut(180000) // 3 minute timeout for tests
+      DdmPreferences.setTimeOut(timeo)
       d.executeShellCommand(command, receiver)
       DdmPreferences.setTimeOut(timeout)
 

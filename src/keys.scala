@@ -36,6 +36,8 @@ object Keys {
   val proguardInputs = TaskKey[ProguardInputs]("proguard-inputs",
     "a tuple specifying -injars and -libraryjars (in that order)")
   val setDebug = TaskKey[Unit]("set-debug", "set debug build")
+  val instrumentTestTimeout = SettingKey[Int]("instrumentation-test-timeout",
+    "Timeout for instrumentation tests, in milliseconds, default is 3 minutes")
   val instrumentTestRunner = SettingKey[String]("instrumentation-test-runner",
     "tests runner, default android.test.InstrumentationTestRunner")
   val debugIncludesTests = SettingKey[Boolean]("debug-includes-tests",
@@ -58,6 +60,8 @@ object Keys {
   val zipalignPath = SettingKey[String]("zipalign-path",
     "path to the zipalign executable")
   val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
+  val apkbuildExcludes = SettingKey[Seq[String]]("apkbuild-excludes",
+    "filepaths to exclude from apk, e.g. in case of duplicates")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")
   val builder = TaskKey[AndroidBuilder]("builder", "AndroidBuilder object")
   val packageRelease = TaskKey[File]("package-release", "create a release apk")
