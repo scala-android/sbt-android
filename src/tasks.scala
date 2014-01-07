@@ -36,6 +36,7 @@ import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 import Keys._
 import Dependencies._
 import com.android.builder.compiling.BuildConfigGenerator
+import java.net.URLEncoder
 
 object Tasks {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
@@ -1358,7 +1359,8 @@ object Tasks {
 
     if (!l) {
       Commands.targetDevice(k, s.log) foreach { d =>
-        val cacheName = "install-" + d.getSerialNumber
+        val cacheName = "install-" + URLEncoder.encode(
+          d.getSerialNumber, "utf-8")
         FileFunction.cached(c / cacheName, FilesInfo.hash) { in =>
           s.log.info("Installing...")
           installPackage(p, k, s.log)
