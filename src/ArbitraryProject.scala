@@ -28,10 +28,8 @@ object ArbitraryProject {
     // otherwise it's a world-of-pain to configure
     val info = new BuildLoader.ResolveInfo(uri, staging, null, st)
 
-    val f = Resolvers.uniqueSubdirectoryFor(uri.copy(scheme = "git"), staging)
-    f.mkdirs()
     Resolvers.git(info).get()
-    f
+    Resolvers.uniqueSubdirectoryFor(uri.copy(scheme = "git"), staging)
   }
 
   /** use by overriding buildLoaders on Build.
