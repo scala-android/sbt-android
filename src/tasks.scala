@@ -14,7 +14,7 @@ import java.io.{File,FileInputStream}
 
 import com.android.SdkConstants
 import com.android.builder.model.{PackagingOptions, AaptOptions}
-import com.android.builder.signing.DefaultSigningConfig
+import com.android.builder.signing.{KeystoreHelper, DefaultSigningConfig}
 import com.android.builder.AndroidBuilder
 import com.android.builder.DexOptions
 import com.android.builder.VariantConfiguration
@@ -578,6 +578,7 @@ object Tasks {
     val n = get(name in prj)
     val layout = get(projectLayout in (prj, Android))
     val cacheDir = get(cacheDirectory in prj)
+    val logger = get(ilogger in (prj, Android))
 
     val jars = (m ++ u).filter {
       a => (a.get(moduleID.key) map { mid =>
@@ -592,6 +593,9 @@ object Tasks {
 
     val debugConfig = new DefaultSigningConfig("debug")
     debugConfig.initDebug()
+    if (!debugConfig.getStoreFile.exists) {
+      KeystoreHelper.createDebugStore(debugConfig, logger(s.log))
+    }
 
     val rel = if (createDebug) "-debug-unaligned.apk"
       else "-release-unsigned.apk"
