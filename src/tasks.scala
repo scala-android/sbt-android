@@ -50,6 +50,23 @@ object Tasks {
   // wish this could be protected
   var _createDebug = true
 
+  val reservedWords = Set(
+    "def",
+    "forSome",
+    "implicit",
+    "lazy",
+    "match",
+    "object",
+    "override",
+    "sealed",
+    "trait",
+    "type",
+    "val",
+    "var",
+    "with",
+    "yield"
+  )
+
   def createDebug = _createDebug
   private def createDebug_=(d: Boolean) = _createDebug = d
 
@@ -275,12 +292,13 @@ object Tasks {
             "import scala.language.implicitConversions"
 
           tr.delete()
+          def wrap(s: String) = if (reservedWords(s)) "`%s`" format s else s
           IO.write(tr, trTemplate format (p, implicitsImport,
             resources map { case (k,v) =>
-              "  val `%s` = TypedResource[%s](R.id.`%s`)" format (k,v,k)
+              "  val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n",
             layoutTypes map { case (k,v) =>
-              "    val `%s` = TypedLayout[%s](R.layout.`%s`)" format (k,v,k)
+              "    val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n"))
           Set(tr)
         } else Set.empty
