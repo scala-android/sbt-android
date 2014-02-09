@@ -4,3 +4,4 @@ $ exists target/android-gen/com/example/app/TR.scala
 $ exists target/android-bin/classes.proguard.jar
 > check-dex
 > check-tr
+> check-resource

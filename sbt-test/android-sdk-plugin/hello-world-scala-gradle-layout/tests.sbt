@@ -19,8 +19,8 @@ TaskKey[Unit]("check-tr") <<= ( projectLayout in Android ) map { layout =>
   val tr = layout.gen / "com" / "example" / "app" / "TR.scala"
   val lines = IO.readLines(tr)
   val expected =
-    "val `hello` = TypedLayout[android.widget.FrameLayout](R.layout.`hello`)"
+    "val hello = TypedLayout[android.widget.FrameLayout](R.layout.hello)"
   val hasTextView = lines exists (_.trim == expected)
   if (!hasTextView)
-    error("Could not find TR.test_textview\n" + (lines mkString "\n"))
+    error("Could not find TR.hello\n" + (lines mkString "\n"))
 }

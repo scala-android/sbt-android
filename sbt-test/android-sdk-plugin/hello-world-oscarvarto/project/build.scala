@@ -37,11 +37,12 @@ object Build extends Build {
         "-Xlint",
         "-language:_",
         "-encoding", "UTF-8"
-      ),
+      )/*,
       libraryDependencies ++= Seq(
         Dependency.Compile.shapeless,
         Dependency.Compile.scalazCore
       )
+      */
     )
 
   object Version {

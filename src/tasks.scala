@@ -534,7 +534,6 @@ object Tasks {
                                 ) map {
     case (bldr, layout, manifest, (assets, res), pkg, lib, libs, cache, s) =>
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
-    val genPath = layout.gen.getAbsolutePath
 
     val rel = if (createDebug) "-debug" else "-release"
     val basename = "resources" + rel + ".ap_"
@@ -634,7 +633,7 @@ object Tasks {
       val options = new PackagingOptions {
         def getExcludes = excl.toSet.asJava
       }
-      bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, null,
+      bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, layout.resources.getAbsolutePath,
         Seq(jni.getAbsoluteFile), null, createDebug,
         if (createDebug) debugConfig else null, options, output.getAbsolutePath)
       s.log.info("Packaged: %s (%s)" format (

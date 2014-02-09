@@ -227,6 +227,7 @@ object Keys {
     def testJavaSource: File
     def testAssets: File
     def testRes: File
+    def resources: File
     def res: File
     def assets: File
     def manifest: File
@@ -254,6 +255,7 @@ object Keys {
       override def scalaSource = sources
       override def javaSource = sources
       override def res = base / "res"
+      override def resources = base / "resources"
       override def assets = base / "assets"
       override def manifest = base / "AndroidManifest.xml"
       override def gen = base / "gen"
@@ -275,6 +277,7 @@ object Keys {
       override def scalaSource = sources / "scala"
       override def javaSource = sources / "java"
       override def res = sources / "res"
+      override def resources = sources / "resources"
       override def assets = sources / "assets"
       override def gen = base / "target" / "android-gen"
       override def bin = base / "target" / "android-bin"
