@@ -16,7 +16,14 @@ Features not support from the regular android build yet are compiling `NDK`
 code. Although, `NDK` libraries will be picked up from `libs` as in typical
 ant builds (or `src/main/jni` if you're using the new Gradle layout).
 
-## New features in 1.2.x ##
+## New features in 1.3.x (work in progress) ##
+
+* Updated to com.android.tools.build 0.8.x
+  * Now requires android build-tools 19.0.0 or newer
+* `android:dex` task now returns a folder for the output dex not a `classes.dex`
+  file.
+
+## New features in 1.2.x (last version: 1.2.9 or 1.2.10) ##
 
 * Add setting `android:debug-includes-tests` (default = true) to automatically
   include instrumented test cases in the debug APK instead of using a separate
@@ -60,7 +67,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   Can be rectified by setting
   `apkbuildExcludes in Android += "META-INF/LICENSE.txt"`
 
-## New features in 1.1.x ##
+## New features in 1.1.x (last version: 1.1.2) ##
 
 * Automatically load declared library projects from `project.properties`,
   `build.scala` is no longer necessary to configure the library projects,
@@ -83,7 +90,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 * instrumented tests now go into `src/instrumentTest` in gradle-layout projects
   * a test `AndroidManifest.xml` will be automatically generated if not present
 
-## New features in 1.0.x ##
+## New features in 1.0.x (last version: 1.0.8) ##
 
 * Customizable proguard caching!
 * Proguard cache rules are defined using the `proguardCache in Android`
@@ -120,7 +127,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   proguard cache-miss (clear dex file on the first cache-hit build after
   proguarding; caused by dex incremental builds)
 
-## New features in 0.9.x ##
+## New features in 0.9.x (last version: 0.9.3) ##
 
 * If sbt-idea is used, 1.6.0 and newer is required (alternatively, can use my
   fork at
@@ -145,7 +152,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 * Add `android.ArbitraryProject` load any project you want from a git repo,
   see [this example](https://gist.github.com/pfn/6238004) for details.
 
-## New features in 0.8.x ##
+## New features in 0.8.x (last version: 0.8.2) ##
 
 * NOTICE: sbt-0.11 is no longer supported with this release
 * Library projects can now declare activities and services and other
@@ -163,7 +170,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   multiple projects with many resources.
 * Many delta build issues fixed.
 
-## New features in 0.7.x ##
+## New features in 0.7.x (last version: 0.7.8) ##
 
 * Projects can now follow an ant-style or gradle-style layout. The location
   of `AndroidManifest.xml` will auto-select which layout to use, if it is
