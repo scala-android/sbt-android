@@ -2,7 +2,7 @@ import ScriptedPlugin._
 
 name := "android-sdk-plugin"
 
-version := "1.2.9"
+version := "1.2.10"
 
 organization := "com.hanhuy.sbt"
 
@@ -40,7 +40,7 @@ publishMavenStyle := false
 // scripted-test settings
 scriptedSettings
 
-scriptedLaunchOpts += "-Xmx1024m"
+scriptedLaunchOpts ++= Seq("-Xmx1024m", "-XX:PermSize=512m")
 
 //scriptedBufferLog := false
 

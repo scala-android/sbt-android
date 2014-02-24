@@ -68,10 +68,10 @@ object Plugin extends sbt.Plugin {
     androidBuild(projects:_*) ++ buildApklib
   }
 
-  def buildAar =
+  def buildAar = Seq(libraryProject in Android := true) ++
       addArtifact(aarArtifact in Android, packageAar in Android)
 
-  def buildApklib =
+  def buildApklib = Seq(libraryProject in Android := true) ++
     addArtifact(apklibArtifact in Android, packageApklib in Android)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
