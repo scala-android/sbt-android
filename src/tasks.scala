@@ -1187,7 +1187,7 @@ object Tasks {
     val minSdk = extracted.get(minSdkVersion in Android)
     val sdk = extracted.get(sdkPath in Android)
     val runner = extracted.get(instrumentTestRunner in Android)
-    val xmx = extracted.get(dexMaxHeap in (prj,Android))
+    val xmx = extracted.get(dexMaxHeap in Android)
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
