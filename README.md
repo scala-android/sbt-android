@@ -333,6 +333,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     * It could also be specified, for example, like so:
       `android.Plugin.androidBuild ++ android.Plugin.buildAar`
 * Multi-project builds
+  * All sub-projects in a multi-project build must specify `exportJars := true`
   * Several documented examples can be found at the following links, they
     cover a variety of situations, from multiple java projects, to mixed
     java and android projects and fully scala projects.
