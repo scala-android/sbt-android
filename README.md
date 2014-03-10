@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.2.10
+Current version is 1.2.11
 
 ## Description ##
 
@@ -18,12 +18,12 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 
 ## New features in 1.3.x (work in progress) ##
 
-* Updated to com.android.tools.build 0.8.x
-  * Now requires android build-tools 19.0.0 or newer
+* Update to com.android.tools.build 0.9.x
+  * Now requires android build-tools 19.0.3 or newer
 * `android:dex` task now returns a folder for the output dex not a `classes.dex`
   file.
 
-## New features in 1.2.x (last version: 1.2.10) ##
+## New features in 1.2.x (last version: 1.2.11) ##
 
 * Add setting `android:debug-includes-tests` (default = true) to automatically
   include instrumented test cases in the debug APK instead of using a separate
@@ -240,7 +240,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
    `project/plugins.sbt`, in it, add the following line:
 
     ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.10")
+    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.11")
     ```
 
 4. Create `project/build.properties` and add the following line:

@@ -1187,6 +1187,7 @@ object Tasks {
     val minSdk = extracted.get(minSdkVersion in Android)
     val sdk = extracted.get(sdkPath in Android)
     val runner = extracted.get(instrumentTestRunner in Android)
+    val xmx = extracted.get(dexMaxHeap in (prj,Android))
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
@@ -1243,7 +1244,7 @@ object Tasks {
         def getIncremental = true
         def getJumboMode = false
         def getPreDexLibraries = false
-        def getJavaMaxHeapSize = "1024m"
+        def getJavaMaxHeapSize = xmx
       }
       val rTxt = classes / "R.txt"
       val dex = layout.bin / "classes-test.dex"
