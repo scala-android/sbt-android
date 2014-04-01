@@ -194,21 +194,6 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   `androidBuildApklib`, `buildApklib`, and `buildAar` shortcuts located in
   `android.Plugin`
 
-## Description ##
-
-This is an easy-to-use plugin for existing and newly created android
-projects.  It is tested and developed against 0.12.4; while building
-against 0.13 is also in progress.
-
-The plugin supports normal android projects and projects that reference
-library projects. 3rd party libraries can be included by placing them in
-`libs` as in regular projects, or they can be added by using sbt's
-`libraryDependencies` feature.
-
-Features not support from the regular android build yet are compiling `NDK`
-code. Although, `NDK` libraries will be picked up from `libs` as in typical
-ant builds (or `src/main/jni` if you're using the new Gradle layout).
-
 ## Example projects ##
 
 * A variety of my own projects can be found on github that use this plugin
