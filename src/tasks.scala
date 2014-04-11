@@ -584,11 +584,12 @@ object Tasks {
                         , dex
                         , unmanagedJars in Compile
                         , managedClasspath
+                        , dependencyClasspath in Compile
                         , collectJni
                         , apkbuildExcludes
                         , streams
                         ) map {
-    (bldr, st, prj, r, d, u, m, jni, excl, s) =>
+    (bldr, st, prj, r, d, u, m, dcp, jni, excl, s) =>
     val extracted = Project.extract(st)
     import extracted._
 
@@ -597,7 +598,7 @@ object Tasks {
     val cacheDir = get(cacheDirectory in prj)
     val logger = get(ilogger in (prj, Android))
 
-    val jars = (m ++ u).filter {
+    val jars = (m ++ u ++ dcp).filter {
       a => (a.get(moduleID.key) map { mid =>
         mid.organization != "org.scala-lang"
       } getOrElse true) && a.data.exists
@@ -633,7 +634,8 @@ object Tasks {
       val options = new PackagingOptions {
         def getExcludes = excl.toSet.asJava
       }
-      bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars, layout.resources.getAbsolutePath,
+      bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars,
+        layout.resources.getAbsolutePath,
         Seq(jni.getAbsoluteFile), null, createDebug,
         if (createDebug) debugConfig else null, options, output.getAbsolutePath)
       s.log.info("Packaged: %s (%s)" format (
