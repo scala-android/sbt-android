@@ -285,6 +285,7 @@ object Plugin extends sbt.Plugin {
       s => (s ** "*.scala").get.size > 0
     },
     typedResources          <<= proguardScala,
+    typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
     useProguard             <<= proguardScala,
     useSdkProguard          <<= proguardScala (!_),

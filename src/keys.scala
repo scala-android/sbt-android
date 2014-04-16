@@ -29,6 +29,8 @@ object Keys {
     "setting to determine whether the project is laid out ant or gradle-style")
   val typedResources = SettingKey[Boolean]("typed-resources",
     "flag indicating whether to generated TR.scala")
+  val typedResourcesIgnores = SettingKey[Seq[String]]("typed-resources-ignores",
+    "list of android package names to ignore for TR.scala generation")
   val proguardScala = SettingKey[Boolean]("proguard-scala",
     "include scala-library in proguard: true if scala source present")
   val proguardLibraries = SettingKey[Seq[File]]("proguard-libraries",

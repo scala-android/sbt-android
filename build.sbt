@@ -2,7 +2,7 @@ import ScriptedPlugin._
 
 name := "android-sdk-plugin"
 
-version := "1.2.12"
+version := "1.2.13"
 
 organization := "com.hanhuy.sbt"
 
@@ -26,7 +26,7 @@ libraryDependencies ++= Seq(
 
 sbtPlugin := true
 
-publishTo <<= (version) { version =>
+publishTo <<= version { version =>
   val scalasbt = "http://scalasbt.artifactoryonline.com/scalasbt/"
   val (name, url) = if (version contains "-SNAPSHOT")
     ("scala-sbt-snapshots", scalasbt + "sbt-plugin-snapshots")

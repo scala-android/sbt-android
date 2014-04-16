@@ -214,13 +214,15 @@ object Tasks {
                                        , scalaVersion
                                        , cacheDirectory
                                        , libraryProjects
+                                       , typedResourcesIgnores
                                        , streams
                                        ) map {
-    case (t, a, p, layout, (j, x), sv, c, l, s) =>
+    case (t, a, p, layout, (j, x), sv, c, l, i, s) =>
 
     val r = layout.res
     val b = layout.base
     val g = layout.gen
+    val ignores = i.toSet
 
     val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
 
@@ -234,7 +236,10 @@ object Tasks {
           val androidjar = ClasspathUtilities.toLoader(file(j))
           val layouts = (r ** "layout*" ** "*.xml" get) ++
             (for {
-              lib <- l
+              lib <- l filterNot {
+                case p: Pkg => ignores(p.pkg)
+                case _      => false
+              }
               xml <- (lib.getResFolder) ** "layout*" ** "*.xml" get
             } yield xml)
 
