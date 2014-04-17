@@ -295,6 +295,9 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     * For library projects in a multi-project build that transitively include
       either aar or apklibs, you will need to add a dependency statement
       into your main-project's settings:
+    * `apklib` and `aar` that transitively depend on `apklib` and `aar` must
+      explicitly call out the dependency in `libraryDependencies` (this is a
+      necessity for multi-project libs to avoid duplicate inclusion errors)
     * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
     * Alternatively, the `androidBuild()` overload may be used to specify
       all dependency library-projects which should relieve this problem.
@@ -417,9 +420,4 @@ Android Java-based applications.
 * `autolibs` do not properly process `apklib` and `aar` resources. If anything
   in an `autolib` uses resources from such a library, the answer is to create
   a standard multi-project build configuration rather than utilize `autolibs`.
-  `autolibs` can be disabled by setting `autolibs in Android := Seq.empty`
-
-#### Thanks to ####
-
-* pfurla, jberkel, mharrah, retronym and the other folks from #sbt and #scala
-  for bearing with my questions and helping me learn sbt.
+  `autolibs` can be disabled by manually configuring `localProjects in Android`
