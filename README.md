@@ -414,6 +414,10 @@ Android Java-based applications.
   plugin sets the system property `xsbt.skip.cp.lookup` to `true` to bypass
   this issue; this disables certain incremental compilation checks, but should
   not be an issue for the majority of use-cases.
+* `autolibs` do not properly process `apklib` and `aar` resources. If anything
+  in an `autolib` uses resources from such a library, the answer is to create
+  a standard multi-project build configuration rather than utilize `autolibs`.
+  `autolibs` can be disabled by setting `autolibs in Android := Seq.empty`
 
 #### Thanks to ####
 

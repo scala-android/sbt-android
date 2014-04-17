@@ -142,12 +142,16 @@ object Tasks {
                         , genPath
                         , libraryProject
                         , builder
+                        , ilogger
                         , streams ) map {
-   (prjs,gen,isLib,bldr,s) =>
+   (prjs,gen,isLib,bldr,logger,s) =>
      prjs collect { case a: AutoLibraryProject => a } flatMap { lib =>
       s.log.info("Processing library project: " + lib.pkg)
 
       lib.getProguardRules.getParentFile.mkdirs
+      // TODO collect resources from apklibs and aars
+//      doCollectResources(bldr, true, true, Seq.empty, lib.layout,
+//        logger, file("/"), s)
       aapt(bldr, lib.getManifest, null, Seq.empty, true,
           lib.getResFolder, lib.getAssetsFolder, null,
           lib.layout.gen, lib.getProguardRules.getAbsolutePath,
@@ -334,16 +338,15 @@ object Tasks {
 
     jni
   }
-  val collectResourcesTaskDef = ( builder
-                                , debugIncludesTests
-                                , libraryProject
-                                , libraryProjects
-                                , projectLayout
-                                , ilogger
-                                , cacheDirectory
-                                , streams
-                                ) map {
-    (bldr, noTestApk, isLib, libs, layout, logger, cache, s) =>
+  def doCollectResources( bldr: AndroidBuilder
+                        , noTestApk: Boolean
+                        , isLib: Boolean
+                        , libs: Seq[LibraryDependency]
+                        , layout: ProjectLayout
+                        , logger: Logger => ILogger
+                        , cache: File
+                        , s: TaskStreams
+                        ): (File,File) = {
 
     val assetBin = layout.bin / "assets"
     val assets = layout.assets
@@ -362,7 +365,7 @@ object Tasks {
       IO.copyDirectory(layout.testAssets, assetBin, false, true)
     // prepare resource sets for merge
     val res = Seq(layout.res) ++ (libs map { _.layout.res } filter {
-        _.isDirectory })
+      _.isDirectory })
 
     s.log.debug("Local/library-project resources: " + res)
     // this needs to wait for other projects to at least finish their
@@ -391,11 +394,24 @@ object Tasks {
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
       incrResourceMerge(layout.base, resTarget, isLib, libs,
-      cache / "collect-resources", logger(s.log), bldr, sets, inChanges, s.log)
+        cache / "collect-resources", logger(s.log), bldr, sets, inChanges, s.log)
       (resTarget ***).get.toSet
     }(inputs toSet)
 
     (assetBin, resTarget)
+  }
+
+  val collectResourcesTaskDef = ( builder
+                                , debugIncludesTests
+                                , libraryProject
+                                , libraryProjects
+                                , projectLayout
+                                , ilogger
+                                , cacheDirectory
+                                , streams
+                                ) map {
+    (bldr, noTestApk, isLib, libs, layout, logger, cache, s) =>
+      doCollectResources(bldr, noTestApk, isLib, libs, layout, logger, cache, s)
   }
 
   def incrResourceMerge(base: File, resTarget: File, isLib: Boolean,
