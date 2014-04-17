@@ -215,7 +215,7 @@ object Tasks {
                                        , packageForR
                                        , projectLayout
                                        , platformJars
-                                       , scalaVersion
+                                       , scalaVersion in ThisProject
                                        , cacheDirectory
                                        , libraryProjects
                                        , typedResourcesIgnores
