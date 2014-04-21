@@ -1456,12 +1456,12 @@ object Tasks {
 
   def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):
   Seq[AutoLibraryProject] = {
-      p.stringPropertyNames.collect {
+    (p.stringPropertyNames.collect {
         case k if k.startsWith("android.library.reference") => k
       }.toList.sortWith { (a,b) => a < b } map { k =>
         AutoLibraryProject(b/p(k)) +:
-          loadLibraryReferences(b, loadProperties(b/p(k)), k)
-      } flatten
+          loadLibraryReferences(b/p(k), loadProperties(b/p(k)), k)
+      } flatten) distinct
   }
 
   def loadProperties(path: File): Properties = {

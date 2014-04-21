@@ -94,6 +94,14 @@ object Dependencies {
   class AutoLibraryProject(override val path: File)
   extends LibraryProject(path) with Pkg {
     lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
+
+    override def equals(obj: scala.Any) = obj match {
+      case l: LibraryProject =>
+        l.path.getCanonicalFile == path.getCanonicalFile
+      case _ => false
+    }
+
+    override def hashCode() = path.getCanonicalFile.hashCode
   }
 }
 // vim: set ts=2 sw=2 et:
