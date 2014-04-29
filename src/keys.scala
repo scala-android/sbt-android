@@ -123,7 +123,9 @@ object Keys {
   val dex = TaskKey[File]("dex", "run bytecode dexer")
   val dexInputs = TaskKey[Seq[File]]("dex-inputs", "input jars to dex")
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
-   "Maximum heapsize for dx, default 1024m")
+   "Maximum heapsize for dex, default 1024m")
+  val dexCoreLibrary = SettingKey[Boolean]("dex-core-library",
+   "core-library flag for dex, default false")
   val classesDex = SettingKey[File]("classes-dex", "output classes.dex path")
   val versionName = SettingKey[Option[String]]("version-name",
     "application version name")
