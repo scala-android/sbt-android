@@ -1017,13 +1017,14 @@ object Tasks {
   val dexTaskDef = ( builder
                    , dexInputs
                    , dexMaxHeap
+                   , dexCoreLibrary
                    , libraryProject
                    , classesDex
                    , streams) map {
-    (bldr, inputs, xmx, lib, outDex, s) =>
+    (bldr, inputs, xmx, cl, lib, outDex, s) =>
     if (inputs exists { _.lastModified > outDex.lastModified }) {
       val options = new DexOptions {
-        def isCoreLibrary = false
+        def isCoreLibrary = cl
         def getIncremental = true
         def getJavaMaxHeapSize = xmx
         def getPreDexLibraries = false
@@ -1211,6 +1212,7 @@ object Tasks {
     val sdk = extracted.get(sdkPath in Android)
     val runner = extracted.get(instrumentTestRunner in Android)
     val xmx = extracted.get(dexMaxHeap in Android)
+    val cl  = extracted.get(dexCoreLibrary in Android)
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
@@ -1263,7 +1265,7 @@ object Tasks {
       bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, trunner,
         false, false, libs, processedManifest.getAbsolutePath)
       val options = new DexOptions {
-        def isCoreLibrary = false
+        def isCoreLibrary = cl
         def getIncremental = true
         def getJumboMode = false
         def getPreDexLibraries = false
