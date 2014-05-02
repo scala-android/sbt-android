@@ -129,9 +129,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 
 ## New features in 0.9.x (last version: 0.9.3) ##
 
-* If sbt-idea is used, 1.6.0 and newer is required (alternatively, can use my
-  fork at
-  `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.6.0")`)
+* If sbt-idea is used, 1.6.0 and newer is required
 * Instrumented (on-device) testing
   * Test cases may *only* use a subset of scala used by the main application,
     referencing anything above and beyond that used by the main application
@@ -276,9 +274,8 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     nor Eclipse.
   * To generate project files for loading into IntelliJ, use the `sbt-idea`
     plugin by adding
-    `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.6.0")` to your
-    `project/plugins.sbt` and running the command `sbt gen-idea` (*NOTE*:
-    temporarily use my sbt-idea fork until my pull request is merged).
+    `addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")` to your
+    `project/plugins.sbt` and running the command `sbt gen-idea`
   * When loading a project into IntelliJ, it is recommended that the `SBT`
     and `Scala` plugins are installed; the `SBT` plugin allows replacing the
     default `Make` builder with sbt, enabling seamless builds from the IDE.
