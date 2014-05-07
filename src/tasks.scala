@@ -135,7 +135,15 @@ object Tasks {
       dest.mkdirs()
       IO.unzip(aar, dest)
     }
-    AarLibrary(dest)
+    // rename for sbt-idea when using multiple aar packages
+    val lib = AarLibrary(dest)
+    val renamedJar = lib.getJarFile.getParentFile / (dest.getName + ".jar")
+    if (lib.getJarFile.exists) {
+      lib.getJarFile.renameTo(renamedJar)
+    }
+    new AarLibrary(dest) {
+      override def getJarFile = renamedJar
+    }
   }
 
   val autolibsTaskDef = ( localProjects

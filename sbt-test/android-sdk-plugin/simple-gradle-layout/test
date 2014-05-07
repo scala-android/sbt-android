@@ -1,3 +1,5 @@
 > android:proguard-cache
 > android:platform-target
 > verify-package
+> show android:aars
+$ exists target/aars/com.google.android.gms-play-services-4.3.23/com.google.android.gms-play-services-4.3.23.jar
