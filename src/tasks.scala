@@ -633,7 +633,7 @@ object Tasks {
       } getOrElse true) && a.data.exists
     }.groupBy(_.data.getName).collect {
       case ("classes.jar",xs) => xs.distinct
-      case (_,xs) => xs.head :: Nil
+      case (_,xs) if xs.head.data.isFile => xs.head :: Nil
     }.flatten.map (_.data).toList
 
     s.log.debug("jars to process for resources: " + jars)
@@ -1067,7 +1067,8 @@ object Tasks {
       val injars = d.filter { a =>
         val in = a.data
         (s || !in.getName.startsWith("scala-library")) &&
-          !l.exists { i => i.getName == in.getName}
+          !l.exists { i => i.getName == in.getName} &&
+          in.isFile
       }.distinct :+ Attributed.blank(c)
       val extras = x map (f => file(f))
 
