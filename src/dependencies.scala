@@ -1,4 +1,5 @@
 package android
+
 import sbt._
 
 import scala.collection.JavaConversions._
@@ -25,6 +26,7 @@ object Dependencies {
     def path: File
     val layout = Keys.ProjectLayout(path)
 
+    override def getName = path.getCanonicalPath
     override def getProject = null
     override def getBundle = null
     override def getManifest = layout.manifest
@@ -45,8 +47,9 @@ object Dependencies {
     override def getManifestDependencies = getDependencies
 
     override def getLocalDependencies = getLocalJars map {
-      j => new JarDependency(j)
+      j => new JarDependency(j, true, false)
     }
+    override def getProjectVariant = null
   }
 
   case class ApkLibrary(val path: File) extends LibraryDependency with Pkg {

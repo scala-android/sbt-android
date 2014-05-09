@@ -79,14 +79,14 @@ object Tasks {
                                     , packageForR
                                     ) map {
     (t, g, l, p) =>
-    val b = new BuildConfigGenerator(g.getAbsolutePath, p)
+    val b = new BuildConfigGenerator(g, p)
     b.addField("boolean", "DEBUG", createDebug.toString)
     b.generate()
     l collect {
       case a: ApkLibrary         => a
       case a: AutoLibraryProject => a
     } foreach { lib =>
-      val b = new BuildConfigGenerator(g.getAbsolutePath, lib.pkg)
+      val b = new BuildConfigGenerator(g, lib.pkg)
       b.addField("boolean", "DEBUG", createDebug.toString)
       b.generate()
     }
@@ -491,7 +491,7 @@ object Tasks {
       }
       if (!exists) {
         slog.info("Performing incremental resource merge")
-        val writer = new MergedResourceWriter(resTarget, bldr.getAaptRunner)
+        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher)
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
@@ -510,7 +510,7 @@ object Tasks {
       r.loadFromFiles(logger)
       merger.addDataSet(r)
     }
-    val writer = new MergedResourceWriter(resTarget, bldr.getAaptRunner)
+    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher)
     merger.mergeData(writer, false)
     merger.writeBlobTo(blobDir, writer)
   }
@@ -663,8 +663,9 @@ object Tasks {
       ))
       val options = new PackagingOptions {
         def getExcludes = excl.toSet.asJava
+        def getPickFirsts = Set.empty[String]
       }
-      bldr.packageApk(r.getAbsolutePath, d.getAbsolutePath, jars,
+      bldr.packageApk(r.getAbsolutePath, d, jars,
         layout.resources.getAbsolutePath,
         Seq(jni.getAbsoluteFile), null, createDebug,
         if (createDebug) debugConfig else null, options, output.getAbsolutePath)
@@ -856,7 +857,7 @@ object Tasks {
     else {
       bldr.processManifest(layout.manifest, Seq.empty[File],
         if (merge) libs else Seq.empty[LibraryDependency],
-        pkg, vc getOrElse -1, vn getOrElse null, minSdk, sdk,
+        pkg, vc getOrElse -1, vn getOrElse null, minSdk.toString, sdk,
         output.getAbsolutePath)
       if (noTestApk) {
          val top = XML.loadFile(output)
@@ -941,6 +942,7 @@ object Tasks {
     val options = new AaptOptions {
       override def getIgnoreAssets = null
       override def getNoCompress = null
+      override def getUseAaptPngCruncher = true
     }
     val genPath = gen.getAbsolutePath
     val all = collectdeps(libs) ++ libs
@@ -953,7 +955,8 @@ object Tasks {
     bldr.processResources(manifest, res, assets, all,
       pkg, genPath, genPath, resApk, proguardTxt,
       if (lib) VariantConfiguration.Type.LIBRARY else
-        VariantConfiguration.Type.DEFAULT, createDebug, options, Seq.empty[String])
+        VariantConfiguration.Type.DEFAULT, createDebug, options,
+      Seq.empty[String], true)
   }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
@@ -995,26 +998,17 @@ object Tasks {
                          , binPath
                          , dependencyClasspath
                          , classesJar
-                         , classesDex
                          , state
                          , streams) map {
-    (p, i, pc, b, d, j, cd, st, s) =>
+    (p, i, pc, b, d, j, st, s) =>
 
     // TODO use getIncremental in DexOptions instead
     val proguardedDexMarker = b / ".proguarded-dex"
-    (p map { f =>
+    ((createDebug && !proguardedDexMarker.exists) -> (p map { f =>
       IO.touch(proguardedDexMarker, false)
       Seq(f)
     } getOrElse {
-      if (createDebug && proguardedDexMarker.exists) {
-        s.log.info("[debug] Forcing clean dex")
-        cd.delete() // force a clean dex on first non-proguard dex run
-        proguardedDexMarker.delete()
-      }
-      if (!createDebug && cd.exists) {
-        s.log.info("[release] Forcing clean dex")
-        cd.delete() // always force a clean dex in release builds
-      }
+      proguardedDexMarker.delete()
       (d filterNot { a => pc exists (_.matches(a, st)) } collect {
         // no proguard? then we don't need to dex scala!
         case x if !x.data.getName.startsWith("scala-library") &&
@@ -1023,7 +1017,7 @@ object Tasks {
     }).groupBy (_.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
-    }.flatten.toSeq
+    }.flatten.toSeq)
   }
 
   val dexTaskDef = ( builder
@@ -1031,26 +1025,22 @@ object Tasks {
                    , dexMaxHeap
                    , dexCoreLibrary
                    , libraryProject
-                   , classesDex
+                   , binPath
                    , streams) map {
-    (bldr, inputs, xmx, cl, lib, outDex, s) =>
-    if (inputs exists { _.lastModified > outDex.lastModified }) {
-      val options = new DexOptions {
-        def isCoreLibrary = cl
-        def getIncremental = true
-        def getJavaMaxHeapSize = xmx
-        def getPreDexLibraries = false
-        def getJumboMode = false
-      }
-      s.log.info("Generating " + outDex.getName)
-      s.log.debug("Dex inputs: " + inputs)
-      bldr.convertByteCode(Seq.empty[File] ++
-        inputs filter (_.isFile), Seq.empty[File],
-        outDex.getAbsoluteFile, options, true)
-    } else {
-      s.log.info(outDex.getName + " is up-to-date")
+    case (bldr, (incr,inputs), xmx, cl, lib, bin, s) =>
+    val options = new DexOptions {
+      def isCoreLibrary = cl
+      def getIncremental = incr
+      def getJavaMaxHeapSize = xmx
+      def getPreDexLibraries = false
+      def getJumboMode = false
+      def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
     }
-    outDex
+    s.log.info("Generating dex, incremental=" + incr)
+    s.log.debug("Dex inputs: " + inputs)
+    bldr.convertByteCode(Seq.empty[File] ++
+      inputs filter (_.isFile), Seq.empty[File], bin, options, Nil, true)
+    bin
   }
 
   val proguardInputsTaskDef = ( useProguard
@@ -1275,17 +1265,19 @@ object Tasks {
       val tpkg = instrData flatMap (_._2) getOrElse pkg
       val processedManifest = classes / "AndroidManifest.xml"
       // profiling and functional test? false for now
-      bldr.processTestManifest(testPackage, minSdk, targetSdk, tpkg, trunner,
-        false, false, libs, processedManifest.getAbsolutePath)
+      bldr.processTestManifest(testPackage, minSdk.toString, targetSdk, tpkg,
+        trunner, false, false, libs, processedManifest.getAbsolutePath)
       val options = new DexOptions {
         def isCoreLibrary = cl
         def getIncremental = true
         def getJumboMode = false
         def getPreDexLibraries = false
         def getJavaMaxHeapSize = xmx
+        def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
       }
       val rTxt = classes / "R.txt"
-      val dex = layout.bin / "classes-test.dex"
+      val dex = layout.bin / "dex-test"
+      dex.mkdirs()
       val res = layout.bin / "resources-test.ap_"
       val apk = layout.bin / "instrumentation-test.ap_"
 
@@ -1296,17 +1288,16 @@ object Tasks {
 
       val deps = tlib filterNot (clib contains)
       bldr.convertByteCode(Seq(classes) ++ (deps map (_.data)), Seq.empty[File],
-        dex.getAbsoluteFile, options, false)
+        dex, options, Nil, false)
 
-      if (!dex.exists)
-        sys.error("No test classes (no dex)")
       val debugConfig = new DefaultSigningConfig("debug")
       debugConfig.initDebug
 
       val opts = new PackagingOptions {
         def getExcludes = Set.empty[String]
+        def getPickFirsts = Set.empty[String]
       }
-      bldr.packageApk(res.getAbsolutePath, dex.getAbsolutePath,
+      bldr.packageApk(res.getAbsolutePath, dex,
         Seq.empty[File], null, null, null, createDebug, debugConfig,
         opts, apk.getAbsolutePath)
       s.log.info("Testing...")

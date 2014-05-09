@@ -3,15 +3,13 @@ import sbt._
 import sbt.Keys._
 
 import com.android.builder.AndroidBuilder
-import com.android.builder.DefaultSdkParser
+import com.android.builder.sdk.DefaultSdkLoader
 import com.android.sdklib.{IAndroidTarget,SdkManager}
-import com.android.sdklib.BuildToolInfo.PathId
 import com.android.sdklib.repository.FullRevision
 import com.android.SdkConstants
 import com.android.utils.ILogger
 
 import java.io.File
-import java.util.Properties
 
 import scala.util.control.Exception._
 import scala.collection.JavaConversions._
@@ -120,23 +118,19 @@ object Plugin extends sbt.Plugin {
     },
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn(compile),
-    javacOptions      <<= ( javacOptions
-                          , sdkParser in Android) map {
-      case (o, p) =>
+    javacOptions      <<= (javacOptions, builder in Android) map { (o,bldr) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (createDebug) Seq("-g") else Seq.empty
-      val bcp = AndroidBuilder.getBootClasspath(p) mkString File.pathSeparator
+      val bcp = bldr.getBootClasspath() mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
       // TODO sbt 0.12 expects javacOptions to be a Task, not Setting
       o ++ Seq("-bootclasspath" , bcp,
         "-source", "1.5", "-target", "1.5") ++ debugOptions
     },
-    scalacOptions     <<= ( scalacOptions
-                          , sdkParser in Android) map {
-      case (o, p) =>
+    scalacOptions     <<= (scalacOptions, builder in Android) map { (o,bldr) =>
       // scalac has -g:vars by default
-      val bcp = AndroidBuilder.getBootClasspath(p) mkString File.pathSeparator
+      val bcp = bldr.getBootClasspath() mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
@@ -215,7 +209,6 @@ object Plugin extends sbt.Plugin {
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= projectLayout (_.bin),
     classesJar              <<= binPath (_ / "classes.jar"),
-    classesDex              <<= binPath (_ / "classes.dex"),
     rGenerator              <<= rGeneratorTaskDef,
     rGenerator              <<= rGenerator dependsOn (renderscript),
     aidl                    <<= aidlTaskDef,
@@ -368,14 +361,13 @@ object Plugin extends sbt.Plugin {
     },
     ilogger                  := { l: Logger => SbtLogger(l) },
     buildToolsVersion        := None,
-    sdkParser               <<= ( sdkManager
+    sdkLoader               <<= ( sdkManager
                                 , platformTarget
                                 , buildToolsVersion
                                 , ilogger
                                 , streams) map {
       (m, t, v, l, s) =>
-      val parser = new DefaultSdkParser(m.getLocation, null)
-
+      val parser = DefaultSdkLoader.getLoader(file(m.getLocation))
       val bt = v map { version =>
         m.getBuildTool(FullRevision.parseRevision(version))
       } getOrElse {
@@ -383,18 +375,33 @@ object Plugin extends sbt.Plugin {
         s.log.debug("Using Android build-tools: " + tools)
         tools
       }
-      if (bt == null) {
-        s.log.info("Available build tools: \n  " +
-          (m.getBuildTools mkString "\n  "))
-        sys.error("Android SDK build-tools not found: " + v)
-      }
-      parser.initParser(t, bt.getRevision, l(s.log))
       parser
     },
-    builder                 <<= (sdkParser, ilogger, streams) map {
-      (parser, l, s) =>
+    builder                 <<= ( sdkLoader
+                                , sdkManager
+                                , ilogger
+                                , buildToolsVersion
+                                , platformTarget
+                                , streams) map {
+      (ldr, m, l, v, t, s) =>
 
-      new AndroidBuilder(parser, "android-sdk-plugin", l(s.log), false)
+      val bldr = new AndroidBuilder("android-sdk-plugin", l(s.log), false)
+      val sdkInfo = ldr.getSdkInfo(l(s.log))
+      val rev = v map { version =>
+        FullRevision.parseRevision(version)
+      } getOrElse {
+        val tools = m.getLatestBuildTool
+        if (tools == null) {
+          s.log.info("Available build tools: \n  " +
+            (m.getBuildTools mkString "\n  "))
+          sys.error("Android SDK build-tools not found: " + v)
+        }
+        s.log.debug("Using Android build-tools: " + tools)
+        tools.getRevision
+      }
+      val targetInfo = ldr.getTargetInfo(t, rev, l(s.log))
+      bldr.setTargetInfo(sdkInfo, targetInfo)
+      bldr
     },
     sdkManager              <<= (sdkPath,ilogger, streams) map { (p, l, s) =>
       SdkManager.createManager(p, l(s.log))

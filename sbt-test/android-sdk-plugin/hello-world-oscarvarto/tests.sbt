@@ -2,11 +2,11 @@ import android.Keys._
 import java.util.zip._
 import java.io._
 
-TaskKey[Unit]("check-dex") <<= ( sdkParser in Android
+TaskKey[Unit]("check-dex") <<= ( builder in Android
                                , projectLayout in Android
                                ) map {
   (p,layout) =>
-  val tools = p.getBuildTools.getLocation
+  val tools = p.getTargetInfo.getBuildTools.getLocation
   val dexdump = tools / "dexdump"
   val lines = Seq(
     dexdump.getAbsolutePath,

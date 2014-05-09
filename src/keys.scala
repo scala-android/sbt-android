@@ -9,20 +9,18 @@ import java.io.File
 import java.util.Properties
 
 import com.android.builder.AndroidBuilder
-import com.android.builder.SdkParser
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 import com.android.utils.ILogger
 
 import Dependencies._
+import com.android.builder.sdk.SdkLoader
 
 object Keys {
   val ilogger = SettingKey[Logger => ILogger]("ilogger",
     "internal Android SDK logger")
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
     "Version of Android build-tools to utilize, None (default) for latest")
-  val sdkParser = TaskKey[SdkParser]("sdk-parser",
-    "internal Android SdkParser object")
   val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
     "TR.scala generating task")
   val projectLayout = SettingKey[ProjectLayout]("project-layout",
@@ -104,6 +102,8 @@ object Keys {
   val genPath = SettingKey[File]("gen-path", "android generated code path")
   val properties = SettingKey[Properties]("properties",
     "Properties loaded from the project's .property files")
+  val sdkLoader = TaskKey[SdkLoader]("sdk-loader",
+    "Internal android SDK loader")
   val sdkPath = SettingKey[String]("sdk-path", "Path to the Android SDK")
   val sdkManager = TaskKey[SdkManager]("sdk-manager",
     "Android SdkManager object")
@@ -121,12 +121,11 @@ object Keys {
   val renderscript = TaskKey[Seq[File]]("renderscript",
     "android renderscript source-gen task")
   val dex = TaskKey[File]("dex", "run bytecode dexer")
-  val dexInputs = TaskKey[Seq[File]]("dex-inputs", "input jars to dex")
+  val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "input jars to dex")
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
    "Maximum heapsize for dex, default 1024m")
   val dexCoreLibrary = SettingKey[Boolean]("dex-core-library",
    "core-library flag for dex, default false")
-  val classesDex = SettingKey[File]("classes-dex", "output classes.dex path")
   val versionName = SettingKey[Option[String]]("version-name",
     "application version name")
   val versionCode = SettingKey[Option[Int]]("version-code",
