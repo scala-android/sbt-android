@@ -1,5 +1,6 @@
 package android
 
+import com.android.ide.common.signing.KeystoreHelper
 import sbt._
 import sbt.Keys._
 import classpath.ClasspathUtilities
@@ -14,10 +15,8 @@ import java.io.{File,FileInputStream}
 
 import com.android.SdkConstants
 import com.android.builder.model.{PackagingOptions, AaptOptions}
-import com.android.builder.signing.{KeystoreHelper, DefaultSigningConfig}
-import com.android.builder.AndroidBuilder
-import com.android.builder.DexOptions
-import com.android.builder.VariantConfiguration
+import com.android.builder.signing.DefaultSigningConfig
+import com.android.builder.core.{DexOptions, VariantConfiguration, AndroidBuilder}
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.ddmlib.IShellOutputReceiver
 import com.android.ddmlib.DdmPreferences
@@ -642,7 +641,9 @@ object Tasks {
     val debugConfig = new DefaultSigningConfig("debug")
     debugConfig.initDebug()
     if (!debugConfig.getStoreFile.exists) {
-      KeystoreHelper.createDebugStore(debugConfig, logger(s.log))
+      KeystoreHelper.createDebugStore(null, debugConfig.getStoreFile,
+        debugConfig.getStorePassword, debugConfig.getKeyPassword,
+        debugConfig.getKeyAlias, logger(s.log))
     }
 
     val rel = if (createDebug) "-debug-unaligned.apk"
@@ -857,7 +858,7 @@ object Tasks {
     else {
       bldr.processManifest(layout.manifest, Seq.empty[File],
         if (merge) libs else Seq.empty[LibraryDependency],
-        pkg, vc getOrElse -1, vn getOrElse null, minSdk.toString, sdk,
+        pkg, vc getOrElse -1, vn getOrElse null, minSdk.toString, sdk.toString,
         output.getAbsolutePath)
       if (noTestApk) {
          val top = XML.loadFile(output)
@@ -1265,8 +1266,8 @@ object Tasks {
       val tpkg = instrData flatMap (_._2) getOrElse pkg
       val processedManifest = classes / "AndroidManifest.xml"
       // profiling and functional test? false for now
-      bldr.processTestManifest(testPackage, minSdk.toString, targetSdk, tpkg,
-        trunner, false, false, libs, processedManifest.getAbsolutePath)
+      bldr.processTestManifest(testPackage, minSdk.toString, targetSdk.toString,
+        tpkg, trunner, false, false, libs, processedManifest.getAbsoluteFile)
       val options = new DexOptions {
         def isCoreLibrary = cl
         def getIncremental = true

@@ -2,7 +2,7 @@ package android
 import sbt._
 import sbt.Keys._
 
-import com.android.builder.AndroidBuilder
+import com.android.builder.core.AndroidBuilder
 import com.android.builder.sdk.DefaultSdkLoader
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 import com.android.sdklib.repository.FullRevision
@@ -379,13 +379,14 @@ object Plugin extends sbt.Plugin {
     },
     builder                 <<= ( sdkLoader
                                 , sdkManager
+                                , name
                                 , ilogger
                                 , buildToolsVersion
                                 , platformTarget
                                 , streams) map {
-      (ldr, m, l, v, t, s) =>
+      (ldr, m, n, l, v, t, s) =>
 
-      val bldr = new AndroidBuilder("android-sdk-plugin", l(s.log), false)
+      val bldr = new AndroidBuilder(n, "android-sdk-plugin", l(s.log), false)
       val sdkInfo = ldr.getSdkInfo(l(s.log))
       val rev = v map { version =>
         FullRevision.parseRevision(version)

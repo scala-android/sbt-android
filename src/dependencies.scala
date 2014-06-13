@@ -50,6 +50,10 @@ object Dependencies {
       j => new JarDependency(j, true, false)
     }
     override def getProjectVariant = null
+
+    override def getRequestedCoordinates = null
+
+    override def getResolvedCoordinates = null
   }
 
   case class ApkLibrary(val path: File) extends LibraryDependency with Pkg {

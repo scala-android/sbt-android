@@ -18,8 +18,8 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 
 ## New features in 1.3.x (work in progress) ##
 
-* Update to com.android.tools.build 0.9.x
-  * Now requires android build-tools 19.0.3 or newer
+* Update to com.android.tools.build 0.11.x
+  * Now requires android build-tools 19.1.0 or newer
 * `android:dex` task now returns a folder for the output dex not a `classes.dex`
   file.
 

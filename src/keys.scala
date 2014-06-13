@@ -8,7 +8,7 @@ import scala.xml.Elem
 import java.io.File
 import java.util.Properties
 
-import com.android.builder.AndroidBuilder
+import com.android.builder.core.AndroidBuilder
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 import com.android.utils.ILogger
