@@ -298,6 +298,9 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
     * Alternatively, the `androidBuild()` overload may be used to specify
       all dependency library-projects which should relieve this problem.
+    * Sometimes library projects and apklibs will incorrectly bundle
+      android-support-v4.jar, to rectify this, add this setting:
+      `dependencyClasspath in Compile ~= { _ filterNot (_.data.getName startsWith "android-support-v4") }`
 * Using the google gms play-services aar:
 
     ```
@@ -348,9 +351,6 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     option is usable here)
  * `proguardConfig in Android ...` can be used to replace the entire
    proguard config included with android-sdk-plugin
-* I have found that Scala applications on android build faster if they're
-  using scala 2.8.2. Set the scala version in `build.sbt` by entering
-  `scalaVersion := "2.8.2"`
 * On-device unit testing, use `android:test` and see
   [Android Testing Fundamentals](http://developer.android.com/tools/testing/testing_android.html)
 *  Unit testing with robolectric, see my build.scala for this configuration:
