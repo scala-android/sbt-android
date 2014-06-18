@@ -128,14 +128,14 @@ object Tasks {
   }
 
   def unpackAar(aar: File, dest: File, log: Logger): LibraryDependency = {
-    if (dest.lastModified < aar.lastModified) {
+    val lib = AarLibrary(dest)
+    if (dest.lastModified < aar.lastModified || !lib.getManifest.exists) {
       dest.delete()
       log.info("Unpacking aar: %s to %s" format (aar.getName, dest.getName))
       dest.mkdirs()
       IO.unzip(aar, dest)
     }
     // rename for sbt-idea when using multiple aar packages
-    val lib = AarLibrary(dest)
     val renamedJar = lib.getJarFile.getParentFile / (dest.getName + ".jar")
     if (lib.getJarFile.exists) {
       lib.getJarFile.renameTo(renamedJar)
@@ -192,7 +192,7 @@ object Tasks {
       if (deps(moduleString(m))) {
         val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
         val lib = ApkLibrary(d)
-        if (d.lastModified < l.lastModified) {
+        if (d.lastModified < l.lastModified || !lib.getManifest.exists) {
           s.log.info("Unpacking apklib: " + m)
           d.mkdirs()
           IO.unzip(l, d)
