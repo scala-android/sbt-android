@@ -101,8 +101,7 @@ object Tasks {
 
     map(f)
   }
-  def moduleString(m: ModuleID) =
-    m.organization + ":" + m.name + ":" + m.revision
+  def moduleString(m: ModuleID) = m.organization + ":" + m.name
 
   // fails poorly if windows' exclusive locks are preventing a proper clean
   val aarsTaskDef = ( update in Compile
