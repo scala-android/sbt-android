@@ -2,7 +2,7 @@ import ScriptedPlugin._
 
 name := "android-sdk-plugin"
 
-version := "1.2.17"
+version := "1.2.18"
 
 organization := "com.hanhuy.sbt"
 

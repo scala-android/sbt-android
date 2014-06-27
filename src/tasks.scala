@@ -976,7 +976,10 @@ object Tasks {
       val c1 = file(p + OS_SDK_TOOLS_FOLDER + FD_PROGUARD + S +
         FN_ANDROID_PROGUARD_FILE)
 
-      IO.readLines(c1)
+      if (c1.exists)
+        IO.readLines(c1)
+      else
+        List.empty[String]
     }
     def lines(file: File): Seq[String] =
       if (file.exists) IO.readLines(file) else Seq.empty

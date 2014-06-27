@@ -339,9 +339,24 @@ object Plugin extends sbt.Plugin {
             sys.error("set ANDROID_HOME or run 'android update project -p %s'"
               format p.base))
     },
-    zipalignPath            <<= sdkPath {
+    zipalignPath            <<= ( sdkPath
+                                , sdkManager
+                                , buildToolsVersion) map { (p, m, v) =>
+      val bt = v map { version =>
+        m.getBuildTool(FullRevision.parseRevision(version))
+      } getOrElse {
+        val tools = m.getLatestBuildTool
+        tools
+      }
+      if (bt == null) {
+        sys.error("Android SDK build-tools not found: " + v)
+      }
       import SdkConstants._
-      _ + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
+      val pathInBt = bt.getLocation / FN_ZIPALIGN
+      if (pathInBt.exists)
+        pathInBt.getAbsolutePath
+      else
+        p + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
     },
     ilogger                  := { l: Logger => SbtLogger(l) },
     buildToolsVersion        := None,
