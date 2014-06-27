@@ -16,6 +16,7 @@ object ArbitraryProject {
     override def baseDirectory = ???
     override def arguments = ???
     override def provider = new xsbti.AppProvider {
+      override def entryPoint(): Class[_] = ???
       override def components(): xsbti.ComponentProvider = ???
       override def id() = new xsbti.ApplicationID {
         override def classpathExtra(): Array[java.io.File] = ???
