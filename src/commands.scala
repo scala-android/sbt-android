@@ -122,6 +122,9 @@ object Commands {
 
   }
 
+  val createProjectAction: (State,Any) => State = (state, options) => {
+    state
+  }
   val rebootAction: (State,Any) => State = (state, mode) => {
     val sdk = sdkpath(state)
     defaultDevice map { s =>

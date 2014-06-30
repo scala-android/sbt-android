@@ -82,8 +82,8 @@ object Keys {
     "Custom package name for aapt --custom-package, defaults to packageName")
   val manifestPath = SettingKey[File]("manifest-path",
     "android manifest file path")
-  val targetSdkVersion = SettingKey[Int]("target-sdk-version", "android target")
-  val minSdkVersion = SettingKey[Int]("min-sdk-version", "android minSdk")
+  val targetSdkVersion = SettingKey[String]("target-sdk-version", "android target")
+  val minSdkVersion = SettingKey[String]("min-sdk-version", "android minSdk")
   val mergeManifests = SettingKey[Boolean]("merge-manifests",
     "merge manifests from libs, disable if libraries have bad manifests")
   val processManifest = TaskKey[File]("process-manifest",

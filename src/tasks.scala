@@ -737,7 +737,7 @@ object Tasks {
   val renderscriptTaskDef = ( sdkPath
                             , sdkManager
                             , projectLayout
-                            , targetSdkVersion
+                            , platform
                             , streams
                             ) map { (s, m, layout, t, l) =>
     import SdkConstants._
@@ -761,7 +761,9 @@ object Tasks {
 
     val generated = layout.gen ** "*.java" get
 
-    val target = if (t < 11) "11" else t.toString
+    val v = t.getVersion.getApiString
+    val targetNumber = catching(classOf[NumberFormatException]) opt { v.toInt }
+    val target = targetNumber map { n => if (n < 11) "11" else v } getOrElse v
 
     scripts flatMap { case (src, script) =>
 

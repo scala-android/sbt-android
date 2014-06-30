@@ -1,10 +1,13 @@
 package android
+
+import java.util.Properties
+
 import sbt._
 import sbt.Keys._
 
 import com.android.builder.core.AndroidBuilder
 import com.android.builder.sdk.DefaultSdkLoader
-import com.android.sdklib.{IAndroidTarget,SdkManager}
+import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkManager}
 import com.android.sdklib.repository.FullRevision
 import com.android.SdkConstants
 import com.android.utils.ILogger
@@ -257,15 +260,15 @@ object Plugin extends sbt.Plugin {
     },
     targetSdkVersion        <<= (manifest, minSdkVersion) { (m, min) =>
       val usesSdk = (m \ "uses-sdk")
-      if (usesSdk.isEmpty) -1 else
+      if (usesSdk.isEmpty) "1" else
         usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") map { v =>
-            (v(0) text).toInt } getOrElse min
+            (v(0) text) } getOrElse min
     },
     minSdkVersion        <<= manifest { m =>
       val usesSdk = (m \ "uses-sdk")
-      if (usesSdk.isEmpty) -1 else
+      if (usesSdk.isEmpty) "1" else
         usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") map { v =>
-          (v(0) text).toInt } getOrElse 1
+          (v(0) text) } getOrElse "1"
     },
     proguardCache            := Seq(ProguardCache("scala") % "org.scala-lang"),
     proguardLibraries        := Seq.empty,
@@ -431,7 +434,9 @@ object Plugin extends sbt.Plugin {
     cleanFiles        <+= genPath in Android,
     exportJars         := true,
     unmanagedBase     <<= (projectLayout in Android) (_.libs)
-  ) ++ androidCommands
+  )
+
+  override def globalSettings = androidCommands
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
     commands ++= Seq(devices, device, reboot, adbWifi)
@@ -472,5 +477,78 @@ case class SbtLogger(lg: Logger) extends ILogger {
     lg.warn(String.format(fmt, args:_*))
     if (t != null)
       t.printStackTrace
+  }
+}
+object NullLogger extends ILogger {
+  override def verbose(fmt: java.lang.String, args: Object*) = ()
+  override def info(fmt: java.lang.String, args: Object*) = ()
+  override def warning(fmt: java.lang.String, args: Object*) = ()
+  override def error(t: Throwable, fmt: java.lang.String, args: Object*) = ()
+}
+
+trait AutoBuild extends Build {
+  private def loadLibraryProjects(b: File, p: Properties, prefix: String = ""): Seq[Project] = {
+    (p.stringPropertyNames.collect {
+      case k if k.startsWith("android.library.reference") => k
+    }.toList.sortWith { (a,b) => a < b } map { k =>
+      val layout = ProjectLayout(b/p(k))
+      val pkg = pkgFor(layout.manifest)
+      (Project(id=pkg, base=b/p(k)) settings(Plugin.androidBuild ++
+        Seq(platformTarget in Android := target(b/p(k)),
+          libraryProject in Android := true): _*)) +:
+        loadLibraryProjects(b/p(k), loadProperties(b/p(k)), k)
+    } flatten) distinct
+  }
+  private def target(basedir: File): String = {
+    val props = loadProperties(basedir)
+    val path = (Option(props get "sdk.dir") orElse Option(
+      System getenv "ANDROID_HOME")) flatMap { p =>
+      val f = file(p + File.separator)
+      if (f.exists && f.isDirectory)
+        Some(p + File.separator)
+      else
+        None
+    } getOrElse {
+      sys.error("set ANDROID_HOME or run 'android update project -p %s'"
+        format basedir.getCanonicalPath): String
+    }
+    Option(props getProperty "target") getOrElse {
+      val manager = SdkManager.createManager(path, NullLogger)
+      val versions = (manager.getTargets map { _.getVersion } sorted) reverse
+
+      AndroidTargetHash.getPlatformHashString(versions(0))
+    }
+  }
+  private def pkgFor(manifest: File) =
+    (XML.loadFile(manifest).attribute("package") get (0) text).replaceAll(
+      "\\.", "-")
+
+  override def projects = {
+
+    val projects = super.projects
+    if (projects.isEmpty) {
+      val basedir = file(".")
+      val layout = ProjectLayout(basedir)
+      if (layout.manifest.exists) {
+
+        val project = Project(id=pkgFor(layout.manifest),
+          base=basedir).settings(
+            Plugin.androidBuild :+
+              (platformTarget in Android := target(basedir)):_*)
+        val props = loadProperties(basedir)
+        project +: loadLibraryProjects(project.base, props)
+      } else Nil
+    } else {
+      projects map { p =>
+        val layout = ProjectLayout(p.base)
+        if (layout.manifest.exists) {
+          val settings: Seq[Project.Setting[_]] = p.settings
+          val prefix = settings.takeWhile(_.key.scope.config != Android)
+          val tail = settings.dropWhile(_.key.scope.config != Android)
+          val platform = platformTarget in Android := target(p.base)
+          p.settings(prefix ++ Plugin.androidBuild ++ (platform +: tail): _*)
+        } else p
+      }
+    }
   }
 }
