@@ -341,7 +341,8 @@ object Plugin extends sbt.Plugin {
     },
     zipalignPath            <<= ( sdkPath
                                 , sdkManager
-                                , buildToolsVersion) map { (p, m, v) =>
+                                , buildToolsVersion
+                                , streams) map { (p, m, v, s) =>
       val bt = v map { version =>
         m.getBuildTool(FullRevision.parseRevision(version))
       } getOrElse {
@@ -353,6 +354,9 @@ object Plugin extends sbt.Plugin {
       }
       import SdkConstants._
       val pathInBt = bt.getLocation / FN_ZIPALIGN
+
+      s.log.debug("checking zipalign at: " + pathInBt)
+
       if (pathInBt.exists)
         pathInBt.getAbsolutePath
       else
