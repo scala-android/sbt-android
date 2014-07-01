@@ -359,8 +359,13 @@ object Plugin extends sbt.Plugin {
 
       if (pathInBt.exists)
         pathInBt.getAbsolutePath
-      else
-        p + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN
+      else {
+        val zipalign = file(p + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN)
+        if (!zipalign.exists)
+          sys.error("zipalign not found at either %s or %s" format (
+            pathInBt, zipalign))
+        zipalign.getAbsolutePath
+      }
     },
     ilogger                  := { l: Logger => SbtLogger(l) },
     buildToolsVersion        := None,

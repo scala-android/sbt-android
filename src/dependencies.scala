@@ -56,8 +56,11 @@ object Dependencies {
     lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
     override def getSymbolFile = path / "gen" / "R.txt"
     override def getJarFile = path / "bin" / FN_CLASSES_JAR
+    override def getJniFolder = layout.libs
   }
-  case class AarLibrary(val path: File) extends LibraryDependency
+  case class AarLibrary(val path: File) extends LibraryDependency {
+    override def getJniFolder = path / "jni"
+  }
 
   case class LibraryProject(val path: File) extends LibraryDependency {
     import com.android.SdkConstants._

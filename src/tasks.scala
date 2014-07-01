@@ -334,7 +334,7 @@ object Tasks {
       Seq(LibraryProject(layout.base)) ++ libs ++ libs.flatMap { l =>
         l.getDependencies map { _.asInstanceOf[LibraryDependency] }
       } collect {
-        case r if r.layout.jni.isDirectory => r.layout.jni
+        case r if r.getJniFolder.isDirectory => r.getJniFolder
       } foreach { j =>
         val copyList = (j ** "*.so" get) map { l =>
           (l, jni / (l relativeTo j).get.getPath)
