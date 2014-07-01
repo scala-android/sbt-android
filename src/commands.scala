@@ -1,7 +1,9 @@
 package android
 
+import android.Keys.ProjectLayout
+import com.android.sdklib.{AndroidTargetHash, SdkManager}
 import sbt._
-import complete.Parser
+import sbt.complete.{Parsers, Parser}
 import complete.DefaultParsers._
 
 import scala.collection.JavaConversions._
@@ -122,8 +124,80 @@ object Commands {
 
   }
 
-  val createProjectAction: (State,Any) => State = (state, options) => {
-    state
+  val createProjectParser: State => Parser[Either[Unit,((String, String), String)]] = state => {
+    val manager = SdkManager.createManager(sdkpath(state), NullLogger)
+    val targets = Parser.oneOf(manager.getTargets map { t =>
+      Parser.stringLiteral(
+        AndroidTargetHash.getPlatformHashString(t.getVersion), 0) })
+
+    val idStart = Parser.charClass(Character.isJavaIdentifierStart)
+    val id = Parser.charClass(Character.isJavaIdentifierPart)
+    val dot = Parser.literal('.')
+
+    val pkgPart = (idStart ~ Parser.zeroOrMore(id) ~ dot ~
+      idStart ~ Parser.zeroOrMore(id) ~ Parser.opt(dot)) map {
+      case (((((s, p), d), s2), p2), d2) =>
+        s + (p mkString "") + d + s2 + (p2 mkString "") + (d2 getOrElse "")
+    }
+    val pkgName = Parser.oneOrMore(pkgPart) map (_ mkString "")
+    val name = (idStart ~ Parser.zeroOrMore(id)) map {
+      case (a, b) => a + (b mkString "")
+    }
+
+    Parser.choiceParser(EOF,
+      (Space ~> targets) ~ (Space ~> name) ~ (Space ~> pkgName)
+    )
+  }
+  // gen-android -p package-name -n project-name -t api
+  val createProjectAction: (State,Either[Unit,((String, String), String)]) => State = {
+    case (state, maybe) => {
+      val sdk = sdkpath(state)
+      maybe.left foreach { _ =>
+        state.log.error(
+          "Usage: gen-android <platform-target> <name> <package-name>")
+      }
+      maybe.right foreach {
+        case ((target, name), pkg) =>
+          val base = file(".")
+          val layout = ProjectLayout(base)
+          if (layout.manifest.exists) {
+            state.log.error(
+              "An Android project already exists in this location")
+          } else {
+            import SdkConstants._
+            state.log.info("Creating project: " + name)
+            val android = sdk + OS_SDK_TOOLS_FOLDER + androidCmdName
+            val p = Seq(android,
+              "create", "project",
+              "-g", "-v", "0.12.0",
+              "-p", ".",
+              "-k", pkg,
+              "-n", name,
+              "-a", "MainActivity",
+              "-t", target) !
+            val gitignore = base / ".gitignore"
+            val ignores = Seq("target/", "project/project",
+              "bin/", "local.properties")
+            val build = base / "project"
+            build.mkdirs()
+            val files = Seq("gradlew", "gradlew.bat",
+              "build.gradle", "local.properties")
+            files foreach (f => (base / f).delete())
+            IO.delete(base / "gradle")
+
+            val properties = build / "build.properties"
+            val projectBuild = build / "build.scala"
+            val projectProperties = base / "project.properties"
+            val version = Project.extract(state).get(sbt.Keys.sbtVersion)
+            IO.writeLines(properties, "sbt.version=" + version :: Nil)
+            IO.writeLines(projectBuild,
+              "object Build extends android.AutoBuild" :: Nil)
+            IO.writeLines(gitignore, ignores)
+            IO.writeLines(projectProperties, "target=" + target :: Nil)
+          }
+      }
+      state
+    }
   }
   val rebootAction: (State,Any) => State = (state, mode) => {
     val sdk = sdkpath(state)

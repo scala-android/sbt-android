@@ -436,11 +436,16 @@ object Plugin extends sbt.Plugin {
     unmanagedBase     <<= (projectLayout in Android) (_.libs)
   )
 
-  override def globalSettings = androidCommands
+  override def buildSettings = androidCommands
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
-    commands ++= Seq(devices, device, reboot, adbWifi)
+    commands ++= Seq(genAndroid, devices, device, reboot, adbWifi)
   )
+
+  private def genAndroid = Command(
+    "gen-android", ("gen-android", "Create an android project"),
+    "Create a new android project built using SBT"
+  )(createProjectParser)(createProjectAction)
 
   private def device = Command(
     "device", ("device", "Select a connected android device"),
@@ -487,7 +492,7 @@ object NullLogger extends ILogger {
 }
 
 trait AutoBuild extends Build {
-  private def loadLibraryProjects(b: File, p: Properties, prefix: String = ""): Seq[Project] = {
+  private def loadLibraryProjects(b: File, p: Properties): Seq[Project] = {
     (p.stringPropertyNames.collect {
       case k if k.startsWith("android.library.reference") => k
     }.toList.sortWith { (a,b) => a < b } map { k =>
@@ -496,7 +501,7 @@ trait AutoBuild extends Build {
       (Project(id=pkg, base=b/p(k)) settings(Plugin.androidBuild ++
         Seq(platformTarget in Android := target(b/p(k)),
           libraryProject in Android := true): _*)) +:
-        loadLibraryProjects(b/p(k), loadProperties(b/p(k)), k)
+        loadLibraryProjects(b/p(k), loadProperties(b/p(k)))
     } flatten) distinct
   }
   private def target(basedir: File): String = {
