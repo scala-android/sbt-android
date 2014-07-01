@@ -169,7 +169,7 @@ object Commands {
             val android = sdk + OS_SDK_TOOLS_FOLDER + androidCmdName
             val p = Seq(android,
               "create", "project",
-              "-g", "-v", "0.12.0",
+              "-g", "-v", "0.12.1",
               "-p", ".",
               "-k", pkg,
               "-n", name,
