@@ -199,6 +199,34 @@ object Commands {
       state
     }
   }
+  val logcatParser: State => Parser[String] = state => {
+    val eof = EOF map { _ => "" }
+    val anything = Parser.charClass(c => true)
+    val str = Parser.oneOrMore(anything) map (_ mkString "")
+    eof | (Space ~> str)
+  }
+  val logcatAction: (State, String) => State = (state, args) => {
+    val sdk = sdkpath(state)
+    targetDevice(sdk, state.log) map { d =>
+      val receiver = new IShellOutputReceiver() {
+        val b = new StringBuilder
+        override def addOutput(data: Array[Byte], off: Int, len: Int) =
+          b.append(new String(data, off, len))
+        override def flush() {
+          b.toString.split("\\n").foreach { l =>
+            if (l.trim.size > 0)
+              state.log.info(l.trim)
+          }
+          b.clear
+        }
+        override def isCancelled = false
+      }
+      d.executeShellCommand("logcat -d " + args, receiver)
+      receiver.flush()
+
+      state
+    } getOrElse sys.error("no device selected")
+  }
   val rebootAction: (State,Any) => State = (state, mode) => {
     val sdk = sdkpath(state)
     defaultDevice map { s =>

@@ -14,6 +14,8 @@ import com.android.utils.ILogger
 
 import java.io.File
 
+import sbt.complete.{Parsers, Parser}
+
 import scala.util.control.Exception._
 import scala.collection.JavaConversions._
 import scala.xml.XML
@@ -439,8 +441,13 @@ object Plugin extends sbt.Plugin {
   override def buildSettings = androidCommands
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
-    commands ++= Seq(genAndroid, devices, device, reboot, adbWifi)
+    commands ++= Seq(genAndroid, logcat, devices, device, reboot, adbWifi)
   )
+
+  private def logcat = Command(
+    "logcat", ("logcat", "grab device logcat"),
+    "Read logcat from device without blocking"
+  )(logcatParser)(logcatAction)
 
   private def genAndroid = Command(
     "gen-android", ("gen-android", "Create an android project"),
