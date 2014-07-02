@@ -7,6 +7,7 @@ import sbt.complete.{Parsers, Parser}
 import complete.DefaultParsers._
 
 import scala.collection.JavaConversions._
+import scala.util.matching.Regex
 
 import java.io.File
 
@@ -205,6 +206,79 @@ object Commands {
     val str = Parser.oneOrMore(anything) map (_ mkString "")
     eof | (Space ~> str)
   }
+
+  val pidcatAction: (State, String) => State = (state, args) => {
+    val LOG_LINE  = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
+    val PID_START = """^Start proc ([a-zA-Z0-9._:]+) for ([a-z]+ [^:]+): pid=(\d+) uid=(\d+) gids=(.*)$""".r
+    val PID_KILL  = """^Killing (\d+):([a-zA-Z0-9._:]+)/[^:]+: (.*)$""".r
+    val PID_LEAVE = """^No longer want ([a-zA-Z0-9._:]+) \(pid (\d+)\): .*$""".r
+    val PID_DEATH = """^Process ([a-zA-Z0-9._:]+) \(pid (\d+)\) has died.?$""".r
+
+    val sdk = sdkpath(state)
+    val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
+    val packageName = thisProject flatMap { prj =>
+      Project.extract(state).getOpt(
+        Keys.packageName in (prj, Keys.Android))
+    }
+
+    // TODO FIXME specifying -s TAG will result in no output
+    val (pkgOpt, tags) = if (args.trim.size > 0) {
+      val parts = args.trim.split(" ")
+      if (parts.size > 1) {
+        (Some(parts(0)), parts.tail.toSeq)
+      } else {
+        (Some(parts(0)), Seq.empty[String])
+      }
+    } else (packageName, Seq.empty[String])
+    if (pkgOpt.isEmpty)
+      sys.error("Usage: pidcat [<partial package-name>] [TAGs]...")
+
+    targetDevice(sdk, state.log) map { d =>
+      val receiver = new IShellOutputReceiver() {
+        val b = new StringBuilder
+        var pids = Set.empty[String]
+        def addPid(pkg: String, pid: String) {
+          pkgOpt foreach { p => if (pkg contains p) pids += pid.trim }
+        }
+        def remPid(pkg: String, pid: String) {
+          pkgOpt foreach { p => if (pkg contains p) pids -= pid.trim }
+        }
+        override def addOutput(data: Array[Byte], off: Int, len: Int) =
+          b.append(new String(data, off, len))
+        override def flush() {
+          b.toString.split("\\n").foreach { l =>
+            if (l.trim.size > 0) {
+              l.trim match {
+                case LOG_LINE(level, tag, pid, msg) =>
+                  if (tag == "ActivityManager") {
+                    msg match {
+                      case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
+                      case PID_KILL(pid2, pkg, msg)      => remPid(pkg, pid2)
+                      case PID_LEAVE(pkg, pid2)          => remPid(pkg, pid2)
+                      case PID_DEATH(pkg, pid2)          => remPid(pkg, pid2)
+                      case _ =>
+                    }
+                  } else if (pids(pid.trim)) {
+                    if (tags.isEmpty)
+                      state.log.info(l.trim)
+                    else if (tags exists tag.contains)
+                      state.log.info(l.trim)
+                  }
+                case _ => state.log.debug(l.trim)
+              }
+            }
+          }
+          b.clear
+        }
+        override def isCancelled = false
+      }
+      d.executeShellCommand("logcat -d", receiver)
+      receiver.flush()
+
+      state
+    } getOrElse sys.error("no device connected")
+  }
+
   val logcatAction: (State, String) => State = (state, args) => {
     val sdk = sdkpath(state)
     targetDevice(sdk, state.log) map { d =>
