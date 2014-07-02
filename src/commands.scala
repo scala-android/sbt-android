@@ -1,6 +1,7 @@
 package android
 
 import android.Keys.ProjectLayout
+import com.android.ddmlib.FileListingService.FileEntry
 import com.android.sdklib.{AndroidTargetHash, SdkManager}
 import sbt._
 import sbt.complete.{Parsers, Parser}
@@ -11,12 +12,12 @@ import scala.util.matching.Regex
 
 import java.io.File
 
-import com.android.ddmlib.AndroidDebugBridge
-import com.android.ddmlib.{IDevice, IShellOutputReceiver}
+import com.android.ddmlib.{FileListingService, AndroidDebugBridge, IDevice, IShellOutputReceiver}
 import com.android.SdkConstants
 
 object Commands {
 
+  val eof = EOF map { _ => "" }
   var defaultDevice: Option[String] = None
 
   lazy val initAdb = {
@@ -69,6 +70,66 @@ object Commands {
     state
   }
 
+  def androidPathParser(entry: FileEntry, fs: FileListingService): Parser[FileEntry] = {
+    val children = fs.getChildrenSync(entry)  map { e =>
+      e.getName -> e} toMap
+
+    val eof = EOF map {_ => ""}
+    if (children.isEmpty) Parser.success(entry) else {
+      val completions = children.keys map { e =>
+        token(e)
+      } toSeq
+
+      Parser.oneOf(eof +: completions) flatMap { e =>
+        if (e != "") {
+          val entry = children(e)
+          Parser.opt("/") ~> androidPathParser(entry, fs)
+        } else Parser.success(entry)
+      }
+    }
+  }
+
+  val androidFileParser: State => Parser[(FileEntry,Option[String])] = state => {
+    targetDevice(sdkpath(state), state.log) map { d =>
+      val fs = d.getFileListingService
+      // TODO how do I fix the optional / -- the completion works without...
+      // so that segments can run into each other without the / during input
+      (EOF map { _ => (fs.getRoot,None) }) |
+        ((Space ~> token("/") ~> androidPathParser(fs.getRoot, fs)) ~
+          Parser.opt("/" ~> token(Parsers.StringBasic, "")))
+    } getOrElse (Parser.failure("No devices connected") map ( _ => null))
+  }
+
+  private def printEntry(state: State, entry: FileEntry) {
+    val suffix = if (entry.isDirectory) "/"
+    else if (entry.getPermissions contains "x") "*"
+    else ""
+    state.log.info("%8s %8s%12s %s %s %s" format (
+      entry.getOwner, entry.getGroup, entry.getSize,
+      entry.getDate, entry.getTime, entry.getName + suffix))
+  }
+
+  val adbLsAction: (State, (FileEntry,Option[String])) => State = {
+    case (state, (entry, name)) =>
+      val fixed = name flatMap { n =>
+        val n2 = n.dropWhile(_ == '/')
+        if (n2.trim.size > 0) Some(n2) else None
+      }
+      if (entry.isDirectory) {
+        fixed map { n =>
+          val child = entry.findChild(n)
+          if (child != null) {
+            printEntry(state, child)
+          }
+        } getOrElse {
+          entry.getCachedChildren foreach (c => printEntry(state, c))
+        }
+      } else {
+        printEntry(state, entry)
+      }
+      state
+  }
+
   val rebootParser: State => Parser[Any] = state => {
     EOF | (Space ~> Parser.oneOf(Seq("bootloader", "recovery")))
   }
@@ -85,13 +146,17 @@ object Commands {
     val receiver = new IShellOutputReceiver {
       val b = new StringBuilder
       var _result = ""
+
       override def addOutput(data: Array[Byte], off: Int, len: Int) =
         b.append(new String(data, off, len))
+
       override def flush() {
         _result = b.toString
         b.clear
       }
+
       override def isCancelled = false
+
       def result = _result
     }
     val d = targetDevice(sdk, state.log).get
@@ -125,11 +190,12 @@ object Commands {
 
   }
 
-  val createProjectParser: State => Parser[Either[Unit,((String, String), String)]] = state => {
+  val createProjectParser: State => Parser[Either[Unit, ((String, String), String)]] = state => {
     val manager = SdkManager.createManager(sdkpath(state), NullLogger)
     val targets = Parser.oneOf(manager.getTargets map { t =>
       Parser.stringLiteral(
-        AndroidTargetHash.getPlatformHashString(t.getVersion), 0) })
+        AndroidTargetHash.getPlatformHashString(t.getVersion), 0)
+    })
 
     val idStart = Parser.charClass(Character.isJavaIdentifierStart)
     val id = Parser.charClass(Character.isJavaIdentifierPart)
@@ -150,7 +216,7 @@ object Commands {
     )
   }
   // gen-android -p package-name -n project-name -t api
-  val createProjectAction: (State,Either[Unit,((String, String), String)]) => State = {
+  val createProjectAction: (State, Either[Unit, ((String, String), String)]) => State = {
     case (state, maybe) => {
       val sdk = sdkpath(state)
       maybe.left foreach { _ =>
@@ -201,16 +267,15 @@ object Commands {
     }
   }
   val logcatParser: State => Parser[String] = state => {
-    val eof = EOF map { _ => "" }
     val anything = Parser.charClass(c => true)
     val str = Parser.oneOrMore(anything) map (_ mkString "")
     eof | (Space ~> str)
   }
 
   val pidcatAction: (State, String) => State = (state, args) => {
-    val LOG_LINE  = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
+    val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
     val PID_START = """^Start proc ([a-zA-Z0-9._:]+) for ([a-z]+ [^:]+): pid=(\d+) uid=(\d+) gids=(.*)$""".r
-    val PID_KILL  = """^Killing (\d+):([a-zA-Z0-9._:]+)/[^:]+: (.*)$""".r
+    val PID_KILL = """^Killing (\d+):([a-zA-Z0-9._:]+)/[^:]+: (.*)$""".r
     val PID_LEAVE = """^No longer want ([a-zA-Z0-9._:]+) \(pid (\d+)\): .*$""".r
     val PID_DEATH = """^Process ([a-zA-Z0-9._:]+) \(pid (\d+)\) has died.?$""".r
 
@@ -218,10 +283,9 @@ object Commands {
     val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
     val packageName = thisProject flatMap { prj =>
       Project.extract(state).getOpt(
-        Keys.packageName in (prj, Keys.Android))
+        Keys.packageName in(prj, Keys.Android))
     }
 
-    // TODO FIXME specifying -s TAG will result in no output
     val (pkgOpt, tags) = if (args.trim.size > 0) {
       val parts = args.trim.split(" ")
       if (parts.size > 1) {
@@ -237,14 +301,18 @@ object Commands {
       val receiver = new IShellOutputReceiver() {
         val b = new StringBuilder
         var pids = Set.empty[String]
+
         def addPid(pkg: String, pid: String) {
-          pkgOpt foreach { p => if (pkg contains p) pids += pid.trim }
+          pkgOpt foreach { p => if (pkg contains p) pids += pid.trim}
         }
+
         def remPid(pkg: String, pid: String) {
-          pkgOpt foreach { p => if (pkg contains p) pids -= pid.trim }
+          pkgOpt foreach { p => if (pkg contains p) pids -= pid.trim}
         }
+
         override def addOutput(data: Array[Byte], off: Int, len: Int) =
           b.append(new String(data, off, len))
+
         override def flush() {
           b.toString.split("\\n").foreach { l =>
             if (l.trim.size > 0) {
@@ -253,9 +321,9 @@ object Commands {
                   if (tag == "ActivityManager") {
                     msg match {
                       case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
-                      case PID_KILL(pid2, pkg, msg)      => remPid(pkg, pid2)
-                      case PID_LEAVE(pkg, pid2)          => remPid(pkg, pid2)
-                      case PID_DEATH(pkg, pid2)          => remPid(pkg, pid2)
+                      case PID_KILL(pid2, pkg, msg) => remPid(pkg, pid2)
+                      case PID_LEAVE(pkg, pid2) => remPid(pkg, pid2)
+                      case PID_DEATH(pkg, pid2) => remPid(pkg, pid2)
                       case _ =>
                     }
                   } else if (pids(pid.trim)) {
@@ -270,6 +338,7 @@ object Commands {
           }
           b.clear
         }
+
         override def isCancelled = false
       }
       d.executeShellCommand("logcat -d", receiver)
@@ -284,8 +353,10 @@ object Commands {
     targetDevice(sdk, state.log) map { d =>
       val receiver = new IShellOutputReceiver() {
         val b = new StringBuilder
+
         override def addOutput(data: Array[Byte], off: Int, len: Int) =
           b.append(new String(data, off, len))
+
         override def flush() {
           b.toString.split("\\n").foreach { l =>
             if (l.trim.size > 0)
@@ -293,6 +364,7 @@ object Commands {
           }
           b.clear
         }
+
         override def isCancelled = false
       }
       d.executeShellCommand("logcat -d " + args, receiver)
@@ -301,7 +373,7 @@ object Commands {
       state
     } getOrElse sys.error("no device selected")
   }
-  val rebootAction: (State,Any) => State = (state, mode) => {
+  val rebootAction: (State, Any) => State = (state, mode) => {
     val sdk = sdkpath(state)
     defaultDevice map { s =>
       val rebootMode = mode match {
@@ -326,7 +398,7 @@ object Commands {
       Space ~> Parser.oneOf(names)
   }
 
-  val deviceAction: (State,String) => State = (state, dev) => {
+  val deviceAction: (State, String) => State = (state, dev) => {
     val devices = deviceList(state)
 
     devices find (_.getSerialNumber == dev) map { dev =>
@@ -338,6 +410,7 @@ object Commands {
     }
     state
   }
+
   def targetDevice(path: String, log: Logger): Option[IDevice] = {
     initAdb
 
@@ -359,12 +432,12 @@ object Commands {
   private def sdkpath(state: State): String = {
     Project.extract(state).getOpt(
       Keys.sdkPath in Keys.Android) orElse (
-        Option(System getenv "ANDROID_HOME") flatMap { p =>
-          val f = file(p)
-          if (f.exists && f.isDirectory)
-            Some(p + File.separator)
-          else
-            None: Option[String]
-        }) getOrElse sys.error("ANDROID_HOME or sdk.dir is not set")
+      Option(System getenv "ANDROID_HOME") flatMap { p =>
+        val f = file(p)
+        if (f.exists && f.isDirectory)
+          Some(p + File.separator)
+        else
+          None: Option[String]
+      }) getOrElse sys.error("ANDROID_HOME or sdk.dir is not set")
   }
 }

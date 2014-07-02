@@ -441,9 +441,14 @@ object Plugin extends sbt.Plugin {
   override def buildSettings = androidCommands
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
-    commands ++= Seq(genAndroid, pidcat, logcat,
+    commands ++= Seq(genAndroid, pidcat, logcat, adbLs,
       devices, device, reboot, adbWifi)
   )
+
+  private def adbLs = Command(
+    "adb-ls", ("adb-ls", "list device files"),
+    "List files located on the selected android device"
+  )(androidFileParser)(adbLsAction)
 
   private def logcat = Command(
     "logcat", ("logcat", "grab device logcat"),
