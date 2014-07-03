@@ -74,18 +74,18 @@ object Commands {
     val children = fs.getChildrenSync(entry)  map { e =>
       e.getName -> e} toMap
 
-    val eof = EOF map {_ => ""}
     if (children.isEmpty) Parser.success(entry) else {
       val completions = children.keys map { e =>
         token(e)
       } toSeq
 
-      Parser.oneOf(eof +: completions) flatMap { e =>
-        if (e != "") {
-          val entry = children(e)
-          Parser.opt("/") ~> androidPathParser(entry, fs)
-        } else Parser.success(entry)
-      }
+      val eof = EOF map {_ => entry}
+      eof | (Parser.oneOf(completions) flatMap { e =>
+        val entry = children(e)
+        val eof = EOF map {_ => entry}
+        eof | ("/" ~> Parser.opt(androidPathParser(entry, fs)) map (
+          _ getOrElse entry))
+      })
     }
   }
 
@@ -104,7 +104,7 @@ object Commands {
     val suffix = if (entry.isDirectory) "/"
     else if (entry.getPermissions contains "x") "*"
     else ""
-    state.log.info("%8s %8s%12s %s %s %s" format (
+    state.log.info("%-8s %-8s %10s %s %s %s" format (
       entry.getOwner, entry.getGroup, entry.getSize,
       entry.getDate, entry.getTime, entry.getName + suffix))
   }

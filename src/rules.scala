@@ -476,7 +476,7 @@ object Plugin extends sbt.Plugin {
   )(adbWifiAction)
 
   private def reboot = Command(
-    "reboot-device", ("reboot-device", "Reboot selected device"),
+    "adb-reboot", ("adb-reboot", "Reboot selected device"),
     "Reboot the selected device into the specified mode"
   )(rebootParser)(rebootAction)
 
