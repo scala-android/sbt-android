@@ -18,8 +18,33 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 
 ## New features in 1.3.x (work in progress) ##
 
-* Update to com.android.tools.build 0.11.x
+* Global plugin installation friendly
+  * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
+  * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.0")
+* New commands, all commands have proper tab-completion:
+  * `gen-android` - creates android projects from scratch with sbt plumbing
+  * `logcat`
+  * `pidcat` - logcat the current package or specified package with TAG filters
+  * `adb-ls` - ls on-device
+  * `adb-cat` - cat a file on-device
+  * `adb-rm` - rm a file on-device
+  * `adb-shell` - execute a shell command on-device
+  * `adb-push` - push a file to device
+  * `adb-pull` - pull a file from device
+  * `reboot-device` renamed to `adb-reboot`
+* Existing commands available globally
+  * `devices`, `device`, `adb-wifi`
+* version checking of plugin and update notifications (TODO)
+* `AutoBuild` support, (created automatically with `gen-android`), set your
+  build to be object Build extends android.AutoBuild and settings will be
+  automatically applied to projects as necessary.
+* Update to latest com.android.tools.build 0.12.x
   * Now requires android build-tools 19.1.0 or newer
+* `minSdkVersion` and `targetSdkVersion` are now `SettingKey[String]` and no
+  longer `SettingKey[Int]` (support android-L)
+* Instrumentation tests are now located in `src/main/androidTest` instead of
+  `src/main/instrumentTest`
 * `android:dex` task now returns a folder for the output dex not a `classes.dex`
   file.
 
