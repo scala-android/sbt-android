@@ -1,5 +1,7 @@
 package android
 
+import java.util.Locale
+
 import android.Keys.ProjectLayout
 import com.android.ddmlib.FileListingService.FileEntry
 import com.android.sdklib.{AndroidTargetHash, SdkManager}
@@ -7,17 +9,13 @@ import sbt._
 import sbt.complete.{Parsers, Parser}
 import complete.DefaultParsers._
 
-import scala.collection.JavaConversions._
-import scala.util.matching.Regex
-
 import java.io.File
 
-import com.android.ddmlib.{FileListingService, AndroidDebugBridge, IDevice, IShellOutputReceiver}
+import com.android.ddmlib._
 import com.android.SdkConstants
 
 object Commands {
 
-  val eof = EOF map { _ => "" }
   var defaultDevice: Option[String] = None
 
   lazy val initAdb = {
@@ -70,6 +68,61 @@ object Commands {
     state
   }
 
+  val fileSep = token(charClass(c => c == '/' || c == '\\'), "/")
+  def localPathParser(entry: File): Parser[File] = {
+    if (entry.isFile) Parser.success(entry) else {
+      val children = (Option(entry.listFiles) map { c =>
+        entry / ".." +: c map { e =>
+          e.getName -> e
+        }
+      } flatten) toMap
+
+      if (children.isEmpty) {
+        success(entry)
+      } else {
+        val completions = children.keys map { e =>
+          token(e)
+        } toSeq
+
+        val eof = EOF map { _ => entry}
+        val dot = literal(".") map { _ => entry }
+        dot | eof | (Parser.oneOf(completions) flatMap { e =>
+          val entry = children(e)
+          val eof = EOF map { _ => entry}
+          eof | (fileSep ~> Parser.opt(localPathParser(entry)) map (
+            _ getOrElse entry))
+        })
+      }
+    }
+  }
+
+  lazy val isWindows = System.getProperty("os.name", "").toLowerCase(
+    Locale.ENGLISH).contains("windows")
+
+  val rootPathParser: Parser[File] = {
+    val drives = Parser.charClass { c =>
+      val c2 = c.toLower
+      c2 > 'a' && c2 < 'z'
+    }
+
+    val root = fileSep map ( _ => file("/") )
+    (if (isWindows) {
+      root | token((drives ~ ":" ~ fileSep) map {
+        case ((d,_),_) => file(d + ":/") })
+    } else {
+      root
+    }) flatMap localPathParser
+  }
+  val localFileParser: State => Parser[File] = state => {
+
+    ((EOF map { _ => (file("."), None) }) |
+      (Space ~> (rootPathParser | localPathParser(file("."))) ~
+        Parser.opt(fileSep ~> token(Parsers.StringBasic, "")))) map {
+      case (a, b) =>
+        b map { f => new File(a, f) } getOrElse a
+    }
+  }
+
   def androidPathParser(entry: FileEntry, fs: FileListingService): Parser[FileEntry] = {
     val children = fs.getChildrenSync(entry)  map { e =>
       e.getName -> e} toMap
@@ -92,8 +145,6 @@ object Commands {
   val androidFileParser: State => Parser[(FileEntry,Option[String])] = state => {
     targetDevice(sdkpath(state), state.log) map { d =>
       val fs = d.getFileListingService
-      // TODO how do I fix the optional / -- the completion works without...
-      // so that segments can run into each other without the / during input
       (EOF map { _ => (fs.getRoot,None) }) |
         ((Space ~> token("/") ~> androidPathParser(fs.getRoot, fs)) ~
           Parser.opt("/" ~> token(Parsers.StringBasic, "")))
@@ -127,6 +178,57 @@ object Commands {
       } else {
         printEntry(state, entry)
       }
+      state
+  }
+  val adbPushParser: State => Parser[(File,(FileEntry,Option[String]))] =
+    state => localFileParser(state) ~ androidFileParser(state)
+
+  val adbPullParser: State => Parser[((FileEntry,Option[String]),File)] =
+    state => androidFileParser(state) ~ localFileParser(state)
+
+  val adbPullAction: (State, ((FileEntry,Option[String]), File)) => State = {
+    case (state, ((entry, name), f)) =>
+      val target = name map {
+        entry.getFullPath + "/" + _ } getOrElse entry.getFullPath
+      state.log.info("Pulling [%s] to [%s]" format (target, f))
+      targetDevice(sdkpath(state), state.log) map { d =>
+        val dest = if (f.isDirectory) {
+          val x = target.lastIndexOf("/")
+          val n = if (x < 0) {
+            target
+          } else {
+            target.substring(x)
+          }
+          new File(f, n)
+        } else f
+        d.pullFile(target, dest.getAbsolutePath)
+      } getOrElse (Parser.failure("No devices connected") map ( _ => null))
+      state
+  }
+
+  val adbPushAction: (State, (File,(FileEntry,Option[String]))) => State = {
+    case (state, (f, (entry, name))) =>
+      val target = name map {
+        entry.getFullPath + "/" + _ } getOrElse entry.getFullPath
+      state.log.info("Pushing [%s] to [%s]" format (f, target))
+      if (!f.isFile)
+        sys.error(f + " is not a file")
+      targetDevice(sdkpath(state), state.log) map { d =>
+        d.pushFile(f.getAbsolutePath, target)
+      } getOrElse (Parser.failure("No devices connected") map ( _ => null))
+      state
+  }
+
+  val adbCatAction: (State, (FileEntry,Option[String])) => State = {
+    case (state, (entry, name)) =>
+      val target = name map {
+        entry.getFullPath + "/" + _ } getOrElse entry.getFullPath
+      targetDevice(sdkpath(state), state.log) map { d =>
+        val f = File.createTempFile("adb-cat", "txt")
+        d.pullFile(target, f.getAbsolutePath)
+        IO.readLines(f) foreach (println _)
+        f.delete()
+      } getOrElse (Parser.failure("No devices connected") map ( _ => null))
       state
   }
 
@@ -227,7 +329,7 @@ object Commands {
     case (state, maybe) => {
       val sdk = sdkpath(state)
       maybe.left foreach { _ =>
-        state.log.error(
+        sys.error(
           "Usage: gen-android <platform-target> <package-name> <name>")
       }
       maybe.right foreach {
@@ -235,7 +337,7 @@ object Commands {
           val base = file(".")
           val layout = ProjectLayout(base)
           if (layout.manifest.exists) {
-            state.log.error(
+            sys.error(
               "An Android project already exists in this location")
           } else {
             import SdkConstants._
@@ -273,11 +375,9 @@ object Commands {
       state
     }
   }
-  val logcatParser: State => Parser[String] = state => {
-    val anything = Parser.charClass(c => true)
-    val str = Parser.oneOrMore(anything) map (_ mkString "")
-    eof | (Space ~> str)
-  }
+
+  val stringParser: State => Parser[String] = state =>
+    (EOF map { _ => "" }) | (Space ~> Parsers.StringBasic)
 
   val pidcatAction: (State, String) => State = (state, args) => {
     val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
@@ -301,7 +401,7 @@ object Commands {
         (Some(parts(0)), Seq.empty[String])
       }
     } else (packageName, Seq.empty[String])
-    if (pkgOpt.isEmpty)
+    if (pkgOpt.isEmpty || (args contains "-h"))
       sys.error("Usage: pidcat [<partial package-name>] [TAGs]...")
 
     targetDevice(sdk, state.log) map { d =>
@@ -355,28 +455,61 @@ object Commands {
     } getOrElse sys.error("no device connected")
   }
 
+  private def executeShellCommand(d: IDevice, cmd: String, state: State) {
+    val receiver = new IShellOutputReceiver() {
+      val b = new StringBuilder
+
+      override def addOutput(data: Array[Byte], off: Int, len: Int) =
+        b.append(new String(data, off, len))
+
+      override def flush() {
+        b.toString.split("\\n").foreach { l =>
+          if (l.trim.size > 0)
+            state.log.info(l.trim)
+        }
+        b.clear
+      }
+
+      override def isCancelled = false
+    }
+    executeShellCommand(d, cmd, receiver)
+  }
+
+  private def executeShellCommand(d: IDevice, cmd: String,
+                                  receiver: IShellOutputReceiver) {
+    d.executeShellCommand(cmd, receiver)
+    receiver.flush()
+  }
+
+  val shellAction: (State, String) => State = (state, cmd) => {
+    val sdk = sdkpath(state)
+    targetDevice(sdk, state.log) map { d =>
+      if (cmd.trim.size == 0) {
+        sys.error("Usage: adb-shell <command>")
+      } else {
+        executeShellCommand(d, cmd, state)
+      }
+      state
+    } getOrElse sys.error("no device selected")
+  }
+
+  val adbRmAction: (State, (FileEntry,Option[String])) => State = {
+    case (state, (entry, name)) => {
+      val target = name map {
+        entry.getFullPath + "/" + _ } getOrElse entry.getFullPath
+      val sdk = sdkpath(state)
+      targetDevice(sdk, state.log) map { d =>
+        executeShellCommand(d, "rm " + FileEntry.escape(target), state)
+        state
+      } getOrElse sys.error("no device selected")
+    }
+  }
+
   val logcatAction: (State, String) => State = (state, args) => {
     val sdk = sdkpath(state)
     targetDevice(sdk, state.log) map { d =>
-      val receiver = new IShellOutputReceiver() {
-        val b = new StringBuilder
 
-        override def addOutput(data: Array[Byte], off: Int, len: Int) =
-          b.append(new String(data, off, len))
-
-        override def flush() {
-          b.toString.split("\\n").foreach { l =>
-            if (l.trim.size > 0)
-              state.log.info(l.trim)
-          }
-          b.clear
-        }
-
-        override def isCancelled = false
-      }
-      d.executeShellCommand("logcat -d " + args, receiver)
-      receiver.flush()
-
+      executeShellCommand(d, "logcat -d " + args, state)
       state
     } getOrElse sys.error("no device selected")
   }
@@ -425,12 +558,13 @@ object Commands {
   private def sdkpath(state: State): String = {
     Project.extract(state).getOpt(
       Keys.sdkPath in Keys.Android) orElse (
-      Option(System getenv "ANDROID_HOME") flatMap { p =>
-        val f = file(p)
-        if (f.exists && f.isDirectory)
-          Some(p + File.separator)
-        else
-          None: Option[String]
+      Option(System getenv "ANDROID_HOME") flatMap {
+        p =>
+          val f = file(p)
+          if (f.exists && f.isDirectory)
+            Some(p + File.separator)
+          else
+            None: Option[String]
       }) getOrElse sys.error("ANDROID_HOME or sdk.dir is not set")
   }
 }

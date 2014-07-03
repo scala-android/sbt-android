@@ -129,9 +129,7 @@ object Plugin extends sbt.Plugin {
       val bcp = bldr.getBootClasspath() mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
-      // TODO sbt 0.12 expects javacOptions to be a Task, not Setting
-      o ++ Seq("-bootclasspath" , bcp,
-        "-source", "1.5", "-target", "1.5") ++ debugOptions
+      o ++ Seq("-bootclasspath" , bcp) ++ debugOptions
     },
     scalacOptions     <<= (scalacOptions, builder in Android) map { (o,bldr) =>
       // scalac has -g:vars by default
@@ -441,9 +439,34 @@ object Plugin extends sbt.Plugin {
   override def buildSettings = androidCommands
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
-    commands ++= Seq(genAndroid, pidcat, logcat, adbLs,
-      devices, device, reboot, adbWifi)
+    commands ++= Seq(genAndroid, pidcat, logcat, adbLs, adbShell,
+      devices, device, reboot, adbWifi, adbPush, adbPull, adbCat, adbRm)
   )
+
+  private def adbCat = Command(
+    "adb-cat", ("adb-cat", "Cat a file from device"),
+    "Cat a file from device to stdout"
+  )(androidFileParser)(adbCatAction)
+
+  private def adbRm = Command(
+    "adb-rm", ("adb-rm", "Remove a file from device"),
+    "Remove a file from device"
+  )(androidFileParser)(adbRmAction)
+
+  private def adbPull = Command(
+    "adb-pull", ("adb-pull", "pull a file from device"),
+    "Pull a file from device to the local system"
+  )(adbPullParser)(adbPullAction)
+
+  private def adbPush = Command(
+    "adb-push", ("adb-push", "push a file to device"),
+    "Push a file to device from the local system"
+  )(adbPushParser)(adbPushAction)
+
+  private def adbShell = Command(
+    "adb-shell", ("adb-shell", "execute shell commands on device"),
+    "Run a command on a selected android device using adb"
+  )(stringParser)(shellAction)
 
   private def adbLs = Command(
     "adb-ls", ("adb-ls", "list device files"),
@@ -453,12 +476,12 @@ object Plugin extends sbt.Plugin {
   private def logcat = Command(
     "logcat", ("logcat", "grab device logcat"),
     "Read logcat from device without blocking"
-  )(logcatParser)(logcatAction)
+  )(stringParser)(logcatAction)
 
   private def pidcat = Command(
     "pidcat", ("pidcat", "grab device logcat for a package"),
     "Read logcat for a given package, defaults to project package if no arg"
-  )(logcatParser)(pidcatAction)
+  )(stringParser)(pidcatAction)
 
   private def genAndroid = Command(
     "gen-android", ("gen-android", "Create an android project"),
