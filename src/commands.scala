@@ -130,8 +130,16 @@ object Commands {
       state
   }
 
-  val rebootParser: State => Parser[Any] = state => {
-    EOF | (Space ~> Parser.oneOf(Seq("bootloader", "recovery")))
+  val rebootParser: State => Parser[String] = state => {
+    (EOF map (_ => null))| (Space ~> Parser.oneOf(Seq("bootloader", "recovery")))
+  }
+
+  val rebootAction: (State, String) => State = (state, mode) => {
+    val sdk = sdkpath(state)
+    defaultDevice map { s =>
+      targetDevice(sdk, state.log) map { _.reboot(mode) }
+      state
+    } getOrElse sys.error("no device selected")
   }
 
   val adbWifiAction: State => State = state => {
@@ -193,8 +201,7 @@ object Commands {
   val createProjectParser: State => Parser[Either[Unit, ((String, String), String)]] = state => {
     val manager = SdkManager.createManager(sdkpath(state), NullLogger)
     val targets = Parser.oneOf(manager.getTargets map { t =>
-      Parser.stringLiteral(
-        AndroidTargetHash.getPlatformHashString(t.getVersion), 0)
+      token(AndroidTargetHash.getPlatformHashString(t.getVersion))
     })
 
     val idStart = Parser.charClass(Character.isJavaIdentifierStart)
@@ -206,13 +213,13 @@ object Commands {
       case (((((s, p), d), s2), p2), d2) =>
         s + (p mkString "") + d + s2 + (p2 mkString "") + (d2 getOrElse "")
     }
-    val pkgName = Parser.oneOrMore(pkgPart) map (_ mkString "")
-    val name = (idStart ~ Parser.zeroOrMore(id)) map {
+    val pkgName = token(Parser.oneOrMore(pkgPart) map (_ mkString ""), "<package>")
+    val name = token((idStart ~ Parser.zeroOrMore(id)) map {
       case (a, b) => a + (b mkString "")
-    }
+    }, "<name>")
 
     Parser.choiceParser(EOF,
-      (Space ~> targets) ~ (Space ~> name) ~ (Space ~> pkgName)
+      (Space ~> targets) ~ (Space ~> pkgName) ~ (Space ~> name)
     )
   }
   // gen-android -p package-name -n project-name -t api
@@ -221,10 +228,10 @@ object Commands {
       val sdk = sdkpath(state)
       maybe.left foreach { _ =>
         state.log.error(
-          "Usage: gen-android <platform-target> <name> <package-name>")
+          "Usage: gen-android <platform-target> <package-name> <name>")
       }
       maybe.right foreach {
-        case ((target, name), pkg) =>
+        case ((target, pkg), name) =>
           val base = file(".")
           val layout = ProjectLayout(base)
           if (layout.manifest.exists) {
@@ -373,24 +380,10 @@ object Commands {
       state
     } getOrElse sys.error("no device selected")
   }
-  val rebootAction: (State, Any) => State = (state, mode) => {
-    val sdk = sdkpath(state)
-    defaultDevice map { s =>
-      val rebootMode = mode match {
-        case m: String => m
-        case _ => null
-      }
-      targetDevice(sdk, state.log) map { d =>
-        d.reboot(rebootMode)
-      }
-
-      state
-    } getOrElse sys.error("no device selected")
-  }
 
   val deviceParser: State => Parser[String] = state => {
     val names: Seq[Parser[String]] = deviceList(state) map (s =>
-      Parser.stringLiteral(s.getSerialNumber, 0))
+      token(s.getSerialNumber))
 
     if (names.isEmpty)
       Space ~> "<no-device>"
