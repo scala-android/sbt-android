@@ -37,10 +37,10 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
   * `devices`, `device`, `adb-wifi`
 * version checking of plugin and update notifications (TODO)
 * `AutoBuild` support, (created automatically with `gen-android`), set your
-  build to be object Build extends android.AutoBuild and settings will be
+  build to be `object Build extends android.AutoBuild` and settings will be
   automatically applied to projects as necessary.
-* Update to latest com.android.tools.build 0.12.x
-  * Now requires android build-tools 19.1.0 or newer
+* Update to latest `com.android.tools.build` `0.12.x`
+  * Now requires android build-tools `19.1.0` or newer
 * `minSdkVersion` and `targetSdkVersion` are now `SettingKey[String]` and no
   longer `SettingKey[Int]` (support android-L)
 * Instrumentation tests are now located in `src/main/androidTest` instead of
