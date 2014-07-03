@@ -26,6 +26,16 @@ libraryDependencies ++= Seq(
 
 sbtPlugin := true
 
+// build info plugin
+
+buildInfoSettings
+
+sourceGenerators in Compile <+= buildInfo
+
+buildInfoKeys := Seq(name, version, scalaVersion, sbtVersion)
+
+buildInfoPackage := "android"
+
 publishTo <<= version { version =>
   val scalasbt = "http://scalasbt.artifactoryonline.com/scalasbt/"
   val (name, url) = if (version contains "-SNAPSHOT")
