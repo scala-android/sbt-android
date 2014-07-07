@@ -12,16 +12,21 @@ library projects. 3rd party libraries can be included by placing them in
 `libs` as in regular projects, or they can be added by using sbt's
 `libraryDependencies` feature.
 
-Features not support from the regular android build yet are compiling `NDK`
-code. Although, `NDK` libraries will be picked up from `libs` as in typical
-ant builds (or `src/main/jni` if you're using the new Gradle layout).
-
 ## New features in 1.3.x (work in progress) ##
 
+* NDK build process, similarly to `ANDROID_HOME`, set `ANDROID_NDK_HOME` to
+  the location where the Android NDK is installed. Alternatively, `ndk.dir`
+  can be set in a `local.properties` file for the project.
+  * libs will be generated into `binPath / "jni"` and
+    obj will drop into `binPath / "obj"`
+  * Pre-generated JNI libraries will no longer be pulled out of `jni`
+    (nor `src/main/jni`) -- they will be taken from `libs` (or `src/main/libs`)
+  * `collect-jni` no longer copies libraries, it only assembles a list of
+    directory names for packaging
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.0")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.0-SNAPSHOT")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `logcat` - supports all regular options, non-polling (-d by default)
@@ -234,8 +239,16 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 
 1. Install sbt (from http://www.scala-sbt.org or use your local packaging
    system like macports, brew, etc.) -- make sure the Android SDK is fully
-   updated (minimum build-tools 17.0.0 and up)
-2. Create a new android project using `android create project` or Eclipse
+   updated (minimum build-tools 19.1.0 and up)
+   * (OPTIONAL) Install the plugin globally into `~/.sbt/plugins` or
+    `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
+    
+   ```
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.0-SNAPSHOT")
+   ```
+   
+2. Create a new android project using `gen-android` if the plugin is installed
+   globally
    * Instead of creating a new project, one can also do
      `android update project` to make sure everything is properly setup
      in an existing project.
@@ -245,29 +258,31 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
      environment variable `ANDROID_HOME` pointing to the path where the
      Android SDK is unpacked. This will bypass the requirement of having
      to run `android update project` on existing projects.
-3. Create a directory named `project` within your project and add the file
-   `project/plugins.sbt`, in it, add the following line:
+   * When using `gen-android`, the `platformTarget` is automatically set to
+     the newest version available in your local SDK, override this by setting
+     `target` in a `project.properties` file, or setting
+     `platformTarget in Android`
+3. (OPTIONAL if globally configured) Create a directory named `project` within
+   your project and add the file `project/plugins.sbt`, in it, add the
+   following line:
 
-    ```
-    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.20")
-    ```
+   ```
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.20")
+   ```
 
-4. Create `project/build.properties` and add the following line:
+4. Create `project/build.properties` and add the following line
+   (OPTIONAL, automatically done with `gen-android`):
 
    ```
    sbt.version=0.12.4 # newer versions may be used instead
    ```
 
-5. Create a file named `build.sbt` in the root of your project and add the
-   following lines with a blank line between each:
-   * `android.Plugin.androidBuild`
-   * `name := YOUR-PROJECT-NAME` (optional, but you'll get a stupid default
-     if you don't set it)
-   * If you are not using an ant-based project, you will need to specify
-     the android build target, you do this with
-     `platformTarget in Android := "android-N"`
-   * An example of what build.sbt should look like can be found at
-     https://gist.github.com/pfn/5872691
+5. Create a file named `project/build.scala` and add the
+   following line, (this is automatically done if using `gen-android`) :
+   
+   ```
+   object Build extends android.Build
+   ```
 
 6. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
@@ -302,13 +317,14 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
     plugin by adding
     `addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")` to your
     `project/plugins.sbt` and running the command `sbt gen-idea`
+    * As with this plugin, sbt-idea may be installed globally as well.
   * When loading a project into IntelliJ, it is recommended that the `SBT`
     and `Scala` plugins are installed; the `SBT` plugin allows replacing the
     default `Make` builder with sbt, enabling seamless builds from the IDE.
   * The best practice is to set the IDE's run task to invoke sbt
     `android:package` instead of `Make`; this is found under the Run
     Configurations
-  * The `Scala` plugin is still useful for non-Scala projects in order to
+  * The `Scala` plugin is still required for non-Scala projects in order to
     edit sbt build files from inside the IDE.
 * Consuming apklib and aar artifacts from other projects
   * `import android.Dependencies.{apklib,aar}` to use apklib() and aar()
@@ -331,7 +347,7 @@ ant builds (or `src/main/jni` if you're using the new Gradle layout).
 
     ```
     libraryDependencies +=
-      "com.google.android.gms" % "play-services" % "3.1.36"
+      "com.google.android.gms" % "play-services" % "4.4.52"
     ```
 
 * Generating apklib and/or aar artifacts
@@ -426,7 +442,6 @@ Android Java-based applications.
 
 * Better handling of release vs. debug builds and creating other build
   flavors as supported by the Android Gradle plugin.
-* Implement the NDK build process
 * Changes to `AndroidManifest.xml` may require the plugin to be reloaded.
   The manifest data is stored internally as read-only data and does not
   reload automatically when it is changed. The current workaround is to

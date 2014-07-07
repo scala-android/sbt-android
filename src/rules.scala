@@ -214,6 +214,7 @@ object Plugin extends sbt.Plugin {
     classesJar              <<= binPath (_ / "classes.jar"),
     rGenerator              <<= rGeneratorTaskDef,
     rGenerator              <<= rGenerator dependsOn (renderscript),
+    ndkBuild                <<= ndkBuildTaskDef,
     aidl                    <<= aidlTaskDef,
     renderscript            <<= renderscriptTaskDef,
     genPath                 <<= projectLayout (_.gen),

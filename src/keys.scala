@@ -66,8 +66,8 @@ object Keys {
   val builder = TaskKey[AndroidBuilder]("builder", "AndroidBuilder object")
   val packageRelease = TaskKey[File]("package-release", "create a release apk")
   val packageDebug = TaskKey[File]("package-debug", "create a debug apk")
-  val collectJni = TaskKey[File]("collect-jni",
-    "copy all NDK libraries to a single location for packaging")
+  val collectJni = TaskKey[Seq[File]]("collect-jni",
+    "collect all JNI folder names for packaging")
   val collectResources = TaskKey[(File,File)]("collect-resources",
     "copy all resources and assets to a single location for packaging")
   val packageResources = TaskKey[File]("package-resources",
@@ -117,6 +117,8 @@ object Keys {
     "generate BuildConfig.java")
   val rGenerator = TaskKey[Seq[File]]("r-generator",
     "android aapt source-gen task; generate R.java")
+  val ndkBuild = TaskKey[Seq[File]]("ndk-build",
+    "android ndk-build task, builds all auto-library project's ndk as well")
   val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task")
   val renderscript = TaskKey[Seq[File]]("renderscript",
     "android renderscript source-gen task")
@@ -239,6 +241,7 @@ object Keys {
     def libs: File
     def aidl: File
     def jni: File
+    def jniLibs: File
     def renderscript: File
   }
   object ProjectLayout {
@@ -265,7 +268,8 @@ object Keys {
       override def bin = base / "bin"
       override def libs = base / "libs"
       override def aidl = sources
-      override def jni = libs
+      override def jni = base / "jni"
+      override def jniLibs = libs
       override def renderscript = sources
     }
     case class Gradle(base: File) extends ProjectLayout {
@@ -286,6 +290,7 @@ object Keys {
       override def bin = base / "target" / "android-bin"
       // XXX gradle project layouts don't really have a "libs"
       override def libs = sources / "libs"
+      override def jniLibs = libs
       override def aidl = sources / "aidl"
       override def renderscript = sources / "rs"
     }

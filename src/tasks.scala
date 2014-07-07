@@ -322,29 +322,51 @@ object Tasks {
       })(a.toSet).toSeq
   }
 
-  val collectJniTaskDef = ( libraryProject
-                          , libraryProjects
+  def ndkbuild(layout: ProjectLayout, ndkHome: Option[String], log: Logger) = {
+    val hasJni = (layout.jni ** "Android.mk" get).size > 0
+    if (hasJni) {
+      if (ndkHome.isEmpty) {
+        log.warn(
+          "Android.mk found, but neither ndk.dir nor ANDROID_NDK_HOME are set")
+      }
+      ndkHome flatMap { ndk =>
+        val env = Seq("NDK_OUT" -> (layout.bin / "obj").getAbsolutePath,
+          "NDK_LIBS_OUT" -> (layout.bin / "jni").getAbsolutePath)
+
+        log.info("Executing NDK build")
+        val suffix = if (Commands.isWindows) ".cmd" else ""
+        Process.apply(ndk + "/ndk-build" + suffix, layout.base, env: _*) !
+
+        Option(layout.bin / "jni")
+      }
+    } else None
+  }
+
+  val ndkBuildTaskDef = ( projectLayout
+                        , libraryProjects
+                        , properties
+                        , streams
+                        ) map { (layout, libs, p, s) =>
+    val ndkHome = Option(p getProperty "ndk.dir") orElse Option(
+      System.getenv("ANDROID_NDK_HOME"))
+
+    val subndk = libs map { l => ndkbuild(l.layout, ndkHome, s.log) }
+
+    Seq(ndkbuild(layout, ndkHome, s.log)).flatten ++ subndk.flatten
+  }
+
+  val collectJniTaskDef = ( libraryProjects
+                          , ndkBuild
                           , projectLayout
                           , streams
-                        ) map {
-    (isLib, libs, layout, s) =>
-    val jni = layout.bin / "jni"
-    if (!isLib) {
-      jni.mkdirs()
-      // TODO traverse entire library dependency graph, goes 2 deep currently
-      Seq(LibraryProject(layout.base)) ++ libs ++ libs.flatMap { l =>
-        l.getDependencies map { _.asInstanceOf[LibraryDependency] }
-      } collect {
-        case r if r.getJniFolder.isDirectory => r.getJniFolder
-      } foreach { j =>
-        val copyList = (j ** "*.so" get) map { l =>
-          (l, jni / (l relativeTo j).get.getPath)
-        }
-        IO.copy(copyList)
-      }
-    }
-
-    jni
+                          ) map {
+    (libs, ndk, layout, s) =>
+    // TODO traverse entire library dependency graph, goes 2 deep currently
+    (Seq(LibraryProject(layout.base)) ++ libs ++ libs.flatMap { l =>
+      l.getDependencies map { _.asInstanceOf[LibraryDependency] }
+    } collect {
+      case r if r.getJniFolder.isDirectory => r.getJniFolder
+    }) ++ ndk
   }
   def doCollectResources( bldr: AndroidBuilder
                         , noTestApk: Boolean
@@ -656,10 +678,10 @@ object Tasks {
     val deps = Set(r +: d +: jars:_*)
 
 
-    (FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
+    FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
       s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s)" format (
         r.getAbsolutePath, d.getAbsolutePath, jars,
-          jni.getAbsolutePath, createDebug,
+          jni map (_.getAbsoluteFile), createDebug,
           if (createDebug) debugConfig else null, output.getAbsolutePath
       ))
       val options = new PackagingOptions {
@@ -668,12 +690,12 @@ object Tasks {
       }
       bldr.packageApk(r.getAbsolutePath, d, jars,
         layout.resources.getAbsolutePath,
-        Seq(jni.getAbsoluteFile), null, createDebug,
+        jni map (_.getAbsoluteFile), null, createDebug,
         if (createDebug) debugConfig else null, options, output.getAbsolutePath)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))
       Set(output)
-    })(deps)
+    }(deps)
 
     output
   }

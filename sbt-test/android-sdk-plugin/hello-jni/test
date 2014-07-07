@@ -1,0 +1,4 @@
+> android:package
+$ exists bin/com-example-hellojni-debug.apk
+> android:test
+> android:uninstall

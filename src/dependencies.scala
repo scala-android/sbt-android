@@ -1,5 +1,6 @@
 package android
 
+import android.Keys.ProjectLayout
 import sbt._
 
 import scala.collection.JavaConversions._
@@ -56,24 +57,27 @@ object Dependencies {
     override def getResolvedCoordinates = null
   }
 
-  case class ApkLibrary(val path: File) extends LibraryDependency with Pkg {
+  case class ApkLibrary(path: File) extends LibraryDependency with Pkg {
     import com.android.SdkConstants._
     lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
+
     override def getSymbolFile = path / "gen" / "R.txt"
     override def getJarFile = path / "bin" / FN_CLASSES_JAR
-    override def getJniFolder = layout.libs
   }
-  case class AarLibrary(val path: File) extends LibraryDependency {
+  case class AarLibrary(path: File) extends LibraryDependency {
+    override val layout = new ProjectLayout.Ant(path) {
+      override def jniLibs = getJniFolder
+    }
     override def getJniFolder = path / "jni"
   }
 
-  case class LibraryProject(val path: File) extends LibraryDependency {
+  case class LibraryProject(path: File) extends LibraryDependency {
     import com.android.SdkConstants._
 
     override def getSymbolFile = layout.gen / "R.txt"
     override def getJarFile = layout.bin / FN_CLASSES_JAR
     override def getProguardRules = layout.bin / "proguard.txt"
-    override def getJniFolder = layout.jni
+    override def getJniFolder = layout.jniLibs
     override def getLocalJars = layout.libs ** "*.jar" get
     override def getResFolder = layout.res
     override def getAssetsFolder = layout.assets
