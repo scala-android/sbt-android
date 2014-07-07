@@ -13,9 +13,7 @@ object Dependencies {
   def artifacts(m: ModuleID, name: String, exttype: String) =
     m.artifacts(Artifact(name, exttype, exttype)) exclude (
       "com.google.android", "support-v4") exclude (
-      "com.google.android", "support-v13") exclude (
-      "com.android.support", "support-v4") exclude (
-      "com.android.support", "support-v13")
+      "com.google.android", "support-v13")
 
   def apklib(m: ModuleID): ModuleID            = artifacts(m, m.name, "apklib")
   def aar(m: ModuleID): ModuleID               = artifacts(m, m.name, "aar")

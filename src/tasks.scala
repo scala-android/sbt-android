@@ -101,9 +101,11 @@ object Tasks {
 
     map(f)
   }
-  def moduleString(m: ModuleID) = m.organization + ":" + m.name
+  // takeWhile hack to bypass cross versions, I hope no real artifacts have
+  // underscores in the name as a delimiter
+  def moduleString(m: ModuleID) =
+    m.organization + ":" + m.name.takeWhile(_ != '_')
 
-  // fails poorly if windows' exclusive locks are preventing a proper clean
   val aarsTaskDef = ( update in Compile
                     , localAars
                     , libraryDependencies in Compile

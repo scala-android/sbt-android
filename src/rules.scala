@@ -94,7 +94,6 @@ object Plugin extends sbt.Plugin {
         new Package.Configuration(sources, j, c.options)
     },
     publishArtifact in packageBin := false,
-    publishArtifact in packageSrc := false,
     scalaSource       <<= (projectLayout in Android) (_.scalaSource),
     javaSource        <<= (projectLayout in Android) (_.javaSource),
     resourceDirectory <<= (projectLayout in Android) (_.res),
