@@ -466,10 +466,7 @@ object Commands {
         b.append(new String(data, off, len))
 
       override def flush() {
-        b.toString.split("\\n").foreach { l =>
-          if (l.trim.size > 0)
-            state.log.info(l.trim)
-        }
+        b.toString.split("\\n").foreach { l => state.log.info(l) }
         b.clear
       }
 
