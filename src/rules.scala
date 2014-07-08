@@ -176,6 +176,7 @@ object Plugin extends sbt.Plugin {
       }
     },
     // end for Classpaths.configSettings
+    transitiveAndroidLibs    := true,
     autolibs                <<= autolibsTaskDef,
     apklibs                 <<= apklibsTaskDef,
     localAars                := Nil,

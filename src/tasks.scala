@@ -108,19 +108,21 @@ object Tasks {
   val aarsTaskDef = ( update in Compile
                     , localAars
                     , libraryDependencies in Compile
+                    , transitiveAndroidLibs
                     , target
                     , streams
                     ) map {
-    (u,local,d,t,s) =>
+    (u,local,d,tx,t,s) =>
     val libs = u.matching(artifactFilter(`type` = "aar"))
     val dest = t / "aars"
     val deps = d.map(moduleString).toSet
     (libs flatMap { l =>
       val m = moduleForFile(u, l)
-      if (deps(moduleString(m))) {
+      if (tx || deps(moduleString(m))) {
         val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
         Some(unpackAar(l, d, s.log): LibraryDependency)
       } else {
+        s.log.warn(m + " is not an explicit dependency, skipping")
         None
       }
     }) ++ (local map { a =>
@@ -179,18 +181,19 @@ object Tasks {
                        , libraryDependencies in Compile
                        , genPath
                        , libraryProject
+                       , transitiveAndroidLibs
                        , target
                        , streams
                        , builder
                        , streams
                        ) map {
-    (u,d,gen,isLib,t,s,bldr,st) =>
+    (u,d,gen,isLib,tx,t,s,bldr,st) =>
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = t / "apklibs"
     val deps = d.map(moduleString).toSet
     libs flatMap { l =>
       val m = moduleForFile(u, l)
-      if (deps(moduleString(m))) {
+      if (tx || deps(moduleString(m))) {
         val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
         val lib = ApkLibrary(d)
         if (d.lastModified < l.lastModified || !lib.getManifest.exists) {
@@ -212,7 +215,7 @@ object Tasks {
           copyDirectory(lib.layout.gen, gen)
         Some(lib: LibraryDependency)
       } else {
-        s.log.info(m + " is not a part of " + deps)
+        s.log.warn(m + " is not an explicit dependency, skipping")
         None
       }
     }
