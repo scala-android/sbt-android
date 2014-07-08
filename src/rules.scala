@@ -326,8 +326,8 @@ object Plugin extends sbt.Plugin {
     },
     packageRelease          <<= packageRelease dependsOn(setRelease),
     sdkPath                 <<= (thisProject,properties) { (p,props) =>
-        (Option(props get "sdk.dir") orElse
-          Option(System getenv "ANDROID_HOME")) flatMap { p =>
+      (Option(System getenv "ANDROID_HOME") orElse
+        Option(props get "sdk.dir")) flatMap { p =>
             val f = file(p + File.separator)
             if (f.exists && f.isDirectory)
               Some(p + File.separator)
@@ -550,8 +550,8 @@ trait AutoBuild extends Build {
   }
   private def target(basedir: File): String = {
     val props = loadProperties(basedir)
-    val path = (Option(props get "sdk.dir") orElse Option(
-      System getenv "ANDROID_HOME")) flatMap { p =>
+    val path = (Option(System getenv "ANDROID_HOME") orElse
+      Option(props get "sdk.dir")) flatMap { p =>
       val f = file(p + File.separator)
       if (f.exists && f.isDirectory)
         Some(p + File.separator)
@@ -563,7 +563,9 @@ trait AutoBuild extends Build {
     }
     Option(props getProperty "target") getOrElse {
       val manager = SdkManager.createManager(path, NullLogger)
-      val versions = (manager.getTargets map { _.getVersion } sorted) reverse
+      val versions = (manager.getTargets map {
+        _.getVersion
+      } sorted) reverse
 
       AndroidTargetHash.getPlatformHashString(versions(0))
     }

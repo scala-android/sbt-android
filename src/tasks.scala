@@ -372,8 +372,8 @@ object Tasks {
                         , properties
                         , streams
                         ) map { (layout, libs, srcs, h, p, s) =>
-    val ndkHome = Option(p getProperty "ndk.dir") orElse Option(
-      System.getenv("ANDROID_NDK_HOME"))
+    val ndkHome = Option(System.getenv("ANDROID_NDK_HOME")) orElse Option(
+      p getProperty "ndk.dir")
 
     val subndk = libs map { l => ndkbuild(l.layout, ndkHome, srcs, s.log) }
 
