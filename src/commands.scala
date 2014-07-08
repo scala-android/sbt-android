@@ -376,8 +376,11 @@ object Commands {
     }
   }
 
-  val stringParser: State => Parser[String] = state =>
-    (EOF map { _ => "" }) | (Space ~> Parsers.StringBasic)
+  val stringParser: State => Parser[String] = state => {
+    val anything = Parser.charClass(c => true)
+    val str = Parser.oneOrMore(anything) map (_ mkString "")
+    (EOF map { _ => ""}) | (Space ~> str)
+  }
 
   val pidcatAction: (State, String) => State = (state, args) => {
     val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
