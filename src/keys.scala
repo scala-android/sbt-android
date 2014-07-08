@@ -119,6 +119,8 @@ object Keys {
     "generate BuildConfig.java")
   val rGenerator = TaskKey[Seq[File]]("r-generator",
     "android aapt source-gen task; generate R.java")
+  val ndkJavah = TaskKey[Seq[File]]("ndk-javah",
+    "android javah task, generates javah headers from native classes")
   val ndkBuild = TaskKey[Seq[File]]("ndk-build",
     "android ndk-build task, builds all auto-library project's ndk as well")
   val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task")

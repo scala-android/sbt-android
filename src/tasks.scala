@@ -176,7 +176,7 @@ object Tasks {
       Some(lib: LibraryDependency)
     }
   }
-  // fails poorly if windows' exclusive locks are preventing a proper clean
+
   val apklibsTaskDef = ( update in Compile
                        , libraryDependencies in Compile
                        , genPath
@@ -325,7 +325,8 @@ object Tasks {
       })(a.toSet).toSeq
   }
 
-  def ndkbuild(layout: ProjectLayout, ndkHome: Option[String], log: Logger) = {
+  def ndkbuild(layout: ProjectLayout,
+               ndkHome: Option[String], srcs: File, log: Logger) = {
     val hasJni = (layout.jni ** "Android.mk" get).size > 0
     if (hasJni) {
       if (ndkHome.isEmpty) {
@@ -334,7 +335,8 @@ object Tasks {
       }
       ndkHome flatMap { ndk =>
         val env = Seq("NDK_OUT" -> (layout.bin / "obj").getAbsolutePath,
-          "NDK_LIBS_OUT" -> (layout.bin / "jni").getAbsolutePath)
+          "NDK_LIBS_OUT" -> (layout.bin / "jni").getAbsolutePath,
+          "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath)
 
         log.info("Executing NDK build")
         val suffix = if (Commands.isWindows) ".cmd" else ""
@@ -345,17 +347,37 @@ object Tasks {
     } else None
   }
 
+  val ndkJavahTaskDef = ( sourceManaged in Compile
+                        , compile in Compile
+                        , classDirectory in Compile
+                        , builder
+                        , streams
+                        ) map { (src, c, classes, bldr, s) =>
+    val natives = NativeFinder.natives(classes)
+
+    if (natives.size > 0) {
+      Seq("javah",
+        "-d", src.getAbsolutePath,
+        "-classpath", classes.getAbsolutePath,
+        "-bootclasspath", bldr.getBootClasspath mkString File.pathSeparator,
+        natives mkString " ") !
+
+      src ** "*.h" get
+    } else Seq.empty
+  }
   val ndkBuildTaskDef = ( projectLayout
                         , libraryProjects
+                        , sourceManaged in Compile
+                        , ndkJavah
                         , properties
                         , streams
-                        ) map { (layout, libs, p, s) =>
+                        ) map { (layout, libs, srcs, h, p, s) =>
     val ndkHome = Option(p getProperty "ndk.dir") orElse Option(
       System.getenv("ANDROID_NDK_HOME"))
 
-    val subndk = libs map { l => ndkbuild(l.layout, ndkHome, s.log) }
+    val subndk = libs map { l => ndkbuild(l.layout, ndkHome, srcs, s.log) }
 
-    Seq(ndkbuild(layout, ndkHome, s.log)).flatten ++ subndk.flatten
+    Seq(ndkbuild(layout, ndkHome, srcs, s.log)).flatten ++ subndk.flatten
   }
 
   val collectJniTaskDef = ( libraryProjects

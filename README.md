@@ -21,6 +21,10 @@ library projects. 3rd party libraries can be included by placing them in
     obj will drop into `binPath / "obj"`
   * Pre-generated JNI libraries will no longer be pulled out of `jni`
     (nor `src/main/jni`) -- they will be taken from `libs` (or `src/main/libs`)
+  * `javah` is automatically executed on all classes that have `native` methods
+    in their signatures. The header files are generated into `sourceManaged`
+    and are available to include in native sources and `Android.mk` by adding
+    `LOCAL_CFLAGS := -I$(SBT_SOURCE_MANAGED)`
   * `collect-jni` no longer copies libraries, it only assembles a list of
     directory names for packaging
 * Global plugin installation friendly
