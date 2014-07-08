@@ -582,14 +582,18 @@ trait AutoBuild extends Build {
       val layout = ProjectLayout(basedir)
       if (layout.manifest.exists) {
 
+        val props = loadProperties(basedir)
+        val libProjects = loadLibraryProjects(basedir, props)
+
         val project = Project(id=pkgFor(layout.manifest),
           base=basedir).settings(
-            Plugin.androidBuild :+
+            Plugin.androidBuild(libProjects: _*) :+
               (platformTarget in Android := target(basedir)):_*)
-        val props = loadProperties(basedir)
-        project +: loadLibraryProjects(project.base, props)
+        project +: libProjects
       } else Nil
     } else {
+      // TODO automatically apply androidBuild with all library/sub projects
+      // for now, all main projects have to specify androidBuild(deps) manually
       projects map { p =>
         val layout = ProjectLayout(p.base)
         if (layout.manifest.exists) {
