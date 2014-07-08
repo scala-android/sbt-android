@@ -21,6 +21,8 @@ library projects. 3rd party libraries can be included by placing them in
     obj will drop into `binPath / "obj"`
   * Pre-generated JNI libraries will no longer be pulled out of `jni`
     (nor `src/main/jni`) -- they will be taken from `libs` (or `src/main/libs`)
+    * This does not apply to aar and apklib--they will be pulled out of
+      appropriate locations per their spec.
   * `javah` is automatically executed on all classes that have `native` methods
     in their signatures. The header files are generated into `sourceManaged`
     and are available to include in native sources and `Android.mk` by adding
@@ -256,8 +258,6 @@ library projects. 3rd party libraries can be included by placing them in
    * Instead of creating a new project, one can also do
      `android update project` to make sure everything is properly setup
      in an existing project.
-   * Alternatively, create a project by hand, or with Android Studio for
-     the new project layout style.
    * Instead of keeping local.properties up-to-date, you may set the
      environment variable `ANDROID_HOME` pointing to the path where the
      Android SDK is unpacked. This will bypass the requirement of having
@@ -266,7 +266,7 @@ library projects. 3rd party libraries can be included by placing them in
      the newest version available in your local SDK, override this by setting
      `target` in a `project.properties` file, or setting
      `platformTarget in Android`
-3. (OPTIONAL if globally configured) Create a directory named `project` within
+3. (N/A if globally configured) Create a directory named `project` within
    your project and add the file `project/plugins.sbt`, in it, add the
    following line:
 
@@ -274,21 +274,14 @@ library projects. 3rd party libraries can be included by placing them in
    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.20")
    ```
 
-4. Create `project/build.properties` and add the following line
-   (OPTIONAL, automatically done with `gen-android`):
-
-   ```
-   sbt.version=0.12.4 # newer versions may be used instead
-   ```
-
-5. Create a file named `project/build.scala` and add the
-   following line, (this is automatically done if using `gen-android`) :
+4. Create a file named `project/build.scala` and add the
+   following line, (automatically performed if using `gen-android`) :
    
    ```
    object Build extends android.Build
    ```
 
-6. Now you will be able to run SBT, some available commands in sbt are:
+5. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
      * Compiles all the sources in the project, java and scala
      * Compile output is automatically processed through proguard if there
@@ -300,11 +293,13 @@ library projects. 3rd party libraries can be included by placing them in
    * `android:package`
      * Builds an APK for the project of the last type selected, by default
        `debug`
+   * `android:test`
+     * run instrumented android unit tests
    * Any task can be repeated continuously whenever any source code changes
      by prefixing the command with a `~`. `~ android:package-debug`
      will continuously build a debug build any time one of the project's
      source files is modified.
-7. If you want android-sdk-plugin to automatically sign release packages
+6. If you want android-sdk-plugin to automatically sign release packages
    add the following lines to `local.properties` (or any file.properties of
    your choice that you will not check in to source control):
    * `key.alias: YOUR-KEY-ALIAS`
@@ -331,16 +326,17 @@ library projects. 3rd party libraries can be included by placing them in
   * The `Scala` plugin is still required for non-Scala projects in order to
     edit sbt build files from inside the IDE.
 * Consuming apklib and aar artifacts from other projects
-  * `import android.Dependencies.{apklib,aar}` to use apklib() and aar()
+  * `import android.Dependencies.{apklib,aar}` to use `apklib()` and `aar()`
+    * using `apklib()` and `aar()` are only necessary if there are multiple
+      filetypes for the dependency, such as `jar`, etc.
   * `libraryDependencies += apklib("groupId" % "artifactId" % "version", "optionalArtifactFilename")`
     * Basically, wrap the typical dependency specification with either
       apklib() or aar() to consume the library
-    * For library projects in a multi-project build that transitively include
-      either aar or apklibs, you will need to add a dependency statement
-      into your main-project's settings:
-    * `apklib` and `aar` that transitively depend on `apklib` and `aar` must
-      explicitly call out the dependency in `libraryDependencies` (this is a
-      necessity for multi-project libs to avoid duplicate inclusion errors)
+    * If aars or apklibs are duplicately included in a multi-project build,
+      specify `transitiveAndroidLibs in Android := false`
+    * `apklib` and `aar` that transitively depend on `apklib` and `aar` will
+      automatically be processed. To disable set
+      `transitiveAndroidLibs in Android := false`
     * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
     * Alternatively, the `androidBuild()` overload may be used to specify
       all dependency library-projects which should relieve this problem.
@@ -428,7 +424,7 @@ has lots of autogenerated configuration. This is incompatible with the
 built-in SDK configuration and doesn't load up into Eclipse easily. All
 android projects, particularly those that have been building using the
 standard SDK tools will easily build with this plugin; including regular,
-Android Java-based applications.
+Java-based Android applications.
 
 * This plugin uses the standard Android project layout as created by
   Eclipse and `android create project`. Additionally, it can read all
