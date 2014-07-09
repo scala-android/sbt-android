@@ -75,7 +75,7 @@ object Commands {
         entry / ".." +: c map { e =>
           e.getName -> e
         }
-      } flatten) toMap
+      } getOrElse Array.empty) toMap
 
       if (children.isEmpty) {
         success(entry)
