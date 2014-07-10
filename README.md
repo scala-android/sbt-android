@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.2.20
+Current version is 1.3.0
 
 ## Description ##
 
@@ -196,7 +196,7 @@ library projects. 3rd party libraries can be included by placing them in
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.0-SNAPSHOT")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.0")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -217,7 +217,7 @@ library projects. 3rd party libraries can be included by placing them in
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.2.20")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.0")
    ```
 
 4. Create a file named `project/build.scala` and add the
