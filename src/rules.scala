@@ -442,7 +442,7 @@ object Plugin extends sbt.Plugin {
   override def buildSettings = androidCommands
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
-    commands ++= Seq(genAndroid, pidcat, logcat, adbLs, adbShell,
+    commands ++= Seq(genAndroid, genAndroidSbt, pidcat, logcat, adbLs, adbShell,
       devices, device, reboot, adbWifi, adbPush, adbPull, adbCat, adbRm)
   )
 
@@ -490,6 +490,11 @@ object Plugin extends sbt.Plugin {
     "gen-android", ("gen-android", "Create an android project"),
     "Create a new android project built using SBT"
   )(createProjectParser)(createProjectAction)
+
+  private def genAndroidSbt = Command.command(
+    "gen-android-sbt", "Create SBT files for existing android project",
+    "Creates build.properties, build.scala, etc for an existing android project"
+  )(createProjectSbtAction)
 
   private def device = Command(
     "device", ("device", "Select a connected android device"),
@@ -578,6 +583,8 @@ trait AutoBuild extends Build {
 
     val projects = super.projects
     if (projects.isEmpty) {
+      // TODO search subdirectories to find more complex project structures
+      // e.g. root(empty) -> { main-android, library-android }
       val basedir = file(".")
       val layout = ProjectLayout(basedir)
       if (layout.manifest.exists) {

@@ -35,6 +35,7 @@ library projects. 3rd party libraries can be included by placing them in
   * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.0-SNAPSHOT")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
+  * `gen-android-sbt` - creates SBT files for an existing android project
   * `logcat` - supports all regular options, non-polling (-d by default)
   * `pidcat` - logcat the current package or specified package with TAG filters
   * `adb-ls` - ls on-device
@@ -46,7 +47,6 @@ library projects. 3rd party libraries can be included by placing them in
   * `reboot-device` renamed to `adb-reboot`
 * Existing commands available globally
   * `devices`, `device`, `adb-wifi`
-* version checking of plugin and update notifications (TODO)
 * `AutoBuild` support, (created automatically with `gen-android`), set your
   build to be `object Build extends android.AutoBuild` and settings will be
   automatically applied to projects as necessary.
@@ -386,6 +386,9 @@ Java-based Android applications.
 
 ### TODO / Known Issues ###
 
+* Version checking of plugin and update notifications. This is not possible
+  with ivy. Options: relocate plugin to sonatype and/or host an off-site
+  versions config descriptor.
 * Better handling of release vs. debug builds and creating other build
   flavors as supported by the Android Gradle plugin.
 * Changes to `AndroidManifest.xml` may require the plugin to be reloaded.

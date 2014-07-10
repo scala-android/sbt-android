@@ -300,6 +300,24 @@ object Commands {
 
   }
 
+  val createProjectSbtAction: State => State = state => {
+    val base = file(".")
+    val layout = ProjectLayout(base)
+    if (!layout.manifest.exists) {
+      sys.error("An android project does not exist at this location")
+    }
+    state.log.info("Creating SBT project files")
+    val build = base / "project"
+    build.mkdirs()
+    val properties = build / "build.properties"
+    val projectBuild = build / "build.scala"
+    val version = Project.extract(state).get(sbt.Keys.sbtVersion)
+    IO.writeLines(properties, "sbt.version=" + version :: Nil)
+    IO.writeLines(projectBuild,
+      "object Build extends android.AutoBuild" :: Nil)
+    state
+  }
+
   val createProjectParser: State => Parser[Either[Unit, ((String, String), String)]] = state => {
     val manager = SdkManager.createManager(sdkpath(state), NullLogger)
     val targets = Parser.oneOf(manager.getTargets map { t =>
@@ -332,7 +350,7 @@ object Commands {
         sys.error(
           "Usage: gen-android <platform-target> <package-name> <name>")
       }
-      maybe.right foreach {
+      (maybe.right map {
         case ((target, pkg), name) =>
           val base = file(".")
           val layout = ProjectLayout(base)
@@ -354,25 +372,17 @@ object Commands {
             val gitignore = base / ".gitignore"
             val ignores = Seq("target/", "project/project",
               "bin/", "local.properties")
-            val build = base / "project"
-            build.mkdirs()
             val files = Seq("gradlew", "gradlew.bat",
               "build.gradle", "local.properties")
             files foreach (f => (base / f).delete())
             IO.delete(base / "gradle")
 
-            val properties = build / "build.properties"
-            val projectBuild = build / "build.scala"
             val projectProperties = base / "project.properties"
-            val version = Project.extract(state).get(sbt.Keys.sbtVersion)
-            IO.writeLines(properties, "sbt.version=" + version :: Nil)
-            IO.writeLines(projectBuild,
-              "object Build extends android.AutoBuild" :: Nil)
             IO.writeLines(gitignore, ignores)
             IO.writeLines(projectProperties, "target=" + target :: Nil)
+            createProjectSbtAction(state)
           }
-      }
-      state
+      }).right getOrElse state
     }
   }
 
