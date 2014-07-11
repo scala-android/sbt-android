@@ -600,8 +600,10 @@ trait AutoBuild extends Build {
         val layout = ProjectLayout(p.base)
         if (layout.manifest.exists) {
           val settings: Seq[Project.Setting[_]] = p.settings
-          val prefix = settings.takeWhile(_.key.scope.config != Android)
-          val tail = settings.dropWhile(_.key.scope.config != Android)
+          val prefix = settings.takeWhile(
+            _.key.scope.config.toOption exists (_.name != Android.name))
+          val tail = settings.dropWhile(
+            _.key.scope.config.toOption exists (_.name != Android.name))
           val platform = platformTarget in Android := target(p.base)
           p.settings(prefix ++ Plugin.androidBuild ++ (platform +: tail): _*)
         } else p
