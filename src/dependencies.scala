@@ -61,6 +61,7 @@ object Dependencies {
     import com.android.SdkConstants._
     lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
 
+    override def getJniFolder = layout.libs
     override def getSymbolFile = path / "gen" / "R.txt"
     override def getJarFile = path / "bin" / FN_CLASSES_JAR
   }

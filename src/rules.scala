@@ -299,6 +299,7 @@ object Plugin extends sbt.Plugin {
     },
     collectJni              <<= collectJniTaskDef,
     apkbuildExcludes         := Seq.empty,
+    apkbuildPickFirsts       := Seq.empty,
     apkbuild                <<= apkbuildTaskDef,
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,

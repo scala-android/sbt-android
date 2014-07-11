@@ -62,6 +62,8 @@ object Keys {
   val zipalignPath = TaskKey[String]("zipalign-path",
     "path to the zipalign executable")
   val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
+  val apkbuildPickFirsts = SettingKey[Seq[String]]("apkbuild-pickfirsts",
+    "filepaths to take first when packing apk, e.g. in case of duplicates")
   val apkbuildExcludes = SettingKey[Seq[String]]("apkbuild-excludes",
     "filepaths to exclude from apk, e.g. in case of duplicates")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")

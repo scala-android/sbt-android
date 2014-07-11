@@ -662,14 +662,15 @@ object Tasks {
                         , managedClasspath
                         , dependencyClasspath in Compile
                         , collectJni
-                        , apkbuildExcludes
                         , streams
                         ) map {
-    (bldr, st, prj, r, d, u, m, dcp, jni, excl, s) =>
+    (bldr, st, prj, r, d, u, m, dcp, jni, s) =>
     val extracted = Project.extract(st)
     import extracted._
 
     val n = get(name in prj)
+    val excl = get(apkbuildExcludes in (prj, Android))
+    val fsts = get(apkbuildPickFirsts in (prj, Android))
     val layout = get(projectLayout in (prj, Android))
     val cacheDir = get(cacheDirectory in prj)
     val logger = get(ilogger in (prj, Android))
@@ -682,6 +683,22 @@ object Tasks {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) if xs.head.data.isFile => xs.head :: Nil
     }.flatten.map (_.data).toList
+
+    // workaround for https://code.google.com/p/android/issues/detail?id=73437
+    val collectedJni = layout.bin / "collect-jni"
+    if (jni.size > 0) {
+      collectedJni.mkdirs()
+      val copyList = jni map { j =>
+        (j ** "*.so" get) map { l =>
+          (l, collectedJni / (l relativeTo j).get.getPath)
+        }
+      } flatten
+
+      IO.copy(copyList)
+    } else {
+      IO.delete(collectedJni)
+    }
+    // end workaround
 
     s.log.debug("jars to process for resources: " + jars)
 
@@ -704,18 +721,22 @@ object Tasks {
 
 
     FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
-      s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s)" format (
-        r.getAbsolutePath, d.getAbsolutePath, jars,
-          jni map (_.getAbsoluteFile), createDebug,
-          if (createDebug) debugConfig else null, output.getAbsolutePath
-      ))
       val options = new PackagingOptions {
-        def getExcludes = excl.toSet.asJava
-        def getPickFirsts = Set.empty[String]
+        override def getExcludes = excl.toSet.asJava
+        override def getPickFirsts = fsts.toSet.asJava
+        override def toString =
+          "PackagingOptions[%s, %s]" format (getExcludes, getPickFirsts)
       }
+      s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s, %s)" format (
+        r.getAbsolutePath, d.getAbsolutePath, jars,
+          if (collectedJni.exists) Seq(collectedJni) else Seq.empty, createDebug,
+          if (createDebug) debugConfig else null, output.getAbsolutePath,
+          options
+      ))
       bldr.packageApk(r.getAbsolutePath, d, jars,
         layout.resources.getAbsolutePath,
-        jni map (_.getAbsoluteFile), null, createDebug,
+        (if (collectedJni.exists) Seq(collectedJni) else Seq.empty).asJava,
+        null, createDebug,
         if (createDebug) debugConfig else null, options, output.getAbsolutePath)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))
