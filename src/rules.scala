@@ -14,9 +14,6 @@ import com.android.utils.ILogger
 
 import java.io.File
 
-import sbt.complete.{Parsers, Parser}
-
-import scala.util.control.Exception._
 import scala.collection.JavaConversions._
 import scala.xml.XML
 
@@ -101,7 +98,7 @@ object Plugin extends sbt.Plugin {
     javaSource        <<= (projectLayout in Android) (_.javaSource),
     resourceDirectory <<= (projectLayout in Android) (_.res),
     unmanagedJars     <<= unmanagedJarsTaskDef,
-    unmanagedClasspath <+= (classDirectory) map (Attributed.blank _),
+    unmanagedClasspath <+= classDirectory map Attributed.blank,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
     sourceGenerators  <+= (rGenerator in Android
                           , typedResourcesGenerator in Android
@@ -122,18 +119,18 @@ object Plugin extends sbt.Plugin {
       a ++ tr ++ aidl ++ bcg ++ rs ++ autosrcs ++ deb
     },
     copyResources      := { Seq.empty },
-    packageT          <<= packageT dependsOn(compile),
+    packageT          <<= packageT dependsOn compile,
     javacOptions      <<= (javacOptions, builder in Android) map { (o,bldr) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (createDebug) Seq("-g") else Seq.empty
-      val bcp = bldr.getBootClasspath() mkString File.pathSeparator
+      val bcp = bldr.getBootClasspath mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
       o ++ Seq("-bootclasspath" , bcp) ++ debugOptions
     },
     scalacOptions     <<= (scalacOptions, builder in Android) map { (o,bldr) =>
       // scalac has -g:vars by default
-      val bcp = bldr.getBootClasspath() mkString File.pathSeparator
+      val bcp = bldr.getBootClasspath mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
@@ -166,13 +163,11 @@ object Plugin extends sbt.Plugin {
       // it seems internal-dependency-classpath already filters out "provided"
       // from other projects, now, just filter out our own "provided" lib deps
       // do not filter out provided libs for scala, we do that later
-      cp filterNot {
-        a =>
-        (a.get(moduleID.key) map { m =>
+      cp filterNot { _.get(moduleID.key) exists { m =>
           m.organization != "org.scala-lang" &&
             (pvd exists (p => m.organization == p.organization &&
               m.name == p.name))
-        } getOrElse false)
+        }
       }
     },
     // end for Classpaths.configSettings
@@ -200,21 +195,21 @@ object Plugin extends sbt.Plugin {
                                 , streams
                                 ) map {
       (_, c, g, d, s) =>
-      (FileFunction.cached(c / "clean-for-r",
+      FileFunction.cached(c / "clean-for-r",
           FilesInfo.hash, FilesInfo.exists) { in =>
-        if (!in.isEmpty) {
+        if (in.nonEmpty) {
           s.log.info("Rebuilding all classes because R.java has changed")
           IO.delete(d)
         }
         in
-      })(Set(g ** "R.java" get: _*))
+      }(Set(g ** "R.java" get: _*))
       Seq.empty[File]
     },
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     binPath                 <<= projectLayout (_.bin),
     classesJar              <<= binPath (_ / "classes.jar"),
     rGenerator              <<= rGeneratorTaskDef,
-    rGenerator              <<= rGenerator dependsOn (renderscript),
+    rGenerator              <<= rGenerator dependsOn renderscript,
     ndkJavah                <<= ndkJavahTaskDef,
     ndkBuild                <<= ndkBuildTaskDef,
     aidl                    <<= aidlTaskDef,
@@ -230,8 +225,7 @@ object Plugin extends sbt.Plugin {
       (b,local,a,aa) => a ++ aa ++ local
     },
     libraryProject          <<= properties { p =>
-      Option(p.getProperty("android.library")) map {
-        _.equals("true") } getOrElse false },
+      Option(p.getProperty("android.library")) exists { _.equals("true") } },
     dexInputs               <<= dexInputsTaskDef,
     dex                     <<= dexTaskDef,
     dexMaxHeap               := "1024m",
@@ -256,28 +250,28 @@ object Plugin extends sbt.Plugin {
     versionCode              := None,
     versionName              := None,
     packageForR             <<= manifest { m =>
-      m.attribute("package") get (0) text
+      m.attribute("package") get 0 text
     },
     packageName             <<= manifest { m =>
-      m.attribute("package") get (0) text
+      m.attribute("package") get 0 text
     },
     targetSdkVersion        <<= (manifest, minSdkVersion) { (m, min) =>
-      val usesSdk = (m \ "uses-sdk")
+      val usesSdk = m \ "uses-sdk"
       if (usesSdk.isEmpty) "1" else
-        usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") map { v =>
-            (v(0) text) } getOrElse min
+        usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") map {
+            _(0) text } getOrElse min
     },
     minSdkVersion        <<= manifest { m =>
-      val usesSdk = (m \ "uses-sdk")
+      val usesSdk = m \ "uses-sdk"
       if (usesSdk.isEmpty) "1" else
-        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") map { v =>
-          (v(0) text) } getOrElse "1"
+        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") map {
+          _(0) text } getOrElse "1"
     },
     proguardCache            := Seq(ProguardCache("scala") % "org.scala-lang"),
     proguardLibraries        := Seq.empty,
     proguardOptions          := Seq.empty,
     proguardConfig          <<= proguardConfigTaskDef,
-    proguardConfig          <<= proguardConfig dependsOn(packageResources),
+    proguardConfig          <<= proguardConfig dependsOn packageResources,
     proguard                <<= proguardTaskDef,
     proguardInputs          <<= proguardInputsTaskDef,
     proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),
@@ -321,11 +315,11 @@ object Plugin extends sbt.Plugin {
     packageDebug            <<= packageT.task.? {
       _ getOrElse sys.error("package failed")
     },
-    packageDebug            <<= packageDebug dependsOn(setDebug),
+    packageDebug            <<= packageDebug dependsOn setDebug,
     packageRelease          <<= packageT.task.? {
       _ getOrElse sys.error("package failed")
     },
-    packageRelease          <<= packageRelease dependsOn(setRelease),
+    packageRelease          <<= packageRelease dependsOn setRelease,
     sdkPath                 <<= (thisProject,properties) { (p,props) =>
       (Option(System getenv "ANDROID_HOME") orElse
         Option(props get "sdk.dir")) flatMap { p =>
@@ -334,9 +328,9 @@ object Plugin extends sbt.Plugin {
               Some(p + File.separator)
             else
               None
-          } getOrElse (
-            sys.error("set ANDROID_HOME or run 'android update project -p %s'"
-              format p.base))
+          } getOrElse sys.error(
+            "set ANDROID_HOME or run 'android update project -p %s'"
+              format p.base)
     },
     zipalignPath            <<= ( sdkPath
                                 , sdkManager
@@ -375,7 +369,7 @@ object Plugin extends sbt.Plugin {
                                 , streams) map {
       (m, t, v, l, s) =>
       val parser = DefaultSdkLoader.getLoader(file(m.getLocation))
-      val bt = v map { version =>
+      v map { version =>
         m.getBuildTool(FullRevision.parseRevision(version))
       } getOrElse {
         val tools = m.getLatestBuildTool
@@ -531,7 +525,7 @@ case class SbtLogger(lg: Logger) extends ILogger {
     // they don't end the build, so log as a warning
     lg.warn(String.format(fmt, args:_*))
     if (t != null)
-      t.printStackTrace
+      t.printStackTrace()
   }
 }
 object NullLogger extends ILogger {
@@ -577,7 +571,7 @@ trait AutoBuild extends Build {
     }
   }
   private def pkgFor(manifest: File) =
-    (XML.loadFile(manifest).attribute("package") get (0) text).replaceAll(
+    (XML.loadFile(manifest).attribute("package") get 0 text).replaceAll(
       "\\.", "-")
 
   override def projects = {

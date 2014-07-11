@@ -8,7 +8,7 @@ import org.objectweb.asm.signature.SignatureVisitor
 import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.lang.reflect.{Method, InvocationHandler, Proxy}
-import java.util.jar.{JarEntry, JarInputStream}
+import java.util.jar.JarInputStream
 
 object ReferenceFinder {
 
@@ -54,7 +54,7 @@ object ReferenceFinder {
 
     val jin = new JarInputStream(new FileInputStream(jar))
 
-    Stream.continually(jin.getNextJarEntry()) takeWhile (_ != null) foreach {
+    Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) foreach {
       entry =>
       if (entry.getName.endsWith(".class")) {
         buf.reset()

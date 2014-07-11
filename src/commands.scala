@@ -21,7 +21,7 @@ object Commands {
   lazy val initAdb = {
     AndroidDebugBridge.init(false)
     java.lang.Runtime.getRuntime.addShutdownHook(new Thread(new Runnable() {
-      override def run = AndroidDebugBridge.terminate()
+      override def run() = AndroidDebugBridge.terminate()
     }))
     ()
   }
@@ -226,7 +226,7 @@ object Commands {
       targetDevice(sdkpath(state), state.log) map { d =>
         val f = File.createTempFile("adb-cat", "txt")
         d.pullFile(target, f.getAbsolutePath)
-        IO.readLines(f) foreach (println _)
+        IO.readLines(f) foreach println
         f.delete()
       } getOrElse (Parser.failure("No devices connected") map ( _ => null))
       state
@@ -242,6 +242,19 @@ object Commands {
       targetDevice(sdk, state.log) map { _.reboot(mode) }
       state
     } getOrElse sys.error("no device selected")
+  }
+
+  val deviceAction: (State, String) => State = (state, dev) => {
+    val devices = deviceList(state)
+
+    devices find (_.getSerialNumber == dev) map { dev =>
+      val serial = dev.getSerialNumber
+      state.log.info("default device: " + serial)
+      defaultDevice = Some(serial)
+    } getOrElse {
+      defaultDevice = None
+    }
+    state
   }
 
   val adbWifiAction: State => State = state => {
@@ -261,8 +274,8 @@ object Commands {
         b.append(new String(data, off, len))
 
       override def flush() {
-        _result = b.toString
-        b.clear
+        _result = b.toString()
+        b.clear()
       }
 
       override def isCancelled = false
@@ -344,7 +357,7 @@ object Commands {
   }
   // gen-android -p package-name -n project-name -t api
   val createProjectAction: (State, Either[Unit, ((String, String), String)]) => State = {
-    case (state, maybe) => {
+    case (state, maybe) =>
       val sdk = sdkpath(state)
       maybe.left foreach { _ =>
         sys.error(
@@ -369,6 +382,10 @@ object Commands {
               "-n", name,
               "-a", "MainActivity",
               "-t", target) !
+
+            if (p != 0) {
+              sys.error("failed to create project")
+            }
             val gitignore = base / ".gitignore"
             val ignores = Seq("target/", "project/project",
               "bin/", "local.properties")
@@ -383,7 +400,6 @@ object Commands {
             createProjectSbtAction(state)
           }
       }).right getOrElse state
-    }
   }
 
   val stringParser: State => Parser[String] = state => {
@@ -434,14 +450,14 @@ object Commands {
           b.append(new String(data, off, len))
 
         override def flush() {
-          b.toString.split("\\n").foreach { l =>
+          b.toString().split("\\n").foreach { l =>
             if (l.trim.size > 0) {
               l.trim match {
                 case LOG_LINE(level, tag, pid, msg) =>
                   if (tag == "ActivityManager") {
                     msg match {
                       case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
-                      case PID_KILL(pid2, pkg, msg) => remPid(pkg, pid2)
+                      case PID_KILL(pid2, pkg, _) => remPid(pkg, pid2)
                       case PID_LEAVE(pkg, pid2) => remPid(pkg, pid2)
                       case PID_DEATH(pkg, pid2) => remPid(pkg, pid2)
                       case _ =>
@@ -456,7 +472,7 @@ object Commands {
               }
             }
           }
-          b.clear
+          b.clear()
         }
 
         override def isCancelled = false
@@ -476,8 +492,8 @@ object Commands {
         b.append(new String(data, off, len))
 
       override def flush() {
-        b.toString.split("\\n").foreach { l => state.log.info(l) }
-        b.clear
+        b.toString().split("\\n").foreach { l => state.log.info(l) }
+        b.clear()
       }
 
       override def isCancelled = false
@@ -504,7 +520,7 @@ object Commands {
   }
 
   val adbRmAction: (State, (FileEntry,Option[String])) => State = {
-    case (state, (entry, name)) => {
+    case (state, (entry, name)) =>
       val target = name map {
         entry.getFullPath + "/" + _ } getOrElse entry.getFullPath
       val sdk = sdkpath(state)
@@ -512,7 +528,6 @@ object Commands {
         executeShellCommand(d, "rm " + FileEntry.escape(target), state)
         state
       } getOrElse sys.error("no device selected")
-    }
   }
 
   val logcatAction: (State, String) => State = (state, args) => {
@@ -532,19 +547,6 @@ object Commands {
       Space ~> "<no-device>"
     else
       Space ~> Parser.oneOf(names)
-  }
-
-  val deviceAction: (State, String) => State = (state, dev) => {
-    val devices = deviceList(state)
-
-    devices find (_.getSerialNumber == dev) map { dev =>
-      val serial = dev.getSerialNumber
-      state.log.info("default device: " + serial)
-      defaultDevice = Some(serial)
-    } getOrElse {
-      defaultDevice = None
-    }
-    state
   }
 
   def targetDevice(path: String, log: Logger): Option[IDevice] = {

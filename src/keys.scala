@@ -194,8 +194,8 @@ object Keys {
     def matches(classFile: String) = packagePrefixes exists {
       classFile.startsWith(_) && classFile.endsWith(".class")
     }
-    def matches(file: File) = jarFile map {
-      _.getCanonicalFile == file.getCanonicalFile } getOrElse false
+    def matches(file: File) = jarFile exists {
+      _.getCanonicalFile == file.getCanonicalFile }
 
     def matches(file: Attributed[File], state: State): Boolean = {
       matches(file.data) || (file.get(moduleID.key) exists (matches(_, state)))
@@ -203,16 +203,16 @@ object Keys {
 
     def matches(module: ModuleID, state: State): Boolean = {
       (moduleOrg,moduleName,cross) match {
-        case (Some(org),Some(name),Some(cross)) =>
+        case (Some(org),Some(art),Some(crs)) =>
           val extracted = Project.extract(state)
           val scalaVersion = extracted.get(sbt.Keys.scalaVersion)
           val scalaBinaryVersion = extracted.get(sbt.Keys.scalaBinaryVersion)
-          val cv = CrossVersion(cross, scalaVersion, scalaBinaryVersion)
-          val crossName = CrossVersion.applyCross(name, cv)
+          val cv = CrossVersion(crs, scalaVersion, scalaBinaryVersion)
+          val crossName = CrossVersion.applyCross(art, cv)
           org == module.organization &&
-            (name == module.name || crossName == module.name)
-        case (Some(org),Some(name),None) =>
-          org == module.organization && name == module.name
+            (art == module.name || crossName == module.name)
+        case (Some(org),Some(art),None) =>
+          org == module.organization && art == module.name
         case (Some(org),None,None) => org == module.organization
         case _ => false
       }

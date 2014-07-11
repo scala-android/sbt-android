@@ -6,7 +6,6 @@ import org.objectweb.asm._
 import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.lang.reflect.{Method, InvocationHandler, Proxy}
-import java.util.jar.{JarEntry, JarInputStream}
 
 object NativeFinder {
 

@@ -47,7 +47,7 @@ object Tasks {
 
   // TODO come up with a better solution
   // wish this could be protected
-  var _createDebug = true
+  private[android] var _createDebug = true
 
   val reservedWords = Set(
     "def",
@@ -67,7 +67,6 @@ object Tasks {
   )
 
   def createDebug = _createDebug
-  private def createDebug_=(d: Boolean) = _createDebug = d
 
   def resourceUrl =
     Plugin.getClass.getClassLoader.getResource _
@@ -235,7 +234,6 @@ object Tasks {
     case (t, a, p, layout, (j, x), sv, c, l, i, s) =>
 
     val r = layout.res
-    val b = layout.base
     val g = layout.gen
     val ignores = i.toSet
 
@@ -244,9 +242,9 @@ object Tasks {
     if (!t)
       Seq.empty[File]
     else
-      (FileFunction.cached(c / "typed-resources-generator",
+      FileFunction.cached(c / "typed-resources-generator",
           FilesInfo.hash, FilesInfo.hash) { in =>
-        if (!in.isEmpty) {
+        if (in.nonEmpty) {
           s.log.info("Regenerating TR.scala because R.java has changed")
           val androidjar = ClasspathUtilities.toLoader(file(j))
           val layouts = (r ** "layout*" ** "*.xml" get) ++
@@ -255,7 +253,7 @@ object Tasks {
                 case p: Pkg => ignores(p.pkg)
                 case _      => false
               }
-              xml <- (lib.getResFolder) ** "layout*" ** "*.xml" get
+              xml <- lib.getResFolder ** "layout*" ** "*.xml" get
             } yield xml)
 
           s.log.debug("Layouts: " + layouts)
@@ -322,7 +320,7 @@ object Tasks {
             } mkString "\n"))
           Set(tr)
         } else Set.empty
-      })(a.toSet).toSeq
+      }(a.toSet).toSeq
   }
 
   def ndkbuild(layout: ProjectLayout,
@@ -608,7 +606,7 @@ object Tasks {
                                 , cacheDirectory
                                 , streams
                                 ) map {
-    case (bldr, layout, manifest, (assets, res), pkg, lib, libs, cache, s) =>
+    case (bldr, layout, manif, (assets, res), pkg, lib, libs, cache, s) =>
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
 
     val rel = if (createDebug) "-debug" else "-release"
@@ -616,41 +614,16 @@ object Tasks {
     val p = layout.bin / basename
 
     val inputs = (res ***).get ++ (assets ***).get ++
-      Seq(manifest)filter (
+      Seq(manif)filter (
         n => !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
-    (FileFunction.cached(cache / basename, FilesInfo.hash) { _ =>
+    FileFunction.cached(cache / basename, FilesInfo.hash) { _ =>
       s.log.info("Packaging resources: " + p.getName)
-      aapt(bldr, manifest, pkg, libs, lib, res, assets,
+      aapt(bldr, manif, pkg, libs, lib, res, assets,
         p.getAbsolutePath, layout.gen, proguardTxt, s.log)
       Set(p)
-    })(inputs.toSet)
+    }(inputs.toSet)
     p
-  }
-
-  // TODO this fails when new files are added but none are modified
-  private def outofdate(dfile: File): Boolean = {
-    val (targets, dependencies, _) = IO.readLines(dfile).foldLeft(
-      (Seq.empty[String],Seq.empty[String],false)) {
-      case ((target, dep, doingDeps), line) =>
-      val l = line.stripSuffix("\\").trim
-      val l2 = l.stripPrefix(":").trim
-      if (l == l2 && !doingDeps) {
-        (target :+ l,dep,doingDeps)
-      } else if (l == l2 && doingDeps) {
-        (target,dep :+ l,doingDeps)
-      } else if (l != l2) {
-        (target,dep :+ l2,true)
-      } else {
-        sys.error("unexpected state: " + l)
-      }
-    }
-
-    val dependencyFiles = dependencies map { d => new File(d) }
-    targets exists { t =>
-      val target = new File(t)
-      dependencyFiles exists { _.lastModified > target.lastModified }
-    }
   }
 
   val apkbuildTaskDef = ( builder
@@ -824,10 +797,8 @@ object Tasks {
     }
 
     val scripts = for {
-      script <- (layout.renderscript ** "*.rs" get)
+      script <- layout.renderscript ** "*.rs" get
     } yield (layout.renderscript,script)
-
-    val generated = layout.gen ** "*.java" get
 
     val v = t.getVersion.getApiString
     val targetNumber = catching(classOf[NumberFormatException]) opt { v.toInt }
@@ -928,7 +899,7 @@ object Tasks {
     else {
       bldr.processManifest(layout.manifest, Seq.empty[File],
         if (merge) libs else Seq.empty[LibraryDependency],
-        pkg, vc getOrElse -1, vn getOrElse null, minSdk.toString, sdk.toString,
+        pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString,
         output.getAbsolutePath)
       if (noTestApk) {
          val top = XML.loadFile(output)
@@ -938,8 +909,7 @@ object Tasks {
         val instrument = top \ INSTRUMENTATION_TAG
         if (application.isEmpty) sys.error("no application node")
         val hasTestRunner = usesLibraries exists (
-          _.attribute(ANDROID_NS, "name") map (
-            _ == TEST_RUNNER_LIB) getOrElse false)
+          _.attribute(ANDROID_NS, "name") exists (_ == TEST_RUNNER_LIB))
 
         val last = Some(top) map { top =>
           if  (!hasTestRunner) {
@@ -985,17 +955,17 @@ object Tasks {
                           , cacheDirectory
                           , streams
                           ) map {
-    case (bldr, layout, manifest, (assets, res), pkg, lib, libs, cache, s) =>
+    case (bldr, layout, manif, (assets, res), pkg, lib, libs, cache, s) =>
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
 
-    val inputs = (res ***).get ++ (assets ***).get ++ Seq(manifest) filter (
+    val inputs = (res ***).get ++ (assets ***).get ++ Seq(manif) filter (
         n => !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
     // need to check output changes, otherwise compile fails after gen-idea
     FileFunction.cached(cache / "r-generator")(
         FilesInfo.lastModified, FilesInfo.hash) { (in,out) =>
       s.log.info("Generating R.java")
-      aapt(bldr, manifest, pkg, libs, lib, res, assets, null,
+      aapt(bldr, manif, pkg, libs, lib, res, assets, null,
         layout.gen, proguardTxt, s.log)
       s.log.debug(
         "In modified: %s\nInRemoved: %s\nOut checked: %s\nOut modified: %s"
@@ -1033,7 +1003,7 @@ object Tasks {
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
     val deps = libs map (_.getDependencies) flatten
 
-    if (libs.isEmpty) Seq.empty else (collectdeps(deps) ++ deps)
+    if (libs.isEmpty) Seq.empty else collectdeps(deps) ++ deps
   }
 
   val proguardConfigTaskDef = ( projectLayout
@@ -1075,7 +1045,7 @@ object Tasks {
 
     // TODO use getIncremental in DexOptions instead
     val proguardedDexMarker = b / ".proguarded-dex"
-    ((createDebug && !proguardedDexMarker.exists) -> (p map { f =>
+    (createDebug && !proguardedDexMarker.exists) -> (p map { f =>
       IO.touch(proguardedDexMarker, false)
       Seq(f)
     } getOrElse {
@@ -1088,7 +1058,7 @@ object Tasks {
     }).groupBy (_.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) => xs.head :: Nil
-    }.flatten.toSeq)
+    }.flatten.toSeq
   }
 
   val dexTaskDef = ( builder
@@ -1137,10 +1107,10 @@ object Tasks {
       }.distinct :+ Attributed.blank(c)
       val extras = x map (f => file(f))
 
-      if (s && createDebug && !pc.isEmpty) {
+      if (s && createDebug && pc.nonEmpty) {
         st.log.debug("Proguard cache rules: " + pc)
-        val deps = (cacheDir / "proguard_deps")
-        val out = (cacheDir / "proguard_cache")
+        val deps = cacheDir / "proguard_deps"
+        val out = cacheDir / "proguard_cache"
 
         deps.mkdirs()
         out.mkdirs()
@@ -1151,17 +1121,17 @@ object Tasks {
             Hash.toHex(Hash(f.data.getAbsolutePath)))
         }
 
-        val todep = indeps zip filtered filter { case (d,j) =>
-          !d.exists || d.lastModified < j.data.lastModified
+        val todep = indeps zip filtered filter { case (dep,j) =>
+          !dep.exists || dep.lastModified < j.data.lastModified
         }
-        todep foreach { case (d,j) =>
+        todep foreach { case (dep,j) =>
           st.log.info("Finding dependency references for: " +
             (j.get(moduleID.key) getOrElse j.data.getName))
-          IO.write(d, ReferenceFinder.references(j.data, pc) mkString "\n")
+          IO.write(dep, ReferenceFinder.references(j.data, pc) mkString "\n")
         }
 
         val alldeps = (indeps flatMap {
-          d => IO.readLines(d) }).sortWith(_>_).distinct.mkString("\n")
+          dep => IO.readLines(dep) }).sortWith(_>_).distinct.mkString("\n")
 
         val allhash = Hash.toHex(Hash(alldeps))
 
@@ -1195,7 +1165,7 @@ object Tasks {
       if (jars exists { _.data.lastModified > t.lastModified }) {
         val injars = "-injars " + (jars map {
           _.data.getPath + "(!META-INF/**,!rootdoc.txt)"
-        } mkString(File.pathSeparator))
+        } mkString File.pathSeparator)
         val libraryjars = for {
           j <- libjars
           a <- Seq("-libraryjars", j.getAbsolutePath)
@@ -1206,12 +1176,11 @@ object Tasks {
         val cfg = c ++ o ++ libraryjars ++ printmappings :+ injars :+ outjars
         cfg foreach (l => s.log.debug(l))
         val config = new PgConfig
-        val cpclass = classOf[ConfigurationParser]
         import java.util.Properties
         val parser: ConfigurationParser = new ConfigurationParser(
           cfg.toArray[String], new Properties)
         parser.parse(config)
-        new ProGuard(config).execute
+        new ProGuard(config).execute()
       } else {
         s.log.info(t.getName + " is up-to-date")
       }
@@ -1325,7 +1294,7 @@ object Tasks {
     if (!noTestApk) {
       classes.mkdirs()
       val manifest = XML.loadFile(manifestFile)
-      val testPackage = manifest.attribute("package") get (0) text
+      val testPackage = manifest.attribute("package") get 0 text
       val instr = manifest \\ "instrumentation"
       val instrData = (instr map { i =>
         (i.attribute(ANDROID_NS, "name") map (_(0).text),
@@ -1362,7 +1331,7 @@ object Tasks {
         dex, options, Nil, false)
 
       val debugConfig = new DefaultSigningConfig("debug")
-      debugConfig.initDebug
+      debugConfig.initDebug()
 
       val opts = new PackagingOptions {
         def getExcludes = Set.empty[String]
@@ -1395,8 +1364,8 @@ object Tasks {
       override def addOutput(data: Array[Byte], off: Int, len: Int) =
         b.append(new String(data, off, len))
       override def flush() {
-        p.processNewLines(b.toString.split("\\n").map(_.trim))
-        b.clear
+        p.processNewLines(b.toString().split("\\n").map(_.trim))
+        b.clear()
       }
       override def isCancelled = false
     }
@@ -1404,17 +1373,17 @@ object Tasks {
     Commands.targetDevice(sdk, s.log) map { d =>
       val command = "am instrument -r -w %s" format intent
       s.log.debug("Executing [%s]" format command)
-      val timeout = DdmPreferences.getTimeOut()
+      val timeout = DdmPreferences.getTimeOut
       DdmPreferences.setTimeOut(timeo)
       d.executeShellCommand(command, receiver)
       DdmPreferences.setTimeOut(timeout)
 
-      if (receiver.b.toString.length > 0)
-        s.log.info(receiver.b.toString)
+      if (receiver.b.toString().length > 0)
+        s.log.info(receiver.b.toString())
 
       s.log.debug("instrument command executed")
     }
-    if (!listener.failures.isEmpty) {
+    if (listener.failures.nonEmpty) {
       sys.error("Tests failed: " + listener.failures.size + "\n" +
         (listener.failures map (" - " + _)).mkString("\n"))
     }
@@ -1437,7 +1406,7 @@ object Tasks {
           (filter \\ attrpath) exists (_.text == "android.intent.action.MAIN")
         }
       } map { activity =>
-        val name = activity.attribute(ANDROID_NS, "name") get (0) text
+        val name = activity.attribute(ANDROID_NS, "name") get 0 text
 
         "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
       }) map { intent =>
@@ -1446,8 +1415,8 @@ object Tasks {
           override def addOutput(data: Array[Byte], off: Int, len: Int) =
             b.append(new String(data, off, len))
           override def flush() {
-            s.log.info(b.toString)
-            b.clear
+            s.log.info(b.toString())
+            b.clear()
           }
           override def isCancelled = false
         }
@@ -1456,8 +1425,8 @@ object Tasks {
           s.log.debug("Executing [%s]" format command)
           d.executeShellCommand(command, receiver)
 
-          if (receiver.b.toString.length > 0)
-            s.log.info(receiver.b.toString)
+          if (receiver.b.toString().length > 0)
+            s.log.info(receiver.b.toString())
 
           s.log.debug("run command executed")
         }
@@ -1498,7 +1467,7 @@ object Tasks {
       Option(d.installPackage(apk.getAbsolutePath, true)) map { err =>
         sys.error("Install failed: " + err)
       } getOrElse {
-        val size = apk.length;
+        val size = apk.length
         val end = System.currentTimeMillis
         val secs = (end - start) / 1000d
         val rate = size/KB/secs
@@ -1544,7 +1513,7 @@ object Tasks {
   def loadProperties(path: File): Properties = {
     val p = new Properties
     (path * "*.properties" get) foreach { f =>
-      Using.file(new FileInputStream(_))(f) { p.load _ }
+      Using.file(new FileInputStream(_))(f) { p.load }
     }
     p
   }
@@ -1556,11 +1525,11 @@ object Tasks {
 
     // remove scala-library if present
     // add all dependent library projects' classes.jar files
-    (u ++ (l filterNot (_ match {
+    (u ++ (l filterNot {
         case _: ApkLibrary         => true
         case _: AutoLibraryProject => true
         case _ => false
-      }) map { p => Attributed.blank((p.getJarFile).getCanonicalFile)
+      } map { p => Attributed.blank(p.getJarFile.getCanonicalFile)
     }) ++ (for {
         d <- l
         j <- d.getLocalJars

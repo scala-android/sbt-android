@@ -86,16 +86,16 @@ object Dependencies {
     override def getRenderscriptFolder = layout.renderscript
 
     override def getDependencies = {
-      (Option((path / "target" / "aars").listFiles).map { list =>
+      Option((path / "target" / "aars").listFiles).map { list =>
         list filter (_.isDirectory) map { d =>
           AarLibrary(d): LibraryDependency
         }
-      }.getOrElse(Array.empty).toSeq) ++
-        (Option((path / "target" / "apklibs").listFiles).map { list =>
+      }.getOrElse(Array.empty).toSeq ++
+        Option((path / "target" / "apklibs").listFiles).map { list =>
           list filter (_.isDirectory) map { d =>
             ApkLibrary(d): LibraryDependency
           }
-        }.getOrElse(Array.empty).toSeq)
+        }.getOrElse(Array.empty).toSeq
     }
   }
   trait Pkg {
