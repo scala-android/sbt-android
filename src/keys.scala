@@ -16,7 +16,15 @@ import com.android.utils.ILogger
 import Dependencies._
 import com.android.builder.sdk.SdkLoader
 
-object Keys extends KeysContainer
+object Keys extends KeysContainer {
+  type ProjectLayout = android.ProjectLayout
+  val ProjectLayout = android.ProjectLayout
+
+  type ProguardCache = android.ProguardCache
+  val ProguardCache = android.ProguardCache
+  type ProguardInputs = android.ProguardInputs
+  val ProguardInputs = android.ProguardInputs
+}
 
 // moved into a trait to support AutoPlugin's autoImport
 trait KeysContainer {
