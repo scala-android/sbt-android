@@ -15,7 +15,7 @@ object ReferenceFinder {
   type Visitor = ClassVisitor with MethodVisitor with FieldVisitor
     with AnnotationVisitor with SignatureVisitor
 
-  def references(jar: File, rules: Seq[Keys.ProguardCache]): Seq[String] = {
+  def references(jar: File, rules: Seq[ProguardCache]): Seq[String] = {
     val prefixes = rules flatMap (_.packagePrefixes)
     var current: String = null
     var map: Map[String,Set[String]] = Map.empty

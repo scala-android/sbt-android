@@ -1,6 +1,5 @@
 package android
 
-import android.Keys.ProjectLayout
 import sbt._
 
 import scala.collection.JavaConversions._
@@ -25,7 +24,7 @@ object Dependencies {
   trait LibraryDependency extends AndroidLibrary {
     import com.android.SdkConstants._
     def path: File
-    val layout = Keys.ProjectLayout(path)
+    val layout = ProjectLayout(path)
 
     override def getName = path.getCanonicalPath
     override def getProject = null

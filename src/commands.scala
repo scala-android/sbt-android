@@ -2,7 +2,6 @@ package android
 
 import java.util.Locale
 
-import android.Keys.ProjectLayout
 import com.android.ddmlib.FileListingService.FileEntry
 import com.android.sdklib.{AndroidTargetHash, SdkManager}
 import sbt._
