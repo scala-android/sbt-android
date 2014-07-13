@@ -563,7 +563,8 @@ trait AutoBuild extends Build {
       val pkg = pkgFor(layout.manifest)
       (Project(id=pkg, base=b/p(k)) settings(Plugin.androidBuild ++
         Seq(platformTarget in Android := target(b/p(k)),
-          libraryProject in Android := true): _*)) +:
+          libraryProject in Android := true): _*) enablePlugins
+            AndroidPlugin) +:
         loadLibraryProjects(b/p(k), loadProperties(b/p(k)))
     } flatten) distinct
   }
@@ -609,7 +610,8 @@ trait AutoBuild extends Build {
         val project = Project(id=pkgFor(layout.manifest),
           base=basedir).settings(
             Plugin.androidBuild(libProjects: _*) :+
-              (platformTarget in Android := target(basedir)):_*)
+              (platformTarget in Android := target(basedir)):_*) enablePlugins
+                AndroidPlugin
         project +: libProjects
       } else Nil
     } else {
@@ -625,6 +627,7 @@ trait AutoBuild extends Build {
             _.key.scope.config.toOption exists (_.name != Android.name))
           val platform = platformTarget in Android := target(p.base)
           p.settings(prefix ++ Plugin.androidBuild ++ (platform +: tail): _*)
+            .enablePlugins(AndroidPlugin)
         } else p
       }
     }
