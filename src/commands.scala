@@ -332,8 +332,13 @@ object Commands {
   }
 
   val createProjectParser: State => Parser[Either[Unit, ((String, String), String)]] = state => {
-    val manager = SdkManager.createManager(sdkpath(state), NullLogger)
-    val targets = Parser.oneOf(manager.getTargets map { t =>
+    val sdk = sdkpath(state)
+    val manager = SdkManager.createManager(sdk, NullLogger)
+    val platforms = manager.getTargets
+    if (platforms.isEmpty) {
+      sys.error("No platform targets configured in sdk located at: " + sdk)
+    }
+    val targets = Parser.oneOf(platforms map { t =>
       token(AndroidTargetHash.getPlatformHashString(t.getVersion))
     })
 
