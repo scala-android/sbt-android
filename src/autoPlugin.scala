@@ -2,7 +2,10 @@ package android
 
 import sbt._
 
-object AndroidPlugin extends sbt.AutoPlugin {
+object AndroidPlugin extends AutoPlugin {
+
+  override def trigger = noTrigger
+  override def requires = plugins.JvmPlugin
 
   object autoImport extends KeysContainer {
     type ProjectLayout = android.ProjectLayout
