@@ -33,7 +33,7 @@ import com.android.utils.ILogger
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 
 import Keys._
-import Dependencies._
+import Dependencies.{LibraryProject => _, AutoLibraryProject => _, _}
 import com.android.builder.compiling.BuildConfigGenerator
 import java.net.URLEncoder
 

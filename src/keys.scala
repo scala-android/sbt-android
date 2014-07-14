@@ -24,6 +24,18 @@ object Keys {
   type ProguardInputs = android.ProguardInputs
   val ProguardInputs = android.ProguardInputs
 
+  import Dependencies.artifacts
+  def apklib(m: ModuleID, n: String): ModuleID = artifacts(m, n, "apklib")
+  def apklib(m: ModuleID): ModuleID            = artifacts(m, m.name, "apklib")
+  def aar(m: ModuleID, n: String): ModuleID    = artifacts(m, n, "aar")
+  def aar(m: ModuleID): ModuleID               = artifacts(m, m.name, "aar")
+
+  val AutoLibraryProject = Dependencies.AutoLibraryProject
+  type AutoLibraryProject = Dependencies.AutoLibraryProject
+
+  type LibraryProject = Dependencies.LibraryProject
+  val LibraryProject = Dependencies.LibraryProject
+
   val ilogger = SettingKey[Logger => ILogger]("ilogger",
     "internal Android SDK logger")
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
