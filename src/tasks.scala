@@ -661,11 +661,10 @@ object Tasks {
     val collectedJni = layout.bin / "collect-jni"
     if (jni.size > 0) {
       collectedJni.mkdirs()
-      val copyList = jni map { j =>
-        (j ** "*.so" get) map { l =>
-          (l, collectedJni / (l relativeTo j).get.getPath)
-        }
-      } flatten
+      val copyList = for {
+        j <- jni
+        l <- j ** "*.so" get
+      } yield (l, collectedJni / (l relativeTo j).get.getPath)
 
       IO.copy(copyList)
     } else {
