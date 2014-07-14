@@ -1,7 +1,6 @@
 package android
 
 import sbt._
-import sbt.Keys._
 
 import scala.xml.Elem
 
@@ -9,14 +8,14 @@ import java.io.File
 import java.util.Properties
 
 import com.android.builder.core.AndroidBuilder
-import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.sdklib.{IAndroidTarget,SdkManager}
 import com.android.utils.ILogger
 
 import Dependencies._
 import com.android.builder.sdk.SdkLoader
 
-object Keys extends KeysContainer {
+object Keys {
+  // alias types that got refactored out
   type ProjectLayout = android.ProjectLayout
   val ProjectLayout = android.ProjectLayout
 
@@ -24,10 +23,7 @@ object Keys extends KeysContainer {
   val ProguardCache = android.ProguardCache
   type ProguardInputs = android.ProguardInputs
   val ProguardInputs = android.ProguardInputs
-}
 
-// moved into a trait to support AutoPlugin's autoImport
-trait KeysContainer {
   val ilogger = SettingKey[Logger => ILogger]("ilogger",
     "internal Android SDK logger")
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
