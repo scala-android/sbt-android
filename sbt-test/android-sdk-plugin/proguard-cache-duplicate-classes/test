@@ -1,1 +1,11 @@
-> version
+> android:package
+$ exists target/android-bin/com-example-proguardcache-debug.apk
+$ exists target/android-gen/com/example/proguardcache/TR.scala
+$ exists target/android-bin/classes.proguard.jar
+> last android:proguard-inputs
+> last android:proguard
+> check-dex
+> check-cache
+$ copy-file MainActivity.scala-tmp src/main/scala/com/example/proguardcache/MainActivity.scala
+> android:package
+> check-dex
