@@ -253,6 +253,12 @@ library projects. 3rd party libraries can be included by placing them in
        `debug`
    * `android:test`
      * run instrumented android unit tests
+   * `android:install`
+     * Install the application to device
+   * `android:run`
+     * Install and run the application on-device
+   * `android:uninstall`
+     * Uninstall the application from device
    * Any task can be repeated continuously whenever any source code changes
      by prefixing the command with a `~`. `~ android:package-debug`
      will continuously build a debug build any time one of the project's
@@ -275,16 +281,18 @@ library projects. 3rd party libraries can be included by placing them in
     `addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")` to your
     `project/plugins.sbt` and running the command `sbt gen-idea`
     * As with this plugin, sbt-idea may be installed globally as well.
-  * When loading a project into IntelliJ, it is recommended that the `SBT`
+  * When loading a project into IntelliJ, it is required that the `SBT`
     and `Scala` plugins are installed; the `SBT` plugin allows replacing the
     default `Make` builder with sbt, enabling seamless builds from the IDE.
   * The best practice is to set the IDE's run task to invoke sbt
     `android:package` instead of `Make`; this is found under the Run
     Configurations
+  * The SBT plugin for IntelliJ is the one from this project
+    https://github.com/orfjackal/idea-sbt-plugin
   * The `Scala` plugin is still required for non-Scala projects in order to
     edit sbt build files from inside the IDE.
 * Consuming apklib and aar artifacts from other projects
-  * `import android.Dependencies.{apklib,aar}` to use `apklib()` and `aar()`
+  * Optionally use `apklib()` or `aar()`
     * using `apklib()` and `aar()` are only necessary if there are multiple
       filetypes for the dependency, such as `jar`, etc.
   * `libraryDependencies += apklib("groupId" % "artifactId" % "version", "optionalArtifactFilename")`
@@ -295,12 +303,9 @@ library projects. 3rd party libraries can be included by placing them in
     * `apklib` and `aar` that transitively depend on `apklib` and `aar` will
       automatically be processed. To disable set
       `transitiveAndroidLibs in Android := false`
-    * `collectResources in Android <<= collectResources in Android dependsOn (compile in Compile in otherLibraryProject)`
-    * Alternatively, the `androidBuild()` overload may be used to specify
-      all dependency library-projects which should relieve this problem.
-    * Sometimes library projects and apklibs will incorrectly bundle
-      android-support-v4.jar, to rectify this, add this setting:
-      `dependencyClasspath in Compile ~= { _ filterNot (_.data.getName startsWith "android-support-v4") }`
+  * Sometimes library projects and apklibs will incorrectly bundle
+    android-support-v4.jar, to rectify this, add this setting:
+    `dependencyClasspath in Compile ~= { _ filterNot (_.data.getName startsWith "android-support-v4") }`
 * Using the google gms play-services aar:
 
     ```
@@ -321,26 +326,21 @@ library projects. 3rd party libraries can be included by placing them in
     * It could also be specified, for example, like so:
       `android.Plugin.androidBuild ++ android.Plugin.buildAar`
 * Multi-project builds
+  * See multi-project build examples in the test cases for an example of
+    configuration.
   * Multi-project builds *must* specify
     `transitiveAndroidLibs in Android := false` if any of the subprojects
     include `aar`s or `apklib`s as dependencies.
-  * All sub-projects in a multi-project build must specify `exportJars := true`
-  * Several documented examples can be found at the following links, they
-    cover a variety of situations, from multiple java projects, to mixed
-    java and android projects and fully scala projects.
-    * https://gist.github.com/pfn/5872427
-    * https://gist.github.com/pfn/5872679
-    * https://gist.github.com/pfn/5872770
-  * See [Working with Android library projects](https://github.com/pfn/android-sdk-plugin/wiki/Working-with-Android-library-projects) 
-    in the Wiki for detailed instructions on configuring Android library
-    projects
+  * `androidBuild(...)` should be used to specify all dependent library-projects
+  * All sub-projects in a multi-project build must specify `exportJars := true`.
+    Android projects automatically set this variable.
   * When using multi-project builds in Scala, where library projects have
     scala code, but the main project(s) do(es) not, you will need to specify
     that proguard must run. To do this, the following must be set for each
     main project: `proguardScala in Android := true`
 * Configuring `android-sdk-plugin` by editing build.sbt
   * `import android.Keys._` at the top to make sure you can use the plugin's
-    configuration options
+    configuration options (not required with sbt 0.13.5+ and AutoPlugin)
   * Add configuration options according to the sbt style:
     * `useProguard in Android := true` to enable proguard. Note: if you
       disable proguard for scala, you *must* specify uses-library on a
@@ -372,32 +372,7 @@ library projects. 3rd party libraries can be included by placing them in
     first device in the list.
   * `android:install`, `android:run` and `android:test` are tasks that can
     be used to install, run and test the built apk on-device, respectively.
-
-### Differences from jberkel/android-plugin ###
-
-Why create a new plugin for building android applications?  Because
-`jberkel/android-plugin` is pretty difficult to use, and enforces an
-sbt-style project layout. Ease of configuration is a primary objective
-of this plugin; configuring a project to use this plugin is 2-3 lines of
-configuration plus any standard android project layout, jberkel's requires
-the installation of `conscript`, `g8` and cloning a template project which
-has lots of autogenerated configuration. This is incompatible with the
-built-in SDK configuration and doesn't load up into Eclipse easily. All
-android projects, particularly those that have been building using the
-standard SDK tools will easily build with this plugin; including regular,
-Java-based Android applications.
-
-* This plugin uses the standard Android project layout as created by
-  Eclipse and `android create project`. Additionally, it can read all
-  existing configuration out of the project's `.properties` files.
-* `TR` for typed resources improves upon `TR` in android-plugin. It should be
-  compatible with existing applications that use `TR` while also adding a
-  `TypedLayout[A]` for layouts. An implicit conversion on `LayoutInflater` to
-  `TypedLayoutInflater` allows calling
-  `inflater.inflate(TR.layout.foo, container, optionalBoolean)` and receiving
-  a properly typed view object.
-  * Import `TypedResource._` to get the implicit conversions
-* All plugin classes are namespaced under the `android` package
+  * Type `help` for a list of all available commands.
 
 ### TODO / Known Issues ###
 
