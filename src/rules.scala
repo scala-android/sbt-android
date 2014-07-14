@@ -2,6 +2,7 @@ package android
 
 import java.util.Properties
 
+import android.Dependencies.LibraryProject
 import sbt._
 import sbt.Keys._
 
@@ -49,14 +50,16 @@ object Plugin extends sbt.Plugin {
 
   def androidBuild(projects: Project*): Seq[Setting[_]]= {
     androidBuild ++
-      (projects map { p =>
+      (projects flatMap { p =>
         Seq(
           collectResources in Android <<=
             collectResources in Android dependsOn (compile in Compile in p),
           compile in Compile <<= compile in Compile dependsOn(
             packageT in Compile in p)
         )
-      }).flatten
+      }) :+ (localProjects in Android := projects map { p =>
+        LibraryProject(p.base)
+      })
   }
 
   lazy val androidBuildAar: Seq[Setting[_]] = androidBuildAar()
