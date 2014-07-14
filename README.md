@@ -278,8 +278,9 @@ library projects. 3rd party libraries can be included by placing them in
     nor Eclipse.
   * To generate project files for loading into IntelliJ, use the `sbt-idea`
     plugin by adding
-    `addSbtPlugin("com.github.mpeltonen" % "sbt-idea" % "1.6.0")` to your
+    `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.7.0-SNAPSHOT")` to your
     `project/plugins.sbt` and running the command `sbt gen-idea`
+    * Use my snapshot of sbt-idea until mpeltonen/sbt-idea#314 is merged
     * As with this plugin, sbt-idea may be installed globally as well.
   * When loading a project into IntelliJ, it is required that the `SBT`
     and `Scala` plugins are installed; the `SBT` plugin allows replacing the
