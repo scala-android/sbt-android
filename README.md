@@ -280,6 +280,8 @@ library projects. 3rd party libraries can be included by placing them in
     plugin by adding
     `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.7.0-SNAPSHOT")` to your
     `project/plugins.sbt` and running the command `sbt gen-idea`
+    * This requires the snapshots repo which can be done by adding
+      `resolvers += Resolver.sbtPluginRepo("snapshots")`
     * Use my snapshot of sbt-idea until mpeltonen/sbt-idea#314 is merged
     * As with this plugin, sbt-idea may be installed globally as well.
   * When loading a project into IntelliJ, it is required that the `SBT`
