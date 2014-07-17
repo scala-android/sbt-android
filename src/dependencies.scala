@@ -115,5 +115,23 @@ object Dependencies {
 
     override def hashCode() = path.getCanonicalFile.hashCode
   }
+
+  case class RichProject(project: Project) {
+    import sbt.Keys._
+    import android.Keys._
+    def androidBuildWith(deps: Project*): Project = {
+      project.settings(android.Plugin.androidBuild ++
+        (deps flatMap { p =>
+          Seq(
+            collectResources in Android <<=
+              collectResources in Android dependsOn (compile in Compile in p),
+            compile in Compile <<= compile in Compile dependsOn(
+              packageT in Compile in p)
+          )
+        }) :+ (localProjects in Android := deps map { p =>
+        Dependencies.LibraryProject(p.base)
+      }):_*) dependsOn (deps map { x => x: ClasspathDep[ProjectReference] }:_*)
+    }
+  }
 }
 // vim: set ts=2 sw=2 et:

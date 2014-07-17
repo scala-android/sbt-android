@@ -48,6 +48,7 @@ object Plugin extends sbt.Plugin {
     allPluginSettings
   }
 
+  @deprecated("Use Project.androidBuildWith(subprojects) instead", "1.3.3")
   def androidBuild(projects: Project*): Seq[Setting[_]]= {
     androidBuild ++
       (projects flatMap { p =>
