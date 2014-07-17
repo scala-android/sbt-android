@@ -14,6 +14,8 @@ import com.android.utils.ILogger
 import Dependencies._
 import com.android.builder.sdk.SdkLoader
 
+import language.implicitConversions
+
 object Keys {
   // alias types that got refactored out
   type ProjectLayout = android.ProjectLayout
