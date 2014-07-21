@@ -337,8 +337,15 @@ object Tasks {
           "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath)
 
         log.info("Executing NDK build")
-        val suffix = if (Commands.isWindows) ".cmd" else ""
-        Process.apply(ndk + "/ndk-build" + suffix, layout.base, env: _*) !
+        val ndkbuildFile = if (!Commands.isWindows) file(ndk) / "ndk-build" else  {
+          val f = file(ndk) / "ndk-build.cmd"
+          if (f.exists) f else file(ndk) / "ndk-build.bat"
+        }
+
+        val rc = Process(ndkbuildFile.getAbsolutePath, layout.base, env: _*) !
+
+        if (rc != 0)
+          sys.error("ndk-build failed!")
 
         Option(layout.bin / "jni")
       }
@@ -354,11 +361,16 @@ object Tasks {
     val natives = NativeFinder.natives(classes)
 
     if (natives.size > 0) {
-      Seq("javah",
+      val javah = Seq("javah",
         "-d", src.getAbsolutePath,
         "-classpath", classes.getAbsolutePath,
         "-bootclasspath", bldr.getBootClasspath mkString File.pathSeparator,
-        natives mkString " ") !
+        natives mkString " ")
+
+      val rc = javah !
+
+      if (rc != 0)
+        sys.error("Failed to execute: " + (javah mkString " "))
 
       src ** "*.h" get
     } else Seq.empty
@@ -718,34 +730,31 @@ object Tasks {
     output
   }
 
-  val signReleaseTaskDef = (properties, apkbuild, streams) map {
-    (p, a, s) =>
+  val signReleaseTaskDef = (apkSigningConfig, apkbuild, streams) map {
+    (c, a, s) =>
     val bin = a.getParentFile
     if (createDebug) {
       s.log.info("Debug package does not need signing: " + a.getName)
       a
     } else {
-      (Option(p.getProperty("key.alias")),
-        Option(p.getProperty("key.store")),
-        Option(p.getProperty("key.store.password"))) match {
-
-        case (Some(alias),Some(store),Some(passwd)) =>
+      c map { cfg =>
         import SignJar._
-        val t = Option(p.getProperty("key.store.type")) getOrElse "jks"
         val signed = bin / a.getName.replace("-unsigned", "-unaligned")
-        val options = Seq( storeType(t)
-                         , storePassword(passwd)
-                         , signedJar(signed)
-                         , keyStore(file(store).toURI.toURL)
-                         )
-        sign(a, alias, options) { (jarsigner, args) =>
+        val options = Seq( storeType(cfg.storeType)
+          , storePassword(cfg.storePass)
+          , signedJar(signed)
+          , keyStore(cfg.keystore.toURI.toURL)
+        )
+
+        val kp = cfg.keyPass map { p => keyPassword(p) }
+        sign(a, cfg.alias, options ++ kp) { (jarsigner, args) =>
           (jarsigner +: (args ++ Seq(
             "-digestalg", "SHA1", "-sigalg", "MD5withRSA"))) !
         }
 
         s.log.info("Signed: " + signed.getName)
         signed
-        case _ =>
+      } getOrElse {
         s.log.warn("Package needs signing: " + a.getName)
         a
       }

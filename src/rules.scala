@@ -299,6 +299,19 @@ object Plugin extends sbt.Plugin {
     apkbuildExcludes         := Seq.empty,
     apkbuildPickFirsts       := Seq.empty,
     apkbuild                <<= apkbuildTaskDef,
+    apkSigningConfig        <<= properties { p =>
+      (Option(p.getProperty("key.alias")),
+        Option(p.getProperty("key.store")),
+        Option(p.getProperty("key.store.password"))) match {
+        case (Some(alias), Some(store), Some(passwd)) =>
+          val c = PlainSigningConfig(file(store), passwd, alias)
+          val c2 = Option(p.getProperty("key.store.type")) map { t =>
+            c.copy(storeType = t) } getOrElse c
+          Option(p.getProperty("key.alias.password")) map { p =>
+            c.copy(keyPass = Some(p)) } orElse Some(c2)
+        case _ => None
+      }
+    },
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
     packageT                <<= zipalign,
