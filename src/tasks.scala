@@ -1053,7 +1053,7 @@ object Tasks {
 
     // TODO use getIncremental in DexOptions instead
     val proguardedDexMarker = b / ".proguarded-dex"
-    (createDebug && !proguardedDexMarker.exists) -> (p map { f =>
+    (createDebug && (pc.isEmpty || !proguardedDexMarker.exists)) -> (p map { f =>
       IO.touch(proguardedDexMarker, false)
       Seq(f)
     } getOrElse {
