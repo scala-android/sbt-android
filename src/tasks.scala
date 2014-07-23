@@ -355,15 +355,16 @@ object Tasks {
   val ndkJavahTaskDef = ( sourceManaged in Compile
                         , compile in Compile
                         , classDirectory in Compile
+                        , fullClasspath in Compile
                         , builder
                         , streams
-                        ) map { (src, c, classes, bldr, s) =>
+                        ) map { (src, c, classes, cp, bldr, s) =>
     val natives = NativeFinder.natives(classes)
 
     if (natives.size > 0) {
       val javah = Seq("javah",
         "-d", src.getAbsolutePath,
-        "-classpath", classes.getAbsolutePath,
+        "-classpath", cp map (_.data.getAbsolutePath) mkString File.pathSeparator,
         "-bootclasspath", bldr.getBootClasspath mkString File.pathSeparator,
         natives mkString " ")
 
