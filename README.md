@@ -245,7 +245,7 @@ library projects. 3rd party libraries can be included by placing them in
    following line, (automatically performed if using `gen-android`) :
    
    ```
-   object Build extends android.Build
+   object Build extends android.AutoBuild
    ```
 
 5. Now you will be able to run SBT, some available commands in sbt are:
