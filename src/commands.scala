@@ -644,7 +644,7 @@ object Commands {
 
   private def sdkpath(state: State): String = {
     Project.extract(state).getOpt(
-      Keys.sdkPath in Keys.Android) orElse (
+      Keys.Internal.sdkPath in Keys.Android) orElse (
       Option(System getenv "ANDROID_HOME") flatMap {
         p =>
           val f = file(p)
