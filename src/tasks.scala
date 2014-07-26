@@ -332,7 +332,8 @@ object Tasks {
           "Android.mk found, but neither ndk.dir nor ANDROID_NDK_HOME are set")
       }
       ndkHome flatMap { ndk =>
-        val env = Seq("NDK_OUT" -> (layout.bin / "obj").getAbsolutePath,
+        val env = Seq("NDK_PROJECT_PATH" -> layout.sources.getAbsolutePath,
+          "NDK_OUT" -> (layout.bin / "obj").getAbsolutePath,
           "NDK_LIBS_OUT" -> (layout.bin / "jni").getAbsolutePath,
           "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath)
 
