@@ -79,6 +79,7 @@ object Plugin extends sbt.Plugin {
     addArtifact(apklibArtifact in Android, packageApklib in Android)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
+    sourceManaged              <<= (projectLayout in Android) (_.gen),
     unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
       Set(l.sources, l.javaSource, l.scalaSource).toSeq),
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
@@ -299,6 +300,7 @@ object Plugin extends sbt.Plugin {
     apkbuildExcludes         := Seq.empty,
     apkbuildPickFirsts       := Seq.empty,
     apkbuild                <<= apkbuildTaskDef,
+    apkbuild                <<= apkbuild dependsOn (managedResources in Compile),
     apkSigningConfig        <<= properties { p =>
       (Option(p.getProperty("key.alias")),
         Option(p.getProperty("key.store")),
