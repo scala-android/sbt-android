@@ -974,7 +974,9 @@ object Tasks {
     // need to check output changes, otherwise compile fails after gen-idea
     FileFunction.cached(cache / "r-generator")(
         FilesInfo.lastModified, FilesInfo.hash) { (in,out) =>
-      s.log.info("Generating R.java")
+      s.log.info("Processing resources")
+      if (!res.exists)
+        s.log.warn("No resources found at " + res.getAbsolutePath)
       aapt(bldr, manif, pkg, libs, lib, res, assets, null,
         layout.gen, proguardTxt, s.log)
       s.log.debug(
