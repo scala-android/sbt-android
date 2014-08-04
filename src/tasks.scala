@@ -705,7 +705,7 @@ object Tasks {
 
     // filtering out org.scala-lang above should not cause an issue
     // they should not be changing on us anyway
-    val deps = Set(r +: ((d * "*.dex" get) ++ jars):_*)
+    val deps = Set(r +: ((d * "*.dex" get) ++ jars ++ jni):_*)
 
 
     FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
