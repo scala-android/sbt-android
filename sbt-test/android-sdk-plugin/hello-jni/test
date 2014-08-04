@@ -1,5 +1,6 @@
 > android:package
 $ exists bin/com-example-hellojni-debug.apk
-$ exists target/src_managed/main/com_example_hellojni_HelloJni.h
+> javah-finder
+$ exists gen/com_example_hellojni_HelloJni.h
 > android:test
 > android:uninstall

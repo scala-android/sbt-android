@@ -369,6 +369,8 @@ object Tasks {
         "-bootclasspath", bldr.getBootClasspath mkString File.pathSeparator,
         natives mkString " ")
 
+      s.log.debug(javah mkString " ")
+
       val rc = javah !
 
       if (rc != 0)
