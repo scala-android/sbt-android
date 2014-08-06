@@ -2,7 +2,7 @@ package android
 
 import sbt._
 
-sealed trait ProjectLayout {
+trait ProjectLayout {
   def base: File
   def scalaSource: File
   def javaSource: File
