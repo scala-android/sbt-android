@@ -395,6 +395,10 @@ library projects. 3rd party libraries can be included by placing them in
 
 ### TODO / Known Issues ###
 
+* Changing usage of `implicit`s (defs, vals, classes, etc.) confuses
+  the proguard cache. It results in `NoSuchMethodError`s even though present
+  in the generated dex. Current workaround is to `clean` when `implicit`
+  usage changes occur.
 * Version checking of plugin and update notifications. This is not possible
   with ivy. Options: relocate plugin to sonatype and/or host an off-site
   versions config descriptor.
