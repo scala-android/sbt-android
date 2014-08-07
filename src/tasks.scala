@@ -1121,7 +1121,7 @@ object Tasks {
       }.distinct :+ Attributed.blank(c)
       val extras = x map (f => file(f))
 
-      if (s && createDebug && pc.nonEmpty) {
+      if (createDebug && pc.nonEmpty) {
         st.log.debug("Proguard cache rules: " + pc)
         val deps = cacheDir / "proguard_deps"
         val out = cacheDir / "proguard_cache"
