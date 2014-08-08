@@ -1011,7 +1011,7 @@ object Tasks {
       pkg, genPath, genPath, resApk, proguardTxt,
       if (lib) VariantConfiguration.Type.LIBRARY else
         VariantConfiguration.Type.DEFAULT, createDebug, options,
-      Seq.empty[String], true)
+      Seq.empty[String], false)
   }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
