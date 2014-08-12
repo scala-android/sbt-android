@@ -457,7 +457,8 @@ object Plugin extends sbt.Plugin {
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
     commands ++= Seq(genAndroid, genAndroidSbt, pidcat, logcat, adbLs, adbShell,
-      devices, device, reboot, adbWifi, adbPush, adbPull, adbCat, adbRm)
+      devices, device, reboot, adbScreenOn,
+      adbWifi, adbPush, adbPull, adbCat, adbRm)
   )
 
   private def adbCat = Command(
@@ -514,6 +515,11 @@ object Plugin extends sbt.Plugin {
     "device", ("device", "Select a connected android device"),
     "Select a device (when there are multiple) to apply actions to"
   )(deviceParser)(deviceAction)
+
+  private def adbScreenOn = Command.command(
+    "adb-screenon", "Turn on screen and unlock (if not protected)",
+    "Turn the screen on and unlock the keyguard if it is not pin-protected"
+  )(adbPowerAction)
 
   private def adbWifi = Command.command(
     "adb-wifi", "Enable/disable ADB-over-wifi for selected device",

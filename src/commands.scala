@@ -218,6 +218,20 @@ object Commands {
       state
   }
 
+  val adbPowerAction: State => State = { state =>
+    val sdk = sdkpath(state)
+
+    val nullRecv = new IShellOutputReceiver {
+      override def isCancelled = false
+      override def addOutput(data: Array[Byte], offset: Int, length: Int) = ()
+      override def flush() = ()
+    }
+    targetDevice(sdk, state.log) map { d =>
+      executeShellCommand(d, "input keyevent 26", nullRecv)
+      executeShellCommand(d, "input keyevent 82", nullRecv)
+      state
+    } getOrElse sys.error("no device selected")
+  }
   val adbCatAction: (State, (FileEntry,Option[String])) => State = {
     case (state, (entry, name)) =>
       val target = name map {
