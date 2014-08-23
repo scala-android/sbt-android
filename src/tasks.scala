@@ -420,6 +420,7 @@ object Tasks {
     val assetBin = layout.bin / "assets"
     val assets = layout.assets
     val resTarget = layout.bin / "resources" / "res"
+    val rsResources = layout.bin / "renderscript" / "res"
 
     resTarget.mkdirs()
     assetBin.mkdirs
@@ -433,8 +434,8 @@ object Tasks {
     if (noTestApk && layout.testAssets.exists)
       IO.copyDirectory(layout.testAssets, assetBin, false, true)
     // prepare resource sets for merge
-    val res = Seq(layout.res) ++ (libs map { _.layout.res } filter {
-      _.isDirectory })
+    val res = Seq(layout.res, rsResources) ++
+      (libs map { _.layout.res } filter { _.isDirectory })
 
     s.log.debug("Local/library-project resources: " + res)
     // this needs to wait for other projects to at least finish their
@@ -600,6 +601,7 @@ object Tasks {
                           ) map { case (j, layout, (_, r), n, s) =>
     import layout._
     val outfile = bin / (n + ".aar")
+    val rsRes = bin / "renderscript" / "res"
     s.log.info("Packaging " + outfile.getName)
     val mapping =
       (PathFinder(manifest)             x flat) ++
@@ -607,6 +609,7 @@ object Tasks {
       (PathFinder(bin / "proguard.txt") x flat) ++
       (PathFinder(j)                    x flat) ++
       ((PathFinder(res) ***)            x rebase(res,    "res")) ++
+      ((PathFinder(rsRes) ***)          x rebase(rsRes,  "res")) ++
       ((PathFinder(assets) ***)         x rebase(assets, "assets"))
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
@@ -828,7 +831,7 @@ object Tasks {
           (script relativeTo src).get.getParentFile.getPath).getAbsolutePath,
         //"-O", level, 0 through 3
         "-MD", "-p", layout.gen.getAbsolutePath,
-        "-o", (layout.bin / "resources" / "res" / "raw").getAbsolutePath) :+
+        "-o", (layout.bin / "renderscript" / "res" / "raw").getAbsolutePath) :+
           script.getAbsolutePath
 
       val r = cmd !
