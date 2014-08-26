@@ -1,0 +1,8 @@
+> android:package
+> android:packageAar
+$ exists target/android-bin/renderscript-debug.apk
+$ exists target/android-bin/renderscript.aar
+> check-apk-for-resource
+> check-aar-for-resource
+> last android:apkbuild
+> show list-apk
