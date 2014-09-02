@@ -1,5 +1,5 @@
 > android:package
-> android:packageAar
+> android:package-aar
 $ exists target/android-bin/renderscript-debug.apk
 $ exists target/android-bin/renderscript.aar
 > check-apk-for-resource
