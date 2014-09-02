@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.3.4
+Current version is 1.3.5
 
 ## Description ##
 
@@ -14,6 +14,11 @@ library projects. 3rd party libraries can be included by placing them in
 
 ## New features in 1.3.x ##
 
+* `1.3.5`:
+  * unseal ProjectLayout
+  * allow proguard-cache on java-only projects
+  * `adb-screenon` command (turn screen of device on/unlock)
+  * include renderscript generated resources in aar
 * `1.3.4`: bugfixes
   * #81 add fullClasspath to javah
   * update to builder 0.12.2
@@ -60,7 +65,7 @@ library projects. 3rd party libraries can be included by placing them in
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.4")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.5")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -224,7 +229,7 @@ library projects. 3rd party libraries can be included by placing them in
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.4")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.5")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -245,7 +250,7 @@ library projects. 3rd party libraries can be included by placing them in
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.4")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.5")
    ```
 
 4. Create a file named `project/build.scala` and add the
