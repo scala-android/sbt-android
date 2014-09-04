@@ -1363,7 +1363,7 @@ object Tasks {
       try {
         runTests(sdk, testPackage, s, trunner, timeo)
       } finally {
-        uninstallPackage(testPackage, sdk, s.log)
+        uninstallPackage(None, testPackage, sdk, s.log)
       }
     } else {
       runTests(sdk, pkg, s, runner, timeo)
@@ -1496,8 +1496,15 @@ object Tasks {
     }
   }
 
-  def uninstallPackage(packageName: String, sdkPath: String, log: Logger) {
+  def uninstallPackage(cacheDir: Option[File], packageName: String, sdkPath: String, log: Logger) {
     Commands.targetDevice(sdkPath, log) foreach { d =>
+      val cacheName = "install-" + URLEncoder.encode(
+        d.getSerialNumber, "utf-8")
+      cacheDir foreach { c =>
+        FileFunction.cached(c / cacheName, FilesInfo.hash) { in =>
+          Set.empty
+        }(Set.empty)
+      }
       Option(d.uninstallPackage(packageName)) map { err =>
         sys.error("[%s] Uninstall failed: %s" format (packageName, err))
       } getOrElse {
@@ -1513,8 +1520,8 @@ object Tasks {
       case s if s >= MB => "%.2fMB" format (s/MB)
     }
   }
-  val uninstallTaskDef = (sdkPath, packageName, streams) map { (k,p,s) =>
-    uninstallPackage(p, k, s.log)
+  val uninstallTaskDef = (cacheDirectory, sdkPath, packageName, streams) map { (c, k,p,s) =>
+    uninstallPackage(Some(c), p, k, s.log)
   }
 
   def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):
