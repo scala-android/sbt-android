@@ -907,10 +907,10 @@ object Tasks {
                                ) map {
     (bldr, noTestApk, layout, isLib, libs, pkg, st, prj, trunner, ph) =>
     val extracted = Project.extract(st)
-    val vc = extracted.get(versionCode in (prj,Android))
-    val vn = extracted.get(versionName in (prj,Android))
-    val sdk = extracted.get(targetSdkVersion in (prj,Android))
-    val minSdk = extracted.get(minSdkVersion in (prj,Android))
+    val vc = extracted.runTask(versionCode in (prj,Android), st)._2
+    val vn = extracted.runTask(versionName in (prj,Android), st)._2
+    val sdk = extracted.runTask(targetSdkVersion in (prj,Android), st)._2
+    val minSdk = extracted.runTask(minSdkVersion in (prj,Android), st)._2
     val merge = extracted.get(mergeManifests in (prj,Android))
 
     layout.bin.mkdirs()
@@ -1349,9 +1349,9 @@ object Tasks {
     (layout, prj, noTestApk, bldr, pkg, libs, classes, clib, tlib, st, s) =>
     val extracted = Project.extract(st)
     val timeo = extracted.get(instrumentTestTimeout in (prj,Android))
-    val targetSdk = extracted.get(targetSdkVersion in (prj,Android))
-    val minSdk = extracted.get(minSdkVersion in (prj,Android))
     val sdk = extracted.get(sdkPath in (prj,Android))
+    val targetSdk = extracted.runTask(targetSdkVersion in Android, st)._2
+    val minSdk = extracted.runTask(minSdkVersion in Android, st)._2
     val runner = extracted.get(instrumentTestRunner in (prj,Android))
     val xmx = extracted.get(dexMaxHeap in (prj,Android))
     val cache = s.cacheDirectory
@@ -1539,7 +1539,7 @@ object Tasks {
   def runTaskDef(install: TaskKey[Unit],
       sdkPath: SettingKey[String],
       layout: SettingKey[ProjectLayout],
-      packageName: SettingKey[String]) = inputTask { result =>
+      packageName: TaskKey[String]) = inputTask { result =>
     (install, sdkPath, layout, packageName, result, streams) map {
       (_, k, l, p, r, s) =>
 

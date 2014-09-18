@@ -455,8 +455,10 @@ object Commands {
     val sdk = sdkpath(state)
     val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
     val packageName = thisProject flatMap { prj =>
-      Project.extract(state).getOpt(
-        Keys.packageName in(prj, Keys.Android))
+      scala.util.control.Exception.catching(classOf[RuntimeException]) opt {
+        Project.extract(state).runTask(
+          Keys.packageName in(prj, Keys.Android), state)._2
+      }
     }
 
     val (pkgOpt, tags) = if (args.trim.size > 0) {

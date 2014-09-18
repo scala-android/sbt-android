@@ -120,20 +120,20 @@ object Keys {
     "setting indicating whether or not this is a library project")
 
   // manifest-related keys
-  val packageName = SettingKey[String]("package-name",
+  val packageName = TaskKey[String]("package-name",
     "android package name, can be changed to create a different apk package")
   // TODO turn this and all dependents into a TaskKey, manifest can change
-  val manifest = SettingKey[Elem]("manifest", "android manifest xml object")
+  val manifest = TaskKey[Elem]("manifest", "android manifest xml object")
   val manifestPlaceholders = TaskKey[Map[String,String]](
     "manifest-placeholders", "${variable} expansion for AndroidManifest.xml")
-  val packageForR = SettingKey[String]("packageForR",
+  val packageForR = TaskKey[String]("packageForR",
     "Custom package name for aapt --custom-package, defaults to packageName")
-  val versionName = SettingKey[Option[String]]("version-name",
+  val versionName = TaskKey[Option[String]]("version-name",
     "application version name")
-  val versionCode = SettingKey[Option[Int]]("version-code",
+  val versionCode = TaskKey[Option[Int]]("version-code",
     "application version code")
-  val targetSdkVersion = SettingKey[String]("target-sdk-version", "android target")
-  val minSdkVersion = SettingKey[String]("min-sdk-version", "android minSdk")
+  val targetSdkVersion = TaskKey[String]("target-sdk-version", "android target")
+  val minSdkVersion = TaskKey[String]("min-sdk-version", "android minSdk")
   val mergeManifests = SettingKey[Boolean]("merge-manifests",
     "merge manifests from libs, disable if libraries have bad manifests")
 

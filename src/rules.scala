@@ -364,26 +364,26 @@ object Plugin extends sbt.Plugin {
     mergeManifests           := true,
     manifestPlaceholders     := Map.empty,
     processManifest         <<= processManifestTaskDef,
-    manifest                <<= manifestPath { m =>
+    manifest                <<= manifestPath map { m =>
       if (!m.exists)
         fail("cannot find AndroidManifest.xml: " + m)
       XML.loadFile(m)
     },
     versionCode              := None,
     versionName              := None,
-    packageForR             <<= manifest { m =>
+    packageForR             <<= manifest map { m =>
       m.attribute("package") get 0 text
     },
-    packageName             <<= manifest { m =>
+    packageName             <<= manifest map { m =>
       m.attribute("package") get 0 text
     },
-    targetSdkVersion        <<= (manifest, minSdkVersion) { (m, min) =>
+    targetSdkVersion        <<= (manifest, minSdkVersion) map { (m, min) =>
       val usesSdk = m \ "uses-sdk"
       if (usesSdk.isEmpty) "1" else
         usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") map {
             _(0) text } getOrElse min
     },
-    minSdkVersion        <<= manifest { m =>
+    minSdkVersion        <<= manifest map { m =>
       val usesSdk = m \ "uses-sdk"
       if (usesSdk.isEmpty) "1" else
         usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") map {
