@@ -1,6 +1,6 @@
 import android.Keys._
 
-TaskKey[Unit]("check-dex") <<= ( builder in Android
+TaskKey[Unit]("check-dex") <<= ( TaskKey[com.android.builder.core.AndroidBuilder]("builder") in Android
                                , projectLayout in Android
                                ) map {
   (p,layout) =>
@@ -15,7 +15,7 @@ TaskKey[Unit]("check-dex") <<= ( builder in Android
     error("ViewPager not found")
 }
 
-TaskKey[Unit]("check-cache") <<= (proguardInputs in Android) map { c =>
+TaskKey[Unit]("check-cache") <<= (TaskKey[ProguardInputs]("proguard-inputs") in Android) map { c =>
   import java.io._
   import java.util.zip._
   val in = new ZipInputStream(new FileInputStream(c.proguardCache.get))

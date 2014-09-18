@@ -2,7 +2,7 @@ import android.Keys._
 import java.util.zip._
 import java.io._
 
-TaskKey[Unit]("check-dex") <<= ( builder in Android
+TaskKey[Unit]("check-dex") <<= ( TaskKey[com.android.builder.core.AndroidBuilder]("builder") in Android
                                , projectLayout in Android
                                ) map {
   (p,layout) =>
