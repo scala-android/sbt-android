@@ -233,7 +233,7 @@ object Keys {
       "includes test sources in debug builds if debug-includes-tests")
     val zipalignPath = TaskKey[String]("zipalign-path",
       "path to the zipalign executable")
-    val builder = TaskKey[AndroidBuilder]("builder", "AndroidBuilder object")
+    val builder = TaskKey[AndroidBuilder]("android-builder", "AndroidBuilder object")
     val apklibArtifact = SettingKey[Artifact]("apklib-artifact",
       "artifact object for publishing apklibs")
     val aarArtifact = SettingKey[Artifact]("aar-artifact",
