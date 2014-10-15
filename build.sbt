@@ -20,6 +20,7 @@ resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 
 libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "4.2",
+  "javassist" % "javassist" % "3.12.1.GA",
   "net.sf.proguard" % "proguard-base" % "4.11",
   "com.android.tools.build" % "builder" % "0.12.2"
 )
