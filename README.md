@@ -5,7 +5,7 @@ Current version is 1.3.5
 ## Description ##
 
 This is an easy-to-use plugin for existing and newly created android
-projects.  It is tested and developed against 0.12.x and 0.13.x.
+projects.  It is tested and developed against 0.12.x and 0.13.5+.
 
 The plugin supports normal android projects and projects that reference
 library projects. 3rd party libraries can be included by placing them in
