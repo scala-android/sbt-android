@@ -19,7 +19,8 @@ unmanagedBase <<= baseDirectory(_ / "libs")
 resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 
 libraryDependencies ++= Seq(
-  "asm" % "asm-all" % "3.3.1", // stay on 3.3.1 because it's all interfaces
+  "org.ow2.asm" % "asm-all" % "4.2",
+  "javassist" % "javassist" % "3.12.1.GA",
   "net.sf.proguard" % "proguard-base" % "4.11",
   "com.android.tools.build" % "builder" % "0.12.2"
 )
