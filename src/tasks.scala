@@ -114,7 +114,10 @@ object Tasks {
     (u,local,d,tx,t,s) =>
     val libs = u.matching(artifactFilter(`type` = "aar"))
     val dest = t / "aars"
-    val deps = d.map(moduleString).toSet
+
+    val deps = d.filterNot(_.configurations.exists(
+      _ contains "test")).map(moduleString).toSet
+      s.log.info("deps: " + deps)
     (libs flatMap { l =>
       val m = moduleForFile(u, l)
       if (tx || deps(moduleString(m))) {
@@ -189,7 +192,8 @@ object Tasks {
     (u,d,gen,isLib,tx,t,s,bldr,st) =>
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = t / "apklibs"
-    val deps = d.map(moduleString).toSet
+    val deps = d.filterNot(_.configurations.exists(
+      _ contains "test")).map(moduleString).toSet
     libs flatMap { l =>
       val m = moduleForFile(u, l)
       if (tx || deps(moduleString(m))) {
