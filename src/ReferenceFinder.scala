@@ -54,7 +54,7 @@ object ReferenceFinder {
       factory.setFilter(new MethodFilter {
         override def isHandled(p1: Method): Boolean = true
       })
-      val o = factory.create(Array(classOf[Int]), Array(262144.asInstanceOf[AnyRef]), handler)
+      val o = factory.create(Array(classOf[Int]), Array(Opcodes.ASM4.asInstanceOf[AnyRef]), handler)
       (clazz, o)
     }.toMap
     classesMap(classOf[ClassVisitor]) match {

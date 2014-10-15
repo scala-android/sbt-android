@@ -39,7 +39,7 @@ object NativeFinder {
         null
       }
     }
-    factory.create(Array(classOf[Int]), Array(262144.asInstanceOf[AnyRef]), h) match {
+    factory.create(Array(classOf[Int]), Array(Opcodes.ASM4.asInstanceOf[AnyRef]), h) match {
       case x: ClassVisitor => {
         val readbuf = Array.ofDim[Byte](16384)
         val buf = new ByteArrayOutputStream
