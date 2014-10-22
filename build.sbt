@@ -2,7 +2,7 @@ import ScriptedPlugin._
 
 name := "android-sdk-plugin"
 
-version := "1.3.6"
+version := "1.3.7-SNAPSHOT"
 
 organization := "com.hanhuy.sbt"
 
@@ -19,9 +19,9 @@ unmanagedBase <<= baseDirectory(_ / "libs")
 resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 
 libraryDependencies ++= Seq(
-  "org.ow2.asm" % "asm-all" % "4.2",
+  "org.ow2.asm" % "asm-all" % "5.0.2",
   "javassist" % "javassist" % "3.12.1.GA",
-  "net.sf.proguard" % "proguard-base" % "4.11",
+  "net.sf.proguard" % "proguard-base" % "5.0",
   "com.android.tools.build" % "builder" % "0.12.2"
 )
 
