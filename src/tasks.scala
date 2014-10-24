@@ -117,7 +117,6 @@ object Tasks {
 
     val deps = d.filterNot(_.configurations.exists(
       _ contains "test")).map(moduleString).toSet
-      s.log.info("deps: " + deps)
     (libs flatMap { l =>
       val m = moduleForFile(u, l)
       if (tx || deps(moduleString(m))) {
@@ -1005,6 +1004,8 @@ object Tasks {
       override def getIgnoreAssets = null
       override def getNoCompress = null
       override def getUseAaptPngCruncher = true
+      override def getFailOnMissingConfigEntry = false
+
     }
     val genPath = gen.getAbsolutePath
     val all = collectdeps(libs) ++ libs
