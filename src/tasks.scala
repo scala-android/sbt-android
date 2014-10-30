@@ -1092,12 +1092,13 @@ object Tasks {
                    , streams) map {
     case (bldr, (incr,inputs), xmx, cl, lib, bin, s) =>
     val options = new DexOptions {
-      def isCoreLibrary = cl
-      def getIncremental = incr
-      def getJavaMaxHeapSize = xmx
-      def getPreDexLibraries = false
-      def getJumboMode = false
-      def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+      // gone in current android builder
+//      override def isCoreLibrary = cl
+      override def getIncremental = incr
+      override def getJavaMaxHeapSize = xmx
+      override def getPreDexLibraries = false
+      override def getJumboMode = false
+      override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
     }
     s.log.info("Generating dex, incremental=" + incr)
     s.log.debug("Dex inputs: " + inputs)
@@ -1330,12 +1331,13 @@ object Tasks {
       bldr.processTestManifest(testPackage, minSdk.toString, targetSdk.toString,
         tpkg, trunner, false, false, libs, processedManifest.getAbsoluteFile)
       val options = new DexOptions {
-        def isCoreLibrary = cl
-        def getIncremental = true
-        def getJumboMode = false
-        def getPreDexLibraries = false
-        def getJavaMaxHeapSize = xmx
-        def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+        // gone in current android builder
+//        override def isCoreLibrary = cl
+        override def getIncremental = true
+        override def getJumboMode = false
+        override def getPreDexLibraries = false
+        override def getJavaMaxHeapSize = xmx
+        override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
       }
       val rTxt = classes / "R.txt"
       val dex = layout.bin / "dex-test"
