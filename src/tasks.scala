@@ -672,7 +672,8 @@ object Tasks {
 
     val jars = (m ++ u ++ dcp).filter {
       a => (a.get(moduleID.key) map { mid =>
-        mid.organization != "org.scala-lang"
+        mid.organization != "org.scala-lang" &&
+          !(mid.configurations exists (_ contains "provided"))
       } getOrElse true) && a.data.exists
     }.groupBy(_.data.getName).collect {
       case ("classes.jar",xs) => xs.distinct
