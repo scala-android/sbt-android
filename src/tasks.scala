@@ -1262,7 +1262,7 @@ object Tasks {
   }
 
   val testTaskDef = ( projectLayout
-                    , instrumentTestTimeout
+                    , thisProjectRef
                     , debugIncludesTests
                     , builder
                     , packageName
@@ -1272,14 +1272,15 @@ object Tasks {
                     , externalDependencyClasspath in Test
                     , state
                     , streams) map {
-    (layout, timeo, noTestApk, bldr, pkg, libs, classes, clib, tlib, st, s) =>
+    (layout, prj, noTestApk, bldr, pkg, libs, classes, clib, tlib, st, s) =>
     val extracted = Project.extract(st)
-    val targetSdk = extracted.get(targetSdkVersion in Android)
-    val minSdk = extracted.get(minSdkVersion in Android)
-    val sdk = extracted.get(sdkPath in Android)
-    val runner = extracted.get(instrumentTestRunner in Android)
-    val xmx = extracted.get(dexMaxHeap in Android)
-    val cl  = extracted.get(dexCoreLibrary in Android)
+    val timeo = extracted.get(instrumentTestTimeout in (prj,Android))
+    val targetSdk = extracted.get(targetSdkVersion in (prj,Android))
+    val minSdk = extracted.get(minSdkVersion in (prj,Android))
+    val sdk = extracted.get(sdkPath in (prj,Android))
+    val runner = extracted.get(instrumentTestRunner in (prj,Android))
+    val xmx = extracted.get(dexMaxHeap in (prj,Android))
+    val cl  = extracted.get(dexCoreLibrary in (prj,Android))
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
