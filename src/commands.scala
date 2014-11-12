@@ -537,6 +537,44 @@ object Commands {
     } getOrElse sys.error("no device selected")
   }
 
+  val killAction: (State, String) => State = {
+    case (state, str) =>
+      val sdk = sdkpath(state)
+      val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
+      val packageName = thisProject flatMap { prj =>
+        Project.extract(state).getOpt(
+          Keys.packageName in(prj, Keys.Android))
+      }
+      val targetPackage = Option(str).filter(_.nonEmpty) orElse packageName
+      if (targetPackage.isEmpty)
+        sys.error("Usage: adb-kill [<package-name>]")
+      state.log.info("Attempting to kill: " + targetPackage.get)
+      targetDevice(sdk, state.log) map { d =>
+        executeShellCommand(d,
+          "am kill " + FileEntry.escape(targetPackage.get), state)
+        state
+      } getOrElse sys.error("no device selected")
+  }
+  val runasAction: (State, String) => State = {
+    case (state, args) =>
+      val sdk = sdkpath(state)
+      val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
+      val packageName = thisProject flatMap { prj =>
+        Project.extract(state).getOpt(
+          Keys.packageName in(prj, Keys.Android))
+      }
+      if (packageName.isEmpty)
+        sys.error("Unable to determine package name\n\n" +
+          "Usage: adb-runas <command> [args...]")
+      if (args.isEmpty)
+        sys.error("Usage: adb-runas <command> [args...]")
+      targetDevice(sdk, state.log) map { d =>
+        executeShellCommand(d,
+          "run-as" + FileEntry.escape(packageName.get) + " " + args, state)
+        state
+      } getOrElse sys.error("no device selected")
+  }
+
   val adbRmAction: (State, (FileEntry,Option[String])) => State = {
     case (state, (entry, name)) =>
       val target = name map {

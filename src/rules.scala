@@ -15,6 +15,8 @@ import com.android.utils.ILogger
 
 import java.io.File
 
+import sbt.complete.Parser
+
 import scala.collection.JavaConversions._
 import scala.xml.XML
 
@@ -485,6 +487,16 @@ object Plugin extends sbt.Plugin {
     "adb-shell", ("adb-shell", "execute shell commands on device"),
     "Run a command on a selected android device using adb"
   )(stringParser)(shellAction)
+
+  private def adbRunas = Command(
+    "adb-runas", ("adb-runas", "execute shell commands on device as a debuggable package user"),
+    "Run a command on a selected android device using adb with the permissions of the current package"
+  )(stringParser)(runasAction)
+
+  private def adbKill = Command(
+    "adb-kill", ("adb-kill", "kill the current/specified package"),
+    "Kills the process if it is not currently in the foreground"
+  )(stringParser)(killAction)
 
   private def adbLs = Command(
     "adb-ls", ("adb-ls", "list device files"),
