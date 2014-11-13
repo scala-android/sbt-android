@@ -458,7 +458,7 @@ object Plugin extends sbt.Plugin {
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
     commands ++= Seq(genAndroid, genAndroidSbt, pidcat, logcat, adbLs, adbShell,
-      devices, device, reboot, adbScreenOn,
+      devices, device, reboot, adbScreenOn, adbRunas, adbKill,
       adbWifi, adbPush, adbPull, adbCat, adbRm)
   )
 

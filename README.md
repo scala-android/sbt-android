@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.3.9
+Current version is 1.3.10
 
 ## Description ##
 
@@ -14,12 +14,12 @@ library projects. 3rd party libraries can be included by placing them in
 
 ## New features in 1.3.x ##
 
-* `1.3.9`:
+* `1.3.10`:
   * `adb-kill` command: kill the currently running package process
     (if not foreground)
   * `adb-runas` command: run a command as the current development package user
   * update android builder (0.14.2), proguard (5.0) and asm dependencies (5.0)
-  * `1.3.7` and `1.3.8` are aborted releases, moderate bugs bugs
+  * `1.3.7`, `1.3.8` and `1.3.10` are bad releases, moderate bugs
 * `1.3.6`:
   * Last release for sbt `0.12.x`
 * `1.3.5`:
