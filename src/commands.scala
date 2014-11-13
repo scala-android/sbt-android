@@ -570,7 +570,7 @@ object Commands {
         sys.error("Usage: adb-runas <command> [args...]")
       targetDevice(sdk, state.log) map { d =>
         executeShellCommand(d,
-          "run-as" + FileEntry.escape(packageName.get) + " " + args, state)
+          "run-as " + FileEntry.escape(packageName.get) + " " + args, state)
         state
       } getOrElse sys.error("no device selected")
   }
