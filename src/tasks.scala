@@ -1,6 +1,7 @@
 package android
 
 import com.android.ide.common.signing.KeystoreHelper
+import com.android.manifmerger.ManifestMerger2
 import sbt._
 import sbt.Keys._
 import classpath.ClasspathUtilities
@@ -16,7 +17,7 @@ import java.io.{File,FileInputStream}
 import com.android.SdkConstants
 import com.android.builder.model.{PackagingOptions, AaptOptions}
 import com.android.builder.signing.DefaultSigningConfig
-import com.android.builder.core.{DexOptions, VariantConfiguration, AndroidBuilder}
+import com.android.builder.core.{AaptPackageCommandBuilder, DexOptions, VariantConfiguration, AndroidBuilder}
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.ddmlib.IShellOutputReceiver
 import com.android.ddmlib.DdmPreferences
@@ -728,7 +729,7 @@ object Tasks {
           if (createDebug) debugConfig else null, output.getAbsolutePath,
           options
       ))
-      bldr.packageApk(r.getAbsolutePath, d, jars,
+      bldr.packageApk(r.getAbsolutePath, d, Seq.empty[File], jars,
         layout.resources.getAbsolutePath,
         (if (collectedJni.exists) Seq(collectedJni) else Seq.empty).asJava,
         null, createDebug,
@@ -916,10 +917,12 @@ object Tasks {
     if (isLib)
       layout.manifest
     else {
-      bldr.processManifest(layout.manifest, Seq.empty[File],
+      bldr.mergeManifests(layout.manifest, Seq.empty[File],
         if (merge) libs else Seq.empty[LibraryDependency],
-        pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString,
-        output.getAbsolutePath)
+        pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
+        output.getAbsolutePath,
+        if (isLib) ManifestMerger2.MergeType.LIBRARY else
+          ManifestMerger2.MergeType.APPLICATION, Map.empty[String,String])
       if (noTestApk) {
          val top = XML.loadFile(output)
         val prefix = top.scope.getPrefix(ANDROID_NS)
@@ -1004,9 +1007,7 @@ object Tasks {
     val options = new AaptOptions {
       override def getIgnoreAssets = null
       override def getNoCompress = null
-      override def getUseAaptPngCruncher = true
       override def getFailOnMissingConfigEntry = false
-
     }
     val genPath = gen.getAbsolutePath
     val all = collectdeps(libs) ++ libs
@@ -1016,11 +1017,18 @@ object Tasks {
     }))
     logger.debug("packageForR: " + pkg)
     logger.debug("proguard.txt: " + proguardTxt)
-    bldr.processResources(manifest, res, assets, all,
-      pkg, genPath, genPath, resApk, proguardTxt,
-      if (lib) VariantConfiguration.Type.LIBRARY else
-        VariantConfiguration.Type.DEFAULT, createDebug, options,
-      Seq.empty[String], true)
+    val aaptCommand = new AaptPackageCommandBuilder(manifest, options)
+    aaptCommand.setResFolder(res)
+    aaptCommand.setAssetsFolder(assets)
+    aaptCommand.setLibraries(all)
+    aaptCommand.setPackageForR(pkg)
+    aaptCommand.setResPackageOutput(resApk)
+    aaptCommand.setSourceOutputDir(genPath)
+    aaptCommand.setSymbolOutputDir(genPath)
+    aaptCommand.setProguardOutput(proguardTxt)
+    aaptCommand.setType(if (lib) VariantConfiguration.Type.LIBRARY else VariantConfiguration.Type.DEFAULT)
+    aaptCommand.setDebuggable(createDebug)
+    bldr.processResources(aaptCommand, true)
   }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
@@ -1089,8 +1097,9 @@ object Tasks {
                    , dexMaxHeap
                    , libraryProject
                    , binPath
+                   , cacheDirectory
                    , streams) map {
-    case (bldr, (incr,inputs), xmx, lib, bin, s) =>
+    case (bldr, (incr,inputs), xmx, lib, bin, cache, s) =>
     val options = new DexOptions {
       // gone in current android builder
       override def getIncremental = incr
@@ -1101,8 +1110,10 @@ object Tasks {
     }
     s.log.info("Generating dex, incremental=" + incr)
     s.log.debug("Dex inputs: " + inputs)
-    bldr.convertByteCode(Seq.empty[File] ++
-      inputs filter (_.isFile), Seq.empty[File], bin, options, Nil, true)
+    val tmp  = cache / "dex"
+    tmp.mkdirs()
+    bldr.convertByteCode(inputs filter (_.isFile), Seq.empty[File], bin,
+      false, false, null, options, Nil, tmp, true)
     bin
   }
 
@@ -1221,7 +1232,6 @@ object Tasks {
 
   case class TestListener(log: Logger) extends ITestRunListener {
     import com.android.ddmlib.testrunner.TestIdentifier
-    import com.android.ddmlib.testrunner.ITestRunListener.TestFailure
     private var _failures: Seq[TestIdentifier] = Seq.empty
     def failures = _failures
 
@@ -1239,8 +1249,8 @@ object Tasks {
       log.debug("finished: %s (%s)" format (id.getTestName, metrics))
     }
 
-    override def testFailed(fail: TestFailure, id: TestIdentifier, m: String) {
-      log.error("%s: %s\n%s" format (fail, id.getTestName, m))
+    override def testFailed(id: TestIdentifier, m: String) {
+      log.error("failed: %s\n%s" format (id.getTestName, m))
 
       _failures = _failures :+ id
     }
@@ -1256,6 +1266,16 @@ object Tasks {
     override def testRunEnded(elapsed: Long, metrics: TestMetrics) {
       log.info("test run finished (%dms)" format elapsed)
       log.debug("run end metrics: " + metrics)
+    }
+
+    override def testAssumptionFailure(id: TestIdentifier, m: String) {
+      log.error("assumption failed: %s\n%s" format (id.getTestName, m))
+
+      _failures = _failures :+ id
+    }
+
+    override def testIgnored(test: TestIdentifier) {
+      log.warn("ignored: %s" format test.getTestName)
     }
   }
 
@@ -1278,6 +1298,7 @@ object Tasks {
     val sdk = extracted.get(sdkPath in (prj,Android))
     val runner = extracted.get(instrumentTestRunner in (prj,Android))
     val xmx = extracted.get(dexMaxHeap in (prj,Android))
+    val cache = extracted.get(cacheDirectory)
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
@@ -1328,7 +1349,9 @@ object Tasks {
       val processedManifest = classes / "AndroidManifest.xml"
       // profiling and functional test? false for now
       bldr.processTestManifest(testPackage, minSdk.toString, targetSdk.toString,
-        tpkg, trunner, false, false, libs, processedManifest.getAbsoluteFile)
+        tpkg, trunner, false, false, manifestFile, libs,
+        processedManifest.getAbsoluteFile,
+        cache / "processTestManifest")
       val options = new DexOptions {
         // gone in current android builder
         override def getIncremental = true
@@ -1349,8 +1372,10 @@ object Tasks {
         res.getAbsolutePath, classes, null, s.log)
 
       val deps = tlib filterNot (clib contains)
+      val tmp = cache / "test-dex"
+      tmp.mkdirs()
       bldr.convertByteCode(Seq(classes) ++ (deps map (_.data)), Seq.empty[File],
-        dex, options, Nil, false)
+        dex, false, false, null, options, Nil, tmp, false)
 
       val debugConfig = new DefaultSigningConfig("debug")
       debugConfig.initDebug()
@@ -1360,8 +1385,8 @@ object Tasks {
         def getPickFirsts = Set.empty[String]
       }
       bldr.packageApk(res.getAbsolutePath, dex,
-        Seq.empty[File], null, null, null, createDebug, debugConfig,
-        opts, apk.getAbsolutePath)
+        Seq.empty[File], Seq.empty[File], null, null, null,
+        createDebug, debugConfig, opts, apk.getAbsolutePath)
       s.log.info("Testing...")
       s.log.debug("Installing test apk: " + apk)
       installPackage(apk, sdk, s.log)
