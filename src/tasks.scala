@@ -170,7 +170,7 @@ object Tasks {
           s.log)
 
       def copyDirectory(src: File, dst: File) {
-        IO.copy(((src ***) --- (src ** "R.txt")) x Path.rebase(src, dst),
+        IO.copy(((src ***) --- (src ** "R.txt")) pair Path.rebase(src, dst),
           false, true)
       }
       if (isLib)
@@ -211,7 +211,7 @@ object Tasks {
 
         }
         def copyDirectory(src: File, dst: File) {
-          IO.copy(((src ***) --- (src ** "R.txt")) x Path.rebase(src, dst),
+          IO.copy(((src ***) --- (src ** "R.txt")) pair Path.rebase(src, dst),
             false, true)
         }
         if (isLib)
@@ -230,12 +230,11 @@ object Tasks {
                                        , projectLayout
                                        , platformJars
                                        , scalaVersion in ThisProject
-                                       , cacheDirectory
                                        , libraryProjects
                                        , typedResourcesIgnores
                                        , streams
                                        ) map {
-    case (t, a, p, layout, (j, x), sv, c, l, i, s) =>
+    case (t, a, p, layout, (j, x), sv, l, i, s) =>
 
     val r = layout.res
     val g = layout.gen
@@ -246,7 +245,7 @@ object Tasks {
     if (!t)
       Seq.empty[File]
     else
-      FileFunction.cached(c / "typed-resources-generator",
+      FileFunction.cached(s.cacheDirectory / "typed-resources-generator",
           FilesInfo.hash, FilesInfo.hash) { in =>
         if (in.nonEmpty) {
           s.log.info("Regenerating TR.scala because R.java has changed")
@@ -481,11 +480,10 @@ object Tasks {
                                 , libraryProjects
                                 , projectLayout
                                 , ilogger
-                                , cacheDirectory
                                 , streams
                                 ) map {
-    (bldr, noTestApk, isLib, libs, layout, logger, cache, s) =>
-      doCollectResources(bldr, noTestApk, isLib, libs, layout, logger, cache, s)
+    (bldr, noTestApk, isLib, libs, layout, logger, s) =>
+      doCollectResources(bldr, noTestApk, isLib, libs, layout, logger, s.cacheDirectory, s)
   }
 
   def incrResourceMerge(base: File, resTarget: File, isLib: Boolean,
@@ -589,11 +587,11 @@ object Tasks {
     st.log.info("Packaging " + outfile.getName)
     import layout._
     val mapping =
-      (PathFinder(manifest)                 x flat) ++
-      (PathFinder(javaSource) ** "*.java"   x rebase(javaSource,  "src")) ++
-      (PathFinder(scalaSource) ** "*.scala" x rebase(scalaSource, "src")) ++
-      ((PathFinder(res) ***)                x rebase(res,         "res")) ++
-      ((PathFinder(assets) ***)             x rebase(assets,      "assets"))
+      (PathFinder(manifest)                 pair flat) ++
+      (PathFinder(javaSource) ** "*.java"   pair rebase(javaSource,  "src")) ++
+      (PathFinder(scalaSource) ** "*.scala" pair rebase(scalaSource, "src")) ++
+      ((PathFinder(res) ***)                pair rebase(res,         "res")) ++
+      ((PathFinder(assets) ***)             pair rebase(assets,      "assets"))
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
   }
@@ -608,13 +606,13 @@ object Tasks {
     val rsRes = bin / "renderscript" / "res"
     s.log.info("Packaging " + outfile.getName)
     val mapping =
-      (PathFinder(manifest)             x flat) ++
-      (PathFinder(gen / "R.txt")        x flat) ++
-      (PathFinder(bin / "proguard.txt") x flat) ++
-      (PathFinder(j)                    x flat) ++
-      ((PathFinder(res) ***)            x rebase(res,    "res")) ++
-      ((PathFinder(rsRes) ***)          x rebase(rsRes,  "res")) ++
-      ((PathFinder(assets) ***)         x rebase(assets, "assets"))
+      (PathFinder(manifest)             pair flat) ++
+      (PathFinder(gen / "R.txt")        pair flat) ++
+      (PathFinder(bin / "proguard.txt") pair flat) ++
+      (PathFinder(j)                    pair flat) ++
+      ((PathFinder(res) ***)            pair rebase(res,    "res")) ++
+      ((PathFinder(rsRes) ***)          pair rebase(rsRes,  "res")) ++
+      ((PathFinder(assets) ***)         pair rebase(assets, "assets"))
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
   }
@@ -626,10 +624,10 @@ object Tasks {
                                 , packageForR
                                 , libraryProject
                                 , libraryProjects
-                                , cacheDirectory
                                 , streams
                                 ) map {
-    case (bldr, layout, manif, (assets, res), pkg, lib, libs, cache, s) =>
+    case (bldr, layout, manif, (assets, res), pkg, lib, libs, s) =>
+    val cache = s.cacheDirectory
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
 
     val rel = if (createDebug) "-debug" else "-release"
@@ -668,8 +666,8 @@ object Tasks {
     val excl = get(apkbuildExcludes in (prj, Android))
     val fsts = get(apkbuildPickFirsts in (prj, Android))
     val layout = get(projectLayout in (prj, Android))
-    val cacheDir = get(cacheDirectory in prj)
     val logger = get(ilogger in (prj, Android))
+    val cacheDir = s.cacheDirectory
 
     val jars = (m ++ u ++ dcp).filter {
       a => (a.get(moduleID.key) map { mid =>
@@ -937,7 +935,8 @@ object Tasks {
           if  (!hasTestRunner) {
             val runnerlib = new PrefixedAttribute(
               prefix, "name", TEST_RUNNER_LIB, Null)
-            val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope)
+            val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope,
+                                   minimizeEmpty = true)
             val u = top.copy(
               child = top.child.updated(top.child.indexOf(application.head),
                 application.head.asInstanceOf[Elem].copy(
@@ -953,7 +952,7 @@ object Tasks {
              val name = new PrefixedAttribute(
                prefix, "name", trunner, label)
              val instrumentation = new Elem(null,
-               INSTRUMENTATION_TAG, name, TopScope)
+               INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
             val u = top.copy(child = top.child ++ instrumentation)
             u
           } else top
@@ -974,10 +973,10 @@ object Tasks {
                           , packageForR
                           , libraryProject
                           , libraryProjects
-                          , cacheDirectory
                           , streams
                           ) map {
-    case (bldr, layout, manif, (assets, res), pkg, lib, libs, cache, s) =>
+    case (bldr, layout, manif, (assets, res), pkg, lib, libs, s) =>
+    val cache = s.cacheDirectory
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
 
     val inputs = (res ***).get ++ (assets ***).get ++ Seq(manif) filter (
@@ -1099,9 +1098,9 @@ object Tasks {
                    , dexMaxHeap
                    , libraryProject
                    , binPath
-                   , cacheDirectory
                    , streams) map {
-    case (bldr, (incr,inputs), xmx, lib, bin, cache, s) =>
+    case (bldr, (incr,inputs), xmx, lib, bin, s) =>
+    val cache = s.cacheDirectory
     val options = new DexOptions {
       // gone in current android builder
       override def getIncremental = incr
@@ -1127,12 +1126,11 @@ object Tasks {
                               , platformJars
                               , classesJar
                               , binPath
-                              , cacheDirectory
                               , state
                               , streams
                               ) map {
-    case (u, s, pc, l, d, (p, x), c, b, cacheDir, stat, st) =>
-
+    case (u, s, pc, l, d, (p, x), c, b, stat, st) =>
+    val cacheDir = st.cacheDirectory
     if (u) {
       val injars = d.filter { a =>
         val in = a.data
@@ -1178,7 +1176,7 @@ object Tasks {
       ProguardInputs(Seq.empty,Seq.empty)
   }
 
-  val proguardTaskDef: Project.Initialize[Task[Option[File]]] =
+  val proguardTaskDef: Def.Initialize[Task[Option[File]]] =
       ( useProguard
       , useProguardInDebug
       , proguardConfig
@@ -1186,10 +1184,10 @@ object Tasks {
       , proguardCache
       , libraryProject
       , binPath
-      , cacheDirectory
       , proguardInputs
       , streams
-      ) map { case (p, d, c, o, pc, l, b, cacheDir, inputs, s) =>
+      ) map { case (p, d, c, o, pc, l, b, inputs, s) =>
+    val cacheDir = s.cacheDirectory
     val jars = inputs.injars
     val libjars = inputs.libraryjars
     if (inputs.proguardCache exists (_.exists)) {
@@ -1224,7 +1222,7 @@ object Tasks {
         IO.delete(cd)
         s.log.info("Creating proguard cache: " + f.getName)
         IO.unzip(t, cd, { n: String => pc.exists (_ matches n) })
-        IO.jar((PathFinder(cd) ***) x rebase(cd, ""),
+        IO.jar((PathFinder(cd) ***) pair rebase(cd, ""),
           f, new java.util.jar.Manifest)
         IO.delete(cd)
       }
@@ -1300,7 +1298,7 @@ object Tasks {
     val sdk = extracted.get(sdkPath in (prj,Android))
     val runner = extracted.get(instrumentTestRunner in (prj,Android))
     val xmx = extracted.get(dexMaxHeap in (prj,Android))
-    val cache = extracted.get(cacheDirectory)
+    val cache = s.cacheDirectory
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
@@ -1315,19 +1313,19 @@ object Tasks {
 
       val minSdk = new PrefixedAttribute(
         ANDROID_PREFIX, "minSdkVersion", "3", Null)
-      val usesSdk = new Elem(null, "uses-sdk", minSdk, TopScope)
+      val usesSdk = new Elem(null, "uses-sdk", minSdk, TopScope, minimizeEmpty = true)
       val runnerlib = new PrefixedAttribute(
         ANDROID_PREFIX, "name", TEST_RUNNER_LIB, Null)
-      val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope)
+      val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope, minimizeEmpty = true)
       val app = new Elem(null,
-        APPLICATION_TAG, Null, TopScope, usesSdk, usesLib)
+        APPLICATION_TAG, Null, TopScope, minimizeEmpty = false, usesSdk, usesLib)
       val label = new PrefixedAttribute(
           ANDROID_PREFIX, "label", "Test Runner", Null)
       val name = new PrefixedAttribute(
         ANDROID_PREFIX, "name", runner, label)
-      val instrumentation = new Elem(null, INSTRUMENTATION_TAG, name, TopScope)
+      val instrumentation = new Elem(null, INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
       val manifest = new Elem(null,
-        "manifest", pkgAttr, ns, app, instrumentation)
+        "manifest", pkgAttr, ns, minimizeEmpty = false, app, instrumentation)
 
       val manifestFile = classes / "GeneratedTestAndroidManifest.xml"
       val writer = new java.io.FileWriter(manifestFile, false)
@@ -1493,15 +1491,14 @@ object Tasks {
   val installTaskDef = ( packageT
                        , libraryProject
                        , sdkPath
-                       , cacheDirectory
                        , streams) map {
-    (p, l, k, c, s) =>
+    (p, l, k, s) =>
 
     if (!l) {
       Commands.targetDevice(k, s.log) foreach { d =>
         val cacheName = "install-" + URLEncoder.encode(
           d.getSerialNumber, "utf-8")
-        FileFunction.cached(c / cacheName, FilesInfo.hash) { in =>
+        FileFunction.cached(s.cacheDirectory / cacheName, FilesInfo.hash) { in =>
           s.log.info("Installing...")
           installPackage(p, k, s.log)
           in
@@ -1552,8 +1549,8 @@ object Tasks {
       case s if s >= MB => "%.2fMB" format (s/MB)
     }
   }
-  val uninstallTaskDef = (cacheDirectory, sdkPath, packageName, streams) map { (c, k,p,s) =>
-    uninstallPackage(Some(c), p, k, s.log)
+  val uninstallTaskDef = (sdkPath, packageName, streams) map { (k,p,s) =>
+    uninstallPackage(Some(s.cacheDirectory), p, k, s.log)
   }
 
   def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):

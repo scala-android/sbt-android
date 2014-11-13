@@ -196,13 +196,12 @@ object Plugin extends sbt.Plugin {
                                           , projectLayout
                                           , packageName),
     cleanForR               <<= (rGenerator
-                                , cacheDirectory
                                 , genPath
                                 , classDirectory in Compile
                                 , streams
                                 ) map {
-      (_, c, g, d, s) =>
-      FileFunction.cached(c / "clean-for-r",
+      (_, g, d, s) =>
+      FileFunction.cached(s.cacheDirectory / "clean-for-r",
           FilesInfo.hash, FilesInfo.exists) { in =>
         if (in.nonEmpty) {
           s.log.info("Rebuilding all classes because R.java has changed")
@@ -637,7 +636,7 @@ trait AutoBuild extends Build {
       projects map { p =>
         val layout = ProjectLayout(p.base)
         if (layout.manifest.exists) {
-          val settings: Seq[Project.Setting[_]] = p.settings
+          val settings: Seq[Def.Setting[_]] = p.settings
           val prefix = settings.takeWhile(
             _.key.scope.config.toOption exists (_.name != Android.name))
           val tail = settings.dropWhile(
