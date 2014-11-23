@@ -5,12 +5,17 @@ Current version is 1.3.10
 ## Description ##
 
 This is an easy-to-use plugin for existing and newly created android
-projects.  It is tested and developed against 0.12.x and 0.13.5+.
+projects.  It is tested and developed against 0.13.5+.
 
 The plugin supports normal android projects and projects that reference
 library projects. 3rd party libraries can be included by placing them in
 `libs` as in regular projects, or they can be added by using sbt's
 `libraryDependencies` feature.
+
+NOTE: proguard 5.1 does not like all current versions of scala. for java-based
+projects which wish to use proguard 5.1 (to fix issues around generic types
+being removed from base-classes) a workaround is to add a local file, `projects/proguard.sbt`, containing
+`libraryDependencies += "net.sf.proguard" % "proguard-base" % "5.1"`
 
 ## New features in 1.3.x ##
 
@@ -20,9 +25,8 @@ library projects. 3rd party libraries can be included by placing them in
   * `adb-runas` command: run a command as the current development package user
   * update android builder (0.14.2), proguard (5.0) and asm dependencies (5.0)
   * `1.3.7`, `1.3.8` and `1.3.9` are bad releases, moderate bugs
-* `1.3.6`:
-  * Last release for sbt `0.12.x`
 * `1.3.5`:
+  * Last release for sbt `0.12.x`
   * unseal ProjectLayout
   * allow proguard-cache on java-only projects
   * `adb-screenon` command (turn screen of device on/unlock)
