@@ -16,6 +16,7 @@ NOTE: proguard 5.1 does not like all current versions of scala. for java-based
 projects which wish to use proguard 5.1 (to fix issues around generic types
 being removed from base-classes) a workaround is to add a local file, `projects/proguard.sbt`, containing
 `libraryDependencies += "net.sf.proguard" % "proguard-base" % "5.1"`
+(see https://sourceforge.net/p/proguard/bugs/549/)
 
 ## New features in 1.3.x ##
 
