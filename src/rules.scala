@@ -235,7 +235,6 @@ object Plugin extends sbt.Plugin {
     dexInputs               <<= dexInputsTaskDef,
     dex                     <<= dexTaskDef,
     dexMaxHeap               := "1024m",
-    dexCoreLibrary           := false,
     dexMulti                 := false,
     dexMainFileClasses       := Seq.empty,
     dexMinimizeMainFile      := false,

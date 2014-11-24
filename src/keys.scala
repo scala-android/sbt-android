@@ -155,8 +155,6 @@ object Keys {
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "input jars to dex")
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
    "Maximum heapsize for dex, default 1024m")
-  val dexCoreLibrary = SettingKey[Boolean]("dex-core-library",
-   "core-library flag for dex, default false")
   val dexMulti = SettingKey[Boolean]("dex-multi",
     "multi-dex flag for dex, default false")
   val dexMainFileClasses = SettingKey[Seq[String]]("dex-main-file-classes",

@@ -1120,7 +1120,6 @@ object Tasks {
   val dexTaskDef = ( builder
                    , dexInputs
                    , dexMaxHeap
-                   , dexCoreLibrary
                    , dexMulti
                    , dexMainFileClassesConfig
                    , dexMinimizeMainFile
@@ -1128,7 +1127,7 @@ object Tasks {
                    , libraryProject
                    , binPath
                    , streams) map {
-    case (bldr, (incr, inputs), xmx, cl, multiDex, mainDexListTxt, minMainDex, additionalParams, lib, bin, s) =>
+    case (bldr, (incr, inputs), xmx, multiDex, mainDexListTxt, minMainDex, additionalParams, lib, bin, s) =>
       val incremental = incr && !multiDex
       val options = new DexOptions {
         // gone in current android builder
