@@ -14,7 +14,8 @@ library projects. 3rd party libraries can be included by placing them in
 
 NOTE: proguard 5.1 does not like all current versions of scala. for java-based
 projects which wish to use proguard 5.1 (to fix issues around generic types
-being removed from base-classes) a workaround is to add a local file, `projects/proguard.sbt`, containing
+being removed from base-classes) a workaround is to add a local file,
+`project/proguard.sbt`, containing
 `libraryDependencies += "net.sf.proguard" % "proguard-base" % "5.1"`
 (see https://sourceforge.net/p/proguard/bugs/549/ and
 https://issues.scala-lang.org/browse/SI-8931). Should be fixed in scala
