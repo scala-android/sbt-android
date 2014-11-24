@@ -12,7 +12,7 @@ import scala.util.control.Exception._
 import scala.xml._
 
 import java.util.Properties
-import java.io.{File,FileInputStream}
+import java.io.{PrintWriter, File, FileInputStream}
 
 import com.android.SdkConstants
 import com.android.builder.model.{PackagingOptions, AaptOptions}
@@ -1065,57 +1065,92 @@ object Tasks {
     (base ++ lines(proguardProject) ++ lines(proguardTxt)).toSeq: Seq[String]
   }
 
+  val dexMainFileClassesConfigTaskDef = ( projectLayout
+                                        , dexMainFileClasses) map {
+    (layout, mainDexClasses) =>
+      val mainDexListTxt = (layout.bin / "maindexlist.txt").getAbsoluteFile
+      val writer = new PrintWriter(mainDexListTxt)
+      try {
+        writer.write(mainDexClasses.mkString("\n"))
+      } finally {
+        writer.close()
+      }
+      mainDexListTxt
+  }
+
   val dexInputsTaskDef = ( proguard
                          , proguardInputs
                          , proguardCache
+                         , dexMulti
                          , binPath
                          , dependencyClasspath
                          , classesJar
                          , state
                          , streams) map {
-    (p, i, pc, b, d, j, st, s) =>
+    (progOut, in, progCache, multiDex, b, deps, classJar, st, s) =>
 
-    // TODO use getIncremental in DexOptions instead
-    val proguardedDexMarker = b / ".proguarded-dex"
-    (createDebug && (pc.isEmpty || !proguardedDexMarker.exists)) -> (p map { f =>
-      IO.touch(proguardedDexMarker, false)
-      Seq(f)
-    } getOrElse {
-      proguardedDexMarker.delete()
-      (d filterNot { a => pc exists (_.matches(a, st)) } collect {
-        // no proguard? then we don't need to dex scala!
-        case x if !x.data.getName.startsWith("scala-library") &&
-          x.data.getName.endsWith(".jar") => x.data.getCanonicalFile
-      }) ++ i.proguardCache :+ j
-    }).groupBy (_.getName).collect {
-      case ("classes.jar",xs) => xs.distinct
-      case (_,xs) => xs.head :: Nil
-    }.flatten.toSeq
+      // TODO use getIncremental in DexOptions instead
+      val proguardedDexMarker = b / ".proguarded-dex"
+
+      val jarsToDex = progOut match {
+        case Some(obfuscatedJar) =>
+          IO.touch(proguardedDexMarker, setModified = false)
+          Seq(obfuscatedJar)
+        case None =>
+          proguardedDexMarker.delete()
+          def nonCachedDeps = deps filterNot { file => progCache exists (_.matches(file, st)) }
+          val dexingDeps = if (multiDex) deps else nonCachedDeps
+          dexingDeps.collect {
+            // no proguard? then we still able dex scala with multidex
+            case x if x.data.getName.startsWith("scala-library") && multiDex =>
+              x.data.getCanonicalFile
+            case x if x.data.getName.endsWith(".jar") =>
+              x.data.getCanonicalFile
+          } ++ in.proguardCache :+ classJar
+      }
+
+      val incrementalDex = createDebug && (progCache.isEmpty || !proguardedDexMarker.exists)
+
+      incrementalDex -> jarsToDex.groupBy (_.getName).collect {
+        case ("classes.jar", aarClassJar) => aarClassJar.distinct // guess aars by jar name?
+        case (_, otherJars) => otherJars.head :: Nil // distinct jars by name?
+      }.flatten.toSeq
   }
 
   val dexTaskDef = ( builder
                    , dexInputs
                    , dexMaxHeap
+                   , dexCoreLibrary
+                   , dexMulti
+                   , dexMainFileClassesConfig
+                   , dexMinimizeMainFile
+                   , dexAdditionalParams
                    , libraryProject
                    , binPath
                    , streams) map {
-    case (bldr, (incr,inputs), xmx, lib, bin, s) =>
-    val cache = s.cacheDirectory
-    val options = new DexOptions {
-      // gone in current android builder
-      override def getIncremental = incr
-      override def getJavaMaxHeapSize = xmx
-      override def getPreDexLibraries = false
-      override def getJumboMode = false
-      override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
-    }
-    s.log.info("Generating dex, incremental=" + incr)
-    s.log.debug("Dex inputs: " + inputs)
-    val tmp  = cache / "dex"
-    tmp.mkdirs()
-    bldr.convertByteCode(inputs filter (_.isFile), Seq.empty[File], bin,
-      false, false, null, options, Nil, tmp, true)
-    bin
+    case (bldr, (incr, inputs), xmx, cl, multiDex, mainDexListTxt, minMainDex, additionalParams, lib, bin, s) =>
+      val incremental = incr && !multiDex
+      val options = new DexOptions {
+        // gone in current android builder
+        override def getIncremental = incr
+        override def getJavaMaxHeapSize = xmx
+        override def getPreDexLibraries = false
+        override def getJumboMode = false
+        override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+      }
+      s.log.info(s"Generating dex, incremental=$incremental, multiDex=$multiDex")
+      s.log.info("Dex inputs: " + inputs)
+
+      val tmp  = s.cacheDirectory / "dex"
+      tmp.mkdirs()
+
+      def minimalMainDexParam = if (minMainDex) "--minimal-main-dex" else ""
+      val additionalDexParams = (additionalParams.toList :+ minimalMainDexParam).distinct.filterNot(_.isEmpty)
+
+      bldr.convertByteCode(inputs filter (_.isFile), Seq.empty[File], bin,
+        multiDex, multiDex, mainDexListTxt,
+        options, additionalDexParams, tmp, incremental)
+      bin
   }
 
   val proguardInputsTaskDef = ( useProguard
