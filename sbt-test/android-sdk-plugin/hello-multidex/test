@@ -1,0 +1,3 @@
+> android:package
+$ exists target/android-bin/hello-multidex-debug.apk
+$ exists target/android-bin/classes2.dex
