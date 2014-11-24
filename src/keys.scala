@@ -117,6 +117,8 @@ object Keys {
     "manifest munging task")
   // TODO turn this and all dependents into a TaskKey, manifest can change
   val manifest = SettingKey[Elem]("manifest", "android manifest xml object")
+  val manifestPlaceholders = TaskKey[Map[String,String]](
+    "manifest-placeholders", "${variable} expansion for AndroidManifest.xml")
   val classesJar = SettingKey[File]("classes-jar",
     "generated classes.jar file if in a library project")
   val localProjects = SettingKey[Seq[LibraryDependency]]("local-projects",

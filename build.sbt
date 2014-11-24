@@ -2,7 +2,7 @@ import ScriptedPlugin._
 
 name := "android-sdk-plugin"
 
-version := "1.3.11"
+version := "1.3.12-SNAPSHOT"
 
 organization := "com.hanhuy.sbt"
 
@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "5.0.2",
   "javassist" % "javassist" % "3.12.1.GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
-  "com.android.tools.build" % "builder" % "0.14.2"
+  "com.android.tools.build" % "builder" % "0.14.4"
 )
 
 sbtPlugin := true

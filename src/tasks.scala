@@ -901,8 +901,9 @@ object Tasks {
                                , state
                                , thisProjectRef
                                , instrumentTestRunner
+                               , manifestPlaceholders
                                ) map {
-    (bldr, noTestApk, layout, isLib, libs, pkg, st, prj, trunner) =>
+    (bldr, noTestApk, layout, isLib, libs, pkg, st, prj, trunner, ph) =>
     val extracted = Project.extract(st)
     val vc = extracted.get(versionCode in (prj,Android))
     val vn = extracted.get(versionName in (prj,Android))
@@ -920,7 +921,8 @@ object Tasks {
         pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
         output.getAbsolutePath,
         if (isLib) ManifestMerger2.MergeType.LIBRARY else
-          ManifestMerger2.MergeType.APPLICATION, Map.empty[String,String])
+          ManifestMerger2.MergeType.APPLICATION, ph,
+        layout.bin / "manifestmerge-report.txt")
       if (noTestApk) {
          val top = XML.loadFile(output)
         val prefix = top.scope.getPrefix(ANDROID_NS)
@@ -1148,7 +1150,7 @@ object Tasks {
 
       bldr.convertByteCode(inputs filter (_.isFile), Seq.empty[File], bin,
         multiDex, multiDex, mainDexListTxt,
-        options, additionalDexParams, tmp, incremental)
+        options, additionalDexParams, tmp, incremental, !createDebug)
       bin
   }
 
@@ -1409,7 +1411,7 @@ object Tasks {
       val tmp = cache / "test-dex"
       tmp.mkdirs()
       bldr.convertByteCode(Seq(classes) ++ (deps map (_.data)), Seq.empty[File],
-        dex, false, false, null, options, Nil, tmp, false)
+        dex, false, false, null, options, Nil, tmp, false, !createDebug)
 
       val debugConfig = new DefaultSigningConfig("debug")
       debugConfig.initDebug()

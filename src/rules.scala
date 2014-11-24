@@ -251,6 +251,7 @@ object Plugin extends sbt.Plugin {
     },
     properties              <<= baseDirectory (b => loadProperties(b)),
     mergeManifests           := true,
+    manifestPlaceholders     := Map.empty,
     processManifest         <<= processManifestTaskDef,
     manifest                <<= manifestPath { m =>
       if (!m.exists)
