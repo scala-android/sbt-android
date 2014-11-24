@@ -344,8 +344,13 @@ https://issues.scala-lang.org/browse/SI-8931). Should be fixed in scala
       automatically be processed. To disable set
       `transitiveAndroidLibs in Android := false`
   * Sometimes library projects and apklibs will incorrectly bundle
-    android-support-v4.jar, to rectify this, add this setting:
-    `dependencyClasspath in Compile ~= { _ filterNot (_.data.getName startsWith "android-support-v4") }`
+    android-support-v4.jar, to rectify this, add this setting, repeat for any
+    other incorrectly added jars:
+    ```
+    unmanagedJars in Compile ~= {
+      _ filterNot (_.data.getName startsWith "android-support-v4")
+    }
+    ```
 * Using the google gms play-services aar:
 
     ```
