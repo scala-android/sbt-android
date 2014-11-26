@@ -1140,7 +1140,7 @@ object Tasks {
         override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
       }
       s.log.info(s"Generating dex, incremental=$incremental, multiDex=$multiDex")
-      s.log.info("Dex inputs: " + inputs)
+      s.log.debug("Dex inputs: " + inputs)
 
       val tmp  = s.cacheDirectory / "dex"
       tmp.mkdirs()
