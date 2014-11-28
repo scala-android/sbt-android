@@ -369,8 +369,7 @@ object Tasks {
       val javah = Seq("javah",
         "-d", src.getAbsolutePath,
         "-classpath", cp map (_.data.getAbsolutePath) mkString File.pathSeparator,
-        "-bootclasspath", bldr.getBootClasspath mkString File.pathSeparator,
-        natives mkString " ")
+        "-bootclasspath", bldr.getBootClasspath mkString File.pathSeparator) ++ natives
 
       s.log.debug(javah mkString " ")
 
