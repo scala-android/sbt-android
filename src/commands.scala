@@ -13,6 +13,8 @@ import java.io.File
 import com.android.ddmlib._
 import com.android.SdkConstants
 
+import scala.util.Try
+
 object Commands {
 
   var defaultDevice: Option[String] = None
@@ -142,7 +144,7 @@ object Commands {
   }
 
   val androidFileParser: State => Parser[(FileEntry,Option[String])] = state => {
-    targetDevice(sdkpath(state), state.log) map { d =>
+    Try(targetDevice(sdkpath(state), state.log)).toOption.flatten map { d =>
       val fs = d.getFileListingService
       (EOF map { _ => (fs.getRoot,None) }) |
         ((Space ~> token("/") ~> androidPathParser(fs.getRoot, fs)) ~
