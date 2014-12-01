@@ -139,6 +139,7 @@ object Plugin extends sbt.Plugin {
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
+    exportJars         := false,
     managedClasspath <++= (platform in Android) map { t =>
       (Option(t.getOptionalLibraries) map {
         _ map ( j => Attributed.blank(file(j.getJarPath)) )
