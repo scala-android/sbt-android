@@ -404,14 +404,8 @@ https://issues.scala-lang.org/browse/SI-8931). Should be fixed in scala
    proguard config included with android-sdk-plugin
 * On-device unit testing, use `android:test` and see
   [Android Testing Fundamentals](http://developer.android.com/tools/testing/testing_android.html)
-*  Unit testing with robolectric, see my build.scala for this configuration:
-  * https://gist.github.com/pfn/5872909
-  * This example is somewhat old and may include settings that are no longer
-    necessary, this project hasn't been touched in nearly a year.
-  * To get rid of robolectric's warnings about not finding certain classes
-    to shadow, change the project target to include google APIs
-  * jberkel has written a Suite trait to be able to use robolectric with
-    scalatest rather than junit, see https://gist.github.com/2662806
+*  Unit testing with robolectric and Junit, see how it works in this
+   [test case](sbt-test/android-sdk-plugin/robo-junit-test)
 * Device Management
   * The commands `devices` and `device` are implemented. The former lists
     all connected devices. The latter command is for selecting a target
