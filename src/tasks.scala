@@ -1354,10 +1354,8 @@ object Tasks {
       val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope, minimizeEmpty = true)
       val app = new Elem(null,
         APPLICATION_TAG, Null, TopScope, minimizeEmpty = false, usesSdk, usesLib)
-      val label = new PrefixedAttribute(
-          ANDROID_PREFIX, "label", "Test Runner", Null)
       val name = new PrefixedAttribute(
-        ANDROID_PREFIX, "name", runner, label)
+        ANDROID_PREFIX, "name", runner, Null)
       val instrumentation = new Elem(null, INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
       val manifest = new Elem(null,
         "manifest", pkgAttr, ns, minimizeEmpty = false, app, instrumentation)

@@ -194,5 +194,5 @@ object Keys {
   val packageT = sbt.Keys.`package`
   val Android = config("android")
 
-  implicit def toRichProject(project: Project) = RichProject(project)
+  implicit def toRichProject(project: Project): RichProject = RichProject(project)
 }

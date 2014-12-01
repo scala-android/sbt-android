@@ -13,9 +13,7 @@ import com.android.sdklib.repository.FullRevision
 import com.android.SdkConstants
 import com.android.utils.ILogger
 
-import java.io.File
-
-import sbt.complete.Parser
+import java.io.{PrintWriter, File}
 
 import scala.collection.JavaConversions._
 import scala.xml.XML
@@ -146,15 +144,64 @@ object Plugin extends sbt.Plugin {
         _ map ( j => Attributed.blank(file(j.getJarPath)) )
       } getOrElse Array.empty).toSeq
     },
-    scalacOptions in console    := Seq.empty,
-    sourceDirectory            <<= (projectLayout in Android) (_.testSources),
-    unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
-      Set(l.testSources, l.testJavaSource, l.testScalaSource).toSeq)
+    scalacOptions in console    := Seq.empty
   )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
-    // productX := Nil is a necessity to use Classpaths.configSettings
+    // support for android:test
+    classDirectory              := (classDirectory in Test).value,
+    sourceDirectory            <<= (projectLayout in Android) (_.testSources),
+    managedSources              := Nil,
+    unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
+      Set(l.testSources, l.testJavaSource, l.testScalaSource).toSeq),
+    unmanagedSources           <<= Defaults.collectFiles(
+      unmanagedSourceDirectories,
+      includeFilter in (Compile,unmanagedSources),
+      excludeFilter in (Compile,unmanagedSources)),
+    scalacOptions               := (scalacOptions in Compile).value,
+    javacOptions                :=  (javacOptions in Compile).value,
+    compile := {
+      def exported(w: PrintWriter, command: String): Seq[String] => Unit =
+        args => w.println((command +: args).mkString(" "))
+      val s = streams.value
+      val ci = (compileInputs in compile).value
+      val reporter = (TaskKey[Option[xsbti.Reporter]]("compilerReporter") in (Compile,compile)).value
+      lazy val x = s.text(CommandStrings.ExportStream)
+      def onArgs(cs: Compiler.Compilers) =
+        cs.copy(scalac = cs.scalac.onArgs(exported(x, "scalac")),
+          javac = cs.javac.onArgs(exported(x, "javac")))
+      val i = ci.copy(compilers = onArgs(ci.compilers))
+
+      try reporter match {
+        case Some(r) => Compiler(i, s.log, r)
+        case None           => Compiler(i, s.log)
+      }
+      finally x.close() // workaround for #937
+    },
+    compileIncSetup := {
+      Compiler.IncSetup(
+        Defaults.analysisMap(dependencyClasspath.value),
+        definesClass.value,
+        (skip in compile).value,
+        // TODO - this is kind of a bad way to grab the cache directory for streams...
+        streams.value.cacheDirectory / compileAnalysisFilename.value,
+        compilerCache.value,
+        incOptions.value)
+    },
+    compileInputs in compile := {
+      val cp = classDirectory.value +: Attributed.data(dependencyClasspath.value)
+      Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
+    },
+    compileAnalysisFilename := {
+      // Here, if the user wants cross-scala-versioning, we also append it
+      // to the analysis cache, so we keep the scala versions separated.
+      val extra =
+        if (crossPaths.value) s"_${scalaBinaryVersion.value}"
+        else ""
+      s"inc_compile${extra}"
+    },
+    sources <<= Classpaths.concat(unmanagedSources, managedSources),
+      // productX := Nil is a necessity to use Classpaths.configSettings
     exportedProducts         := Nil,
     products                 := Nil,
-    productDirectories       := Nil,
     classpathConfiguration   := config("compile"),
     // hack since it doesn't take in dependent project's libs
     dependencyClasspath     <<= ( dependencyClasspath in Compile
@@ -190,7 +237,7 @@ object Plugin extends sbt.Plugin {
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
     test                    <<= testTaskDef,
-    test                    <<= test dependsOn (compile in Test, install),
+    test                    <<= test dependsOn (compile in Android, install),
     run                     <<= runTaskDef( install
                                           , sdkPath
                                           , projectLayout
