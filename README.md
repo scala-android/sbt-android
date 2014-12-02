@@ -28,10 +28,16 @@ https://issues.scala-lang.org/browse/SI-8931). Should be fixed in scala
   * fix javah bug #131
   * fix double-tab crash #130
   * split `test` from `android:test` (better support for robolectric)
-  * added manifest placeholders (set ```manifestPlaceholders in Android``` to a Map of keys you wish to replace in AndroidManifest.xml by sbt values. The format for these placeholders inside of manifest is ${keyName})
+  * manifest placeholders, set `manifestPlaceholders in Android`
+    * `Map[String,String]` for `key:value`s to replace in AndroidManifest.xml
+    * Placeholders are expanded using `${key}` syntax
+    * Can be dynamically configured as it is implemented as an SBT task
 * `1.3.11`:
-  * multidex support (thank you @dant3)
-  (see https://developer.android.com/reference/android/support/multidex/MultiDex.html and the `hello-multidex` test case for an example of usage)
+  * multidex support (thank you @dant3) see
+    [the android reference documentation](https://developer.android.com/reference/android/support/multidex/MultiDex.html)
+    and the
+   [hello-multidex test case](sbt-test/android-sdk-plugin/hello-multidex)
+    for an example of usage
   * `adb-runas` command: run a command as the current development package user
 * `1.3.10`:
   * `adb-kill` command: kill the currently running package process
@@ -237,10 +243,12 @@ https://issues.scala-lang.org/browse/SI-8931). Should be fixed in scala
 
 * A variety of my own projects can be found on github that use this plugin
 * In addition to this, a growing collection of tests can be found under
-  `sbt-test/android-sdk-plugin/`. Over time, this will grow to be a larger
-  set of examples of how to use the plugin in various configurations.
-* Tests can be run via `sbt scripted` and require `ANDROID_HOME` to be set
-  in addition to having platform `android-17` installed.
+  [sbt-test/android-sdk-plugin/](sbt-test/android-sdk-plugin).
+  These projects are examples of how to use the plugin in various
+  configurations.
+* Tests can be run via `sbt scripted`, they require `ANDROID_HOME` and
+  `ANDROID_NDK_HOME` to be set in addition to having platform `android-17`
+  installed.
 * All tests have auto-generated `build.properties` and `auto_plugins.sbt`
   files that set the current version of sbt and the android-sdk-plugin to use
   for testing.
@@ -410,8 +418,9 @@ https://issues.scala-lang.org/browse/SI-8931). Should be fixed in scala
    proguard config included with android-sdk-plugin
 * On-device unit testing, use `android:test` and see
   [Android Testing Fundamentals](http://developer.android.com/tools/testing/testing_android.html)
-*  Unit testing with robolectric and Junit, see how it works in this
-   [test case](sbt-test/android-sdk-plugin/robo-junit-test)
+*  Unit testing with robolectric and Junit (use the `test` task), see how
+   it works in the
+   [robo-junit-test test case](sbt-test/android-sdk-plugin/robo-junit-test)
 * Device Management
   * The commands `devices` and `device` are implemented. The former lists
     all connected devices. The latter command is for selecting a target
