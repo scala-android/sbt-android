@@ -75,8 +75,8 @@ Should be fixed in Scala `2.11.5`. See
 * `1.3.1`: add `android:apkbuild-pickfirsts` works like
   `android:apkbuild-excludes` but picks the first occurrence of the resource.
   * A bug in com.android.tools.build:builder,
-    https://code.google.com/p/android/issues/detail?id=73437, prevents
-    PackagingOptions from working correctly with JNI libraries.
+    [android bug #73437](https://code.google.com/p/android/issues/detail?id=73437),
+    prevents PackagingOptions from working correctly with JNI libraries.
   A workaround is implemented copy all JNI to a single location first.
 * NDK build process, similarly to `ANDROID_HOME`, set `ANDROID_NDK_HOME` to
   the location where the Android NDK is installed. Alternatively, `ndk.dir`
@@ -255,9 +255,9 @@ Should be fixed in Scala `2.11.5`. See
 
 ## Usage ##
 
-1. Install sbt (from http://www.scala-sbt.org or use your local packaging
-   system like macports, brew, etc.) -- make sure the Android SDK is fully
-   updated (minimum build-tools 19.1.0 and up)
+1. Install sbt (from [scala-sbt.org](http://www.scala-sbt.org) or use your
+   local packaging system like macports, brew, etc.) -- make sure the
+   Android SDK is fully updated (minimum build-tools 19.1.0 and up)
    * (OPTIONAL) Install the plugin globally into `~/.sbt/plugins` or
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
@@ -344,8 +344,8 @@ Should be fixed in Scala `2.11.5`. See
   * The best practice is to set the IDE's run task to invoke sbt
     `android:package` instead of `Make`; this is found under the Run
     Configurations
-  * The SBT plugin for IntelliJ is the one from this project
-    https://github.com/orfjackal/idea-sbt-plugin
+  * The SBT plugin for IntelliJ is the one from
+    [orfjackal/idea-sbt-plugin](https://github.com/orfjackal/idea-sbt-plugin)
   * The `Scala` plugin is still required for non-Scala projects in order to
     edit sbt build files from inside the IDE.
 * Consuming apklib and aar artifacts from other projects
