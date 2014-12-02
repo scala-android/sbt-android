@@ -28,6 +28,7 @@ https://issues.scala-lang.org/browse/SI-8931). Should be fixed in scala
   * fix javah bug #131
   * fix double-tab crash #130
   * split `test` from `android:test` (better support for robolectric)
+  * added manifest placeholders (set ```manifestPlaceholders in Android``` to a Map of keys you wish to replace in AndroidManifest.xml by sbt values. The format for these placeholders inside of manifest is ${keyName})
 * `1.3.11`:
   * multidex support (thank you @dant3)
   (see https://developer.android.com/reference/android/support/multidex/MultiDex.html and the `hello-multidex` test case for an example of usage)
