@@ -1130,8 +1130,11 @@ object Tasks {
                    , streams) map {
     case (bldr, (incr, inputs), xmx, multiDex, mainDexListTxt, minMainDex, additionalParams, lib, bin, s) =>
       val incremental = incr && !multiDex
+      if (!incremental && inputs.exists(_.getName.startsWith("proguard-cache"))) {
+        s.log.debug("Cleaning dex files for proguard cache and incremental dex")
+        (bin * "*.dex" get) foreach (_.delete())
+      }
       val options = new DexOptions {
-        // gone in current android builder
         override def getIncremental = incr
         override def getJavaMaxHeapSize = xmx
         override def getPreDexLibraries = false
@@ -1386,7 +1389,6 @@ object Tasks {
         processedManifest.getAbsoluteFile,
         cache / "processTestManifest")
       val options = new DexOptions {
-        // gone in current android builder
         override def getIncremental = true
         override def getJumboMode = false
         override def getPreDexLibraries = false
