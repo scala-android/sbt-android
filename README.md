@@ -348,6 +348,19 @@ Should be fixed in Scala `2.11.5`. See
     [orfjackal/idea-sbt-plugin](https://github.com/orfjackal/idea-sbt-plugin)
   * The `Scala` plugin is still required for non-Scala projects in order to
     edit sbt build files from inside the IDE.
+  * Instead of using `sbt-idea`, IntelliJ 14 now includes native support for
+    importing projects from `android-sdk-plugin`. The process generally works
+    well, however there are still several caveats:
+    * The `idea-sbt-plugin` is still required to actually perform the build
+    * `classDirectory in Compile` is not automatically included as a library,
+      as a result apklib classes will not resolve unless it is added manually
+      (`bin/classes` or `target/android-bin/classes`) as a library.
+      [SCL-7973](https://youtrack.jetbrains.com/issue/SCL-7973)
+    * Paths are incorrect on Windows
+      [SCL-7908](https://youtrack.jetbrains.com/issue/SCL-7908)
+    * Gradle-style layouts still aren't fully supported (resources won't
+      resolve in the IDE)
+      [SCL-6273](https://youtrack.jetbrains.com/issue/SCL-6273)
 * Consuming apklib and aar artifacts from other projects
   * Optionally use `apklib()` or `aar()`
     * using `apklib()` and `aar()` are only necessary if there are multiple
