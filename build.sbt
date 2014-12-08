@@ -22,7 +22,7 @@ libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "5.0.2",
   "javassist" % "javassist" % "3.12.1.GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
-  "com.android.tools.build" % "builder" % "1.0.0-rc4"
+  "com.android.tools.build" % "builder" % "1.0.0"
 )
 
 sbtPlugin := true
