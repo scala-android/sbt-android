@@ -1,5 +1,7 @@
 import ScriptedPlugin._
 
+import bintray.Keys._
+
 name := "android-sdk-plugin"
 
 version := "1.3.14"
@@ -38,16 +40,15 @@ buildInfoKeys := Seq(name, version, scalaVersion, sbtVersion)
 
 buildInfoPackage := "android"
 
-publishTo <<= version { version =>
-  val scalasbt = "http://scalasbt.artifactoryonline.com/scalasbt/"
-  val (name, url) = if (version contains "-SNAPSHOT")
-    ("scala-sbt-snapshots", scalasbt + "sbt-plugin-snapshots")
-  else
-    ("scala-sbt-releases", scalasbt + "sbt-plugin-releases")
-  Some(Resolver.url(name, new URL(url))(Resolver.ivyStylePatterns))
-}
+bintrayPublishSettings
+
+repository in bintray := "sbt-plugins"
 
 publishMavenStyle := false
+
+licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
+
+bintrayOrganization in bintray := None
 
 // scripted-test settings
 scriptedSettings
