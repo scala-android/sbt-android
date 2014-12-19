@@ -27,3 +27,5 @@ proguardCache in Android ++= Seq(
   ProguardCache("scala.xml") % "org.scala-lang.modules" %% "scala-xml",
   ProguardCache("scala.util.parsing.combinator", "scala.util.parsing.input", "scala.util.parsing.json") % "org.scala-lang.modules" %% "scala-parser-combinators"
 )
+
+javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6")

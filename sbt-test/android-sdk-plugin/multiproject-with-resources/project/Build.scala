@@ -11,7 +11,9 @@ object Build extends Build {
     settings = Defaults.defaultSettings ++ android.Plugin.androidBuild ++ Seq(
       libraryDependencies ++= Seq(
         "com.scalatags" % "scalatags_2.10" % "0.2.4"
-      ), scalaVersion := "2.10.2"
+      ),
+      scalaVersion := "2.10.2",
+      javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6")
     )
   ) dependsOn core
 
