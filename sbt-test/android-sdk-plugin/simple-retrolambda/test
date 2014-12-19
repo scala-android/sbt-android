@@ -1,0 +1,4 @@
+> android:package
+$ exists target/android-bin/retrolambda-processed.jar
+> check-jar
+> android:test

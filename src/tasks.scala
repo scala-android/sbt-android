@@ -1082,13 +1082,14 @@ object Tasks {
   val dexInputsTaskDef = ( proguard
                          , proguardInputs
                          , proguardCache
+                         , retrolambdaEnable
                          , dexMulti
                          , binPath
                          , dependencyClasspath
                          , classesJar
                          , state
                          , streams) map {
-    (progOut, in, progCache, multiDex, b, deps, classJar, st, s) =>
+    (progOut, in, progCache, re, multiDex, b, deps, classJar, st, s) =>
 
       // TODO use getIncremental in DexOptions instead
       val proguardedDexMarker = b / ".proguarded-dex"
@@ -1112,10 +1113,14 @@ object Tasks {
 
       val incrementalDex = createDebug && (progCache.isEmpty || !proguardedDexMarker.exists)
 
-      incrementalDex -> jarsToDex.groupBy (_.getName).collect {
-        case ("classes.jar", aarClassJar) => aarClassJar.distinct // guess aars by jar name?
-        case (_, otherJars) => otherJars.head :: Nil // distinct jars by name?
-      }.flatten.toSeq
+      val dexIn = jarsToDex.groupBy (_.getName).collect {
+          case ("classes.jar", aarClassJar) => aarClassJar.distinct // guess aars by jar name?
+          case (_, otherJars) => otherJars.head :: Nil // distinct jars by name?
+        }.flatten.toSeq
+
+      incrementalDex ->
+        (if (re && RetrolambdaSupport.isAvailable)
+          Seq(RetrolambdaSupport.process(b, dexIn, st, s)) else dexIn)
   }
 
   val dexTaskDef = ( builder
@@ -1337,6 +1342,7 @@ object Tasks {
     val runner = extracted.get(instrumentTestRunner in (prj,Android))
     val xmx = extracted.get(dexMaxHeap in (prj,Android))
     val cache = s.cacheDirectory
+    val re = extracted.get(retrolambdaEnable in (prj,Android))
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
@@ -1409,7 +1415,12 @@ object Tasks {
       val deps = tlib filterNot (clib contains)
       val tmp = cache / "test-dex"
       tmp.mkdirs()
-      bldr.convertByteCode(Seq(classes) ++ (deps map (_.data)), Seq.empty[File],
+      val inputs = if (re && RetrolambdaSupport.isAvailable) {
+        Seq(RetrolambdaSupport.process(classes, deps map (_.data), st, s))
+      } else {
+        Seq(classes) ++ (deps map (_.data))
+      }
+      bldr.convertByteCode(inputs, Seq.empty[File],
         dex, false, false, null, options, Nil, tmp, false, !createDebug)
 
       val debugConfig = new DefaultSigningConfig("debug")

@@ -185,6 +185,8 @@ object Keys {
     "whether or not to run proguard, automatically true with scala")
   val useProguardInDebug = SettingKey[Boolean]("use-proguard-in-debug",
     "whether or not to run proguard in debug, automatically true with scala")
+  val retrolambdaEnable = SettingKey[Boolean]("retrolambda-enable",
+    "enable java8 backport support")
   val install = TaskKey[Unit]("install", "Install the built app to device")
   val uninstall = TaskKey[Unit]("uninstall", "Remove the app from the device")
   val cleanForR = TaskKey[Seq[File]]("clean-for-r",

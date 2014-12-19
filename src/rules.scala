@@ -125,13 +125,16 @@ object Plugin extends sbt.Plugin {
     },
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn compile,
-    javacOptions      <<= (javacOptions, builder in Android) map { (o,bldr) =>
+    javacOptions      <<= ( javacOptions
+                          , builder in Android
+                          , retrolambdaEnable in Android) map { (o,bldr, re) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (createDebug) Seq("-g") else Seq.empty
       val bcp = bldr.getBootClasspath mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
-      o ++ Seq("-bootclasspath" , bcp) ++ debugOptions
+      o ++ (if (!re) Seq("-bootclasspath" , bcp) else
+        Seq("-Xbootclasspath/a:" + bcp)) ++ debugOptions
     },
     scalacOptions     <<= (scalacOptions, builder in Android) map { (o,bldr) =>
       // scalac has -g:vars by default
@@ -336,6 +339,9 @@ object Plugin extends sbt.Plugin {
     proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),
     proguardScala           <<= (scalaSource in Compile) {
       s => (s ** "*.scala").get.size > 0
+    },
+    retrolambdaEnable       <<= (javaSource in Compile) {
+      s => (s ** "*.java").get.size > 0 && RetrolambdaSupport.isAvailable
     },
     typedResources          <<= proguardScala,
     typedResourcesIgnores    := Seq.empty,
