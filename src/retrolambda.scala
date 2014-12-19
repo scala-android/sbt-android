@@ -38,6 +38,12 @@ case class RetrolambdaConfig(target: File,
     p.setProperty("retrolambda.inputDir", target.getAbsolutePath)
     p.setProperty("retrolambda.classpath", classpath map (
       _.getAbsolutePath) mkString java.io.File.pathSeparator)
+    val r = rebase(target, "")
+    includes foreach { i =>
+      p.setProperty("retrolambda.includedFiles", (i map r) collect {
+        case Some(s) => s
+      } mkString java.io.File.pathSeparator)
+    }
     new RConfig(p)
   }
 }
