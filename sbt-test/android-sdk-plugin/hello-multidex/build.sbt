@@ -50,3 +50,5 @@ apkbuildExcludes in Android ++= Seq(
   "META-INF/NOTICE.txt",
   "META-INF/NOTICE"
 )
+
+javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6")
