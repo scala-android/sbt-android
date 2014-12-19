@@ -40,9 +40,9 @@ case class RetrolambdaConfig(target: File,
       _.getAbsolutePath) mkString java.io.File.pathSeparator)
     val r = rebase(target, "")
     includes foreach { i =>
-      p.setProperty("retrolambda.includedFiles", (i map r) collect {
-        case Some(s) => s
-      } mkString java.io.File.pathSeparator)
+      p.setProperty("retrolambda.includedFiles", (
+        i map (_.getAbsoluteFile)) mkString java.io.File.pathSeparator)
+      println("included files: " + p.getProperty("retrolambda.includedFiles"))
     }
     new RConfig(p)
   }
