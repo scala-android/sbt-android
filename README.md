@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.3.13
+Current version is 1.3.14
 
 ## Description ##
 
@@ -23,6 +23,14 @@ Should be fixed in Scala `2.11.5`. See
 
 ## New features in 1.3.x ##
 
+* `1.3.14`:
+  * Support for [Retrolambda](https://github.com/orfjackal/retrolambda), Java8
+    lambda syntax.
+    * Automatically enabled when JDK 8 and java sources are detected.
+    * Manually enable by setting `retrolambdaEnable in Android := true` (or,
+      conversely, `false` to disable if it was automatically enabled)
+    * Sample in
+      [hello-multidex test case](sbt-test/android-sdk-plugin/simple-retrolambda)
 * `1.3.13`:
   * Update to release builder `1.0.0`
   * Attempt to fix proguard-cache delta bug
@@ -99,7 +107,7 @@ Should be fixed in Scala `2.11.5`. See
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.13")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.14")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -265,7 +273,7 @@ Should be fixed in Scala `2.11.5`. See
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.13")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.14")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -286,7 +294,7 @@ Should be fixed in Scala `2.11.5`. See
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.13")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.14")
    ```
 
 4. Create a file named `project/build.scala` and add the
