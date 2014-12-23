@@ -17,7 +17,10 @@ object RetrolambdaSupport {
     val dest = target / "retrolambda"
     val finalJar = target / "retrolambda-processed.jar"
     dest.mkdirs()
-    classpath foreach (f => IO.unzip(f, dest))
+    FileFunction.cached(s.cacheDirectory / "retrolambda-jars", FilesInfo.lastModified) { in =>
+      in foreach (f => IO.unzip(f, dest))
+      in
+    }(classpath.toSet)
 
     FileFunction.cached(s.cacheDirectory / ("retro-" + target.getName), FilesInfo.lastModified) { in =>
       Retrolambda.run(RetrolambdaConfig(dest, cp, Some(in.toSeq)).asConfig)
