@@ -79,6 +79,10 @@ object Plugin extends sbt.Plugin {
     addArtifact(apklibArtifact in Android, packageApklib in Android)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
+    update                     <<= (update, streams) map { (u, s) =>
+      UpdateChecker.checkCurrent(s)
+      u
+    },
     sourceManaged              <<= (projectLayout in Android) (_.gen),
     unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
       Set(l.sources, l.javaSource, l.scalaSource).toSeq),

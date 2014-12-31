@@ -4,7 +4,7 @@ import bintray.Keys._
 
 name := "android-sdk-plugin"
 
-version := "1.3.14"
+version := "1.3.15-SNAPSHOT"
 
 organization := "com.hanhuy.sbt"
 
@@ -24,6 +24,9 @@ libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "5.0.2",
   "javassist" % "javassist" % "3.12.1.GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
+  "io.argonaut" %% "argonaut" % "6.0.4",
+  "org.slf4j" % "slf4j-nop" % "1.7.9",
+  "net.databinder.dispatch" %% "dispatch-core" % "0.11.2",
   "com.android.tools.build" % "builder" % "1.0.0",
   "net.orfjackal.retrolambda" % "retrolambda" % "1.8.0"
 )
