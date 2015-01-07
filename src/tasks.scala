@@ -1082,6 +1082,7 @@ object Tasks {
   val dexInputsTaskDef = ( proguard
                          , proguardInputs
                          , proguardCache
+                         , thisProjectRef
                          , retrolambdaEnable
                          , dexMulti
                          , binPath
@@ -1089,7 +1090,7 @@ object Tasks {
                          , classesJar
                          , state
                          , streams) map {
-    (progOut, in, progCache, re, multiDex, b, deps, classJar, st, s) =>
+    (progOut, in, progCache, prj, re, multiDex, b, deps, classJar, st, s) =>
 
       // TODO use getIncremental in DexOptions instead
       val proguardedDexMarker = b / ".proguarded-dex"
@@ -1120,7 +1121,7 @@ object Tasks {
 
       incrementalDex ->
         (if (re && RetrolambdaSupport.isAvailable)
-          Seq(RetrolambdaSupport.process(b, dexIn, st, s)) else dexIn)
+          Seq(RetrolambdaSupport.process(b, dexIn, st, prj, s)) else dexIn)
   }
 
   val dexTaskDef = ( builder
@@ -1416,7 +1417,7 @@ object Tasks {
       val tmp = cache / "test-dex"
       tmp.mkdirs()
       val inputs = if (re && RetrolambdaSupport.isAvailable) {
-        Seq(RetrolambdaSupport.process(classes, deps map (_.data), st, s))
+        Seq(RetrolambdaSupport.process(classes, deps map (_.data), st, prj, s))
       } else {
         Seq(classes) ++ (deps map (_.data))
       }

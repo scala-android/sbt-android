@@ -9,10 +9,11 @@ import net.orfjackal.retrolambda.{Main => RMain, Config => RConfig, Retrolambda}
  */
 object RetrolambdaSupport {
   def isAvailable = RMain.isRunningJava8
-  def process(target: File, classpath: Seq[File], st: State, s: sbt.Keys.TaskStreams): File = synchronized {
+  def process(target: File, classpath: Seq[File], st: State, prj: ProjectRef,
+              s: sbt.Keys.TaskStreams): File = synchronized {
     import collection.JavaConversions._
     val e = Project.extract(st)
-    val bldr = e.runTask(Keys.builder in Keys.Android, st)._2
+    val bldr = e.runTask(Keys.builder in (prj,Keys.Android), st)._2
     val cp = (bldr.getBootClasspath map (f => f: sbt.File)) ++ classpath
     val dest = target / "retrolambda"
     val finalJar = target / "retrolambda-processed.jar"
