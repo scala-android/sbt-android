@@ -1,0 +1,31 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+	package="test.client"
+	android:versionCode="0"
+	android:versionName="0.1"
+>
+	<uses-sdk
+		android:minSdkVersion="19"
+		android:targetSdkVersion="19"
+	/>
+
+	<application
+		android:label="Test"
+		android:icon="@drawable/app_icon"
+		android:installLocation="auto"
+		android:launchMode="singleTask"
+	>
+		<activity
+			android:label="Test"
+			android:name=".MainActivity"
+		>
+			<intent-filter>
+				<action
+					android:name="android.intent.action.MAIN"
+				/>
+				<category
+					android:name="android.intent.category.LAUNCHER"
+				/>
+			</intent-filter>
+		</activity>
+	</application>
+</manifest>
