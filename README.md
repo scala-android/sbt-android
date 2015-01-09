@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.3.14
+Current version is 1.3.15
 
 ## Description ##
 
@@ -23,6 +23,10 @@ Should be fixed in Scala `2.11.5`. See
 
 ## New features in 1.3.x ##
 
+* `1.3.15`:
+  * Update checker to notify of new versions
+  * Fix multi-project retrolambda build issues
+  * Fix `adb-wifi` to use `adb tcpip` internally
 * `1.3.14`:
   * Support for [Retrolambda](https://github.com/orfjackal/retrolambda), Java8
     lambda syntax.
@@ -107,7 +111,7 @@ Should be fixed in Scala `2.11.5`. See
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.14")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.15")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -273,7 +277,7 @@ Should be fixed in Scala `2.11.5`. See
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.14")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.15")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -294,7 +298,7 @@ Should be fixed in Scala `2.11.5`. See
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.14")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.15")
    ```
 
 4. Create a file named `project/build.scala` and add the
