@@ -300,24 +300,17 @@ object Commands {
     val d = targetDevice(sdk, state.log).get
     if (adbWifiOn) {
       state.log.info("turning ADB-over-wifi off")
-      d.executeShellCommand("ps | grep -w [a]dbd", receiver)
-      val pid = receiver.result.split(" +")(1)
-      state.log.debug("current adbd pid: %s" format pid)
-      d.executeShellCommand("setprop service.adb.tcp.port 0", receiver)
-      d.executeShellCommand("kill %s" format pid, receiver)
-      state
+      Seq(adbPath, "-s", d.getSerialNumber.toString, "usb") !
 
+      state
     } else {
       state.log.info("turning ADB-over-wifi on")
 
       d.executeShellCommand("ifconfig wlan0", receiver)
       val ip = receiver.result.split(" +")(2)
       state.log.debug("device ip: %s" format ip)
-      d.executeShellCommand("ps | grep -w [a]dbd", receiver)
-      val pid = receiver.result.split(" +")(1)
-      state.log.debug("current adbd pid: %s" format pid)
-      d.executeShellCommand("setprop service.adb.tcp.port 5555", receiver)
-      d.executeShellCommand("kill %s" format pid, receiver)
+
+      Seq(adbPath, "-s", d.getSerialNumber.toString, "tcpip", "5555") !
 
       val r = Seq(adbPath, "connect", ip) !
 
