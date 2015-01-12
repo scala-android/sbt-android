@@ -1350,31 +1350,7 @@ object Tasks {
     val manifestFile = if (noTestApk || testManifest.exists) {
       testManifest
     } else {
-      val vn = new PrefixedAttribute(ANDROID_PREFIX, "versionName", "1.0", Null)
-      val vc = new PrefixedAttribute(ANDROID_PREFIX, "versionCode", "1", vn)
-      val pkgAttr = new UnprefixedAttribute("package",
-        pkg + ".instrumentTest", vc)
-      val ns = NamespaceBinding(ANDROID_PREFIX, ANDROID_NS, TopScope)
-
-      val minSdk = new PrefixedAttribute(
-        ANDROID_PREFIX, "minSdkVersion", "3", Null)
-      val usesSdk = new Elem(null, "uses-sdk", minSdk, TopScope, minimizeEmpty = true)
-      val runnerlib = new PrefixedAttribute(
-        ANDROID_PREFIX, "name", TEST_RUNNER_LIB, Null)
-      val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope, minimizeEmpty = true)
-      val app = new Elem(null,
-        APPLICATION_TAG, Null, TopScope, minimizeEmpty = false, usesSdk, usesLib)
-      val name = new PrefixedAttribute(
-        ANDROID_PREFIX, "name", runner, Null)
-      val instrumentation = new Elem(null, INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
-      val manifest = new Elem(null,
-        "manifest", pkgAttr, ns, minimizeEmpty = false, app, instrumentation)
-
-      val manifestFile = classes / "GeneratedTestAndroidManifest.xml"
-      val writer = new java.io.FileWriter(manifestFile, false)
-      XML.write(writer, manifest, "utf-8", true, null)
-      writer.close()
-      manifestFile
+      generateTestManifest(pkg, classes, runner)
     }
 
     if (!noTestApk) {
@@ -1448,8 +1424,68 @@ object Tasks {
     ()
   }
 
+  lazy val testOnlyTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
+    val layout = projectLayout.value
+    val prj = thisProjectRef.value
+    val noTestApk = debugIncludesTests.value
+    val pkg = packageName.value
+    val classes = (classDirectory in Test).value
+    val st = state.value
+    val s = streams.value
+    val extracted = Project.extract(st)
+    val timeo = extracted.get(instrumentTestTimeout in (prj,Android))
+    val sdk = extracted.get(sdkPath in (prj,Android))
+    val runner = extracted.get(instrumentTestRunner in (prj,Android))
+    val testManifest = layout.testSources / "AndroidManifest.xml"
+    val manifestFile = if (noTestApk || testManifest.exists) {
+      testManifest
+    } else {
+      generateTestManifest(pkg, classes, runner)
+    }
+    val manifest = XML.loadFile(manifestFile)
+    val testPackage = manifest.attribute("package") get 0 text
+    val testSelection = Def.spaceDelimited().parsed.mkString(" ")
+    val trunner = if(noTestApk) runner else {
+      val instr = manifest \\ "instrumentation"
+      (instr map { i =>
+        (i.attribute(ANDROID_NS, "name") map (_(0).text),
+          i.attribute(ANDROID_NS, "targetPackage") map (_(0).text))
+      }).headOption flatMap ( _._1) getOrElse runner
+    }
+    runTests(sdk, testPackage, s, trunner, timeo, Some(testSelection))
+  }
+
+  private def generateTestManifest(pkg: String, classes: File,
+    runner: String) = {
+    val vn = new PrefixedAttribute(ANDROID_PREFIX, "versionName", "1.0", Null)
+    val vc = new PrefixedAttribute(ANDROID_PREFIX, "versionCode", "1", vn)
+    val pkgAttr = new UnprefixedAttribute("package",
+      pkg + ".instrumentTest", vc)
+    val ns = NamespaceBinding(ANDROID_PREFIX, ANDROID_NS, TopScope)
+
+    val minSdk = new PrefixedAttribute(
+      ANDROID_PREFIX, "minSdkVersion", "3", Null)
+    val usesSdk = new Elem(null, "uses-sdk", minSdk, TopScope, minimizeEmpty = true)
+    val runnerlib = new PrefixedAttribute(
+      ANDROID_PREFIX, "name", TEST_RUNNER_LIB, Null)
+    val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope, minimizeEmpty = true)
+    val app = new Elem(null,
+      APPLICATION_TAG, Null, TopScope, minimizeEmpty = false, usesSdk, usesLib)
+    val name = new PrefixedAttribute(
+      ANDROID_PREFIX, "name", runner, Null)
+    val instrumentation = new Elem(null, INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
+    val manifest = new Elem(null,
+      "manifest", pkgAttr, ns, minimizeEmpty = false, app, instrumentation)
+
+    val manifestFile = classes / "GeneratedTestAndroidManifest.xml"
+    val writer = new java.io.FileWriter(manifestFile, false)
+    XML.write(writer, manifest, "utf-8", true, null)
+    writer.close()
+    manifestFile
+  }
+
   private def runTests(sdk: String, testPackage: String,
-      s: TaskStreams, runner: String, timeo: Int) {
+      s: TaskStreams, runner: String, timeo: Int, testSelection: Option[String] = None) {
     val listener = TestListener(s.log)
     import com.android.ddmlib.testrunner.InstrumentationResultParser
     val p = new InstrumentationResultParser(testPackage, listener)
@@ -1465,7 +1501,8 @@ object Tasks {
     }
     val intent = testPackage + "/" + runner
     Commands.targetDevice(sdk, s.log) map { d =>
-      val command = "am instrument -r -w %s" format intent
+      val selection = testSelection map { "-e " + _ } getOrElse ""
+      val command = "am instrument -r -w %s %s" format(selection, intent)
       s.log.debug("Executing [%s]" format command)
       val timeout = DdmPreferences.getTimeOut
       DdmPreferences.setTimeOut(timeo)

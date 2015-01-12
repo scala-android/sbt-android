@@ -246,6 +246,7 @@ object Plugin extends sbt.Plugin {
     uninstall               <<= uninstallTaskDef,
     test                    <<= testTaskDef,
     test                    <<= test dependsOn (compile in Android, install),
+    testOnly                <<= testOnlyTaskDef,
     run                     <<= runTaskDef( install
                                           , sdkPath
                                           , projectLayout
