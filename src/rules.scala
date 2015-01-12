@@ -79,8 +79,8 @@ object Plugin extends sbt.Plugin {
     addArtifact(apklibArtifact in Android, packageApklib in Android)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
-    update                     <<= (update, streams) map { (u, s) =>
-      UpdateChecker.checkCurrent(s)
+    update                     <<= (update, state) map { (u, s) =>
+      UpdateChecker.checkCurrent(s.log)
       u
     },
     sourceManaged              <<= (projectLayout in Android) (_.gen),
@@ -511,6 +511,10 @@ object Plugin extends sbt.Plugin {
         file(p) / "extras" / "google" / "m2repository").toURI.toString,
       "android libraries" at (
         file(p) / "extras" / "android" / "m2repository").toURI.toString)
+    },
+    update                     <<= (update, state) map { (u, s) =>
+      UpdateChecker.checkCurrent(s.log)
+      u
     },
     cleanFiles        <+= binPath in Android,
     cleanFiles        <+= genPath in Android,
