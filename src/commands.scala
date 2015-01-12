@@ -332,7 +332,10 @@ object Commands {
     build.mkdirs()
     val properties = build / "build.properties"
     val projectBuild = build / "build.scala"
+    val pluginSbt = build / "android.sbt"
+    val plugin = s"""addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "${BuildInfo.version}")""".stripMargin
     val version = Project.extract(state).get(sbt.Keys.sbtVersion)
+    IO.writeLines(pluginSbt, plugin ::  Nil)
     IO.writeLines(properties, "sbt.version=" + version :: Nil)
     IO.writeLines(projectBuild,
       "object Build extends android.AutoBuild" :: Nil)
