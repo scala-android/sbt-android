@@ -17,7 +17,7 @@ import java.io.{PrintWriter, File, FileInputStream}
 import com.android.SdkConstants
 import com.android.builder.model.{PackagingOptions, AaptOptions}
 import com.android.builder.signing.DefaultSigningConfig
-import com.android.builder.core.{AaptPackageCommandBuilder, DexOptions, VariantConfiguration, AndroidBuilder}
+import com.android.builder.core._
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.ddmlib.IShellOutputReceiver
 import com.android.ddmlib.DdmPreferences
@@ -553,7 +553,7 @@ object Tasks {
       }
       if (!exists) {
         slog.info("Performing incremental resource merge")
-        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher)
+        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true)
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
@@ -572,7 +572,7 @@ object Tasks {
       r.loadFromFiles(logger)
       merger.addDataSet(r)
     }
-    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher)
+    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true)
     merger.mergeData(writer, false)
     merger.writeBlobTo(blobDir, writer)
   }
@@ -918,7 +918,7 @@ object Tasks {
       bldr.mergeManifests(layout.manifest, Seq.empty[File],
         if (merge) libs else Seq.empty[LibraryDependency],
         pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
-        output.getAbsolutePath,
+        output.getAbsolutePath, null,
         if (isLib) ManifestMerger2.MergeType.LIBRARY else
           ManifestMerger2.MergeType.APPLICATION, ph,
         layout.bin / "manifestmerge-report.txt")
@@ -1017,7 +1017,7 @@ object Tasks {
     }))
     logger.debug("packageForR: " + pkg)
     logger.debug("proguard.txt: " + proguardTxt)
-    val aaptCommand = new AaptPackageCommandBuilder(manifest, options)
+    val aaptCommand = new AaptPackageProcessBuilder(manifest, options)
     if (res.isDirectory)
       aaptCommand.setResFolder(res)
     if (assets.isDirectory)
@@ -1028,7 +1028,7 @@ object Tasks {
     aaptCommand.setSourceOutputDir(genPath)
     aaptCommand.setSymbolOutputDir(genPath)
     aaptCommand.setProguardOutput(proguardTxt)
-    aaptCommand.setType(if (lib) VariantConfiguration.Type.LIBRARY else VariantConfiguration.Type.DEFAULT)
+    aaptCommand.setType(if (lib) VariantType.LIBRARY else VariantType.DEFAULT)
     aaptCommand.setDebuggable(createDebug)
     bldr.processResources(aaptCommand, true)
   }

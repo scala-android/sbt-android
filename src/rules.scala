@@ -3,6 +3,8 @@ package android
 import java.util.Properties
 
 import android.Dependencies.LibraryProject
+import com.android.ide.common.process.BaseProcessOutputHandler.BaseProcessOutput
+import com.android.ide.common.process._
 import sbt._
 import sbt.Keys._
 
@@ -468,10 +470,43 @@ object Plugin extends sbt.Plugin {
                                 , ilogger
                                 , buildToolsVersion
                                 , platformTarget
-                                , streams) map {
+                                , state) map {
       (ldr, m, n, l, v, t, s) =>
 
-      val bldr = new AndroidBuilder(n, "android-sdk-plugin", l(s.log), false)
+      val bldr = new AndroidBuilder(n, "android-sdk-plugin",
+        new DefaultProcessExecutor(l(s.log)),
+        new JavaProcessExecutor {
+          override def execute(javaProcessInfo: JavaProcessInfo, processOutputHandler: ProcessOutputHandler) = {
+            val options = ForkOptions(
+              envVars = javaProcessInfo.getEnvironment map { case ((x,y)) => x -> y.toString } toMap,
+              runJVMOptions = javaProcessInfo.getJvmArgs ++
+                ("-cp" :: javaProcessInfo.getClasspath :: Nil))
+            val r = Fork.java(options, (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs)
+            new ProcessResult {
+              override def assertNormalExitValue() = {
+                if (r != 0) throw new ProcessException("error code: " + r)
+                this
+              }
+
+              override def rethrowFailure() = this
+
+              override def getExitValue = r
+            }
+          }
+        }, new BaseProcessOutputHandler {
+          override def handleOutput(processOutput: ProcessOutput) = {
+            processOutput match {
+              case p: BaseProcessOutput =>
+                val stdout = p.getStandardOutputAsString
+                if (!stdout.isEmpty)
+                  s.log.info(stdout)
+                val stderr = p.getErrorOutputAsString
+                if (!stderr.isEmpty)
+                  s.log.error(stderr)
+            }
+          }
+        },
+        l(s.log), false)
       val sdkInfo = ldr.getSdkInfo(l(s.log))
       val rev = v map { version =>
         FullRevision.parseRevision(version)
