@@ -1,5 +1,7 @@
 package android
 
+import java.io.{FileInputStream, FileOutputStream}
+
 import sbt._
 
 import net.orfjackal.retrolambda.{Main => RMain, Config => RConfig, Retrolambda}
@@ -24,7 +26,26 @@ object RetrolambdaSupport {
     }(classpath.toSet)
 
     FileFunction.cached(s.cacheDirectory / ("retro-" + target.getName), FilesInfo.lastModified) { in =>
-      Retrolambda.run(RetrolambdaConfig(dest, cp, Some(in.toSeq)).asConfig)
+      val options = ForkOptions(
+        runJVMOptions = Seq(
+          "-noverify",
+          "-classpath", e.currentUnit.classpath map (
+            _.getAbsoluteFile) mkString java.io.File.pathSeparator
+      ))
+
+      val config = s.cacheDirectory / "retro-config.properties"
+      val p = new java.util.Properties
+      val out = new FileOutputStream(config)
+      p.setProperty("retrolambda.inputDir", dest.getAbsolutePath)
+      p.setProperty("retrolambda.classpath", cp map (
+        _.getAbsolutePath) mkString java.io.File.pathSeparator)
+      p.setProperty("retrolambda.includedFiles", (
+        in map (_.getAbsoluteFile)) mkString java.io.File.pathSeparator)
+      p.store(out, "auto-generated")
+      out.close()
+      val r = Fork.java(options, "android.RetroMain" :: config.getAbsolutePath :: Nil)
+      IO.delete(config)
+      if (r != 0) sys.error(s"Retrolambda failure: exit $r")
       in
     }((dest ** "*.class" get).toSet)
 
@@ -34,20 +55,12 @@ object RetrolambdaSupport {
   }
 }
 
-case class RetrolambdaConfig(target: File,
-                             classpath: Seq[File],
-                             includes: Option[Seq[File]] = None) {
-  def asConfig: RConfig = {
+object RetroMain {
+  def main(args: Array[String]): Unit = {
     val p = new java.util.Properties
-    p.setProperty("retrolambda.inputDir", target.getAbsolutePath)
-    p.setProperty("retrolambda.classpath", classpath map (
-      _.getAbsolutePath) mkString java.io.File.pathSeparator)
-    val r = rebase(target, "")
-    includes foreach { i =>
-      p.setProperty("retrolambda.includedFiles", (
-        i map (_.getAbsoluteFile)) mkString java.io.File.pathSeparator)
-      println("included files: " + p.getProperty("retrolambda.includedFiles"))
-    }
-    new RConfig(p)
+    val in = new FileInputStream(args(0))
+    p.load(in)
+    in.close()
+    Retrolambda.run(new RConfig(p))
   }
 }
