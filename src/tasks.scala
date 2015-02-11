@@ -836,7 +836,7 @@ object Tasks {
         "-o", (layout.bin / "renderscript" / "res" / "raw").getAbsolutePath) :+
           script.getAbsolutePath
 
-      val r = cmd !
+      val r = Process(cmd, None, "LD_LIBRARY_PATH" -> file(rs).getParent).!
 
       if (r != 0)
         sys.error("renderscript failed: " + r)
