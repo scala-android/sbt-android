@@ -58,6 +58,9 @@ object Dependencies {
 
   case class ApkLibrary(path: File) extends LibraryDependency with Pkg {
     import com.android.SdkConstants._
+
+    // apklib are always ant-style layouts
+    override val layout = ProjectLayout.Ant(path)
     lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
 
     override def getJniFolder = layout.libs
