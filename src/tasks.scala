@@ -122,18 +122,18 @@ object Tasks {
       val m = moduleForFile(u, l)
       if (tx || deps(moduleString(m))) {
         val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
-        Some(unpackAar(l, d, s.log): LibraryDependency)
+        Some(unpackAar(l, d, m, s.log): LibraryDependency)
       } else {
         s.log.warn(m + " is not an explicit dependency, skipping")
         None
       }
     }) ++ (local map { a =>
-      unpackAar(a, dest / ("localAAR-" + a.getName), s.log)
+      unpackAar(a, dest / ("localAAR-" + a.getName), "localAAR" % a.getName % "LOCAL", s.log)
     })
   }
 
-  def unpackAar(aar: File, dest: File, log: Logger): LibraryDependency = {
-    val lib = AarLibrary(dest)
+  def unpackAar(aar: File, dest: File, m: ModuleID, log: Logger): LibraryDependency = {
+    val lib = AarLibrary(dest, Option(m))
     if (dest.lastModified < aar.lastModified || !lib.getManifest.exists) {
       dest.delete()
       log.info("Unpacking aar: %s to %s" format (aar.getName, dest.getName))
@@ -145,7 +145,7 @@ object Tasks {
     if (lib.getJarFile.exists) {
       lib.getJarFile.renameTo(renamedJar)
     }
-    new AarLibrary(dest) {
+    new AarLibrary(dest, Option(m)) {
       override def getJarFile = renamedJar
     }
   }
@@ -1664,16 +1664,46 @@ object Tasks {
     // add all dependent library projects' classes.jar files
     (u ++ (l filterNot {
         case _: ApkLibrary         => true
+        case _: AarLibrary         => true
         case _: AutoLibraryProject => true
         case _ => false
       } map { p => Attributed.blank(p.getJarFile.getCanonicalFile)
     }) ++ (for {
-        d <- l
+        d <- l filterNot {
+          case _: AarLibrary => true
+          case _ => false
+        }
         j <- d.getLocalJars
       } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
         d <- Seq(b / "libs", b / "lib")
         j <- d * "*.jar" get
       } yield Attributed.blank(j.getCanonicalFile))
     ) filter { !_.data.getName.startsWith("scala-library") }
+  }
+
+  val managedClasspathTaskDef = ( managedClasspath in Compile
+                                , baseDirectory
+                                , libraryProjects in Android
+                                , streams) map {
+    (m, b, l, s) =>
+
+      def attributed(f: File, m: ModuleID): Attributed[java.io.File] =
+        Attributed(f)(
+          AttributeMap.empty
+            .put(moduleID.key, m)
+            .put(artifact.key, Artifact(m.name))
+            .put(configuration.key, Compile))
+
+      // handle AAR as managed dependencies
+      // local aar is incorrectly managed here, though  :-(
+      val aars = l collect { case a: AarLibrary => a }
+
+      m ++ (aars map {
+        p => attributed(p.getJarFile.getCanonicalFile, p.moduleID.get)
+      }) ++ (for {
+        d <- aars
+        j <- d.getLocalJars
+      } yield attributed(j.getCanonicalFile, d.moduleID.get))
+
   }
 }

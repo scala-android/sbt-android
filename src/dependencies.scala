@@ -24,7 +24,7 @@ object Dependencies {
   trait LibraryDependency extends AndroidLibrary {
     import com.android.SdkConstants._
     def path: File
-    val layout = ProjectLayout(path)
+    lazy val layout = ProjectLayout(path)
 
     override def getName = path.getCanonicalPath
     override def getProject = null
@@ -60,15 +60,15 @@ object Dependencies {
     import com.android.SdkConstants._
 
     // apklib are always ant-style layouts
-    override val layout = ProjectLayout.Ant(path)
+    override lazy val layout = ProjectLayout.Ant(path)
     lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
 
     override def getJniFolder = layout.libs
     override def getSymbolFile = path / "gen" / "R.txt"
     override def getJarFile = path / "bin" / FN_CLASSES_JAR
   }
-  case class AarLibrary(path: File) extends LibraryDependency {
-    override val layout = new ProjectLayout.Ant(path) {
+  case class AarLibrary(path: File, moduleID: Option[ModuleID]) extends LibraryDependency {
+    override lazy val layout = new ProjectLayout.Ant(path) {
       override def jniLibs = getJniFolder
     }
     override def getJniFolder = path / "jni"
@@ -90,7 +90,7 @@ object Dependencies {
     override def getDependencies = {
       Option((path / "target" / "aars").listFiles).map { list =>
         list filter (_.isDirectory) map { d =>
-          AarLibrary(d): LibraryDependency
+          AarLibrary(d, None): LibraryDependency
         }
       }.getOrElse(Array.empty).toSeq ++
         Option((path / "target" / "apklibs").listFiles).map { list =>
