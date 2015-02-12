@@ -47,7 +47,7 @@ object Dependencies {
     override def getManifestDependencies = getDependencies
 
     override def getLocalDependencies = getLocalJars map {
-      j => new JarDependency(j, true, false, null)
+      j => new JarDependency(j, true, true, false, null, null)
     }
     override def getProjectVariant = null
 
