@@ -65,6 +65,8 @@ object Keys {
     "Whether instrumentation tests should be included in the debug apk")
   val debugTestsGenerator = TaskKey[Seq[File]]("debug-tests-generator",
     "includes test sources in debug builds if debug-includes-tests")
+  val transitiveAndroidWarning = SettingKey[Boolean]("transitive-android-warning",
+    "warn when transitive android dependencies will be ignored, default true")
   val transitiveAndroidLibs = SettingKey[Boolean]("transitive-android-libs",
     "allow transitive aar and apklib dependencies, default true")
   val autolibs = TaskKey[Seq[LibraryDependency]]("autolibs",

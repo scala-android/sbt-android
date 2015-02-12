@@ -109,10 +109,11 @@ object Tasks {
                     , localAars
                     , libraryDependencies in Compile
                     , transitiveAndroidLibs
+                    , transitiveAndroidWarning
                     , target
                     , streams
                     ) map {
-    (u,local,d,tx,t,s) =>
+    (u,local,d,tx,tw,t,s) =>
     val libs = u.matching(artifactFilter(`type` = "aar"))
     val dest = t / "aars"
 
@@ -124,7 +125,8 @@ object Tasks {
         val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
         Some(unpackAar(l, d, m, s.log): LibraryDependency)
       } else {
-        s.log.warn(m + " is not an explicit dependency, skipping")
+        if (tw)
+          s.log.warn(m + " is not an explicit dependency, skipping")
         None
       }
     }) ++ (local map { a =>
