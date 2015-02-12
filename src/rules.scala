@@ -109,6 +109,7 @@ object Plugin extends sbt.Plugin {
     javaSource        <<= (projectLayout in Android) (_.javaSource),
     resourceDirectory <<= (projectLayout in Android) (_.res),
     unmanagedJars     <<= unmanagedJarsTaskDef,
+    managedClasspath  <<= managedClasspathTaskDef,
     unmanagedClasspath <+= classDirectory map Attributed.blank,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
     sourceGenerators  <+= (rGenerator in Android
@@ -425,8 +426,7 @@ object Plugin extends sbt.Plugin {
       val bt = v map { version =>
         m.getBuildTool(FullRevision.parseRevision(version))
       } getOrElse {
-        val tools = m.getLatestBuildTool
-        tools
+        m.getLatestBuildTool
       }
       if (bt == null) {
         sys.error("Android SDK build-tools not found: " + v)
