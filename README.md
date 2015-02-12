@@ -21,6 +21,11 @@ Should be fixed in Scala `2.11.5`. See
 [proguard bug #549](https://sourceforge.net/p/proguard/bugs/549/) and
 [SI-8931](https://issues.scala-lang.org/browse/SI-8931)
 
+## Support and Help ##
+
+The first line of support is reading this README, beyond that, help can be
+found on the #sbt-android IRC channel on Freenode
+
 ## New features in 1.3.x ##
 
 * `1.3.16`:
