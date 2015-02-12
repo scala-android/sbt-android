@@ -1664,15 +1664,15 @@ object Tasks {
     // add all dependent library projects' classes.jar files
     (u ++ (l filterNot {
         case _: ApkLibrary         => true
-        case _: AarLibrary         => true
+//        case _: AarLibrary         => true
         case _: AutoLibraryProject => true
         case _ => false
       } map { p => Attributed.blank(p.getJarFile.getCanonicalFile)
     }) ++ (for {
-        d <- l filterNot {
+        d <- l/* filterNot { // currently unworking
           case _: AarLibrary => true
           case _ => false
-        }
+        }*/
         j <- d.getLocalJars
       } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
         d <- Seq(b / "libs", b / "lib")
@@ -1691,7 +1691,7 @@ object Tasks {
         Attributed(f)(
           AttributeMap.empty
             .put(moduleID.key, m)
-            .put(artifact.key, Artifact(m.name))
+            .put(artifact.key, Artifact(m.name, "jar", "jar"))
             .put(configuration.key, Compile))
 
       // handle AAR as managed dependencies
@@ -1704,6 +1704,5 @@ object Tasks {
         d <- aars
         j <- d.getLocalJars
       } yield attributed(j.getCanonicalFile, d.moduleID.get))
-
   }
 }

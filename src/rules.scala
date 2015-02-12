@@ -109,7 +109,8 @@ object Plugin extends sbt.Plugin {
     javaSource        <<= (projectLayout in Android) (_.javaSource),
     resourceDirectory <<= (projectLayout in Android) (_.res),
     unmanagedJars     <<= unmanagedJarsTaskDef,
-    managedClasspath  <<= managedClasspathTaskDef,
+    // doesn't work properly yet, not for intellij integration
+    //managedClasspath  <<= managedClasspathTaskDef,
     unmanagedClasspath <+= classDirectory map Attributed.blank,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
     sourceGenerators  <+= (rGenerator in Android
