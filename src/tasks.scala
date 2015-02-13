@@ -589,9 +589,10 @@ object Tasks {
     import layout._
     val mapping =
       (PathFinder(manifest)                 pair flat) ++
-      (PathFinder(javaSource) ** "*.java"   pair rebase(javaSource,  "src")) ++
-      (PathFinder(scalaSource) ** "*.scala" pair rebase(scalaSource, "src")) ++
-      ((PathFinder(res) ***)                pair rebase(res,         "res")) ++
+      (PathFinder(javaSource) ** "*.java"   pair rebase(javaSource,  "src"))  ++
+      (PathFinder(scalaSource) ** "*.scala" pair rebase(scalaSource, "src"))  ++
+      ((PathFinder(libs) ***)               pair rebase(libs,        "libs")) ++
+      ((PathFinder(res) ***)                pair rebase(res,         "res"))  ++
       ((PathFinder(assets) ***)             pair rebase(assets,      "assets"))
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
@@ -611,8 +612,9 @@ object Tasks {
       (PathFinder(gen / "R.txt")        pair flat) ++
       (PathFinder(bin / "proguard.txt") pair flat) ++
       (PathFinder(j)                    pair flat) ++
-      ((PathFinder(res) ***)            pair rebase(res,    "res")) ++
-      ((PathFinder(rsRes) ***)          pair rebase(rsRes,  "res")) ++
+      ((PathFinder(libs) ***)           pair rebase(libs,   "libs")) ++
+      ((PathFinder(res) ***)            pair rebase(res,    "res"))  ++
+      ((PathFinder(rsRes) ***)          pair rebase(rsRes,  "res"))  ++
       ((PathFinder(assets) ***)         pair rebase(assets, "assets"))
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
