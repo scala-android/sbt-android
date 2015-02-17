@@ -10,7 +10,7 @@ import sbt.Keys._
 
 import com.android.builder.core.AndroidBuilder
 import com.android.builder.sdk.DefaultSdkLoader
-import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkManager}
+import com.android.sdklib.{BuildToolInfo, AndroidTargetHash, IAndroidTarget, SdkManager}
 import com.android.sdklib.repository.FullRevision
 import com.android.SdkConstants
 import com.android.utils.ILogger
@@ -18,6 +18,7 @@ import com.android.utils.ILogger
 import java.io.{PrintWriter, File}
 
 import scala.collection.JavaConversions._
+import scala.util.Try
 import scala.xml.XML
 
 import Keys._
@@ -283,6 +284,14 @@ object Plugin extends sbt.Plugin {
     ndkJavah                <<= ndkJavahTaskDef,
     ndkBuild                <<= ndkBuildTaskDef,
     aidl                    <<= aidlTaskDef,
+    rsTargetApi             <<= (properties, minSdkVersion) { (p, m) =>
+      Option(p.getProperty("renderscript.target")).getOrElse(m) 
+    },
+    rsSupportMode           <<= properties { p => 
+      Try(p.getProperty("renderscript.support.mode").toBoolean).getOrElse(false) 
+    },
+    rsOptimLevel            := 3,
+    rsBinPath               <<= binPath { _ / "renderscript" },
     renderscript            <<= renderscriptTaskDef,
     genPath                 <<= projectLayout (_.gen),
     localProjects           <<= (baseDirectory, properties) { (b,p) =>
@@ -363,12 +372,15 @@ object Plugin extends sbt.Plugin {
     useSdkProguard          <<= proguardScala (!_),
     useProguardInDebug      <<= proguardScala,
     collectResources        <<= collectResourcesTaskDef,
+    collectResources        <<= collectResources dependsOn renderscript,
     packageResources        <<= packageResourcesTaskDef,
     apkFile                 <<= (name, projectLayout) { (n,l) =>
       val apkdir = l.bin / ".build_integration"
       apkdir.mkdirs()
       apkdir / (n + "-BUILD-INTEGRATION.apk")
     },
+    collectProjectJni       <<= collectProjectJniTaskDef,
+    collectProjectJni       <<= collectProjectJni dependsOn renderscript,
     collectJni              <<= collectJniTaskDef,
     apkbuildExcludes         := Seq.empty,
     apkbuildPickFirsts       := Seq.empty,
@@ -533,7 +545,16 @@ object Plugin extends sbt.Plugin {
     sdkManager              <<= (sdkPath,ilogger, streams) map { (p, l, s) =>
       SdkManager.createManager(p, l(s.log))
     },
-
+    buildTools              := {
+      buildToolsVersion.value flatMap { version =>
+        Option(sdkManager.value.getBuildTool(FullRevision.parseRevision(version)))
+      } getOrElse {
+        val tools = sdkManager.value.getLatestBuildTool
+        if (tools == null) sys.error("Android SDK build-tools not found")
+        else streams.value.log.debug("Using Android build-tools: " + tools)
+        tools
+      }
+    },
     platformTarget          <<= properties { p =>
       Option(p.getProperty("target")) getOrElse sys.error(
         "configure project.properties or set 'platformTarget in Android'")

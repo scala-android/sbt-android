@@ -8,7 +8,7 @@ import java.io.File
 import java.util.Properties
 
 import com.android.builder.core.AndroidBuilder
-import com.android.sdklib.{IAndroidTarget,SdkManager}
+import com.android.sdklib.{BuildToolInfo, IAndroidTarget, SdkManager}
 import com.android.utils.ILogger
 
 import Dependencies._
@@ -97,6 +97,7 @@ object Keys {
   val builder = TaskKey[AndroidBuilder]("builder", "AndroidBuilder object")
   val packageRelease = TaskKey[File]("package-release", "create a release apk")
   val packageDebug = TaskKey[File]("package-debug", "create a debug apk")
+  val collectProjectJni = taskKey[Seq[File]]("collect project JNI folder names for packaging (without libs from dependencies)")
   val collectJni = TaskKey[Seq[File]]("collect-jni",
     "collect all JNI folder names for packaging")
   val collectResources = TaskKey[(File,File)]("collect-resources",
@@ -138,8 +139,8 @@ object Keys {
   val sdkLoader = TaskKey[SdkLoader]("sdk-loader",
     "Internal android SDK loader")
   val sdkPath = SettingKey[String]("sdk-path", "Path to the Android SDK")
-  val sdkManager = TaskKey[SdkManager]("sdk-manager",
-    "Android SdkManager object")
+  val sdkManager = TaskKey[SdkManager]("sdk-manager", "Android SdkManager object")
+  val buildTools = taskKey[BuildToolInfo]("Android build tools")
   val platformTarget = SettingKey[String]("platform-target",
     "target API level as described by 'android list targets' (the ID string)")
   val platform = TaskKey[IAndroidTarget]("platform",
@@ -158,8 +159,11 @@ object Keys {
   val ndkBuild = TaskKey[Seq[File]]("ndk-build",
     "android ndk-build task, builds all auto-library project's ndk as well")
   val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task")
-  val renderscript = TaskKey[Seq[File]]("renderscript",
-    "android renderscript source-gen task")
+  val rsTargetApi = settingKey[String]("renderscript target api, default: minSdkVersion")
+  val rsSupportMode = settingKey[Boolean]("renderscript support mode, default: false")
+  val rsOptimLevel = settingKey[Int]("renderscript optimization level, default: 3")
+  val rsBinPath = settingKey[File]("renderscript output directory")
+  val renderscript = TaskKey[Seq[File]]("renderscript", "android renderscript source-gen task")
   val dex = TaskKey[File]("dex", "run bytecode dexer")
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "input jars to dex")
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
