@@ -44,7 +44,7 @@ found on the #sbt-android IRC channel on Freenode
     * Manually enable by setting `retrolambdaEnable in Android := true` (or,
       conversely, `false` to disable if it was automatically enabled)
     * Sample in
-      [hello-multidex test case](sbt-test/android-sdk-plugin/simple-retrolambda)
+      [simple-retrolambda test case](sbt-test/android-sdk-plugin/simple-retrolambda)
 * `1.3.13`:
   * Update to release builder `1.0.0`
   * Attempt to fix proguard-cache delta bug
