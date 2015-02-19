@@ -12,13 +12,14 @@ library projects. 3rd party libraries can be included by placing them in
 `libs` as in regular projects, or they can be added by using sbt's
 `libraryDependencies` feature.
 
-NOTE: proguard 5.1 does not like all current versions of scala. for java-based
-projects which wish to use proguard 5.1 (to fix issues around generic types
-being removed from base-classes) a workaround is to add a local file,
-`project/proguard.sbt`, containing
+NOTE: proguard 5.1 does not like old versions of scala. Projects that wish
+to use Proguard 5.1 and Scala should use `scalaVersion := "2.11.5"` or newer.
+For compatible scala projects and java-based projects which wish to use
+proguard 5.1 (to fix issues around generic types being removed from
+base-classes) a workaround is to add a local file, `project/proguard.sbt`,
+containing:
 `libraryDependencies += "net.sf.proguard" % "proguard-base" % "5.1"`.
-Should be fixed in Scala `2.11.5`. See
-[proguard bug #549](https://sourceforge.net/p/proguard/bugs/549/) and
+See [proguard bug #549](https://sourceforge.net/p/proguard/bugs/549/) and
 [SI-8931](https://issues.scala-lang.org/browse/SI-8931)
 
 ## Support and Help ##
