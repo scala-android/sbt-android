@@ -135,9 +135,11 @@ object Plugin extends sbt.Plugin {
     packageT          <<= packageT dependsOn compile,
     javacOptions      <<= ( javacOptions
                           , builder in Android
-                          , retrolambdaEnable in Android) map { (o,bldr, re) =>
+                          , apkbuildDebug in Android
+                          , retrolambdaEnable in Android) map {
+      (o,bldr, debug, re) =>
       // users will want to call clean before compiling if changing debug
-      val debugOptions = if (createDebug) Seq("-g") else Seq.empty
+      val debugOptions = if (debug()) Seq("-g") else Seq.empty
       val bcp = bldr.getBootClasspath mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
@@ -370,6 +372,7 @@ object Plugin extends sbt.Plugin {
     collectJni              <<= collectJniTaskDef,
     apkbuildExcludes         := Seq.empty,
     apkbuildPickFirsts       := Seq.empty,
+    apkbuildDebug            := MutableSetting(true),
     apkbuild                <<= apkbuildTaskDef,
     apkbuild                <<= apkbuild dependsOn (managedResources in Compile),
     apkSigningConfig        <<= properties { p =>
@@ -398,8 +401,8 @@ object Plugin extends sbt.Plugin {
           (layout.testJavaSource ** "*.java" get)
       else Seq.empty
     },
-    setDebug                 := { _createDebug = true },
-    setRelease               := { _createDebug = false },
+    setDebug                 := { apkbuildDebug.value(true) },
+    setRelease               := { apkbuildDebug.value(false) },
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
     // because of how packageXXX is implemented by using task.?
     packageDebug            <<= packageT.task.? {

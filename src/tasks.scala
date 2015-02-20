@@ -46,10 +46,6 @@ object Tasks {
   val ANDROID_PREFIX = "android"
   val TEST_RUNNER_LIB = "android.test.runner"
 
-  // TODO come up with a better solution
-  // wish this could be protected
-  private[android] var _createDebug = true
-
   val reservedWords = Set(
     "def",
     "forSome",
@@ -67,8 +63,6 @@ object Tasks {
     "yield"
   )
 
-  def createDebug = _createDebug
-
   def resourceUrl =
     Plugin.getClass.getClassLoader.getResource _
 
@@ -77,10 +71,11 @@ object Tasks {
                                     , libraryProjects
                                     , packageForR
                                     , buildConfigOptions
+                                    , apkbuildDebug
                                     ) map {
-    (t, g, l, p, o) =>
+    (t, g, l, p, o, d) =>
     val b = new BuildConfigGenerator(g, p)
-    b.addField("boolean", "DEBUG", createDebug.toString)
+    b.addField("boolean", "DEBUG", d.toString)
     o foreach {
       case (tpe, name, value) => b.addField(tpe, name, value)
     }
@@ -90,7 +85,7 @@ object Tasks {
       case a: AutoLibraryProject => a
     } foreach { lib =>
       val b = new BuildConfigGenerator(g, lib.pkg)
-      b.addField("boolean", "DEBUG", createDebug.toString)
+      b.addField("boolean", "DEBUG", d.toString)
       o foreach {
         case (tpe, name, value) => b.addField(tpe, name, value)
       }
@@ -164,8 +159,9 @@ object Tasks {
                         , libraryProject
                         , builder
                         , ilogger
+                        , apkbuildDebug
                         , streams ) map {
-   (prjs,gen,isLib,bldr,logger,s) =>
+   (prjs,gen,isLib,bldr,logger,debug,s) =>
      prjs collect { case a: AutoLibraryProject => a } flatMap { lib =>
       s.log.info("Processing library project: " + lib.pkg)
 
@@ -173,7 +169,7 @@ object Tasks {
       // TODO collect resources from apklibs and aars
 //      doCollectResources(bldr, true, true, Seq.empty, lib.layout,
 //        logger, file("/"), s)
-      aapt(bldr, lib.getManifest, null, Seq.empty, true,
+      aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
           lib.getResFolder, lib.getAssetsFolder, null,
           lib.layout.gen, lib.getProguardRules.getAbsolutePath,
           s.log)
@@ -196,9 +192,10 @@ object Tasks {
                        , target
                        , streams
                        , builder
+                       , apkbuildDebug
                        , streams
                        ) map {
-    (u,d,gen,isLib,tx,t,s,bldr,st) =>
+    (u,d,gen,isLib,tx,t,s,bldr,debug,st) =>
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = t / "apklibs"
     val deps = d.filterNot(_.configurations.exists(
@@ -213,7 +210,7 @@ object Tasks {
           d.mkdirs()
           IO.unzip(l, d)
 
-          aapt(bldr, lib.getManifest, null, Seq.empty, true,
+          aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
               lib.getResFolder, lib.getAssetsFolder, null,
               lib.layout.gen, lib.getProguardRules.getAbsolutePath,
               st.log)
@@ -634,13 +631,14 @@ object Tasks {
                                 , packageForR
                                 , libraryProject
                                 , libraryProjects
+                                , apkbuildDebug
                                 , streams
                                 ) map {
-    case (bldr, layout, manif, (assets, res), pkg, lib, libs, s) =>
+    case (bldr, layout, manif, (assets, res), pkg, lib, libs, debug, s) =>
     val cache = s.cacheDirectory
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
 
-    val rel = if (createDebug) "-debug" else "-release"
+    val rel = if (debug()) "-debug" else "-release"
     val basename = "resources" + rel + ".ap_"
     val p = layout.bin / basename
 
@@ -650,7 +648,7 @@ object Tasks {
 
     FileFunction.cached(cache / basename, FilesInfo.hash) { _ =>
       s.log.info("Packaging resources: " + p.getName)
-      aapt(bldr, manif, pkg, libs, lib, res, assets,
+      aapt(bldr, manif, pkg, libs, lib, debug(), res, assets,
         p.getAbsolutePath, layout.gen, proguardTxt, s.log)
       Set(p)
     }(inputs.toSet)
@@ -666,9 +664,10 @@ object Tasks {
                         , managedClasspath
                         , dependencyClasspath in Compile
                         , collectJni
+                        , apkbuildDebug
                         , streams
                         ) map {
-    (bldr, st, prj, r, d, u, m, dcp, jni, s) =>
+    (bldr, st, prj, r, d, u, m, dcp, jni, debug, s) =>
     val extracted = Project.extract(st)
     import extracted._
 
@@ -714,7 +713,7 @@ object Tasks {
         debugConfig.getKeyAlias, logger(s.log))
     }
 
-    val rel = if (createDebug) "-debug-unaligned.apk"
+    val rel = if (debug()) "-debug-unaligned.apk"
       else "-release-unsigned.apk"
     val pkg = n + rel
     val output = layout.bin / pkg
@@ -733,15 +732,15 @@ object Tasks {
       }
       s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s, %s)" format (
         r.getAbsolutePath, d.getAbsolutePath, jars,
-          if (collectedJni.exists) Seq(collectedJni) else Seq.empty, createDebug,
-          if (createDebug) debugConfig else null, output.getAbsolutePath,
+          if (collectedJni.exists) Seq(collectedJni) else Seq.empty, debug(),
+          if (debug()) debugConfig else null, output.getAbsolutePath,
           options
       ))
       bldr.packageApk(r.getAbsolutePath, d, Seq.empty[File], jars,
         layout.resources.getAbsolutePath,
         (if (collectedJni.exists) Seq(collectedJni) else Seq.empty).asJava,
-        null, createDebug,
-        if (createDebug) debugConfig else null, options, output.getAbsolutePath)
+        null, debug(),
+        if (debug()) debugConfig else null, options, output.getAbsolutePath)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))
       Set(output)
@@ -750,10 +749,10 @@ object Tasks {
     output
   }
 
-  val signReleaseTaskDef = (apkSigningConfig, apkbuild, streams) map {
-    (c, a, s) =>
+  val signReleaseTaskDef = (apkSigningConfig, apkbuild, apkbuildDebug, streams) map {
+    (c, a, d, s) =>
     val bin = a.getParentFile
-    if (createDebug) {
+    if (d()) {
       s.log.info("Debug package does not need signing: " + a.getName)
       a
     } else {
@@ -985,9 +984,10 @@ object Tasks {
                           , packageForR
                           , libraryProject
                           , libraryProjects
+                          , apkbuildDebug
                           , streams
                           ) map {
-    case (bldr, layout, manif, (assets, res), pkg, lib, libs, s) =>
+    case (bldr, layout, manif, (assets, res), pkg, lib, libs, debug, s) =>
     val cache = s.cacheDirectory
     val proguardTxt = (layout.bin / "proguard.txt").getAbsolutePath
 
@@ -1000,7 +1000,7 @@ object Tasks {
       s.log.info("Processing resources")
       if (!res.exists)
         s.log.warn("No resources found at " + res.getAbsolutePath)
-      aapt(bldr, manif, pkg, libs, lib, res, assets, null,
+      aapt(bldr, manif, pkg, libs, lib, debug(), res, assets, null,
         layout.gen, proguardTxt, s.log)
       s.log.debug(
         "In modified: %s\nInRemoved: %s\nOut checked: %s\nOut modified: %s"
@@ -1010,7 +1010,7 @@ object Tasks {
   }
 
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: String,
-      libs: Seq[LibraryDependency], lib: Boolean,
+      libs: Seq[LibraryDependency], lib: Boolean, debug: Boolean,
       res: File, assets: File, resApk: String, gen: File, proguardTxt: String,
       logger: Logger) {
 
@@ -1040,7 +1040,7 @@ object Tasks {
     aaptCommand.setSymbolOutputDir(genPath)
     aaptCommand.setProguardOutput(proguardTxt)
     aaptCommand.setType(if (lib) VariantType.LIBRARY else VariantType.DEFAULT)
-    aaptCommand.setDebuggable(createDebug)
+    aaptCommand.setDebuggable(debug)
     bldr.processResources(aaptCommand, true)
   }
 
@@ -1103,6 +1103,7 @@ object Tasks {
                          , streams) map {
     (progOut, in, progCache, prj, re, multiDex, b, deps, classJar, st, s) =>
 
+      val debug = Project.extract(st).get(apkbuildDebug in (prj, Android))
       // TODO use getIncremental in DexOptions instead
       val proguardedDexMarker = b / ".proguarded-dex"
 
@@ -1123,7 +1124,7 @@ object Tasks {
           } ++ in.proguardCache :+ classJar
       }
 
-      val incrementalDex = createDebug && (progCache.isEmpty || !proguardedDexMarker.exists)
+      val incrementalDex = debug() && (progCache.isEmpty || !proguardedDexMarker.exists)
 
       val dexIn = jarsToDex.groupBy (_.getName).collect {
           case ("classes.jar", aarClassJar) => aarClassJar.distinct // guess aars by jar name?
@@ -1144,8 +1145,9 @@ object Tasks {
                    , dexAdditionalParams
                    , libraryProject
                    , binPath
+                   , apkbuildDebug
                    , streams) map {
-    case (bldr, (incr, inputs), xmx, multiDex, mainDexListTxt, minMainDex, additionalParams, lib, bin, s) =>
+    case (bldr, (incr, inputs), xmx, multiDex, mainDexListTxt, minMainDex, additionalParams, lib, bin, debug, s) =>
       val incremental = incr && !multiDex
       if (!incremental && inputs.exists(_.getName.startsWith("proguard-cache"))) {
         s.log.debug("Cleaning dex files for proguard cache and incremental dex")
@@ -1169,7 +1171,7 @@ object Tasks {
 
       bldr.convertByteCode(inputs filter (_.isFile), Seq.empty[File], bin,
         multiDex, multiDex, mainDexListTxt,
-        options, additionalDexParams, tmp, incremental, !createDebug)
+        options, additionalDexParams, tmp, incremental, !debug())
       bin
   }
 
@@ -1182,9 +1184,10 @@ object Tasks {
                               , classesJar
                               , binPath
                               , state
+                              , apkbuildDebug
                               , streams
                               ) map {
-    case (u, s, pc, l, d, (p, x), c, b, stat, st) =>
+    case (u, s, pc, l, d, (p, x), c, b, stat, debug, st) =>
     val cacheDir = st.cacheDirectory
     if (u) {
       val injars = d.filter { a =>
@@ -1195,7 +1198,7 @@ object Tasks {
       }.distinct :+ Attributed.blank(c)
       val extras = x map (f => file(f))
 
-      if (createDebug && pc.nonEmpty) {
+      if (debug() && pc.nonEmpty) {
         st.log.debug("Proguard cache rules: " + pc)
         val deps = cacheDir / "proguard_deps"
         val out = cacheDir / "proguard_cache"
@@ -1240,15 +1243,16 @@ object Tasks {
       , libraryProject
       , binPath
       , proguardInputs
+      , apkbuildDebug
       , streams
-      ) map { case (p, d, c, o, pc, l, b, inputs, s) =>
+      ) map { case (p, d, c, o, pc, l, b, inputs, debug, s) =>
     val cacheDir = s.cacheDirectory
     val jars = inputs.injars
     val libjars = inputs.libraryjars
     if (inputs.proguardCache exists (_.exists)) {
       s.log.info("[debug] cache hit, skipping proguard!")
       None
-    } else if ((p && !createDebug && !l) || ((d && createDebug) && !l)) {
+    } else if ((p && !debug() && !l) || ((d && debug()) && !l)) {
       val t = b / "classes.proguard.jar"
       if (jars exists { _.data.lastModified > t.lastModified }) {
         val injars = "-injars " + (jars map {
@@ -1355,6 +1359,7 @@ object Tasks {
     val xmx = extracted.get(dexMaxHeap in (prj,Android))
     val cache = s.cacheDirectory
     val re = extracted.get(retrolambdaEnable in (prj,Android))
+    val debug = extracted.get(apkbuildDebug in (prj, Android))
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
@@ -1396,7 +1401,7 @@ object Tasks {
       val apk = layout.bin / "instrumentation-test.ap_"
 
       if (!rTxt.exists) rTxt.createNewFile()
-      aapt(bldr, processedManifest, testPackage, libs, false,
+      aapt(bldr, processedManifest, testPackage, libs, false, debug(),
         layout.testRes, layout.testAssets,
         res.getAbsolutePath, classes, null, s.log)
 
@@ -1409,7 +1414,7 @@ object Tasks {
         Seq(classes) ++ (deps map (_.data))
       }
       bldr.convertByteCode(inputs, Seq.empty[File],
-        dex, false, false, null, options, Nil, tmp, false, !createDebug)
+        dex, false, false, null, options, Nil, tmp, false, !debug())
 
       val debugConfig = new DefaultSigningConfig("debug")
       debugConfig.initDebug()
@@ -1420,7 +1425,7 @@ object Tasks {
       }
       bldr.packageApk(res.getAbsolutePath, dex,
         Seq.empty[File], Seq.empty[File], null, null, null,
-        createDebug, debugConfig, opts, apk.getAbsolutePath)
+        debug(), debugConfig, opts, apk.getAbsolutePath)
       s.log.info("Testing...")
       s.log.debug("Installing test apk: " + apk)
       installPackage(apk, sdk, s.log)

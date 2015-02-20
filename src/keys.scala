@@ -92,6 +92,8 @@ object Keys {
   val apkbuildExcludes = SettingKey[Seq[String]]("apkbuild-excludes",
     "filepaths to exclude from apk, e.g. in case of duplicates")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")
+  val apkbuildDebug = SettingKey[MutableSetting[Boolean]]("apkbuild-debug",
+    "setting that determines whether to package debug or release, default: debug")
   val builder = TaskKey[AndroidBuilder]("builder", "AndroidBuilder object")
   val packageRelease = TaskKey[File]("package-release", "create a release apk")
   val packageDebug = TaskKey[File]("package-debug", "create a debug apk")
@@ -202,4 +204,16 @@ object Keys {
   val Android = config("android")
 
   implicit def toRichProject(project: Project): RichProject = RichProject(project)
+
+  // yuck, but mutable project global state is better than build global state
+  object MutableSetting {
+    def apply[A](value: A) = new MutableSetting(value)
+  }
+
+  class MutableSetting[A] private(default: A) {
+    private var value = default
+    def apply() = value
+    def apply(newValue: A) = value = newValue
+    override def toString = value.toString
+  }
 }
