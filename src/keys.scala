@@ -146,6 +146,9 @@ object Keys {
     "Path to android.jar and optional jars (e.g. google apis), if any")
   val buildConfigGenerator = TaskKey[Seq[File]]("build-config-generator",
     "generate BuildConfig.java")
+  val buildConfigOptions = TaskKey[Seq[(String,String,String)]](
+    "build-config-options",
+    "a sequence of ('type', 'field name', 'value') to inject into BuildConfig.java")
   val rGenerator = TaskKey[Seq[File]]("r-generator",
     "android aapt source-gen task; generate R.java")
   val ndkJavah = TaskKey[Seq[File]]("ndk-javah",

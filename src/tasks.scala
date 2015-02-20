@@ -76,10 +76,14 @@ object Tasks {
                                     , genPath
                                     , libraryProjects
                                     , packageForR
+                                    , buildConfigOptions
                                     ) map {
-    (t, g, l, p) =>
+    (t, g, l, p, o) =>
     val b = new BuildConfigGenerator(g, p)
     b.addField("boolean", "DEBUG", createDebug.toString)
+    o foreach {
+      case (tpe, name, value) => b.addField(tpe, name, value)
+    }
     b.generate()
     l collect {
       case a: ApkLibrary         => a
@@ -87,6 +91,9 @@ object Tasks {
     } foreach { lib =>
       val b = new BuildConfigGenerator(g, lib.pkg)
       b.addField("boolean", "DEBUG", createDebug.toString)
+      o foreach {
+        case (tpe, name, value) => b.addField(tpe, name, value)
+      }
       b.generate()
     }
     g ** "BuildConfig.java" get

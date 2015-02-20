@@ -273,6 +273,7 @@ object Plugin extends sbt.Plugin {
       Seq.empty[File]
     },
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
+    buildConfigOptions       := Nil,
     binPath                 <<= projectLayout (_.bin),
     classesJar              <<= binPath (_ / "classes.jar"),
     rGenerator              <<= rGeneratorTaskDef,
