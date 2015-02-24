@@ -3,10 +3,7 @@
       package="com.example.app"
       android:versionCode="1"
       android:versionName="1.0">
-    <uses-sdk android:minSdkVersion="17" android:targetSdkVersion="18"/>
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-feature android:name="android.hardware.touchscreen"
-                  android:required="false"/>
+    <uses-sdk android:minSdkVersion="14" android:targetSdkVersion="18"/>
 
     <application android:label="App Name (Use a String Resource)"
                  android:debuggable="true"

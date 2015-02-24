@@ -4,10 +4,11 @@ import com.android.ide.common.signing.KeystoreHelper
 import com.android.manifmerger.ManifestMerger2
 import sbt._
 import sbt.Keys._
-import classpath.ClasspathUtilities
+import sbt.classpath.ClasspathUtilities
 
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
+import scala.util.Try
 import scala.util.control.Exception._
 import scala.xml._
 
@@ -29,11 +30,13 @@ import com.android.ide.common.res2.ResourceMerger
 import com.android.ide.common.res2.ResourceSet
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.BuildToolInfo.PathId
+import com.android.sdklib.build.RenderScriptProcessor
+import com.android.sdklib.build.RenderScriptProcessor.CommandLineLauncher
 import com.android.utils.ILogger
 
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 
-import Keys._
+import android.Keys._
 import Dependencies.{LibraryProject => _, AutoLibraryProject => _, _}
 import com.android.builder.compiling.BuildConfigGenerator
 import java.net.URLEncoder
@@ -402,19 +405,18 @@ object Tasks {
     Seq(ndkbuild(layout, ndkHome, srcs, s.log)).flatten ++ subndk.flatten
   }
 
-  val collectJniTaskDef = ( libraryProjects
-                          , ndkBuild
-                          , projectLayout
-                          , streams
-                          ) map {
-    (libs, ndk, layout, s) =>
-    // TODO traverse entire library dependency graph, goes 2 deep currently
-    (Seq(LibraryProject(layout.base)) ++ libs ++ libs.flatMap { l =>
-      l.getDependencies map { _.asInstanceOf[LibraryDependency] }
-    } collect {
-      case r if r.getJniFolder.isDirectory => r.getJniFolder
-    }) ++ ndk
+  val collectProjectJniTaskDef = Def.task {
+    ndkBuild.value ++ Seq(projectLayout.value.jniLibs, rsBinPath.value / "lib").filter(_.isDirectory)
   }
+
+  val collectJniTaskDef = Def.task {
+    def libJni(lib: LibraryDependency): Seq[File] =
+      Seq(lib.getJniFolder).filter(_.isDirectory) ++
+        lib.getDependencies.flatMap(l => libJni(l.asInstanceOf[LibraryDependency]))
+
+    collectProjectJni.value ++ libraryProjects.value.flatMap(libJni)
+  }
+
   def doCollectResources( bldr: AndroidBuilder
                         , noTestApk: Boolean
                         , isLib: Boolean
@@ -604,11 +606,14 @@ object Tasks {
   val packageAarTaskDef = ( packageT in Compile
                           , projectLayout
                           , collectResources
+                          , collectProjectJni
+                          , rsBinPath
                           , name
                           , streams
-                          ) map { case (j, layout, (_, r), n, s) =>
+                          ) map { case (j, layout, (_, r), so, rs, n, s) =>
     import layout._
     val outfile = bin / (n + ".aar")
+    val rsLibs = rs / "lib"
     val rsRes = bin / "renderscript" / "res"
     s.log.info("Packaging " + outfile.getName)
     val mapping =
@@ -616,10 +621,12 @@ object Tasks {
       (PathFinder(gen / "R.txt")        pair flat) ++
       (PathFinder(bin / "proguard.txt") pair flat) ++
       (PathFinder(j)                    pair flat) ++
-      ((PathFinder(libs) ***)           pair rebase(libs,   "libs")) ++
+      ((PathFinder(libs) ** "*.jar")    pair rebase(libs,   "libs")) ++
+      ((PathFinder(rsLibs) * "*.jar")   pair rebase(rsLibs, "libs")) ++
       ((PathFinder(res) ***)            pair rebase(res,    "res"))  ++
       ((PathFinder(rsRes) ***)          pair rebase(rsRes,  "res"))  ++
-      ((PathFinder(assets) ***)         pair rebase(assets, "assets"))
+      ((PathFinder(assets) ***)         pair rebase(assets, "assets")) ++
+      so.flatMap { d => (PathFinder(d) ** "*.so") pair rebase(d, "jni") }
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
   }
@@ -802,68 +809,52 @@ object Tasks {
     }
   }
 
-  val renderscriptTaskDef = ( sdkPath
-                            , sdkManager
-                            , projectLayout
-                            , platform
-                            , streams
-                            ) map { (s, m, layout, t, l) =>
-    import SdkConstants._
+  val renderscriptTaskDef = Def.task {
+    val layout = projectLayout.value
+    val scripts = (layout.renderscript ** "*.rs").get
+    val target = Try(rsTargetApi.value.toInt).getOrElse(11) max 11
+    val rsOutput = rsBinPath.value
 
-    val tools = Option(m.getLatestBuildTool)
-    val (rs, rsInclude, rsClang) = tools map { t =>
-      (t.getPath(PathId.LLVM_RS_CC)
-      ,t.getPath(PathId.ANDROID_RS)
-      ,t.getPath(PathId.ANDROID_RS_CLANG))
-    } getOrElse {
-      val prefix = s + OS_SDK_PLATFORM_TOOLS_FOLDER
-      (prefix + FN_RENDERSCRIPT
-      ,prefix + OS_FRAMEWORK_RS
-      ,prefix + OS_FRAMEWORK_RS_CLANG
+    val processor = new RenderScriptProcessor(
+      scripts,
+      List.empty[File],
+      binPath.value,
+      genPath.value,
+      rsOutput / "res",
+      rsOutput / "obj",
+      rsOutput / "lib",
+      buildTools.value,
+      target,
+      false, // debug flag -g, not used
+      rsOptimLevel.value,
+      rsSupportMode.value)
+
+    processor.build(new CommandLineLauncher {
+      override def launch(executable: sbt.File, arguments: java.util.List[String],
+                          envVariableMap: java.util.Map[String, String]): Unit = {
+        
+        val cmd = executable.getAbsolutePath +: arguments
+        streams.value.log.debug(s"renderscript command: $cmd, env: ${envVariableMap.toSeq}")
+
+        val r = Process(cmd, None, envVariableMap.toSeq: _*).!
+        if (r != 0)
+          sys.error("renderscript failed: " + r)
+      }
+    })
+
+    if (rsSupportMode.value) { // copy support library
+      val in = buildTools.value.getLocation / "renderscript" / "lib"
+      val out = rsOutput / "lib"
+      IO.copy(
+        (in * "*.jar" pair rebase(in, out)) ++
+        (in / "packaged" ** "*.so" pair rebase(in / "packaged", out))
       )
     }
 
-    val scripts = for {
-      script <- layout.renderscript ** "*.rs" get
-    } yield (layout.renderscript,script)
-
-    val v = t.getVersion.getApiString
-    val targetNumber = catching(classOf[NumberFormatException]) opt { v.toInt }
-    val target = targetNumber map { n => if (n < 11) "11" else v } getOrElse v
-
-    scripts flatMap { case (src, script) =>
-
-      // optimization level -O also requires sdk r17
-      // debug requires sdk r17
-      //val debug = if (createDebug) Seq("-g") else Seq.empty
-
-      val cmd = Seq(rs, "-I", rsInclude, "-I", rsClang,
-        "-target-api", target,
-        "-d", (layout.gen /
-          (script relativeTo src).get.getParentFile.getPath).getAbsolutePath,
-        //"-O", level, 0 through 3
-        "-MD", "-p", layout.gen.getAbsolutePath,
-        "-o", (layout.bin / "renderscript" / "res" / "raw").getAbsolutePath) :+
-          script.getAbsolutePath
-
-      val r = Process(cmd, None, "LD_LIBRARY_PATH" -> file(rs).getParent).!
-
-      if (r != 0)
-        sys.error("renderscript failed: " + r)
-
-      (layout.gen ** (script.getName.stripSuffix(".rs") + ".d") get) flatMap {
-        dfile =>
-        val lines = IO.readLines(dfile)
-        // ugly, how do I make this prettier
-        lines zip lines.tail takeWhile (!_._1.endsWith(": \\")) flatMap {
-          case (line, next) =>
-          val path  = line.stripSuffix("\\").trim.stripSuffix(":")
-          val path2 = next.stripSuffix("\\").trim.stripSuffix(":")
-          (if (path.endsWith(".java")) Some(new File(path)) else None) ++
-            (if (path2.endsWith(".java")) Some(new File(path2)) else None)
-        }
-      } toSet
-    }
+    val JavaSource = """\s*(\S+\.java).*""".r
+    (binPath.value / "rsDeps" ** "*.d").get
+      .flatMap(IO.readLines(_))
+      .collect { case JavaSource(path) => new File(path) }
   }
 
   val aidlTaskDef = ( sdkPath
@@ -1673,12 +1664,19 @@ object Tasks {
 
   val unmanagedJarsTaskDef = ( unmanagedJars in Compile
                              , baseDirectory
+                             , buildTools in Android
+                             , rsSupportMode in Android
                              , libraryProjects in Android, streams) map {
-    (u, b, l, s) =>
+    (u, b, t, rs, l, s) =>
+
+    val rsJars =
+      if (rs) (t.getLocation / "renderscript" / "lib" * "*.jar").get
+        .map(f => Attributed.blank(f.getCanonicalFile))
+      else Seq()
 
     // remove scala-library if present
     // add all dependent library projects' classes.jar files
-    (u ++ (l filterNot {
+    (u ++ rsJars ++ (l filterNot {
         case _: ApkLibrary         => true
 //        case _: AarLibrary         => true
         case _: AutoLibraryProject => true
