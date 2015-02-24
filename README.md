@@ -460,6 +460,8 @@ found on the #sbt-android IRC channel on Freenode
 *  Unit testing with robolectric and Junit (use the `test` task), see how
    it works in the
    [robo-junit-test test case](sbt-test/android-sdk-plugin/robo-junit-test)
+   * Be sure to set `fork in Test := true` otherwise the classloading black
+     magic in robolectric will fail.
 * Device Management
   * The commands `devices` and `device` are implemented. The former lists
     all connected devices. The latter command is for selecting a target
