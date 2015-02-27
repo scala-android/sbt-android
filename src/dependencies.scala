@@ -136,19 +136,11 @@ object Dependencies {
         Dependencies.LibraryProject(p.base)
       }):_*) dependsOn (deps map { x => x: ClasspathDep[ProjectReference] }:_*)
     }
+  }
 
-    def androidFlavorOf(root: Project): Project = {
-      project.settings(android.Plugin.androidBuild ++ Seq(
-        collectResources in Android <<=
-          collectResources in Android dependsOn (compile in Compile in root),
-        compile in Compile <<= compile in Compile dependsOn(
-          packageT in Compile in root),
-        localProjects in Android :=
-          Seq(Dependencies.LibraryProject(root.base)),
-        manifest in Android <<= manifest in (root,Android)
-      ):_*) dependsOn root
-
-    }
+  def androidFlavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
+    p.copy(id = id).settings(
+      (sbt.Keys.target := file(id + "-target")) +: settings:_*)
   }
 }
 // vim: set ts=2 sw=2 et:
