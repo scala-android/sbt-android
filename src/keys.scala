@@ -45,6 +45,8 @@ object Keys {
     "target API level as described by 'android list targets' (the ID string)")
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
     "Version of Android build-tools to utilize, None (default) for latest")
+  val bootClasspath = TaskKey[Seq[Attributed[java.io.File]]](
+    "boot-classpath", "boot classpath for android platform jar")
 
   // layout-related keys
   val projectLayout = SettingKey[ProjectLayout]("project-layout",
@@ -150,7 +152,7 @@ object Keys {
   val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task")
 
   // renderscript keys
-  val rsTargetApi = settingKey[String]("renderscript target api, default: minSdkVersion")
+  val rsTargetApi = taskKey[String]("renderscript target api, default: minSdkVersion")
   val rsSupportMode = settingKey[Boolean]("renderscript support mode, default: false")
   val rsOptimLevel = settingKey[Int]("renderscript optimization level, default: 3")
   val rsBinPath = settingKey[File]("renderscript output directory")

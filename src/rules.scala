@@ -322,7 +322,7 @@ object Plugin extends sbt.Plugin {
     ndkJavah                <<= ndkJavahTaskDef,
     ndkBuild                <<= ndkBuildTaskDef,
     aidl                    <<= aidlTaskDef,
-    rsTargetApi             <<= (properties, minSdkVersion) { (p, m) =>
+    rsTargetApi             <<= (properties, minSdkVersion) map { (p, m) =>
       Option(p.getProperty("renderscript.target")).getOrElse(m) 
     },
     rsSupportMode           <<= properties { p => 
@@ -547,6 +547,7 @@ object Plugin extends sbt.Plugin {
       bldr.setTargetInfo(sdkInfo, targetInfo)
       bldr
     },
+    bootClasspath            := builder.value.getBootClasspath map Attributed.blank,
     sdkManager              <<= (sdkPath,ilogger, streams) map { (p, l, s) =>
       SdkManager.createManager(p, l(s.log))
     },

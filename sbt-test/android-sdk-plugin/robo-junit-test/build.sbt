@@ -10,5 +10,4 @@ libraryDependencies ++= Seq(
 exportJars in Test := false // necessary until android-sdk-plugin 1.3.12
  
 // or else @Config throws an exception, yay
-unmanagedClasspath in Test ++= (builder in Android).value.getBootClasspath map
-  Attributed.blank
+unmanagedClasspath in Test ++= (bootClasspath in Android).value
