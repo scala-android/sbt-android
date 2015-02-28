@@ -29,6 +29,11 @@ import Commands._
 
 object Plugin extends sbt.Plugin {
 
+
+  def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
+    p.copy(id = id).settings(
+      (sbt.Keys.target := file(id + "-target")) +: settings:_*)
+  }
   // android build steps
   // * handle library dependencies (android.library.reference.N)
   // * ndk

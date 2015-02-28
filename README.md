@@ -29,6 +29,21 @@ See [proguard bug #549](https://sourceforge.net/p/proguard/bugs/549/) and
 The first line of support is reading this README, beyond that, help can be
 found on the #sbt-android IRC channel on Freenode
 
+## New features in 1.4.x ##
+
+* Some code re-organization, internal settings hidden from public view
+* `android.Dependencies.flavorOf` for build flavors.
+  * Simple usage is `lazy val flavorproject = android.Plugin.flavorOf(
+    baseproject, "flavor-name",
+    flavorSettings /* copies and override baseproject settings */)`
+  * The `flavorproject` is otherwise a normal sbt project and it can be treated
+    as such.
+* add `android:bootClasspath` for use with robolectric
+* Conversion of a number of settings to tasks
+* (TODO) `android:manifest` is now the canonical source of truth for
+  AndroidManifest.xml, any changes to the manifest Nodes will be reflected
+  in-build
+
 ## New features in 1.3.x (last version: 1.3.24) ##
 
 * `1.3.24`:

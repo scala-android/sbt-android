@@ -137,10 +137,5 @@ object Dependencies {
       }):_*) dependsOn (deps map { x => x: ClasspathDep[ProjectReference] }:_*)
     }
   }
-
-  def androidFlavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
-    p.copy(id = id).settings(
-      (sbt.Keys.target := file(id + "-target")) +: settings:_*)
-  }
 }
 // vim: set ts=2 sw=2 et:
