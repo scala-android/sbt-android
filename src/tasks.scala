@@ -1351,6 +1351,7 @@ object Tasks {
     val cache = s.cacheDirectory
     val re = extracted.get(retrolambdaEnable in (prj,Android))
     val debug = extracted.get(apkbuildDebug in (prj, Android))
+    val placeholders = extracted.runTask(manifestPlaceholders in (prj, Android), st)._2
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     // TODO generate a test manifest if one does not exist
@@ -1376,7 +1377,7 @@ object Tasks {
       // profiling and functional test? false for now
       bldr.processTestManifest(testPackage, minSdk.toString, targetSdk.toString,
         tpkg, trunner, false, false, manifestFile, libs,
-        processedManifest.getAbsoluteFile,
+        placeholders, processedManifest.getAbsoluteFile,
         cache / "processTestManifest")
       val options = new DexOptions {
         override def getIncremental = true
