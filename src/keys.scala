@@ -28,6 +28,11 @@ object Keys {
   type ProguardInputs = android.ProguardInputs
   val ProguardInputs = android.ProguardInputs
 
+  def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
+    p.copy(id = id).settings(
+      (sbt.Keys.target := file(id + "-target")) +: settings:_*)
+  }
+
   import Dependencies.artifacts
   def apklib(m: ModuleID, n: String): ModuleID = artifacts(m, n, "apklib")
   def apklib(m: ModuleID): ModuleID            = artifacts(m, m.name, "apklib")
