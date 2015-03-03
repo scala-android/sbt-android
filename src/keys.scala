@@ -130,7 +130,8 @@ object Keys {
   val packageName = TaskKey[String]("package-name",
     "android package name, can be changed to create a different apk package")
   // TODO turn this and all dependents into a TaskKey, manifest can change
-  val manifest = TaskKey[Elem]("manifest", "android manifest xml object")
+  val manifest = TaskKey[Elem]("manifest",
+    "android manifest xml object, read-only, do not modify")
   val manifestPlaceholders = TaskKey[Map[String,String]](
     "manifest-placeholders", "${variable} expansion for AndroidManifest.xml")
   val packageForR = TaskKey[String]("packageForR",
