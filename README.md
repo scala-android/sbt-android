@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.3.17
+Current version is 1.3.18
 
 ## Description ##
 
@@ -29,6 +29,12 @@ found on the #sbt-android IRC channel on Freenode
 
 ## New features in 1.3.x ##
 
+* `1.3.18`:
+  * Initial implementation of `android.Plugin.flavorOf` for build flavors.
+    * Simple usage is `lazy val flavorproject = android.Plugin.flavorOf(baseproject,
+     "flavor-name", flavorSettings /* copies and override baseproject settings */)`
+    * The `flavorproject` is otherwise a normal sbt project and it can be treated
+      as such.
 * `1.3.17`:
   * Reimplemented `renderscript` task, thanks @zbsz
   * Update checker fixes
@@ -130,7 +136,7 @@ found on the #sbt-android IRC channel on Freenode
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.17")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.18")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -296,7 +302,7 @@ found on the #sbt-android IRC channel on Freenode
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.17")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.18")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -317,7 +323,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.17")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.18")
    ```
 
 4. Create a file named `project/build.scala` and add the
@@ -489,8 +495,6 @@ found on the #sbt-android IRC channel on Freenode
 * Version checking of plugin and update notifications. This is not possible
   with ivy. Options: relocate plugin to sonatype and/or host an off-site
   versions config descriptor.
-* Better handling of release vs. debug builds and creating other build
-  flavors as supported by the Android Gradle plugin.
 * Changes to `AndroidManifest.xml` may require the plugin to be reloaded.
   The manifest data is stored internally as read-only data and does not
   reload automatically when it is changed. The current workaround is to

@@ -29,7 +29,7 @@ object Plugin extends sbt.Plugin {
 
   // android build steps
   // * handle library dependencies (android.library.reference.N)
-  // * ndk TODO
+  // * ndk
   // * aidl
   // * renderscript
   // * BuildConfig.java
@@ -42,6 +42,11 @@ object Plugin extends sbt.Plugin {
   // * package apk
   // * sign
   // * zipalign
+
+  def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
+    p.copy(id = id).settings(
+      (sbt.Keys.target := file(id + "-target")) +: settings:_*)
+  }
 
   lazy val androidBuild: Seq[Setting[_]]= {
     // only set the property below if this plugin is actually used
