@@ -13,6 +13,7 @@ import java.io.File
 import com.android.ddmlib._
 import com.android.SdkConstants
 
+import scala.annotation.tailrec
 import scala.util.Try
 
 object Commands {
@@ -322,6 +323,25 @@ object Commands {
   }
 
   val createProjectSbtAction: State => State = state => {
+    def compareSbtVersion(version: String) = {
+      val atLeast = List(0, 13, 5)
+      @tailrec
+      def compareVersions(v1: Seq[Int], v2: Seq[String]): Int = (v1, v2) match {
+        case (Nil, Nil)     =>  0
+        case (x :: xs, Nil) =>  1
+        case (Nil, x :: xs) => -1
+        case _ =>
+          val i1 = v1.head
+          val i2 = Try(v2.head.toInt).toOption getOrElse 0
+          if (i1 > i2)
+            1
+          else if (i1 < i2)
+            -1
+          else
+            compareVersions(v1.tail, v2.tail)
+      }
+      compareVersions(atLeast, version.split("\\.")) <= 0
+    }
     val base = file(".")
     val layout = ProjectLayout(base)
     if (!layout.manifest.exists) {
@@ -335,8 +355,9 @@ object Commands {
     val pluginSbt = build / "android.sbt"
     val plugin = s"""addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "${BuildInfo.version}")""".stripMargin
     val version = Project.extract(state).get(sbt.Keys.sbtVersion)
+    val useVersion = if (compareSbtVersion(version)) version else "0.13.5"
     IO.writeLines(pluginSbt, plugin ::  Nil)
-    IO.writeLines(properties, "sbt.version=" + version :: Nil)
+    IO.writeLines(properties, "sbt.version=" + useVersion :: Nil)
     IO.writeLines(projectBuild,
       "object Build extends android.AutoBuild" :: Nil)
     state
