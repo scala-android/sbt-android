@@ -10,7 +10,9 @@ projects.  It is tested and developed against 0.13.5+.
 The plugin supports normal android projects and projects that reference
 library projects. 3rd party libraries can be included by placing them in
 `libs` as in regular projects, or they can be added by using sbt's
-`libraryDependencies` feature.
+`libraryDependencies` feature. This build setup is 100% compatible with
+Google's own `gradle` build system due to the use of the same underlying
+`com.android.tools.build:builder` implementation.
 
 NOTE: proguard 5.1 does not like old versions of scala. Projects that wish
 to use Proguard 5.1 and Scala should use `scalaVersion := "2.11.5"` or newer.
