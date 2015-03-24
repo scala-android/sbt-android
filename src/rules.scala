@@ -198,7 +198,7 @@ object Plugin extends sbt.Plugin {
     },
     compileIncSetup := {
       Compiler.IncSetup(
-        Defaults.analysisMap(dependencyClasspath.value),
+        Defaults.analysisMap((dependencyClasspath in Test).value),
         definesClass.value,
         (skip in compile).value,
         // TODO - this is kind of a bad way to grab the cache directory for streams...
@@ -207,7 +207,7 @@ object Plugin extends sbt.Plugin {
         incOptions.value)
     },
     compileInputs in compile := {
-      val cp = classDirectory.value +: Attributed.data(dependencyClasspath.value)
+      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in Test).value)
       Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
     },
     compileAnalysisFilename := {
