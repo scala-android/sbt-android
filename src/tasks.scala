@@ -1098,21 +1098,24 @@ object Tasks {
       // TODO use getIncremental in DexOptions instead
       val proguardedDexMarker = b / ".proguarded-dex"
 
-      val jarsToDex = progOut match {
-        case Some(obfuscatedJar) =>
-          IO.touch(proguardedDexMarker, setModified = false)
-          Seq(obfuscatedJar)
-        case None =>
-          proguardedDexMarker.delete()
-          def nonCachedDeps = deps filterNot { file => progCache exists (_.matches(file, st)) }
-          val dexingDeps = if (multiDex) deps else nonCachedDeps
-          dexingDeps.collect {
-            // no proguard? then we still able dex scala with multidex
-            case x if x.data.getName.startsWith("scala-library") && multiDex =>
-              x.data.getCanonicalFile
-            case x if x.data.getName.endsWith(".jar") =>
-              x.data.getCanonicalFile
-          } ++ in.proguardCache :+ classJar
+      val jarsToDex = progOut map { obfuscatedJar =>
+        IO.touch(proguardedDexMarker, setModified = false)
+        Seq(obfuscatedJar)
+      } getOrElse {
+        proguardedDexMarker.delete()
+        def nonCachedDeps = deps filterNot { file => progCache exists (_.matches(file, st)) }
+        val dexingDeps = if (multiDex) deps else nonCachedDeps
+        val inputs = dexingDeps.collect {
+          // no proguard? then we still able dex scala with multidex
+          case x if x.data.getName.startsWith("scala-library") && multiDex =>
+            x.data.getCanonicalFile
+          case x if x.data.getName.endsWith(".jar") =>
+            x.data.getCanonicalFile
+        } ++ in.proguardCache :+ classJar
+        // TODO may fail badly in the presence of proguard-cache?
+        if (re && RetrolambdaSupport.isAvailable)
+          RetrolambdaSupport.process(b, inputs, st, prj, s)
+        else inputs
       }
 
       val incrementalDex = debug() && (progCache.isEmpty || !proguardedDexMarker.exists)
@@ -1122,9 +1125,7 @@ object Tasks {
           case (_, otherJars) => otherJars.head :: Nil // distinct jars by name?
         }.flatten.toSeq
 
-      incrementalDex ->
-        (if (re && RetrolambdaSupport.isAvailable)
-          Seq(RetrolambdaSupport.process(b, dexIn, st, prj, s)) else dexIn)
+      incrementalDex -> dexIn
   }
 
   val dexTaskDef = ( builder
@@ -1232,22 +1233,28 @@ object Tasks {
       , proguardOptions
       , proguardCache
       , libraryProject
-      , binPath
       , proguardInputs
-      , apkbuildDebug
+      , thisProjectRef
+      , state
+      , retrolambdaEnable
       , streams
-      ) map { case (p, d, c, o, pc, l, b, inputs, debug, s) =>
-    val cacheDir = s.cacheDirectory
-    val jars = inputs.injars
-    val libjars = inputs.libraryjars
+      ) map { case (p, d, c, o, pc, l, inputs, prj, st, re, s) =>
+    val e = Project.extract(st)
+    val debug = e.get(apkbuildDebug in (prj,Android))
+    val b = e.get(binPath in (prj,Android))
     if (inputs.proguardCache exists (_.exists)) {
       s.log.info("[debug] cache hit, skipping proguard!")
       None
     } else if ((p && !debug() && !l) || ((d && debug()) && !l)) {
+      val cacheDir = s.cacheDirectory
+      val libjars = inputs.libraryjars
+      val pjars = inputs.injars map (_.data)
+      val jars = if (re && RetrolambdaSupport.isAvailable)
+        RetrolambdaSupport.process(b, pjars, st, prj, s) else pjars
       val t = b / "classes.proguard.jar"
-      if (jars exists { _.data.lastModified > t.lastModified }) {
+      if (jars exists { _.lastModified > t.lastModified }) {
         val injars = "-injars " + (jars map {
-          _.data.getPath + "(!META-INF/**,!rootdoc.txt)"
+          _.getPath + "(!META-INF/**,!rootdoc.txt)"
         } mkString File.pathSeparator)
         val libraryjars = for {
           j <- libjars
@@ -1401,7 +1408,7 @@ object Tasks {
       val tmp = cache / "test-dex"
       tmp.mkdirs()
       val inputs = if (re && RetrolambdaSupport.isAvailable) {
-        Seq(RetrolambdaSupport.process(classes, deps map (_.data), st, prj, s))
+        RetrolambdaSupport.process(classes, deps map (_.data), st, prj, s)
       } else {
         Seq(classes) ++ (deps map (_.data))
       }

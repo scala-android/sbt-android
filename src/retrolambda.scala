@@ -1,6 +1,8 @@
 package android
 
 import java.io.{FileInputStream, FileOutputStream}
+import java.nio.ByteBuffer
+import java.util.jar.JarInputStream
 
 import sbt._
 
@@ -12,7 +14,7 @@ import net.orfjackal.retrolambda.{Main => RMain, Config => RConfig, Retrolambda}
 object RetrolambdaSupport {
   def isAvailable = RMain.isRunningJava8
   def process(target: File, classpath: Seq[File], st: State, prj: ProjectRef,
-              s: sbt.Keys.TaskStreams): File = synchronized {
+              s: sbt.Keys.TaskStreams): Seq[File] = synchronized {
     import collection.JavaConversions._
     val e = Project.extract(st)
     val bldr = e.runTask(Keys.builder in (prj,Keys.Android), st)._2
@@ -20,10 +22,12 @@ object RetrolambdaSupport {
     val dest = target / "retrolambda"
     val finalJar = target / "retrolambda-processed.jar"
     dest.mkdirs()
+    val java8jars = classpath filter Java8Detector.apply
+    s.log.debug("Java8 jars detected for retrolambda processing: " + java8jars)
     FileFunction.cached(s.cacheDirectory / "retrolambda-jars", FilesInfo.lastModified) { in =>
       in foreach (f => IO.unzip(f, dest))
       in
-    }(classpath.toSet)
+    }(java8jars.toSet)
 
     FileFunction.cached(s.cacheDirectory / ("retro-" + target.getName), FilesInfo.lastModified) { in =>
       val options = ForkOptions(
@@ -51,7 +55,32 @@ object RetrolambdaSupport {
 
     IO.jar((PathFinder(dest) ***) pair rebase(dest, "") filter (
       _._1.getName endsWith ".class"), finalJar, new java.util.jar.Manifest)
-    finalJar
+    finalJar :: (classpath.toSet -- java8jars).toList
+  }
+}
+
+object Java8Detector {
+  def apply(jar: File): Boolean = {
+    val jin = new JarInputStream(new FileInputStream(jar))
+
+    try {
+      val buf = Array.ofDim[Byte](8)
+      Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) exists { j =>
+        if (j.getName.endsWith(".class")) {
+          jin.read(buf)
+          jin.closeEntry()
+          val b = ByteBuffer.wrap(buf)
+          val magic = b.getInt()
+          if (magic != 0xcafebabe)
+            sys.error("Invalid java class file: " + j.getName)
+          val _ = b.getShort()
+          val major = b.getShort()
+          major >= 52 // java8
+        } else false
+      }
+    } finally {
+      jin.close()
+    }
   }
 }
 
