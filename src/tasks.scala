@@ -1279,7 +1279,8 @@ object Tasks {
         IO.delete(cd)
         s.log.info("Creating proguard cache: " + f.getName)
         IO.unzip(t, cd, { n: String => pc.exists (_ matches n) })
-        IO.jar((PathFinder(cd) ***) pair rebase(cd, ""),
+        IO.jar((PathFinder(cd) ***) pair rebase(cd, "") filterNot (
+          _._1.getName.matches("R\\W+.*class")),
           f, new java.util.jar.Manifest)
         IO.delete(cd)
       }
@@ -1689,7 +1690,14 @@ object Tasks {
 //        case _: AarLibrary         => true
         case _: AutoLibraryProject => true
         case _ => false
-      } map { p => Attributed.blank(p.getJarFile.getCanonicalFile)
+      } collect {
+      case a: AarLibrary =>
+        val f = a.getJarFile.getCanonicalFile
+        Attributed(f)(
+          a.moduleID.foldLeft(AttributeMap.empty
+            .put(artifact.key, Artifact(f.getName, "jar", "jar"))
+            .put(configuration.key, Compile)) (_.put(moduleID.key, _)))
+      case p => Attributed.blank(p.getJarFile.getCanonicalFile)
     }) ++ (for {
         d <- l/* filterNot { // currently unworking
           case _: AarLibrary => true
@@ -1700,7 +1708,9 @@ object Tasks {
         d <- Seq(b / "libs", b / "lib")
         j <- d * "*.jar" get
       } yield Attributed.blank(j.getCanonicalFile))
-    ) filter { !_.data.getName.startsWith("scala-library") }
+    ) filter { c =>
+      !c.data.getName.startsWith("scala-library") && c.data.isFile
+    }
   }
 
   val managedClasspathTaskDef = ( managedClasspath in Compile
