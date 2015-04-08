@@ -1120,12 +1120,7 @@ object Tasks {
 
       val incrementalDex = debug() && (progCache.isEmpty || !proguardedDexMarker.exists)
 
-      val dexIn = jarsToDex.groupBy (_.getName).collect {
-          case ("classes.jar", aarClassJar) => aarClassJar.distinct // guess aars by jar name?
-          case (_, otherJars) => otherJars.head :: Nil // distinct jars by name?
-        }.flatten.toSeq
-
-      incrementalDex -> dexIn
+      incrementalDex -> jarsToDex
   }
 
   val dexTaskDef = ( builder
@@ -1704,7 +1699,14 @@ object Tasks {
           case _ => false
         }*/
         j <- d.getLocalJars
-      } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
+      } yield d match {
+        case a: AarLibrary =>
+          Attributed(j.getCanonicalFile)(
+            a.moduleID.foldLeft(AttributeMap.empty
+              .put(artifact.key, Artifact(j.getName, "jar", "jar"))
+              .put(configuration.key, Compile)) (_.put(moduleID.key, _)))
+        case p => Attributed.blank(j.getCanonicalFile)
+      }) ++ (for {
         d <- Seq(b / "libs", b / "lib")
         j <- d * "*.jar" get
       } yield Attributed.blank(j.getCanonicalFile))
