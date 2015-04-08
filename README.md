@@ -375,14 +375,6 @@ found on the #sbt-android IRC channel on Freenode
 * IDE integration
   * The primary IDE recommendation is IntelliJ, not Android Studio
     nor Eclipse.
-  * To generate project files for loading into IntelliJ, use the `sbt-idea`
-    plugin by adding
-    `addSbtPlugin("com.hanhuy.sbt" % "sbt-idea" % "1.7.0-SNAPSHOT")` to your
-    `project/plugins.sbt` and running the command `sbt gen-idea`
-    * This requires the snapshots repo which can be done by adding
-      `resolvers += Resolver.sbtPluginRepo("snapshots")`
-    * Use my snapshot of sbt-idea until mpeltonen/sbt-idea#314 is merged
-    * As with this plugin, sbt-idea may be installed globally as well.
   * When loading a project into IntelliJ, it is required that the `SBT`
     and `Scala` plugins are installed; the `SBT` plugin allows replacing the
     default `Make` builder with sbt, enabling seamless builds from the IDE.
@@ -393,16 +385,15 @@ found on the #sbt-android IRC channel on Freenode
     [orfjackal/idea-sbt-plugin](https://github.com/orfjackal/idea-sbt-plugin)
   * The `Scala` plugin is still required for non-Scala projects in order to
     edit sbt build files from inside the IDE.
-  * Instead of using `sbt-idea`, IntelliJ 14 now includes native support for
-    importing projects from `android-sdk-plugin`. The process generally works
-    well, however there are still several caveats:
+  * IntelliJ 14 now includes native support for importing projects from
+    `android-sdk-plugin`. The process generally works well, however there
+    are still several caveats:
     * The `idea-sbt-plugin` is still required to actually perform the build
+      (no longer necessary as of IDEA 14.1)
     * `classDirectory in Compile` is not automatically included as a library,
       as a result apklib classes will not resolve unless it is added manually
       (`bin/classes` or `target/android-bin/classes`) as a library.
       [SCL-7973](https://youtrack.jetbrains.com/issue/SCL-7973)
-    * Paths are incorrect on Windows
-      [SCL-7908](https://youtrack.jetbrains.com/issue/SCL-7908)
     * Gradle-style layouts still aren't fully supported (resources won't
       resolve in the IDE)
       [SCL-6273](https://youtrack.jetbrains.com/issue/SCL-6273)
@@ -430,7 +421,7 @@ found on the #sbt-android IRC channel on Freenode
 
     ```
     libraryDependencies +=
-      "com.google.android.gms" % "play-services" % "4.4.52"
+      "com.google.android.gms" % "play-services" % "VERSION"
     ```
 
 * Generating apklib and/or aar artifacts
