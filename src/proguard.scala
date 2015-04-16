@@ -12,10 +12,6 @@ object ProguardCache {
     }
     ProguardCache(prefixesWithSlashes, None, None, None, None)
   }
-  def apply(prefix: String, org: String): ProguardCache =
-    apply(prefix).copy(moduleOrg = Some(org))
-  def apply(prefix: String, org: String, name: String): ProguardCache =
-    apply(prefix).copy(moduleOrg = Some(org), moduleName = Some(name))
   def apply(prefix: String, file: File): ProguardCache =
     apply(prefix).copy(jarFile = some(file))
 }

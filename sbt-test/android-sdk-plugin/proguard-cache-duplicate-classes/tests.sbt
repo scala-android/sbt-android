@@ -15,6 +15,21 @@ TaskKey[Unit]("check-dex") <<= ( builder in Android
     error("AbstractSuite not found")
 }
 
+TaskKey[Unit]("check-deps") := {
+  val deps = (dependencyClasspath in Android).value
+  val deps2 = deps filterNot { f =>
+    (proguardCache in Android).value exists (_.matches(f, state.value)) }
+  val log = streams.value.log
+  deps foreach { d =>
+    val m = d.get(moduleID.key)
+    log.info(s"BEFORE FILTER: $m => ${d.data.getCanonicalPath}")
+  }
+  deps2 foreach { d =>
+    val m = d.get(moduleID.key)
+    log.info(s"AFTER FILTER: $m => ${d.data.getCanonicalPath}")
+  }
+}
+
 TaskKey[Unit]("check-cache") <<= (proguardInputs in Android) map { c =>
   import java.io._
   import java.util.zip._

@@ -7,5 +7,7 @@ $ exists target/android-bin/classes.proguard.jar
 > check-dex
 > check-cache
 $ copy-file MainActivity.scala-tmp src/main/scala/com/example/proguardcache/MainActivity.scala
+> android:proguardCache
+> check-deps
 > android:package
 > check-dex
