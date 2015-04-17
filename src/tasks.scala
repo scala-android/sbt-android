@@ -1097,6 +1097,8 @@ object Tasks {
       val debug = Project.extract(st).get(apkbuildDebug in (prj, Android))
       // TODO use getIncremental in DexOptions instead
       val proguardedDexMarker = b / ".proguarded-dex"
+      // disable incremental dex on first proguardcache-hit run
+      val incrementalDex = debug() && (progCache.isEmpty || !proguardedDexMarker.exists)
 
       val jarsToDex = progOut map { obfuscatedJar =>
         IO.touch(proguardedDexMarker, setModified = false)
@@ -1118,9 +1120,8 @@ object Tasks {
         else inputs
       }
 
-      val incrementalDex = debug() && (progCache.isEmpty || !proguardedDexMarker.exists)
-
-      incrementalDex -> jarsToDex
+      // also disable incremental on proguard run
+      (incrementalDex && !proguardedDexMarker.exists) -> jarsToDex
   }
 
   val dexTaskDef = ( builder
