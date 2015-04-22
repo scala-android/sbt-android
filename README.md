@@ -382,9 +382,8 @@ found on the #sbt-android IRC channel on Freenode
 * IDE integration
   * The primary IDE recommendation is IntelliJ, not Android Studio
     nor Eclipse.
-  * When loading a project into IntelliJ, it is required that the `SBT`
-    and `Scala` plugins are installed; the `SBT` plugin allows replacing the
-    default `Make` builder with sbt, enabling seamless builds from the IDE.
+  * When loading a project into IntelliJ, it is required that the `Android`
+    and `Scala` plugins are installed
   * The best practice is to set the IDE's run task to invoke sbt
     `android:package` instead of `Make`; this is found under the Run
     Configurations
