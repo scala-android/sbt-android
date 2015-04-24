@@ -4,7 +4,7 @@ import bintray.Keys._
 
 name := "android-sdk-plugin"
 
-version := "1.3.21"
+version := "1.3.22-SNAPSHOT"
 
 organization := "com.hanhuy.sbt"
 
@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
   "io.argonaut" %% "argonaut" % "6.0.4",
   "org.slf4j" % "slf4j-nop" % "1.7.9",
   "net.databinder.dispatch" %% "dispatch-core" % "0.11.2",
-  "com.android.tools.build" % "builder" % "1.1.3",
+  "com.android.tools.build" % "builder" % "1.2.0",
   "net.orfjackal.retrolambda" % "retrolambda" % "1.8.0"
 )
 

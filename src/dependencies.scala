@@ -26,6 +26,7 @@ object Dependencies {
     def path: File
     lazy val layout = ProjectLayout(path)
 
+    override def getExternalAnnotations = path / FN_ANNOTATIONS_ZIP
     override def getName = path.getCanonicalPath
     override def getProject = null
     override def getBundle = null
