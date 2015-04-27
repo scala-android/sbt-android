@@ -5,6 +5,7 @@ import java.util.Properties
 import android.Dependencies.LibraryProject
 import com.android.ide.common.process.BaseProcessOutputHandler.BaseProcessOutput
 import com.android.ide.common.process._
+import com.android.tools.lint.LintCliFlags
 import sbt._
 import sbt.Keys._
 
@@ -87,6 +88,17 @@ object Plugin extends sbt.Plugin {
     addArtifact(apklibArtifact in Android, packageApklib in Android)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
+    compile <<= ( compile
+                , lintDetectors in Android
+                , lintFlags in Android
+                , lintEnabled in Android
+                , lintStrict in Android
+                , projectLayout in Android
+                , streams) map { (c, ld, f, en, strict, layout, s) =>
+      if (en)
+        AndroidLint(layout, f, ld, strict, s)
+      c
+    },
     update                     <<= (update, state) map { (u, s) =>
       UpdateChecker.checkCurrent(s.log)
       u
@@ -177,7 +189,19 @@ object Plugin extends sbt.Plugin {
       includeFilter in (Compile,unmanagedSources),
       excludeFilter in (Compile,unmanagedSources)),
     scalacOptions               := (scalacOptions in Compile).value,
-    javacOptions                :=  (javacOptions in Compile).value,
+    javacOptions                := (javacOptions in Compile).value,
+    lint                        := {
+      AndroidLint(projectLayout.value,
+        lintFlags.value, lintDetectors.value, lintStrict.value, streams.value)
+    },
+    lintFlags                := {
+      val flags = new LintCliFlags
+      flags.setQuiet(true)
+      flags
+    },
+    lintStrict                  := false,
+    lintEnabled                 := true,
+    lintDetectors               := AndroidLint.lintDetectorList,
     compile := {
       def exported(w: PrintWriter, command: String): Seq[String] => Unit =
         args => w.println((command +: args).mkString(" "))

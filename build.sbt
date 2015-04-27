@@ -28,6 +28,7 @@ libraryDependencies ++= Seq(
   "org.slf4j" % "slf4j-nop" % "1.7.9",
   "net.databinder.dispatch" %% "dispatch-core" % "0.11.2",
   "com.android.tools.build" % "builder" % "1.2.0",
+  "com.android.tools.lint" % "lint" % "24.2.0",
   "net.orfjackal.retrolambda" % "retrolambda" % "1.8.0"
 )
 

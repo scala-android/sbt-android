@@ -1,5 +1,7 @@
 package android
 
+import com.android.tools.lint.LintCliFlags
+import com.android.tools.lint.detector.api.Issue
 import sbt._
 
 import scala.xml.Elem
@@ -202,6 +204,16 @@ object Keys {
   val uninstall = TaskKey[Unit]("uninstall", "Remove the app from the device")
   val cleanForR = TaskKey[Seq[File]]("clean-for-r",
     "Clean all .class files when R.java changes")
+
+  val lint = TaskKey[Unit]("lint", "Run android lint checks independently of compile")
+  val lintFlags = SettingKey[LintCliFlags]("lint-flags",
+    "flags for running lint, default = quiet")
+  val lintStrict = SettingKey[Boolean]("lint-strict",
+    "fail the build if true, default: false")
+  val lintEnabled = SettingKey[Boolean]("lint-enabled",
+    "Whether to enable lint checking during compile, default: true")
+  val lintDetectors = SettingKey[Seq[Issue]]("lint-issues",
+    "Issues to detect, default: ApiDetectors")
 
   // alias to ease typing
   val packageT = sbt.Keys.`package`
