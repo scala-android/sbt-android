@@ -357,7 +357,7 @@ object Plugin extends sbt.Plugin {
     processManifest         <<= processManifestTaskDef,
     manifest                <<= manifestPath { m =>
       if (!m.exists)
-        sys.error("cannot find AndroidManifest.xml: " + m)
+        fail("cannot find AndroidManifest.xml: " + m)
       XML.loadFile(m)
     },
     versionCode              := None,
@@ -447,11 +447,11 @@ object Plugin extends sbt.Plugin {
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
     // because of how packageXXX is implemented by using task.?
     packageDebug            <<= packageT.task.? {
-      _ getOrElse sys.error("package failed")
+      _ getOrElse fail("package failed")
     },
     packageDebug            <<= packageDebug dependsOn setDebug,
     packageRelease          <<= packageT.task.? {
-      _ getOrElse sys.error("package failed")
+      _ getOrElse fail("package failed")
     },
     packageRelease          <<= packageRelease dependsOn setRelease,
     sdkPath                 <<= (thisProject,properties) { (p,props) =>
@@ -462,7 +462,7 @@ object Plugin extends sbt.Plugin {
               Some(p + File.separator)
             else
               None
-          } getOrElse sys.error(
+          } getOrElse fail(
             "set ANDROID_HOME or run 'android update project -p %s'"
               format p.base)
     },
@@ -480,7 +480,7 @@ object Plugin extends sbt.Plugin {
       else {
         val zipalign = file(p + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN)
         if (!zipalign.exists)
-          sys.error("zipalign not found at either %s or %s" format (
+          fail("zipalign not found at either %s or %s" format (
             pathInBt, zipalign))
         zipalign.getAbsolutePath
       }
@@ -546,19 +546,19 @@ object Plugin extends sbt.Plugin {
         Option(sdkManager.value.getBuildTool(FullRevision.parseRevision(version)))
       } getOrElse {
         val tools = sdkManager.value.getLatestBuildTool
-        if (tools == null) sys.error("Android SDK build-tools not found")
+        if (tools == null) fail("Android SDK build-tools not found")
         else streams.value.log.debug("Using Android build-tools: " + tools)
         tools
       }
     },
     platformTarget          <<= properties { p =>
-      Option(p.getProperty("target")) getOrElse sys.error(
+      Option(p.getProperty("target")) getOrElse fail(
         "configure project.properties or set 'platformTarget in Android'")
     },
     platform                <<= (sdkManager, platformTarget, thisProject) map {
       (m, p, prj) =>
       val plat = Option(m.getTargetFromHashString(p))
-      plat getOrElse sys.error("Platform %s unknown in %s" format (p, prj.base))
+      plat getOrElse fail("Platform %s unknown in %s" format (p, prj.base))
     }
   )) ++ Seq(
     crossPaths      <<= (scalaSource in Compile) { src =>
@@ -671,6 +671,10 @@ object Plugin extends sbt.Plugin {
   private def devices = Command.command(
     "devices", "List connected and online android devices",
     "List all connected and online android devices")(devicesAction)
+
+  def fail[A](msg: => String): A = {
+    throw new MessageOnlyException(msg)
+  }
 }
 
 case class SbtLogger(lg: Logger) extends ILogger {
@@ -721,7 +725,7 @@ trait AutoBuild extends Build {
       else
         None
     } getOrElse {
-      sys.error("set ANDROID_HOME or run 'android update project -p %s'"
+      fail("set ANDROID_HOME or run 'android update project -p %s'"
         format basedir.getCanonicalPath): String
     }
     Option(props getProperty "target") getOrElse {

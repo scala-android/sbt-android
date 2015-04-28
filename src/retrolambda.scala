@@ -49,7 +49,7 @@ object RetrolambdaSupport {
       out.close()
       val r = Fork.java(options, "android.RetroMain" :: config.getAbsolutePath :: Nil)
       IO.delete(config)
-      if (r != 0) sys.error(s"Retrolambda failure: exit $r")
+      if (r != 0) Plugin.fail(s"Retrolambda failure: exit $r")
       in
     }((dest ** "*.class" get).toSet)
 
@@ -72,7 +72,7 @@ object Java8Detector {
           val b = ByteBuffer.wrap(buf)
           val magic = b.getInt()
           if (magic != 0xcafebabe)
-            sys.error("Invalid java class file: " + j.getName)
+            Plugin.fail("Invalid java class file: " + j.getName)
           val _ = b.getShort()
           val major = b.getShort()
           major >= 52 // java8

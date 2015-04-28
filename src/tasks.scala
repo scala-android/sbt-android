@@ -358,7 +358,7 @@ object Tasks {
         val rc = Process(ndkbuildFile.getAbsolutePath, layout.base, env: _*) !
 
         if (rc != 0)
-          sys.error("ndk-build failed!")
+          Plugin.fail("ndk-build failed!")
 
         Option(layout.bin / "jni")
       }
@@ -385,7 +385,7 @@ object Tasks {
       val rc = javah !
 
       if (rc != 0)
-        sys.error("Failed to execute: " + (javah mkString " "))
+        Plugin.fail("Failed to execute: " + (javah mkString " "))
 
       src ** "*.h" get
     } else Seq.empty
@@ -800,7 +800,7 @@ object Tasks {
       val rv = Seq(z, "-f", "4", r.getAbsolutePath, aligned.getAbsolutePath) !
 
       if (rv != 0) {
-        sys.error("failed")
+        Plugin.fail("zipalign failed")
       }
 
       s.log.info("zipaligned: " + aligned.getName)
@@ -838,7 +838,7 @@ object Tasks {
 
         val r = Process(cmd, None, envVariableMap.toSeq: _*).!
         if (r != 0)
-          sys.error("renderscript failed: " + r)
+          Plugin.fail("renderscript failed: " + r)
       }
     })
 
@@ -885,7 +885,7 @@ object Tasks {
         val r = cmd !
 
         if (r != 0)
-          sys.error("aidl failed")
+          Plugin.fail("aidl failed")
 
         layout.gen ** (idl.getName.stripSuffix(".aidl") + ".java") get
       } else out
@@ -929,7 +929,7 @@ object Tasks {
         val application = top \ APPLICATION_TAG
         val usesLibraries = top \ APPLICATION_TAG \ USES_LIBRARY_TAG
         val instrument = top \ INSTRUMENTATION_TAG
-        if (application.isEmpty) sys.error("no application node")
+        if (application.isEmpty) Plugin.fail("no manifest application node")
         val hasTestRunner = usesLibraries exists (
           _.attribute(ANDROID_NS, "name") exists (_ == TEST_RUNNER_LIB))
 
@@ -1527,7 +1527,7 @@ object Tasks {
       s.log.debug("instrument command executed")
     }
     if (listener.failures.nonEmpty) {
-      sys.error("Tests failed: " + listener.failures.size + "\n" +
+      Plugin.fail("Tests failed: " + listener.failures.size + "\n" +
         (listener.failures map (" - " + _)).mkString("\n"))
     }
   }
@@ -1574,7 +1574,7 @@ object Tasks {
           s.log.debug("run command executed")
         }
       } getOrElse {
-        sys.error(
+        Plugin.fail(
           "No activity found with action 'android.intent.action.MAIN'")
       }
 
@@ -1607,7 +1607,7 @@ object Tasks {
     val start = System.currentTimeMillis
     Commands.targetDevice(sdkPath, log) foreach { d =>
       Option(d.installPackage(apk.getAbsolutePath, true)) map { err =>
-        sys.error("Install failed: " + err)
+        Plugin.fail("Install failed: " + err)
       } getOrElse {
         val size = apk.length
         val end = System.currentTimeMillis
@@ -1631,7 +1631,7 @@ object Tasks {
         }(Set.empty)
       }
       Option(d.uninstallPackage(packageName)) map { err =>
-        sys.error("[%s] Uninstall failed: %s" format (packageName, err))
+        Plugin.fail("[%s] Uninstall failed: %s" format (packageName, err))
       } getOrElse {
         log.info("[%s] Uninstall finished" format packageName)
       }
