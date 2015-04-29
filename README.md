@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.3.21
+Current version is 1.3.22
 
 ## Description ##
 
@@ -31,6 +31,18 @@ found on the #sbt-android IRC channel on Freenode
 
 ## New features in 1.3.x ##
 
+* `1.3.22`:
+  * Initial lint support
+    * Configured to only detect API level issues by default
+    * New setting keys:
+      * `android:lintEnabled`: run lint in `compile`, default true
+      * `android:lintFlags`: optional flags for lint
+      * `android:lintStrict`: fail the build on lint errors, default false
+      * `android:lintDetectors`: lint rules to detect, default: API level issues
+    * New task `android:lint`: run lint independently of compile, will not run
+      compile before-hand, otherwise, behaves according to settings above.
+  * Update to `com.android.tools.build:builder:1.2.0`
+  * Remove stack traces on build failures (stack traces for errors only)
 * `1.3.21`:
   * proguard-cache regression fix, force non-incremental dex on first cache-hit
   * remove bad ProguardCache() overloads
@@ -148,7 +160,7 @@ found on the #sbt-android IRC channel on Freenode
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.21")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.22")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -314,7 +326,7 @@ found on the #sbt-android IRC channel on Freenode
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.21")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.22")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -335,7 +347,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.21")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.22")
    ```
 
 4. Create a file named `project/build.scala` and add the
