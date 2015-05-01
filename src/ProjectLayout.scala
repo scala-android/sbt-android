@@ -78,4 +78,26 @@ object ProjectLayout {
     override def aidl = sources / "aidl"
     override def renderscript = sources / "rs"
   }
+  abstract class Wrapped(wrapped: ProjectLayout) extends ProjectLayout {
+    override def base = wrapped.base
+    override def resources = wrapped.resources
+    override def testSources = wrapped.testSources
+    override def sources = wrapped.sources
+    override def javaSource = wrapped.javaSource
+    override def libs = wrapped.libs
+    override def gen = wrapped.gen
+    override def testRes = wrapped.testRes
+    override def manifest = wrapped.manifest
+    override def scalaSource = wrapped.scalaSource
+    override def aidl = wrapped.aidl
+    override def bin = wrapped.bin
+    override def renderscript = wrapped.renderscript
+    override def testScalaSource = wrapped.testScalaSource
+    override def testAssets = wrapped.testAssets
+    override def jni = wrapped.jni
+    override def assets = wrapped.assets
+    override def testJavaSource = wrapped.testJavaSource
+    override def jniLibs = wrapped.jniLibs
+    override def res = wrapped.res
+  }
 }

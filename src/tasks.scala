@@ -43,6 +43,7 @@ import java.net.URLEncoder
 
 object Tasks {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+  val TOOLS_NS = "http://schemas.android.com/tools"
   val INSTRUMENTATION_TAG = "instrumentation"
   val USES_LIBRARY_TAG = "uses-library"
   val APPLICATION_TAG = "application"
@@ -1339,7 +1340,7 @@ object Tasks {
                     , builder
                     , packageName
                     , libraryProjects
-                    , classDirectory in Test
+                    , classDirectory
                     , externalDependencyClasspath in Compile
                     , externalDependencyClasspath in Test
                     , state
@@ -1469,11 +1470,13 @@ object Tasks {
 
   private def generateTestManifest(pkg: String, classes: File,
     runner: String) = {
+    val TOOLS_PREFIX = "tools"
+    val tns = NamespaceBinding(TOOLS_PREFIX, TOOLS_NS, TopScope)
     val vn = new PrefixedAttribute(ANDROID_PREFIX, "versionName", "1.0", Null)
     val vc = new PrefixedAttribute(ANDROID_PREFIX, "versionCode", "1", vn)
     val pkgAttr = new UnprefixedAttribute("package",
       pkg + ".instrumentTest", vc)
-    val ns = NamespaceBinding(ANDROID_PREFIX, ANDROID_NS, TopScope)
+    val ns = NamespaceBinding(ANDROID_PREFIX, ANDROID_NS, tns)
 
     val minSdk = new PrefixedAttribute(
       ANDROID_PREFIX, "minSdkVersion", "3", Null)
@@ -1482,12 +1485,12 @@ object Tasks {
       ANDROID_PREFIX, "name", TEST_RUNNER_LIB, Null)
     val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope, minimizeEmpty = true)
     val app = new Elem(null,
-      APPLICATION_TAG, Null, TopScope, minimizeEmpty = false, usesSdk, usesLib)
+      APPLICATION_TAG, Null, TopScope, minimizeEmpty = false, usesLib)
     val name = new PrefixedAttribute(
       ANDROID_PREFIX, "name", runner, Null)
     val instrumentation = new Elem(null, INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
     val manifest = new Elem(null,
-      "manifest", pkgAttr, ns, minimizeEmpty = false, app, instrumentation)
+      "manifest", pkgAttr, ns, minimizeEmpty = false, usesSdk, app, instrumentation)
 
     val manifestFile = classes / "GeneratedTestAndroidManifest.xml"
     val writer = new java.io.FileWriter(manifestFile, false)

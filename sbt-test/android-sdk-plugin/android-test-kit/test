@@ -1,1 +1,2 @@
-> android:test
+> android:package
+> flavor1/android:test
