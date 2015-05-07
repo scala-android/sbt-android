@@ -575,10 +575,6 @@ object Plugin extends sbt.Plugin {
       "android libraries" at (
         file(p) / "extras" / "android" / "m2repository").toURI.toString)
     },
-    update                     <<= (update, state) map { (u, s) =>
-      UpdateChecker.checkCurrent(s.log)
-      u
-    },
     cleanFiles        <+= binPath in Android,
     cleanFiles        <+= genPath in Android,
     exportJars         := true,
