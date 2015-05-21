@@ -24,6 +24,7 @@ object AndroidLint {
   def apply(layout: ProjectLayout, flags: LintCliFlags, detectors: Seq[Issue], strict: Boolean,
             s: TaskStreams): Unit = {
     val client = AndroidLint.SbtLintClient(layout, flags)
+    flags.getReporters.clear()
     flags.getReporters.add(SbtLintReporter(client, strict, s))
     client.run(AndroidLint.LintDetectorIssues(detectors), List(layout.base).asJava)
   }
@@ -126,13 +127,13 @@ object AndroidLint {
             }
           }
 
-          val errstr = s"found ${fmtE(errorCount)}, ${fmtW(warningCount)}"
+          val errstr = s"lint found ${fmtE(errorCount)}, ${fmtW(warningCount)}"
           if (strict)
             Plugin.fail(errstr)
           else
             s.log.error(errstr)
         } else {
-          s.log.warn(s"found ${fmtW(warningCount)}")
+          s.log.warn(s"lint found ${fmtW(warningCount)}")
         }
       }
     }
