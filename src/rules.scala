@@ -99,9 +99,11 @@ object Plugin extends sbt.Plugin {
                 , lintEnabled in Android
                 , lintStrict in Android
                 , projectLayout in Android
-                , streams) map { (c, ld, f, en, strict, layout, s) =>
+                , minSdkVersion in Android
+                , targetSdkVersion in Android
+                , streams) map { (c, ld, f, en, strict, layout, minSdk, tgtSdk, s) =>
       if (en)
-        AndroidLint(layout, f, ld, strict, s)
+        AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)
       c
     },
     update                     <<= (update, state) map { (u, s) =>
@@ -197,7 +199,8 @@ object Plugin extends sbt.Plugin {
     javacOptions                := (javacOptions in Compile).value,
     lint                        := {
       AndroidLint(projectLayout.value,
-        lintFlags.value, lintDetectors.value, lintStrict.value, streams.value)
+        lintFlags.value, lintDetectors.value, lintStrict.value,
+        minSdkVersion.value, targetSdkVersion.value, streams.value)
     },
     lintFlags                := {
       val flags = new LintCliFlags

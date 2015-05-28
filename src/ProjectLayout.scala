@@ -78,7 +78,7 @@ object ProjectLayout {
     override def aidl = sources / "aidl"
     override def renderscript = sources / "rs"
   }
-  abstract class Wrapped(wrapped: ProjectLayout) extends ProjectLayout {
+  abstract class Wrapped(val wrapped: ProjectLayout) extends ProjectLayout {
     override def base = wrapped.base
     override def resources = wrapped.resources
     override def testSources = wrapped.testSources

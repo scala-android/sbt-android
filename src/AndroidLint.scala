@@ -4,6 +4,7 @@ import java.text.{MessageFormat, ChoiceFormat}
 import java.util
 
 import Keys._
+import com.android.sdklib.SdkVersionInfo
 import com.android.utils.SdkUtils
 import sbt.Keys.TaskStreams
 import sbt._
@@ -22,8 +23,8 @@ import scala.annotation.tailrec
 object AndroidLint {
 
   def apply(layout: ProjectLayout, flags: LintCliFlags, detectors: Seq[Issue], strict: Boolean,
-            s: TaskStreams): Unit = {
-    val client = AndroidLint.SbtLintClient(layout, flags)
+            minSdk: String, targetSdk: String, s: TaskStreams): Unit = {
+    val client = AndroidLint.SbtLintClient(layout, flags, minSdk, targetSdk)
     flags.getReporters.clear()
     flags.getReporters.add(SbtLintReporter(client, strict, s))
     client.run(AndroidLint.LintDetectorIssues(detectors), List(layout.base).asJava)
@@ -38,7 +39,7 @@ object AndroidLint {
     override def getIssues = issues.asJava
   }
 
-  case class SbtLintClient(layout: ProjectLayout, flags: LintCliFlags) extends LintCliClient(flags) {
+  case class SbtLintClient(layout: ProjectLayout, flags: LintCliFlags, minSdk: String, targetSdk: String) extends LintCliClient(flags) {
 
     override def addProgressPrinter() = {
 //      super.addProgressPrinter()
@@ -51,17 +52,19 @@ object AndroidLint {
     override def createLintRequest(files: java.util.List[File]) = {
       val r = super.createLintRequest(files)
       r.setProjects(files.asScala map { f =>
-        SbtProject(this, layout): LintProject
+        SbtProject(this, layout, minSdk, targetSdk): LintProject
       } asJava)
       r
     }
 
   }
-  case class SbtProject(client: LintClient, layout: ProjectLayout)
+  case class SbtProject(client: LintClient, layout: ProjectLayout, minSdk: String, targetSdk: String)
     extends LintProject(client, layout.base, layout.base) {
     override def getJavaClassFolders = List(layout.bin).asJava
     override def getManifestFiles    = List(layout.manifest).asJava
     override def getResourceFolders  = List(layout.res).asJava
+    override def getMinSdkVersion    = SdkVersionInfo.getVersion(minSdk, client.getTargets)
+    override def getTargetSdkVersion = SdkVersionInfo.getVersion(targetSdk, client.getTargets)
   }
 
   case class SbtLintReporter(client: LintCliClient,
