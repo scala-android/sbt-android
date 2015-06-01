@@ -112,8 +112,6 @@ object Keys {
   val apklibs = TaskKey[Seq[LibraryDependency]]("apklibs",
     "unpack the set of referenced apklibs")
   val localAars = SettingKey[Seq[File]]("local-aars", "local aar files")
-  val aars = TaskKey[Seq[LibraryDependency]]("aars",
-    "unpack the set of referenced aars")
   val localProjects = SettingKey[Seq[LibraryDependency]]("local-projects",
     "local android library projects that need to be built")
   val libraryProjects = TaskKey[Seq[LibraryDependency]]("library-projects",
@@ -160,7 +158,7 @@ object Keys {
 
   // dex-related keys
   val dex = TaskKey[File]("dex", "run bytecode dexer")
-  val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "input jars to dex")
+  val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "incremental dex, input jars to dex")
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
    "Maximum heapsize for dex, default 1024m")
   val dexMulti = SettingKey[Boolean]("dex-multi",
@@ -262,6 +260,7 @@ object Keys {
       "manifest munging task")
     val setDebug = TaskKey[Unit]("set-debug", "set debug build")
     val setRelease = TaskKey[Unit]("set-release", "set release build")
-
+    val aars = TaskKey[Seq[LibraryDependency]]("aars",
+      "unpack the set of referenced aars")
   }
 }
