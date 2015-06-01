@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.3.23
+Current version is 1.3.24
 
 ## Description ##
 
@@ -29,8 +29,10 @@ See [proguard bug #549](https://sourceforge.net/p/proguard/bugs/549/) and
 The first line of support is reading this README, beyond that, help can be
 found on the #sbt-android IRC channel on Freenode
 
-## New features in 1.3.x ##
+## New features in 1.3.x (last version: 1.3.24) ##
 
+* `1.3.24`:
+  * Minor lint fix (honor min/target sdk from build file)
 * `1.3.23`:
   * Remove repeated lint output
   * Fix `android.Plugin.flavorOf`
@@ -169,7 +171,7 @@ found on the #sbt-android IRC channel on Freenode
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.23")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.24")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -335,7 +337,7 @@ found on the #sbt-android IRC channel on Freenode
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.23")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.24")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -356,7 +358,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.23")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.24")
    ```
 
 4. Create a file named `project/build.scala` and add the
