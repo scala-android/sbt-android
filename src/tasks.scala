@@ -1,5 +1,7 @@
 package android
 
+import java.util.jar.JarInputStream
+
 import com.android.ide.common.signing.KeystoreHelper
 import com.android.manifmerger.ManifestMerger2
 import sbt._
@@ -1083,6 +1085,24 @@ object Tasks {
       mainDexListTxt
   }
 
+  def listjar(jarfile: Attributed[File]): List[String] = {
+    if (!jarfile.data.isFile) Nil else {
+      val jin = new JarInputStream(new FileInputStream(jarfile.data))
+      try {
+        val classes = Iterator.continually(jin.getNextJarEntry) takeWhile (
+          _ != null) map (_.getName) filter (_ endsWith ".class") toList
+
+        classes
+      } finally {
+        jin.close()
+      }
+    }
+  }
+
+  def startsWithAny(s: String, ss: Seq[String]): Boolean = ss exists s.startsWith
+  def inPackages(s: String, pkgs: Seq[String]): Boolean =
+    startsWithAny(s.replace('/','.'), pkgs map (_ + "."))
+
   val dexInputsTaskDef = ( proguard
                          , proguardInputs
                          , proguardCache
@@ -1107,7 +1127,8 @@ object Tasks {
         Seq(obfuscatedJar)
       } getOrElse {
         proguardedDexMarker.delete()
-        def nonCachedDeps = deps filterNot { file => progCache exists (_.matches(file, st)) }
+        // TODO cache the jar file listing
+        def nonCachedDeps = deps filter (_.data.isFile) filterNot ( file => listjar(file) exists (inPackages(_, progCache)))
         val dexingDeps = if (multiDex) deps else nonCachedDeps
         val inputs = dexingDeps.collect {
           // no proguard? then we still able dex scala with multidex
@@ -1196,7 +1217,8 @@ object Tasks {
         deps.mkdirs()
         out.mkdirs()
 
-        val filtered = injars filterNot (j => pc exists (_.matches(j, stat)))
+        // TODO cache resutls of jar listing
+        val filtered = injars filter (_.data.isFile) filterNot (file => listjar(file) exists (inPackages(_, pc)))
         val indeps = filtered map {
           f => deps / (f.data.getName + "-" +
             Hash.toHex(Hash(f.data.getAbsolutePath)))
@@ -1276,7 +1298,7 @@ object Tasks {
         val cd = cacheDir / "proguard_cache_tmp"
         IO.delete(cd)
         s.log.info("Creating proguard cache: " + f.getName)
-        IO.unzip(t, cd, { n: String => pc.exists (_ matches n) })
+        IO.unzip(t, cd, { n: String => inPackages(n, pc) })
         IO.jar((PathFinder(cd) ***) pair rebase(cd, "") filterNot (
           _._1.getName.matches("R\\W+.*class")),
           f, new java.util.jar.Manifest)
@@ -1690,28 +1712,13 @@ object Tasks {
 //        case _: AarLibrary         => true
         case _: AutoLibraryProject => true
         case _ => false
-      } collect {
-      case a: AarLibrary =>
-        val f = a.getJarFile.getCanonicalFile
-        Attributed(f)(
-          a.moduleID.foldLeft(AttributeMap.empty
-            .put(artifact.key, Artifact(f.getName, "jar", "jar"))
-            .put(configuration.key, Compile)) (_.put(moduleID.key, _)))
-      case p => Attributed.blank(p.getJarFile.getCanonicalFile)
-    }) ++ (for {
+      } map { p => Attributed.blank(p.getJarFile.getCanonicalFile) }) ++ (for {
         d <- l/* filterNot { // currently unworking
           case _: AarLibrary => true
           case _ => false
         }*/
         j <- d.getLocalJars
-      } yield d match {
-        case a: AarLibrary =>
-          Attributed(j.getCanonicalFile)(
-            a.moduleID.foldLeft(AttributeMap.empty
-              .put(artifact.key, Artifact(j.getName, "jar", "jar"))
-              .put(configuration.key, Compile)) (_.put(moduleID.key, _)))
-        case p => Attributed.blank(j.getCanonicalFile)
-      }) ++ (for {
+      } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
         d <- Seq(b / "libs", b / "lib")
         j <- d * "*.jar" get
       } yield Attributed.blank(j.getCanonicalFile))

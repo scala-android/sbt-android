@@ -389,7 +389,7 @@ object Plugin extends sbt.Plugin {
         usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") map {
           _(0) text } getOrElse "1"
     },
-    proguardCache            := Seq(ProguardCache("scala") % "org.scala-lang"),
+    proguardCache            := "scala" :: Nil,
     proguardLibraries        := Seq.empty,
     proguardOptions          := Seq.empty,
     proguardConfig          <<= proguardConfigTaskDef,

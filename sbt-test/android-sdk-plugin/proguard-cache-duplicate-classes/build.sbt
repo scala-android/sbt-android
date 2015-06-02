@@ -19,13 +19,17 @@ proguardOptions in Android ++= Seq(
   "-keep class * extends org.scalatest.FunSuite"
 )
 
-proguardCache in Android ++= Seq(
-  ProguardCache("org.scaloid") % "org.scaloid" %% "scaloid",
-  ProguardCache("org.scalatest","org.scalautils") % "org.scalatest" %% "scalatest",
-  ProguardCache("org.mockito") % "org.mockito" % "mockito-core",
-  ProguardCache("scala.reflect") % "org.scala-lang" %% "scala-reflect",
-  ProguardCache("scala.xml") % "org.scala-lang.modules" %% "scala-xml",
-  ProguardCache("scala.util.parsing.combinator", "scala.util.parsing.input", "scala.util.parsing.json") % "org.scala-lang.modules" %% "scala-parser-combinators"
-)
+proguardCache in Android ++=
+  "org.scaloid" ::
+    "org.scalatest" ::
+    "org.scalautils" ::
+    "org.mockito" ::
+    "scala.reflect" ::
+    "scala.xml" ::
+    "scala.util.parsing.combinator" ::
+    "scala.util.parsing.input" ::
+    "scala.util.parsing.json" ::
+    Nil
+
 
 javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6")

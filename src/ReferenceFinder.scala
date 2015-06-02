@@ -14,8 +14,7 @@ import java.util.jar.JarInputStream
 
 object ReferenceFinder {
 
-  def references(jar: File, rules: Seq[ProguardCache]): Seq[String] = {
-    val prefixes = rules flatMap (_.packagePrefixes)
+  def references(jar: File, prefixes: Seq[String]): Seq[String] = {
     var current: String = null
     var map: Map[String,Set[String]] = Map.empty
 

@@ -23,8 +23,6 @@ object Keys {
   type ProjectLayout = android.ProjectLayout
   val ProjectLayout = android.ProjectLayout
 
-  type ProguardCache = android.ProguardCache
-  val ProguardCache = android.ProguardCache
   type ProguardInputs = android.ProguardInputs
   val ProguardInputs = android.ProguardInputs
 
@@ -181,8 +179,8 @@ object Keys {
     "additional options to add to proguard-config")
   val proguardConfig = TaskKey[Seq[String]]("proguard-config",
     "base proguard configuration")
-  val proguardCache = SettingKey[Seq[ProguardCache]]("proguard-cache",
-    "rules for caching proguard outputs, more rules => more cache misses")
+  val proguardCache = SettingKey[Seq[String]]("proguard-cache",
+    "list of package names for caching proguard outputs, more rules => more cache misses")
   val proguard = TaskKey[Option[File]]("proguard",
     "proguard task, generates obfuscated.jar")
   val useSdkProguard = SettingKey[Boolean]("use-sdk-proguard",
