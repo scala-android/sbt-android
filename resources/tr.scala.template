@@ -15,35 +15,27 @@ object TR {
   }
 }
 
-trait TypedViewHolder {
-  def findViewById(id: Int): View
+trait TypedViewHolder extends Any {
+  protected def findViewById(id: Int): View
   def findView[A](tr: TypedResource[A]): A =
     findViewById(tr.id).asInstanceOf[A]
 }
 
-trait TypedView extends View with TypedViewHolder
-trait TypedActivityHolder extends TypedViewHolder
-trait TypedActivity extends Activity with TypedActivityHolder
-trait TypedDialog extends Dialog with TypedViewHolder
-
-class TypedLayoutInflater(l: LayoutInflater) {
-  def inflate[A](tl: TypedLayout[A], c: ViewGroup, b: Boolean) =
-    l.inflate(tl.id, c, b).asInstanceOf[A]
-  def inflate[A](tl: TypedLayout[A], c: ViewGroup) =
-    l.inflate(tl.id, c).asInstanceOf[A]
-}
-
 object TypedResource {
-  implicit def viewToTyped(v: View) = new TypedViewHolder {
+  implicit class TypedView(val v: View) extends AnyVal with TypedViewHolder {
     def findViewById(id: Int) = v.findViewById(id)
   }
-  implicit def activityToTyped(a: Activity) = new TypedViewHolder {
+  implicit class TypedActivity(val a: Activity) extends AnyVal with TypedViewHolder {
     def findViewById(id: Int) = a.findViewById(id)
   }
-  implicit def dialogToTyped(d: Dialog) = new TypedViewHolder {
+  implicit class TypedDialog(val d: Dialog) extends AnyVal with TypedViewHolder {
     def findViewById(id: Int) = d.findViewById(id)
   }
-  implicit def layoutInflaterToTyped(l: LayoutInflater) =
-    new TypedLayoutInflater(l)
+  implicit class TypedLayoutInflater(val l: LayoutInflater) extends AnyVal {
+    def inflate[A](tl: TypedLayout[A], c: ViewGroup, b: Boolean) =
+      l.inflate(tl.id, c, b).asInstanceOf[A]
+    def inflate[A](tl: TypedLayout[A], c: ViewGroup) =
+      l.inflate(tl.id, c).asInstanceOf[A]
+  }
 }
 
