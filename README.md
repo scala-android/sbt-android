@@ -33,13 +33,15 @@ found on the #sbt-android IRC channel on Freenode
 
 * Some code re-organization, internal settings hidden from public view (can
   still be accessed by defining SettingKey and TaskKey manually as required)
-* add `android:bootClasspath` for use with robolectric
+* Add `android:bootClasspath` for use with robolectric
 * Conversion of some settings to tasks
 * TypedResource improvements, now uses value class extensions for runtime
   performance improvements (all apps must now use scala 2.10+)
 * Proguard cache improvements, no more `ProguardCache` DSL, instead, add
   package prefix strings to cache directly to `proguardCache in Android`
   (`Seq[String]`)
+* Add `extraResDirectories` setting for additional overlay-resources. For use
+  with build flavors, etc.
 
 ## New features in 1.3.x (last version: 1.3.24) ##
 

@@ -72,6 +72,8 @@ object Keys {
     "copy all resources and assets to a single location for packaging")
   val packageResources = TaskKey[File]("package-resources",
     "package android resources")
+  val extraResDirectories = SettingKey[Seq[File]]("extra-res-directories",
+    "list of additional android res folders to include (primarily for flavors")
 
   // packaging-related keys
   val packageRelease = TaskKey[File]("package-release", "create a release apk")
@@ -205,8 +207,6 @@ object Keys {
   val lintDetectors = SettingKey[Seq[Issue]]("lint-issues",
     "Issues to detect, default: ApiDetectors")
 
-  // alias to ease typing
-  val packageT = sbt.Keys.`package`
   val Android = config("android")
 
   implicit def toRichProject(project: Project): RichProject = RichProject(project)
@@ -260,5 +260,8 @@ object Keys {
     val setRelease = TaskKey[Unit]("set-release", "set release build")
     val aars = TaskKey[Seq[LibraryDependency]]("aars",
       "unpack the set of referenced aars")
+
+    // alias to ease typing
+    val packageT = sbt.Keys.`package`
   }
 }

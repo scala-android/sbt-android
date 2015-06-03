@@ -426,6 +426,7 @@ object Tasks {
                         , isLib: Boolean
                         , libs: Seq[LibraryDependency]
                         , layout: ProjectLayout
+                        , extraRes: Seq[File]
                         , logger: Logger => ILogger
                         , cache: File
                         , s: TaskStreams
@@ -448,7 +449,7 @@ object Tasks {
     if (noTestApk && layout.testAssets.exists)
       IO.copyDirectory(layout.testAssets, assetBin, false, true)
     // prepare resource sets for merge
-    val res = Seq(layout.res, rsResources) ++
+    val res = extraRes ++ Seq(layout.res, rsResources) ++
       (libs map { _.layout.res } filter { _.isDirectory })
 
     s.log.debug("Local/library-project resources: " + res)
@@ -489,12 +490,13 @@ object Tasks {
                                 , debugIncludesTests
                                 , libraryProject
                                 , libraryProjects
+                                , extraResDirectories
                                 , projectLayout
                                 , ilogger
                                 , streams
                                 ) map {
-    (bldr, noTestApk, isLib, libs, layout, logger, s) =>
-      doCollectResources(bldr, noTestApk, isLib, libs, layout, logger, s.cacheDirectory, s)
+    (bldr, noTestApk, isLib, libs, er, layout, logger, s) =>
+      doCollectResources(bldr, noTestApk, isLib, libs, layout, er, logger, s.cacheDirectory, s)
   }
 
   def incrResourceMerge(base: File, resTarget: File, isLib: Boolean,

@@ -133,7 +133,15 @@ object Plugin extends sbt.Plugin {
     publishArtifact in packageBin := false,
     scalaSource       <<= (projectLayout in Android) (_.scalaSource),
     javaSource        <<= (projectLayout in Android) (_.javaSource),
-    resourceDirectory <<= (projectLayout in Android) (_.res),
+    watchSources     <++= Def.task {
+      val filter = new SimpleFileFilter({ f =>
+        f.isFile && Character.isJavaIdentifierStart(f.getName.charAt(0))
+      })
+      val layout = (projectLayout in Android).value
+      val extras = (extraResDirectories in Android).value
+      (layout.jni +: layout.res +: extras) flatMap { path =>
+        (path ** filter) get }
+    },
     unmanagedJars     <<= unmanagedJarsTaskDef,
     // doesn't work properly yet, not for intellij integration
     //managedClasspath  <<= managedClasspathTaskDef,
@@ -409,6 +417,7 @@ object Plugin extends sbt.Plugin {
     useProguard             <<= proguardScala,
     useSdkProguard          <<= proguardScala (!_),
     useProguardInDebug      <<= proguardScala,
+    extraResDirectories         := Nil,
     collectResources        <<= collectResourcesTaskDef,
     collectResources        <<= collectResources dependsOn renderscript,
     packageResources        <<= packageResourcesTaskDef,

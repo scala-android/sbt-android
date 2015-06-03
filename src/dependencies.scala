@@ -130,7 +130,7 @@ object Dependencies {
             collectResources in Android <<=
               collectResources in Android dependsOn (compile in Compile in p),
             compile in Compile <<= compile in Compile dependsOn(
-              packageT in Compile in p)
+              sbt.Keys.`package` in Compile in p)
           )
         }) :+ (localProjects in Android := deps map { p =>
         Dependencies.LibraryProject(p.base)
