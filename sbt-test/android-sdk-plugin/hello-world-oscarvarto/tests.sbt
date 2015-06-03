@@ -27,7 +27,7 @@ TaskKey[Unit]("check-tr") <<= ( projectLayout in Android ) map { layout =>
     error("Could not find TR.test_textview\n" + (lines mkString "\n"))
 }
 
-TaskKey[Unit]("check-resource") <<= ( packageT in Android ) map { apk =>
+TaskKey[Unit]("check-resource") <<= ( sbt.Keys.`package` in Android ) map { apk =>
   val zip = new ZipInputStream(new FileInputStream(apk))
   val names = Stream.continually(zip.getNextEntry()).takeWhile(_ != null).map {
     _.getName
