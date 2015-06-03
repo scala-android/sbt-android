@@ -15,20 +15,20 @@ object TR {
   }
 }
 
-trait TypedViewHolder extends Any {
+trait TypedFindView extends Any {
   protected def findViewById(id: Int): View
   def findView[A](tr: TypedResource[A]): A =
     findViewById(tr.id).asInstanceOf[A]
 }
 
 object TypedResource {
-  implicit class TypedView(val v: View) extends AnyVal with TypedViewHolder {
+  implicit class TypedView(val v: View) extends AnyVal with TypedFindView {
     def findViewById(id: Int) = v.findViewById(id)
   }
-  implicit class TypedActivity(val a: Activity) extends AnyVal with TypedViewHolder {
+  implicit class TypedActivity(val a: Activity) extends AnyVal with TypedFindView {
     def findViewById(id: Int) = a.findViewById(id)
   }
-  implicit class TypedDialog(val d: Dialog) extends AnyVal with TypedViewHolder {
+  implicit class TypedDialog(val d: Dialog) extends AnyVal with TypedFindView {
     def findViewById(id: Int) = d.findViewById(id)
   }
   implicit class TypedLayoutInflater(val l: LayoutInflater) extends AnyVal {

@@ -34,9 +34,13 @@ found on the #sbt-android IRC channel on Freenode
 * Some code re-organization, internal settings hidden from public view (can
   still be accessed by defining SettingKey and TaskKey manually as required)
 * Add `android:bootClasspath` for use with robolectric
-* Conversion of some settings to tasks
+* Conversion of some settings to tasks: `packageName`, `manifest`,
+  `packageForR`, `versionName`, `versionCode`, `minSdkVersion`,
+  `targetSdkVersion`
 * TypedResource improvements, now uses value class extensions for runtime
   performance improvements (all apps must now use scala 2.10+)
+  * Renamed `TypedViewHolder` in favor of a single `TypedFindView`,
+    removed `TypedView`, `TypedActivity`, `TypedActivityHolder`, `TypedDialog`
 * Proguard cache improvements, no more `ProguardCache` DSL, instead, add
   package prefix strings to cache directly to `proguardCache in Android`
   (`Seq[String]`)
