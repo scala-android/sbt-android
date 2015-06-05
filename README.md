@@ -36,9 +36,12 @@ found on the #sbt-android IRC channel on Freenode
 * Add `android:bootClasspath` for use with robolectric
 * Unused resource shrinker, enable with `shrinkResources in Android := true`
   * Only runs if proguard is run, typically used for clean, release builds.
+  * See the
+    [resource shrinking documentation](http://tools.android.com/tech-docs/new-build-system/resource-shrinking)
 * Conversion of some settings to tasks: `packageName`, `manifest`,
   `packageForR`, `versionName`, `versionCode`, `minSdkVersion`,
   `targetSdkVersion`
+  * See all [available keys](src/keys.scala)
 * TypedResource improvements, now uses value class extensions for runtime
   performance improvements (all apps must now use scala 2.10+)
   * Renamed `TypedViewHolder` in favor of a single `TypedFindView`,
