@@ -34,6 +34,8 @@ found on the #sbt-android IRC channel on Freenode
 * Some code re-organization, internal settings hidden from public view (can
   still be accessed by defining SettingKey and TaskKey manually as required)
 * Add `android:bootClasspath` for use with robolectric
+* Unused resource shrinker, enable with `shrinkResources in Android := true`
+  * Only runs if proguard is run, typically used for clean, release builds.
 * Conversion of some settings to tasks: `packageName`, `manifest`,
   `packageForR`, `versionName`, `versionCode`, `minSdkVersion`,
   `targetSdkVersion`

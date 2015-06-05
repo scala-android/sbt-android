@@ -420,6 +420,8 @@ object Plugin extends sbt.Plugin {
     extraResDirectories         := Nil,
     collectResources        <<= collectResourcesTaskDef,
     collectResources        <<= collectResources dependsOn renderscript,
+    shrinkResources          := false,
+    resourceShrinker        <<= resourceShrinkerTaskDef,
     packageResources        <<= packageResourcesTaskDef,
     apkFile                 <<= (name, projectLayout) { (n,l) =>
       val apkdir = l.bin / ".build_integration"

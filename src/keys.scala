@@ -72,6 +72,10 @@ object Keys {
     "copy all resources and assets to a single location for packaging")
   val packageResources = TaskKey[File]("package-resources",
     "package android resources")
+  val shrinkResources = SettingKey[Boolean]("shrink-resources",
+    "automatically remove unused resources from final apk, default false")
+  val resourceShrinker = TaskKey[File]("resource-shrinker",
+    "Resource shrinking task, dual to shrinkResources")
   val extraResDirectories = SettingKey[Seq[File]]("extra-res-directories",
     "list of additional android res folders to include (primarily for flavors")
 

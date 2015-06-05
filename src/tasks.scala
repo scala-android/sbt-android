@@ -671,7 +671,7 @@ object Tasks {
   val apkbuildTaskDef = ( builder
                         , state
                         , thisProjectRef
-                        , packageResources
+                        , resourceShrinker
                         , dex
                         , unmanagedJars in Compile
                         , managedClasspath
@@ -1246,6 +1246,34 @@ object Tasks {
       } else ProguardInputs(injars, file(p) +: (extras ++ l))
     } else
       ProguardInputs(Seq.empty,Seq.empty)
+  }
+
+  val resourceShrinkerTaskDef = Def.task {
+    val jar = proguard.value
+    val resApk = packageResources.value
+    val doShrink = shrinkResources.value
+    val layout = projectLayout.value
+    val log = streams.value.log
+    import com.android.build.gradle.tasks.ResourceUsageAnalyzer
+    if (jar.isDefined && doShrink && !ResourceUsageAnalyzer.TWO_PASS_AAPT) {
+      val shrunkResApk = resApk.getParentFile / ("shrunk-" + resApk.getName)
+      val resTarget = layout.bin / "resources" / "res"
+      val analyzer = new ResourceUsageAnalyzer(
+        layout.gen, jar.get, processManifest.value, null, resTarget)
+      analyzer.analyze()
+      analyzer.rewriteResourceZip(resApk, shrunkResApk)
+      val unused = analyzer.getUnusedResourceCount
+      if (unused > 0) {
+        val before = resApk.length
+        val after = shrunkResApk.length
+        val pct = (before - after) * 100 / before
+        log.info(s"Resource Shrinker: $unused unused resources")
+        log.info(s"Resource Shrinker: data reduced from ${sizeString(before)} to ${sizeString(after)}, removed $pct%")
+      }
+      shrunkResApk
+    } else {
+      resApk
+    }
   }
 
   val proguardTaskDef: Def.Initialize[Task[Option[File]]] =
