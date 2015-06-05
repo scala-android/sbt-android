@@ -36,6 +36,8 @@ object TypedResource {
       l.inflate(tl.id, c, b).asInstanceOf[A]
     def inflate[A](tl: TypedLayout[A], c: ViewGroup) =
       l.inflate(tl.id, c).asInstanceOf[A]
+    def inflate[A](tl: TypedLayout[A]) =
+      l.inflate(tl.id, null).asInstanceOf[A]
   }
 }
 
