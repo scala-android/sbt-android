@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.3.24
+Current version is 1.4.0
 
 ## Description ##
 
@@ -24,6 +24,9 @@ containing:
 See [proguard bug #549](https://sourceforge.net/p/proguard/bugs/549/) and
 [SI-8931](https://issues.scala-lang.org/browse/SI-8931)
 
+NOTE: support-v4 22.2.0 triggers a scalac assertion error, 2.11.7 will address
+this issue, see [SI-7741](https://issues.scala-lang.org/browse/SI-7741)
+
 ## Support and Help ##
 
 The first line of support is reading this README, beyond that, help can be
@@ -31,6 +34,8 @@ found on the #sbt-android IRC channel on Freenode
 
 ## New features in 1.4.x ##
 
+* This version **is not entirely backward compatible** with 1.3.x; `TR.scala`
+  and `proguardCache` have undergone significant changes.
 * Some code re-organization, internal settings hidden from public view (can
   still be accessed by defining SettingKey and TaskKey manually as required)
 * Add `android:bootClasspath` for use with robolectric
@@ -56,6 +61,7 @@ found on the #sbt-android IRC channel on Freenode
 
 * `1.3.24`:
   * Minor lint fix (honor min/target sdk from build file)
+  * Last version to support scala 2.8.x and 2.9.x
 * `1.3.23`:
   * Remove repeated lint output
   * Fix `android.Plugin.flavorOf`
@@ -194,7 +200,7 @@ found on the #sbt-android IRC channel on Freenode
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.24")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.0")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -360,7 +366,7 @@ found on the #sbt-android IRC channel on Freenode
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.24")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.0")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -381,7 +387,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.3.24")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.0")
    ```
 
 4. Create a file named `project/build.scala` and add the
