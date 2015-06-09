@@ -158,10 +158,10 @@ object Plugin extends sbt.Plugin {
                           , cleanForR in Android
                           ) map {
       (a, tr, apkl, autos, aidl, bcg, rs, deb, _) =>
-      val autosrcs = (apkl ++ autos) map { l =>
+      val autosrcs = (apkl ++ autos) flatMap { l =>
         (l.layout.javaSource ** "*.java" get) ++
           (l.layout.scalaSource ** "*.scala" get)
-      } flatten
+      } map (_.getAbsoluteFile)
 
       a ++ tr ++ aidl ++ bcg ++ rs ++ autosrcs ++ deb
     },
