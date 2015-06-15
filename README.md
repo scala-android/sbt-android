@@ -370,8 +370,8 @@ found on the #sbt-android IRC channel on Freenode
 1. Install sbt (from [scala-sbt.org](http://www.scala-sbt.org) or use your
    local packaging system like macports, brew, etc.) -- make sure the
    Android SDK is fully updated (minimum build-tools 19.1.0 and up)
-   * (OPTIONAL) Install the plugin globally into `~/.sbt/plugins` or
-    `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
+   * (OPTIONAL) Install the plugin globally by writing inside the file `~/.sbt/plugins/android.sbt` or
+    `~/.sbt/0.13/plugins/android.sbt` (for 0.12 and 0.13, respectively) the following line: (remember to leave one blank line between statements)
     
    ```
    addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.1")
