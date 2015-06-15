@@ -1185,7 +1185,41 @@ object Tasks {
       bldr.convertByteCode(inputs filter (_.isFile), Seq.empty[File], bin,
         multiDex, multiDex, mainDexListTxt,
         options, additionalDexParams, tmp, incremental, !debug())
+      s.log.info("dex method count: " + ((bin * "*.dex" get) map(dexMethodCount(_, s.log))).sum)
+
       bin
+  }
+
+  // see https://source.android.com/devices/tech/dalvik/dex-format.html
+  def dexMethodCount(dexFile: File, log: Logger): Int = {
+    import java.nio.{ByteBuffer,ByteOrder}
+    val header_size = 0x70
+    val endian_constant = 0x12345678
+    val reverse_endian_constant = 0x78563412
+    val dex_magic = Array(0x64, 0x65, 0x78, 0x0a, 0x30, 0x33, 0x35, 0x00) map (_.toByte)
+    val buf = Array.ofDim[Byte](header_size)
+    val fin = new FileInputStream(dexFile)
+    try {
+      fin.read(buf)
+      val header = ByteBuffer.wrap(buf)
+      val isDex = (dex_magic zip buf) forall { case (a, b) => a == b }
+      if (isDex) {
+        header.order(ByteOrder.LITTLE_ENDIAN)
+        header.position(40) // endian_tag
+        val endianness = header.getInt
+        val isBE = endianness == reverse_endian_constant
+        if (isBE)
+          header.order(ByteOrder.BIG_ENDIAN)
+        header.position(88) // method_ids_size
+        val methodIds = header.getInt
+        methodIds
+      } else {
+        log.info(dexFile.getName + " is not a valid dex file")
+        0
+      }
+    } finally {
+      fin.close()
+    }
   }
 
   val proguardInputsTaskDef = ( useProguard
@@ -1296,7 +1330,6 @@ object Tasks {
       s.log.info("[debug] cache hit, skipping proguard!")
       None
     } else if ((p && !debug() && !l) || ((d && debug()) && !l)) {
-      val cacheDir = s.cacheDirectory
       val libjars = inputs.libraryjars
       val pjars = inputs.injars map (_.data)
       val jars = if (re && RetrolambdaSupport.isAvailable)
@@ -1324,15 +1357,8 @@ object Tasks {
       } else {
         s.log.info(t.getName + " is up-to-date")
       }
-      inputs.proguardCache foreach { f =>
-        val cd = cacheDir / "proguard_cache_tmp"
-        IO.delete(cd)
-        s.log.info("Creating proguard cache: " + f.getName)
-        IO.unzip(t, cd, { n: String => inPackages(n, pc) })
-        IO.jar((PathFinder(cd) ***) pair rebase(cd, "") filterNot (
-          _._1.getName.matches("R\\W+.*class")),
-          f, new java.util.jar.Manifest)
-        IO.delete(cd)
+      inputs.proguardCache foreach {
+        ProguardUtil.createCacheJar(t, _, pc, s.log)
       }
       Option(t)
     } else None
