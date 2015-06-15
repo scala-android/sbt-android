@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.4.0
+Current version is 1.4.1
 
 ## Description ##
 
@@ -34,28 +34,36 @@ found on the #sbt-android IRC channel on Freenode
 
 ## New features in 1.4.x ##
 
-* This version **is not entirely backward compatible** with 1.3.x; `TR.scala`
-  and `proguardCache` have undergone significant changes.
-* Some code re-organization, internal settings hidden from public view (can
-  still be accessed by defining SettingKey and TaskKey manually as required)
-* Add `android:bootClasspath` for use with robolectric
-* Unused resource shrinker, enable with `shrinkResources in Android := true`
-  * Only runs if proguard is run, typically used for clean, release builds.
-  * See the
-    [resource shrinking documentation](http://tools.android.com/tech-docs/new-build-system/resource-shrinking)
-* Conversion of some settings to tasks: `packageName`, `manifest`,
-  `packageForR`, `versionName`, `versionCode`, `minSdkVersion`,
-  `targetSdkVersion`
-  * See all [available keys](src/keys.scala)
-* TypedResource improvements, now uses value class extensions for runtime
-  performance improvements (all apps must now use scala 2.10+)
-  * Renamed `TypedViewHolder` in favor of a single `TypedFindView`,
-    removed `TypedView`, `TypedActivity`, `TypedActivityHolder`, `TypedDialog`
-* Proguard cache improvements, no more `ProguardCache` DSL, instead, add
-  package prefix strings to cache directly to `proguardCache in Android`
-  (`Seq[String]`)
-* Add `extraResDirectories` setting for additional overlay-resources. For use
-  with build flavors, etc.
+* `1.4.1`:
+  * add a dex method counter, spits out number of methods in all dex files,
+    aids in deciding when to add additional proguard-cache rules, and switching
+    to/from multi-dex
+  * Enhanced proguard-cache jar processing, no longer messes up conflicting
+    case-sensitive filenames (can now proguard-cache obfuscated jars)
+  * Fix apklibs source generators when using build flavors
+* `1.4.0`:
+  * This version **is not entirely backward compatible** with 1.3.x; `TR.scala`
+    and `proguardCache` have undergone significant changes.
+  * Some code re-organization, internal settings hidden from public view (can
+    still be accessed by defining SettingKey and TaskKey manually as required)
+  * Add `android:bootClasspath` for use with robolectric
+  * Unused resource shrinker, enable with `shrinkResources in Android := true`
+    * Only runs if proguard is run, typically used for clean, release builds.
+    * See the
+      [resource shrinking documentation](http://tools.android.com/tech-docs/new-build-system/resource-shrinking)
+  * Conversion of some settings to tasks: `packageName`, `manifest`,
+    `packageForR`, `versionName`, `versionCode`, `minSdkVersion`,
+    `targetSdkVersion`
+    * See all [available keys](src/keys.scala)
+  * TypedResource improvements, now uses value class extensions for runtime
+    performance improvements (all apps must now use scala 2.10+)
+    * Renamed `TypedViewHolder` in favor of a single `TypedFindView`,
+      removed `TypedView`, `TypedActivity`, `TypedActivityHolder`, `TypedDialog`
+  * Proguard cache improvements, no more `ProguardCache` DSL, instead, add
+    package prefix strings to cache directly to `proguardCache in Android`
+    (`Seq[String]`)
+  * Add `extraResDirectories` setting for additional overlay-resources. For use
+    with build flavors, etc.
 
 ## New features in 1.3.x (last version: 1.3.24) ##
 
@@ -200,7 +208,7 @@ found on the #sbt-android IRC channel on Freenode
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.0")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.1")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -366,7 +374,7 @@ found on the #sbt-android IRC channel on Freenode
     `~/.sbt/0.13/plugins` (for 0.12 and 0.13, respectively)
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.0")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.1")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -387,7 +395,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.0")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.1")
    ```
 
 4. Create a file named `project/build.scala` and add the
@@ -424,9 +432,10 @@ found on the #sbt-android IRC channel on Freenode
 6. If you want android-sdk-plugin to automatically sign release packages
    add the following lines to `local.properties` (or any file.properties of
    your choice that you will not check in to source control):
-   * `key.alias: YOUR-KEY-ALIAS`
+   * `key.alias: KEY-ALIAS`
+   * `key.alias.password: PASSWORD` (optional, defaults to `key.store.password`)
    * `key.store: /path/to/your/.keystore`
-   * `key.store.password: YOUR-KEY-PASSWORD`
+   * `key.store.password: KEYSTORE-PASSWORD`
    * `key.store.type: pkcs12` (optional, defaults to `jks`)
 
 ## Advanced Usage ##
