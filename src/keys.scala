@@ -162,6 +162,7 @@ object Keys {
 
   // dex-related keys
   val dex = TaskKey[File]("dex", "run bytecode dexer")
+  val predex = TaskKey[Seq[(File,File)]]("predex", "pre-dex input libraries task")
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "incremental dex, input jars to dex")
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
    "Maximum heapsize for dex, default 1024m")
@@ -264,6 +265,8 @@ object Keys {
     val setRelease = TaskKey[Unit]("set-release", "set release build")
     val aars = TaskKey[Seq[LibraryDependency]]("aars",
       "unpack the set of referenced aars")
+    val dexOptions = TaskKey[Tasks.DexOpts]("dex-options",
+      "Internal dex-related key consolidating task")
 
     // alias to ease typing
     val packageT = sbt.Keys.`package`

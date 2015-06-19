@@ -4,6 +4,8 @@ import java.util.jar.JarInputStream
 
 import com.android.ide.common.signing.KeystoreHelper
 import com.android.manifmerger.ManifestMerger2
+import com.google.common.base.Charsets
+import com.google.common.hash.Hashing
 import sbt._
 import sbt.Keys._
 import sbt.classpath.ClasspathUtilities
@@ -30,7 +32,7 @@ import com.android.ide.common.res2.FileValidity
 import com.android.ide.common.res2.MergedResourceWriter
 import com.android.ide.common.res2.ResourceMerger
 import com.android.ide.common.res2.ResourceSet
-import com.android.sdklib.IAndroidTarget
+import com.android.sdklib.{SdkVersionInfo, IAndroidTarget}
 import com.android.sdklib.BuildToolInfo.PathId
 import com.android.sdklib.build.RenderScriptProcessor
 import com.android.sdklib.build.RenderScriptProcessor.CommandLineLauncher
@@ -673,14 +675,14 @@ object Tasks {
                         , thisProjectRef
                         , resourceShrinker
                         , dex
+                        , predex
                         , unmanagedJars in Compile
                         , managedClasspath
                         , dependencyClasspath in Compile
                         , collectJni
-                        , apkbuildDebug
                         , streams
                         ) map {
-    (bldr, st, prj, r, d, u, m, dcp, jni, debug, s) =>
+    (bldr, st, prj, r, d, pd, u, m, dcp, jni, s) =>
     val extracted = Project.extract(st)
     import extracted._
 
@@ -689,7 +691,9 @@ object Tasks {
     val fsts = get(apkbuildPickFirsts in (prj, Android))
     val layout = get(projectLayout in (prj, Android))
     val logger = get(ilogger in (prj, Android))
+    val debug = get(apkbuildDebug in (prj, Android))
     val cacheDir = s.cacheDirectory
+    val predexed = pd flatMap (_._2 * "*.dex" get)
 
     val jars = (m ++ u ++ dcp).filter {
       a => (a.get(moduleID.key) map { mid =>
@@ -735,7 +739,6 @@ object Tasks {
     // they should not be changing on us anyway
     val deps = Set(r +: ((d * "*.dex" get) ++ jars ++ jni):_*)
 
-
     FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
       val options = new PackagingOptions {
         override def getExcludes = excl.toSet.asJava
@@ -749,11 +752,12 @@ object Tasks {
           if (debug()) debugConfig else null, output.getAbsolutePath,
           options
       ))
-      bldr.packageApk(r.getAbsolutePath, d, Seq.empty[File], jars,
+      bldr.packageApk(r.getAbsolutePath, d, predexed, jars,
         layout.resources.getAbsolutePath,
         (if (collectedJni.exists) Seq(collectedJni) else Seq.empty).asJava,
         null, debug(),
         if (debug()) debugConfig else null, options, output.getAbsolutePath)
+      s.log.debug("Including predexed: " + predexed)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))
       Set(output)
@@ -1118,7 +1122,12 @@ object Tasks {
                          , streams) map {
     (progOut, in, progCache, prj, re, multiDex, b, deps, classJar, st, s) =>
 
-      val debug = Project.extract(st).get(apkbuildDebug in (prj, Android))
+      val extracted = Project.extract(st)
+      val debug = extracted.get(apkbuildDebug in (prj, Android))
+      val proguardRelease = extracted.get(useProguard in (prj, Android))
+      val proguardDebug = extracted.get(useProguardInDebug in (prj, Android))
+
+      val proguarding = (proguardDebug && debug()) || (proguardRelease && !debug())
       // TODO use getIncremental in DexOptions instead
       val proguardedDexMarker = b / ".proguarded-dex"
       // disable incremental dex on first proguardcache-hit run
@@ -1130,11 +1139,12 @@ object Tasks {
       } getOrElse {
         proguardedDexMarker.delete()
         // TODO cache the jar file listing
-        def nonCachedDeps = deps filter (_.data.isFile) filterNot ( file => listjar(file) exists (inPackages(_, progCache)))
-        val dexingDeps = if (multiDex) deps else nonCachedDeps
+        def dexingDeps = deps filter (_.data.isFile) filterNot (file =>
+          progCache.nonEmpty && proguarding && (listjar(file) exists (inPackages(_, progCache))))
+//        val dexingDeps = if (multiDex) deps else nonCachedDeps
         val inputs = dexingDeps.collect {
           // no proguard? then we still able dex scala with multidex
-          case x if x.data.getName.startsWith("scala-library") && multiDex =>
+          case x if x.data.getName.startsWith("scala-library") && (!proguarding || multiDex) =>
             x.data.getCanonicalFile
           case x if x.data.getName.endsWith(".jar") =>
             x.data.getCanonicalFile
@@ -1149,18 +1159,35 @@ object Tasks {
       (incrementalDex && !proguardedDexMarker.exists) -> jarsToDex
   }
 
+  private[android] case class DexOpts(inputs: (Boolean,Seq[File]),
+                                         maxHeap: String,
+                                         multi: Boolean,
+                                         mainFileClassesConfig: File,
+                                         minimizeMainFile: Boolean,
+                                         additionalParams: Seq[String])
+  val dexOptionsTaskDef = Def.task {
+    DexOpts(dexInputs.value, dexMaxHeap.value, dexMulti.value,
+      dexMainFileClassesConfig.value, dexMinimizeMainFile.value,
+      dexAdditionalParams.value)
+  }
+
   val dexTaskDef = ( builder
-                   , dexInputs
-                   , dexMaxHeap
-                   , dexMulti
-                   , dexMainFileClassesConfig
-                   , dexMinimizeMainFile
-                   , dexAdditionalParams
+                   , dexOptions
+                   , predex
+                   , proguard
+                   , classesJar
+                   , minSdkVersion
                    , libraryProject
                    , binPath
                    , apkbuildDebug
                    , streams) map {
-    case (bldr, (incr, inputs), xmx, multiDex, mainDexListTxt, minMainDex, additionalParams, lib, bin, debug, s) =>
+    case (bldr, dexOpts, pd, pg, classes, minSdk, lib, bin, debug, s) =>
+      val xmx = dexOpts.maxHeap
+      val (incr, inputs) = dexOpts.inputs
+      val multiDex = dexOpts.multi
+      val mainDexListTxt = dexOpts.mainFileClassesConfig
+      val minMainDex = dexOpts.minimizeMainFile
+      val additionalParams = dexOpts.additionalParams
       val incremental = incr && !multiDex
       if (!incremental && inputs.exists(_.getName.startsWith("proguard-cache"))) {
         s.log.debug("Cleaning dex files for proguard cache and incremental dex")
@@ -1182,12 +1209,63 @@ object Tasks {
       def minimalMainDexParam = if (minMainDex) "--minimal-main-dex" else ""
       val additionalDexParams = (additionalParams.toList :+ minimalMainDexParam).distinct.filterNot(_.isEmpty)
 
-      bldr.convertByteCode(inputs filter (_.isFile), Seq.empty[File], bin,
+      val dexIn = (inputs filter (_.isFile)) filterNot (pd map (_._1) contains _)
+      val predex2 = pd map (_._2 / "classes.dex")
+      s.log.debug("DEX IN: " + dexIn)
+      s.log.debug("PRE-DEXED: " + predex2)
+      bldr.convertByteCode(dexIn, predex2, bin,
         multiDex, multiDex, mainDexListTxt,
         options, additionalDexParams, tmp, incremental, !debug())
       s.log.info("dex method count: " + ((bin * "*.dex" get) map(dexMethodCount(_, s.log))).sum)
 
       bin
+  }
+
+  val predexTaskDef = Def.task {
+    val opts = dexOptions.value
+    val inputs = opts.inputs._2
+    val multiDex = opts.multi
+    val minSdk = minSdkVersion.value
+    val classes = classesJar.value
+    val pg = proguard.value
+    val bldr = builder.value
+    val s = streams.value
+    val bin = binPath.value
+    val minLevel = Try(minSdk.toInt).toOption getOrElse
+      SdkVersionInfo.getApiByBuildCode(minSdk, true)
+    val options = new DexOptions {
+      override def getIncremental = false
+      override def getJavaMaxHeapSize = opts.maxHeap
+      override def getPreDexLibraries = false
+      override def getJumboMode = false
+      override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+    }
+    if (minLevel >= 21 && multiDex) {
+      inputs filterNot (i => i == classes || pg.exists(_ == i)) map { i =>
+        val out = predexFileOutput(bin, i)
+        if ((out / "classes.dex").lastModified < i.lastModified) {
+          s.log.info("Pre-dexing: " + i.getName)
+          bldr.preDexLibrary(i, out, multiDex, options)
+        }
+        (i,out)
+      }
+    } else Nil
+  }
+
+  def predexFileOutput(binPath: File, inFile: File) = {
+    val n = inFile.getName
+    val pos = n.lastIndexOf('.')
+
+    val name = if (pos != -1) n.substring(0, pos) else n
+
+    // add a hash of the original file path.
+    val input = inFile.getAbsolutePath
+    val hashFunction = Hashing.sha1
+    val hashCode = hashFunction.hashString(input, Charsets.UTF_16LE)
+
+    val f = new File(binPath, name + "-" + hashCode.toString + SdkConstants.DOT_JAR)
+    f.mkdirs()
+    f
   }
 
   // see https://source.android.com/devices/tech/dalvik/dex-format.html
