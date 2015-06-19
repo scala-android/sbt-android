@@ -1141,9 +1141,7 @@ object Tasks {
         // TODO cache the jar file listing
         def dexingDeps = deps filter (_.data.isFile) filterNot (file =>
           progCache.nonEmpty && proguarding && (listjar(file) exists (inPackages(_, progCache))))
-//        val dexingDeps = if (multiDex) deps else nonCachedDeps
         val inputs = dexingDeps.collect {
-          // no proguard? then we still able dex scala with multidex
           case x if x.data.getName.startsWith("scala-library") && (!proguarding || multiDex) =>
             x.data.getCanonicalFile
           case x if x.data.getName.endsWith(".jar") =>
@@ -1210,7 +1208,7 @@ object Tasks {
       val additionalDexParams = (additionalParams.toList :+ minimalMainDexParam).distinct.filterNot(_.isEmpty)
 
       val dexIn = (inputs filter (_.isFile)) filterNot (pd map (_._1) contains _)
-      val predex2 = pd map (_._2 / "classes.dex")
+      val predex2 = pd flatMap (_._2 * "*.dex" get)
       s.log.debug("DEX IN: " + dexIn)
       s.log.debug("PRE-DEXED: " + predex2)
       bldr.convertByteCode(dexIn, predex2, bin,
@@ -1243,7 +1241,7 @@ object Tasks {
     if (minLevel >= 21 && multiDex) {
       inputs filterNot (i => i == classes || pg.exists(_ == i)) map { i =>
         val out = predexFileOutput(bin, i)
-        if ((out / "classes.dex").lastModified < i.lastModified) {
+        if ((out * "*.dex" get) exists (_.lastModified < i.lastModified)) {
           s.log.info("Pre-dexing: " + i.getName)
           bldr.preDexLibrary(i, out, multiDex, options)
         }
