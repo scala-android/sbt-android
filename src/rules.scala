@@ -114,6 +114,8 @@ object Plugin extends sbt.Plugin {
     sourceManaged              <<= (projectLayout in Android) (_.gen),
     unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
       Set(l.sources, l.javaSource, l.scalaSource).toSeq),
+    // was necessary prior to 0.13.8 to squelch "No main class detected" warning
+    //packageOptions in packageBin := Package.JarManifest(new java.util.jar.Manifest) :: Nil,
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
                                            , baseDirectory
                                            , libraryProject in Android
