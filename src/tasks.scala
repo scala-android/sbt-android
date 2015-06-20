@@ -1241,7 +1241,9 @@ object Tasks {
     if (minLevel >= 21 && multiDex) {
       inputs filterNot (i => i == classes || pg.exists(_ == i)) map { i =>
         val out = predexFileOutput(bin, i)
-        if ((out * "*.dex" get) exists (_.lastModified < i.lastModified)) {
+        val predexed = out * "*.dex" get
+
+        if (predexed.isEmpty || predexed.exists (_.lastModified < i.lastModified)) {
           s.log.info("Pre-dexing: " + i.getName)
           bldr.preDexLibrary(i, out, multiDex, options)
         }
