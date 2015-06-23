@@ -461,7 +461,6 @@ found on the #sbt-android IRC channel on Freenode
     `android-sdk-plugin`. The process generally works well, however there
     are still several caveats:
     * The `idea-sbt-plugin` is still required to actually perform the build
-      (no longer necessary as of IDEA 14.1)
     * `classDirectory in Compile` is not automatically included as a library,
       as a result apklib classes will not resolve unless it is added manually
       (`bin/classes` or `target/android-bin/classes`) as a library.
