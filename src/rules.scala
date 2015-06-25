@@ -441,20 +441,20 @@ object Plugin extends sbt.Plugin {
     apkbuild                <<= apkbuildTaskDef,
     apkbuild                <<= apkbuild dependsOn (managedResources in Compile),
     apkSigningConfig        <<= properties { p =>
-      (for {
+      def makeSigningConfig(alias: String, store: String, passwd: String) = {
+        val c = PlainSigningConfig(file(store), passwd, alias)
+        val c2 = Option(p.getProperty("key.store.type")).fold(c) { t =>
+          c.copy(storeType = t)
+        }
+        Option(p.getProperty("key.alias.password")).fold(c2) { p =>
+          c2.copy(keyPass = Some(p))
+        }
+      }
+      for {
         a <- Option(p.getProperty("key.alias"))
         b <- Option(p.getProperty("key.store"))
         c <- Option(p.getProperty("key.store.password"))
-      } yield (a,b,c)) flatMap {
-        case (alias, store, passwd) =>
-          val c = PlainSigningConfig(file(store), passwd, alias)
-          val c2 = Option(p.getProperty("key.store.type")) map { t =>
-            c.copy(storeType = t)
-          } getOrElse c
-          Option(p.getProperty("key.alias.password")) map { p =>
-            c2.copy(keyPass = Some(p))
-          } orElse Some(c2)
-      }
+      } yield makeSigningConfig(a,b,c)
     },
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
