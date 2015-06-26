@@ -485,32 +485,40 @@ object Commands {
           pkgOpt foreach { p => if (pkg contains p) pids -= pid.trim}
         }
 
-        override def addOutput(data: Array[Byte], off: Int, len: Int) =
+        override def addOutput(data: Array[Byte], off: Int, len: Int) = {
           b.append(new String(data, off, len))
+          val lastNL = b.lastIndexOf("\n")
+          if (lastNL != -1) {
+            b.mkString.split("\\n") foreach logLine
+            b.delete(0, lastNL + 1)
+          }
+        }
 
-        override def flush() {
-          b.toString().split("\\n").foreach { l =>
-            if (l.trim.length > 0) {
-              l.trim match {
-                case LOG_LINE(level, tag, pid, msg) =>
-                  if (tag == "ActivityManager") {
-                    msg match {
-                      case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
-                      case PID_KILL(pid2, pkg, _) => remPid(pkg, pid2)
-                      case PID_LEAVE(pkg, pid2) => remPid(pkg, pid2)
-                      case PID_DEATH(pkg, pid2) => remPid(pkg, pid2)
-                      case _ =>
-                    }
-                  } else if (pids(pid.trim)) {
-                    if (tags.isEmpty)
-                      state.log.info(l.trim)
-                    else if (tags exists tag.contains)
-                      state.log.info(l.trim)
+        private def logLine(l: String): Unit = {
+          if (l.trim.length > 0) {
+            l.trim match {
+              case LOG_LINE(level, tag, pid, msg) =>
+                if (tag == "ActivityManager") {
+                  msg match {
+                    case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
+                    case PID_KILL(pid2, pkg, _) => remPid(pkg, pid2)
+                    case PID_LEAVE(pkg, pid2) => remPid(pkg, pid2)
+                    case PID_DEATH(pkg, pid2) => remPid(pkg, pid2)
+                    case _ =>
                   }
-                case _ => state.log.debug(l.trim)
-              }
+                } else if (pids(pid.trim)) {
+                  if (tags.isEmpty)
+                    state.log.info(l.trim)
+                  else if (tags exists tag.contains)
+                    state.log.info(l.trim)
+                }
+              case _ => state.log.debug(l.trim)
             }
           }
+
+        }
+        override def flush() {
+          b.toString().split("\\n") foreach logLine
           b.clear()
         }
 
@@ -527,8 +535,14 @@ object Commands {
     val receiver = new IShellOutputReceiver() {
       val b = new StringBuilder
 
-      override def addOutput(data: Array[Byte], off: Int, len: Int) =
+      override def addOutput(data: Array[Byte], off: Int, len: Int) = {
         b.append(new String(data, off, len))
+        val lastNL = b.lastIndexOf("\n")
+        if (lastNL != -1) {
+          b.mkString.split("\\n") foreach (l => state.log.info(l))
+          b.delete(0, lastNL + 1)
+        }
+      }
 
       override def flush() {
         b.toString().split("\\n").foreach { l => state.log.info(l) }
