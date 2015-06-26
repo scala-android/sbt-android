@@ -1449,12 +1449,11 @@ object Tasks {
 
     type TestMetrics = java.util.Map[String,String]
     override def testRunStarted(name: String, count: Int) {
-      log.info("testing %s (tests: %d)" format (name, count - 1))
+      log.info("testing %s (tests: %d)" format (name, count))
     }
 
     override def testStarted(id: TestIdentifier) {
-      if ("testAndroidTestCaseSetupProperly" != id.getTestName)
-        log.info(" - " + id.getTestName)
+      log.info(" - " + id.getTestName)
     }
 
     override def testEnded(id: TestIdentifier, metrics: TestMetrics) {
