@@ -1,6 +1,6 @@
 # Android SDK Plugin for SBT #
 
-Current version is 1.4.2
+Current version is 1.4.3
 
 ## Description ##
 
@@ -34,6 +34,11 @@ found on the #sbt-android IRC channel on Freenode
 
 ## New features in 1.4.x ##
 
+* `1.4.3`:
+  * `logcat` and `pidcat` performance improvements
+  * minor signing config fixes (fix clobbering of settings, only prompt
+    passwords once)
+  * Instrumentation testing: do not squelch `testAndroidTestCaseSetUpProperly`
 * `1.4.2`:
   * multidex updates
     * Allow proguard/proguardCache in conjunction with multidex
@@ -213,7 +218,7 @@ found on the #sbt-android IRC channel on Freenode
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
   * For sbt 0.12, add to `~/.sbt/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.2")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.3")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -379,7 +384,7 @@ found on the #sbt-android IRC channel on Freenode
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.2")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.3")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -400,7 +405,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.2")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.3")
    ```
 
 4. Create a file named `project/build.scala` and add the
