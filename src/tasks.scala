@@ -342,7 +342,7 @@ object Tasks {
   }
 
   def ndkbuild(layout: ProjectLayout,
-               ndkHome: Option[String], srcs: File, log: Logger) = {
+               ndkHome: Option[String], srcs: File, log: Logger, debug: Boolean) = {
     val hasJni = (layout.jni ** "Android.mk" get).size > 0
     if (hasJni) {
       if (ndkHome.isEmpty) {
@@ -360,8 +360,12 @@ object Tasks {
           val f = file(ndk) / "ndk-build.cmd"
           if (f.exists) f else file(ndk) / "ndk-build.bat"
         }
+        val ndkBuildInvocation = Seq(
+          ndkbuildFile.getAbsolutePath,
+          if (debug) "NDK_DEBUG=1" else "NDK_DEBUG=0"
+        )
 
-        val rc = Process(ndkbuildFile.getAbsolutePath, layout.base, env: _*) !
+        val rc = Process(ndkBuildInvocation, layout.base, env: _*) !
 
         if (rc != 0)
           Plugin.fail("ndk-build failed!")
@@ -402,13 +406,14 @@ object Tasks {
                         , ndkJavah
                         , properties
                         , streams
-                        ) map { (layout, libs, srcs, h, p, s) =>
+                        , apkbuildDebug
+                        ) map { (layout, libs, srcs, h, p, s, debug) =>
     val ndkHome = Option(System.getenv("ANDROID_NDK_HOME")) orElse Option(
       p getProperty "ndk.dir")
 
-    val subndk = libs map { l => ndkbuild(l.layout, ndkHome, srcs, s.log) }
+    val subndk = libs map { l => ndkbuild(l.layout, ndkHome, srcs, s.log, debug()) }
 
-    Seq(ndkbuild(layout, ndkHome, srcs, s.log)).flatten ++ subndk.flatten
+    Seq(ndkbuild(layout, ndkHome, srcs, s.log, debug())).flatten ++ subndk.flatten
   }
 
   val collectProjectJniTaskDef = Def.task {
@@ -711,13 +716,14 @@ object Tasks {
       collectedJni.mkdirs()
       val copyList = for {
         j <- jni
-        l <- j ** "*.so" get
+        l <- (j ** "*.so").get ++ (j ** "gdbserver").get ++ (j ** "gdb.setup").get
       } yield (l, collectedJni / (l relativeTo j).get.getPath)
 
       IO.copy(copyList)
     } else {
       IO.delete(collectedJni)
     }
+    val jniInputs = (collectedJni ** new SimpleFileFilter(_.isFile())).get
     // end workaround
 
     s.log.debug("jars to process for resources: " + jars)
@@ -737,7 +743,7 @@ object Tasks {
 
     // filtering out org.scala-lang above should not cause an issue
     // they should not be changing on us anyway
-    val deps = Set(r +: ((d * "*.dex" get) ++ jars ++ jni):_*)
+    val deps = Set(r +: ((d * "*.dex" get) ++ jars ++ jniInputs):_*)
 
     FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
       val options = new PackagingOptions {
