@@ -141,7 +141,7 @@ object Plugin extends sbt.Plugin {
       })
       val layout = (projectLayout in Android).value
       val extras = (extraResDirectories in Android).value
-      (layout.jni +: layout.res +: extras) flatMap { path =>
+      (layout.testSources +: layout.jni +: layout.res +: extras) flatMap { path =>
         (path ** filter) get }
     },
     unmanagedJars     <<= unmanagedJarsTaskDef,
