@@ -39,6 +39,10 @@ object MyProjectBuild extends Build {
   lazy val appSettings = android.Plugin.androidBuild(guidemate_lib) ++
     List(localProjects in Android += LibraryProject(guidemate_lib.base),
         platformTarget in Android := "android-17",
+        useProguard in Android := true,
+        useProguardInDebug in Android := true,
+        proguardScala in Android := true,
+        proguardOptions in Android += "-dontwarn **",
         apkbuildExcludes in Android ++= Seq("META-INF/LICENSE.txt",
           "META-INF/NOTICE.txt"))
 }

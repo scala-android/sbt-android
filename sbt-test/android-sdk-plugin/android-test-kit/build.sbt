@@ -11,3 +11,5 @@ libraryDependencies in flavor1 ++=
   Nil
 
 apkbuildExcludes in (flavor1,Android) += "LICENSE.txt"
+
+autoScalaLibrary := false
