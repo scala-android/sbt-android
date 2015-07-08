@@ -13,7 +13,7 @@ import net.orfjackal.retrolambda.{Main => RMain, Config => RConfig, Retrolambda}
  */
 object RetrolambdaSupport {
   def isAvailable = RMain.isRunningJava8
-  def process(target: File, classpath: Seq[File], st: State, prj: ProjectRef,
+  def apply(target: File, classpath: Seq[File], st: State, prj: ProjectRef,
               s: sbt.Keys.TaskStreams): Seq[File] = synchronized {
     import collection.JavaConversions._
     val e = Project.extract(st)

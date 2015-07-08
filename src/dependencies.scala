@@ -62,7 +62,7 @@ object Dependencies {
 
     // apklib are always ant-style layouts
     override lazy val layout = ProjectLayout.Ant(path)
-    lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
+    lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
 
     override def getJniFolder = layout.libs
     override def getSymbolFile = path / "gen" / "R.txt"
@@ -109,7 +109,7 @@ object Dependencies {
   }
   class AutoLibraryProject(override val path: File)
   extends LibraryProject(path) with Pkg {
-    lazy val pkg = XML.loadFile(getManifest).attribute("package").get(0).text
+    lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
 
     override def equals(obj: scala.Any) = obj match {
       case l: LibraryProject =>

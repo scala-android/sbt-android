@@ -13,7 +13,6 @@ import sbt.classpath.ClasspathUtilities
 import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 import scala.util.Try
-import scala.util.control.Exception._
 import scala.xml._
 
 import java.util.Properties
@@ -86,7 +85,7 @@ object Tasks {
     val b = new BuildConfigGenerator(g, p)
     b.addField("boolean", "DEBUG", d.toString)
     o foreach {
-      case (tpe, name, value) => b.addField(tpe, name, value)
+      case (tpe, n, value) => b.addField(tpe, n, value)
     }
     b.generate()
     l collect {
@@ -96,7 +95,7 @@ object Tasks {
       val b = new BuildConfigGenerator(g, lib.pkg)
       b.addField("boolean", "DEBUG", d.toString)
       o foreach {
-        case (tpe, name, value) => b.addField(tpe, name, value)
+        case (tpe, n, value) => b.addField(tpe, n, value)
       }
       b.generate()
     }
@@ -284,17 +283,17 @@ object Tasks {
               Seq("android.widget."
                 , "android.view."
                 , "android.webkit.").flatMap {
-                pkg =>
-                catching(classOf[ClassNotFoundException]) opt {
-                  androidjar.loadClass(pkg + l).getName
-                }
+                pkg => Try(androidjar.loadClass(pkg + l).getName).toOption
               }.headOption
             }
           }
 
           def warn(res: Seq[(String,String)]) = {
-            // TODO merge to a common ancestor
-            //   To View for views or ViewGroup for layouts
+            // nice to have:
+            //   merge to a common ancestor, this is possible for androidJar
+            //   but to do so is perilous/impossible for project code...
+            // instead:
+            //   reduce to ViewGroup for *Layout, and View for everything else
             val overrides = res.groupBy(r => r._1) filter (
               _._2.toSet.size > 1) collect {
               case (k,v) =>
@@ -343,7 +342,7 @@ object Tasks {
 
   def ndkbuild(layout: ProjectLayout,
                ndkHome: Option[String], srcs: File, log: Logger, debug: Boolean) = {
-    val hasJni = (layout.jni ** "Android.mk" get).size > 0
+    val hasJni = (layout.jni ** "Android.mk" get).nonEmpty
     if (hasJni) {
       if (ndkHome.isEmpty) {
         log.warn(
@@ -382,9 +381,9 @@ object Tasks {
                         , builder
                         , streams
                         ) map { (src, c, classes, cp, bldr, s) =>
-    val natives = NativeFinder.natives(classes)
+    val natives = NativeFinder(classes)
 
-    if (natives.size > 0) {
+    if (natives.nonEmpty) {
       val javah = Seq("javah",
         "-d", src.getAbsolutePath,
         "-classpath", cp map (_.data.getAbsolutePath) mkString File.pathSeparator,
@@ -712,7 +711,7 @@ object Tasks {
 
     // workaround for https://code.google.com/p/android/issues/detail?id=73437
     val collectedJni = layout.bin / "collect-jni"
-    if (jni.size > 0) {
+    if (jni.nonEmpty) {
       collectedJni.mkdirs()
       val copyList = for {
         j <- jni
@@ -723,7 +722,7 @@ object Tasks {
     } else {
       IO.delete(collectedJni)
     }
-    val jniInputs = (collectedJni ** new SimpleFileFilter(_.isFile())).get
+    val jniInputs = (collectedJni ** new SimpleFileFilter(_.isFile)).get
     // end workaround
 
     s.log.debug("jars to process for resources: " + jars)
@@ -1031,7 +1030,7 @@ object Tasks {
     val all = collectdeps(libs) ++ libs
     logger.debug("All libs: " + all)
     logger.debug("All packages: " + (all map { l =>
-      XML.loadFile(l.getManifest).attribute("package").get(0).text
+      XML.loadFile(l.getManifest).attribute("package").head.text
     }))
     logger.debug("packageForR: " + pkg)
     logger.debug("proguard.txt: " + proguardTxt)
@@ -1052,7 +1051,7 @@ object Tasks {
   }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
-    val deps = libs map (_.getDependencies) flatten
+    val deps = libs flatMap (_.getDependencies)
 
     if (libs.isEmpty) Seq.empty else collectdeps(deps) ++ deps
   }
@@ -1155,7 +1154,7 @@ object Tasks {
         } ++ in.proguardCache :+ classJar
         // TODO may fail badly in the presence of proguard-cache?
         if (re && RetrolambdaSupport.isAvailable)
-          RetrolambdaSupport.process(b, inputs, st, prj, s)
+          RetrolambdaSupport(b, inputs, st, prj, s)
         else inputs
       }
 
@@ -1350,7 +1349,7 @@ object Tasks {
         todep foreach { case (dep,j) =>
           st.log.info("Finding dependency references for: " +
             (j.get(moduleID.key) getOrElse j.data.getName))
-          IO.write(dep, ReferenceFinder.references(j.data, pc) mkString "\n")
+          IO.write(dep, ReferenceFinder(j.data, pc) mkString "\n")
         }
 
         val alldeps = (indeps flatMap {
@@ -1417,7 +1416,7 @@ object Tasks {
       val libjars = inputs.libraryjars
       val pjars = inputs.injars map (_.data)
       val jars = if (re && RetrolambdaSupport.isAvailable)
-        RetrolambdaSupport.process(b, pjars, st, prj, s) else pjars
+        RetrolambdaSupport(b, pjars, st, prj, s) else pjars
       val t = b / "classes.proguard.jar"
       if (jars exists { _.lastModified > t.lastModified }) {
         val injars = "-injars " + (jars map {
@@ -1568,7 +1567,7 @@ object Tasks {
       val tmp = cache / "test-dex"
       tmp.mkdirs()
       val inputs = if (re && RetrolambdaSupport.isAvailable) {
-        RetrolambdaSupport.process(classes, deps map (_.data), st, prj, s)
+        RetrolambdaSupport(classes, deps map (_.data), st, prj, s)
       } else {
         Seq(classes) ++ (deps map (_.data))
       }
@@ -1599,7 +1598,7 @@ object Tasks {
     ()
   }
 
-  lazy val testOnlyTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
+  val testOnlyTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     val layout = projectLayout.value
     val prj = thisProjectRef.value
     val noTestApk = debugIncludesTests.value
@@ -1677,7 +1676,7 @@ object Tasks {
       override def isCancelled = false
     }
     val intent = testPackage + "/" + runner
-    Commands.targetDevice(sdk, s.log) map { d =>
+    Commands.targetDevice(sdk, s.log) foreach { d =>
       val selection = testSelection map { "-e " + _ } getOrElse ""
       val command = "am instrument -r -w %s %s" format(selection, intent)
       s.log.debug("Executing [%s]" format command)
@@ -1697,17 +1696,15 @@ object Tasks {
     }
   }
 
-  def runTaskDef(install: TaskKey[Unit],
-      sdkPath: SettingKey[String],
-      layout: SettingKey[ProjectLayout],
-      packageName: TaskKey[String]) = inputTask { result =>
-    (install, sdkPath, layout, packageName, result, streams) map {
-      (_, k, l, p, r, s) =>
+  val runTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
+    (install, sdkPath, projectLayout, packageName, streams) map {
+      (_, k, l, p, s) =>
 
+      val r = Def.spaceDelimited().parsed.mkString(" ")
       val manifestXml = l.bin / "AndroidManifest.xml"
       val m = XML.loadFile(manifestXml)
       // if an arg is specified, try to launch that
-      (if (r.isEmpty) None else Some(r(0))) orElse ((m \\ "activity") find {
+      (if (r.isEmpty) None else r.headOption) orElse ((m \\ "activity") find {
         // runs the first-found activity
         a => (a \ "intent-filter") exists { filter =>
           val attrpath = "@{%s}name" format ANDROID_NS
@@ -1717,30 +1714,31 @@ object Tasks {
         val name = activity.attribute(ANDROID_NS, "name") get 0 text
 
         "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
-      }) map { intent =>
-        val receiver = new IShellOutputReceiver() {
-          val b = new StringBuilder
-          override def addOutput(data: Array[Byte], off: Int, len: Int) =
-            b.append(new String(data, off, len))
-          override def flush() {
-            s.log.info(b.toString())
-            b.clear()
+      }) match {
+        case Some(intent) =>
+          val receiver = new IShellOutputReceiver() {
+            val b = new StringBuilder
+            override def addOutput(data: Array[Byte], off: Int, len: Int) =
+              b.append(new String(data, off, len))
+            override def flush() {
+              s.log.info(b.toString())
+              b.clear()
+            }
+            override def isCancelled = false
           }
-          override def isCancelled = false
-        }
-        Commands.targetDevice(k, s.log) map { d =>
-          val command = "am start -n %s" format intent
-          s.log.debug("Executing [%s]" format command)
-          d.executeShellCommand(command, receiver)
+          Commands.targetDevice(k, s.log) foreach { d =>
+            val command = "am start -n %s" format intent
+            s.log.debug("Executing [%s]" format command)
+            d.executeShellCommand(command, receiver)
 
-          if (receiver.b.toString().length > 0)
-            s.log.info(receiver.b.toString())
+            if (receiver.b.toString().length > 0)
+              s.log.info(receiver.b.toString())
 
-          s.log.debug("run command executed")
-        }
-      } getOrElse {
-        Plugin.fail(
-          "No activity found with action 'android.intent.action.MAIN'")
+            s.log.debug("run command executed")
+          }
+        case None =>
+          Plugin.fail(
+            "No activity found with action 'android.intent.action.MAIN'")
       }
 
       ()
@@ -1818,10 +1816,10 @@ object Tasks {
   Seq[AutoLibraryProject] = {
     (p.stringPropertyNames.collect {
         case k if k.startsWith("android.library.reference") => k
-      }.toList.sortWith { (a,b) => a < b } map { k =>
+      }.toList.sortWith { (a,b) => a < b } flatMap { k =>
         AutoLibraryProject(b/p(k)) +:
           loadLibraryReferences(b/p(k), loadProperties(b/p(k)), k)
-      } flatten) distinct
+      }) distinct
   }
 
   def loadProperties(path: File): Properties = {

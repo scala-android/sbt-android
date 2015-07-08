@@ -9,12 +9,12 @@ import org.objectweb.asm.signature.SignatureVisitor
 
 import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
-import java.lang.reflect.{Method, InvocationHandler, Proxy}
+import java.lang.reflect.Method
 import java.util.jar.JarInputStream
 
 object ReferenceFinder {
 
-  def references(jar: File, prefixes: Seq[String]): Seq[String] = {
+  def apply(jar: File, prefixes: Seq[String]): Seq[String] = {
     var current: String = null
     var map: Map[String,Set[String]] = Map.empty
 

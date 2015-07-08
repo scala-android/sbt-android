@@ -6,13 +6,12 @@ import sbt._
 
 import org.objectweb.asm._
 
-import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.lang.reflect.Method
 
 object NativeFinder {
 
-  def natives(classDir: File): Seq[String] = {
+  def apply(classDir: File): Seq[String] = {
     var current: String = null
     var nativeList = Seq.empty[String]
 
@@ -30,7 +29,6 @@ object NativeFinder {
             }
           case "visitMethod" =>
             val access = args(0).asInstanceOf[Int]
-            val name = args(1).toString
             if ((access & Opcodes.ACC_NATIVE) != 0) {
               nativeList +:= current.replaceAll("/", ".")
             }
@@ -40,10 +38,7 @@ object NativeFinder {
       }
     }
     factory.create(Array(classOf[Int]), Array(Opcodes.ASM4.asInstanceOf[AnyRef]), h) match {
-      case x: ClassVisitor => {
-        val readbuf = Array.ofDim[Byte](16384)
-        val buf = new ByteArrayOutputStream
-
+      case x: ClassVisitor =>
         (classDir ** "*.class" get) foreach { entry =>
           val in = new FileInputStream(entry)
           val r = new ClassReader(in)
@@ -52,7 +47,6 @@ object NativeFinder {
         }
 
         nativeList.distinct
-      }
     }
   }
 }

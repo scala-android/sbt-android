@@ -1,7 +1,5 @@
 package android
 
-import sbt.Keys.TaskStreams
-
 import dispatch._, Defaults._
 import argonaut._, Argonaut._
 import sbt.{Level, Logger}
@@ -9,7 +7,7 @@ import sbt.{Level, Logger}
 object UpdateChecker {
   val bintray = url(
     "https://api.bintray.com/packages/pfn/sbt-plugins/android-sdk-plugin")
-  def checkCurrent(log: Logger): Unit = {
+  def apply(log: Logger): Unit = {
     Http(bintray OK as.String) onSuccess {
       case json => json.decodeOption[PackageInfo] foreach { info =>
         // only notify if running a published version
@@ -25,17 +23,6 @@ object UpdateChecker {
         }
       }
     }
-  }
-
-  def checkCurrent(): Unit = {
-    object L extends Logger {
-      override def trace(t: => Throwable) = ???
-
-      override def log(level: Level.Value, msg: => String) = println(s"[$level] $msg")
-
-      override def success(message: => String) = ???
-    }
-    checkCurrent(L)
   }
 
   implicit def PackageInfoCodecJson: CodecJson[PackageInfo] = casecodec3(

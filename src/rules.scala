@@ -11,7 +11,7 @@ import sbt.Keys._
 
 import com.android.builder.core.AndroidBuilder
 import com.android.builder.sdk.DefaultSdkLoader
-import com.android.sdklib.{BuildToolInfo, AndroidTargetHash, IAndroidTarget, SdkManager}
+import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkManager}
 import com.android.sdklib.repository.FullRevision
 import com.android.SdkConstants
 import com.android.utils.ILogger
@@ -108,7 +108,7 @@ object Plugin extends sbt.Plugin {
       c
     },
     update                     <<= (update, state) map { (u, s) =>
-      UpdateChecker.checkCurrent(s.log)
+      UpdateChecker(s.log)
       u
     },
     sourceManaged              <<= (projectLayout in Android) (_.gen),
@@ -259,7 +259,7 @@ object Plugin extends sbt.Plugin {
       val extra =
         if (crossPaths.value) s"_${scalaBinaryVersion.value}"
         else ""
-      s"inc_compile${extra}"
+      s"inc_compile$extra"
     },
     sources <<= Classpaths.concat(unmanagedSources, managedSources),
       // productX := Nil is a necessity to use Classpaths.configSettings
@@ -303,10 +303,7 @@ object Plugin extends sbt.Plugin {
     test                    <<= testTaskDef,
     test                    <<= test dependsOn (compile in Android, install),
     testOnly                <<= testOnlyTaskDef,
-    run                     <<= runTaskDef( install
-                                          , sdkPath
-                                          , projectLayout
-                                          , packageName),
+    run                     <<= runTaskDef,
     cleanForR               <<= (rGenerator
                                 , genPath
                                 , classDirectory in Compile
@@ -410,10 +407,10 @@ object Plugin extends sbt.Plugin {
     proguardInputs          <<= proguardInputsTaskDef,
     proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),
     proguardScala           <<= (scalaSource in Compile) {
-      s => (s ** "*.scala").get.size > 0
+      s => (s ** "*.scala").get.nonEmpty
     },
     retrolambdaEnable       <<= (javaSource in Compile) {
-      s => (s ** "*.java").get.size > 0 && RetrolambdaSupport.isAvailable
+      s => (s ** "*.java").get.nonEmpty && RetrolambdaSupport.isAvailable
     },
     typedResources          <<= proguardScala,
     typedResourcesIgnores    := Seq.empty,
@@ -473,13 +470,9 @@ object Plugin extends sbt.Plugin {
     setRelease               := { apkbuildDebug.value(false) },
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
     // because of how packageXXX is implemented by using task.?
-    packageDebug            <<= packageT.task.? {
-      _ getOrElse fail("package failed")
-    },
+    packageDebug            <<= packageT,
     packageDebug            <<= packageDebug dependsOn setDebug,
-    packageRelease          <<= packageT.task.? {
-      _ getOrElse fail("package failed")
-    },
+    packageRelease          <<= packageT,
     packageRelease          <<= packageRelease dependsOn setRelease,
     sdkPath                 <<= (thisProject,properties) { (p,props) =>
       (Option(System getenv "ANDROID_HOME") orElse
@@ -590,7 +583,7 @@ object Plugin extends sbt.Plugin {
     }
   )) ++ Seq(
     crossPaths      <<= (scalaSource in Compile) { src =>
-      (src ** "*.scala").get.size > 0
+      (src ** "*.scala").get.nonEmpty
     },
     resolvers        <++= (sdkPath in Android) { p => Seq(
       "google libraries" at (
@@ -729,7 +722,7 @@ trait AutoBuild extends Build {
   private def loadLibraryProjects(b: File, p: Properties): Seq[Project] = {
     (p.stringPropertyNames.collect {
       case k if k.startsWith("android.library.reference") => k
-    }.toList.sortWith { (a,b) => a < b } map { k =>
+    }.toList.sortWith { (a,b) => a < b } flatMap { k =>
       val layout = ProjectLayout(b/p(k))
       val pkg = pkgFor(layout.manifest)
       (Project(id=pkg, base=b/p(k)) settings(Plugin.androidBuild ++
@@ -737,7 +730,7 @@ trait AutoBuild extends Build {
           libraryProject in Android := true): _*) enablePlugins
             AndroidPlugin) +:
         loadLibraryProjects(b/p(k), loadProperties(b/p(k)))
-    } flatten) distinct
+    }) distinct
   }
   private def target(basedir: File): String = {
     val props = loadProperties(basedir)

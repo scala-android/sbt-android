@@ -40,7 +40,7 @@ object Commands {
     val adb = AndroidDebugBridge.createBridge(adbPath, false)
 
     val devices = adb.getDevices
-    if (devices.length == 0) {
+    if (devices.isEmpty) {
       Thread.sleep(1000)
       adb.getDevices filter { _.isOnline }
     } else {
@@ -166,16 +166,17 @@ object Commands {
     case (state, (entry, name)) =>
       val fixed = name flatMap { n =>
         val n2 = n.dropWhile(_ == '/')
-        if (n2.trim.size > 0) Some(n2) else None
+        if (n2.trim.isEmpty) Some(n2) else None
       }
       if (entry.isDirectory) {
-        fixed map { n =>
-          val child = entry.findChild(n)
-          if (child != null) {
-            printEntry(state, child)
-          }
-        } getOrElse {
-          entry.getCachedChildren foreach (c => printEntry(state, c))
+        fixed match {
+          case Some(n) =>
+            val child = entry.findChild(n)
+            if (child != null) {
+              printEntry(state, child)
+            }
+          case None =>
+            entry.getCachedChildren foreach (c => printEntry(state, c))
         }
       } else {
         printEntry(state, entry)
@@ -193,18 +194,21 @@ object Commands {
       val target = name map {
         entry.getFullPath + "/" + _ } getOrElse entry.getFullPath
       state.log.info("Pulling [%s] to [%s]" format (target, f))
-      targetDevice(sdkpath(state), state.log) map { d =>
-        val dest = if (f.isDirectory) {
-          val x = target.lastIndexOf("/")
-          val n = if (x < 0) {
-            target
-          } else {
-            target.substring(x)
-          }
-          new File(f, n)
-        } else f
-        d.pullFile(target, dest.getAbsolutePath)
-      } getOrElse (Parser.failure("No devices connected") map ( _ => null))
+      targetDevice(sdkpath(state), state.log) match {
+        case Some(d) =>
+          val dest = if (f.isDirectory) {
+            val x = target.lastIndexOf("/")
+            val n = if (x < 0) {
+              target
+            } else {
+              target.substring(x)
+            }
+            new File(f, n)
+          } else f
+          d.pullFile(target, dest.getAbsolutePath)
+        case None =>
+          Parser.failure("No devices connected") map (_ => null)
+      }
       state
   }
 
@@ -215,9 +219,10 @@ object Commands {
       state.log.info("Pushing [%s] to [%s]" format (f, target))
       if (!f.isFile)
         Plugin.fail(f + " is not a file")
-      targetDevice(sdkpath(state), state.log) map { d =>
-        d.pushFile(f.getAbsolutePath, target)
-      } getOrElse (Parser.failure("No devices connected") map ( _ => null))
+      targetDevice(sdkpath(state), state.log) match {
+        case Some(d) => d.pushFile(f.getAbsolutePath, target)
+        case None => Parser.failure("No devices connected") map ( _ => null)
+      }
       state
   }
 
@@ -255,7 +260,7 @@ object Commands {
   val rebootAction: (State, String) => State = (state, mode) => {
     val sdk = sdkpath(state)
     defaultDevice map { s =>
-      targetDevice(sdk, state.log) map { _.reboot(mode) }
+      targetDevice(sdk, state.log) foreach { _.reboot(mode) }
       state
     } getOrElse Plugin.fail("no device selected")
   }
@@ -263,12 +268,10 @@ object Commands {
   val deviceAction: (State, String) => State = (state, dev) => {
     val devices = deviceList(state)
 
-    devices find (_.getSerialNumber == dev) map { dev =>
+    defaultDevice = devices find (_.getSerialNumber == dev) map { dev =>
       val serial = dev.getSerialNumber
       state.log.info("default device: " + serial)
-      defaultDevice = Some(serial)
-    } getOrElse {
-      defaultDevice = None
+      serial
     }
     state
   }
@@ -301,7 +304,7 @@ object Commands {
     val d = targetDevice(sdk, state.log).get
     if (adbWifiOn) {
       state.log.info("turning ADB-over-wifi off")
-      Seq(adbPath, "-s", d.getSerialNumber.toString, "usb") !
+      Seq(adbPath, "-s", d.getSerialNumber, "usb") !
 
       state
     } else {
@@ -311,7 +314,7 @@ object Commands {
       val ip = receiver.result.split(" +")(2)
       state.log.debug("device ip: %s" format ip)
 
-      Seq(adbPath, "-s", d.getSerialNumber.toString, "tcpip", "5555") !
+      Seq(adbPath, "-s", d.getSerialNumber, "tcpip", "5555") !
 
       val r = Seq(adbPath, "connect", ip) !
 
@@ -461,7 +464,7 @@ object Commands {
       }
     }
 
-    val (pkgOpt, tags) = if (args.trim.size > 0) {
+    val (pkgOpt, tags) = if (args.trim.nonEmpty) {
       val parts = args.trim.split(" ")
       if (parts.size > 1) {
         (Some(parts(0)), parts.tail.toSeq)
@@ -563,7 +566,7 @@ object Commands {
   val shellAction: (State, String) => State = (state, cmd) => {
     val sdk = sdkpath(state)
     targetDevice(sdk, state.log) map { d =>
-      if (cmd.trim.size == 0) {
+      if (cmd.trim.isEmpty) {
         Plugin.fail("Usage: adb-shell <command>")
       } else {
         executeShellCommand(d, cmd, state)
@@ -653,7 +656,7 @@ object Commands {
           None
         }
       } orElse {
-        Some(devices(0))
+        devices.headOption
       }
     }
   }
