@@ -1,6 +1,5 @@
 package %s
 
-%s
 import android.app.{Activity,Dialog}
 import android.view.{View,ViewGroup,LayoutInflater}
 

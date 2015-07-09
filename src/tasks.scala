@@ -322,13 +322,9 @@ object Tasks {
           val trTemplate = IO.readLinesURL(
             resourceUrl("tr.scala.template")) mkString "\n"
 
-          val gte210 = ((sv split "\\.")(1) toInt) >= 10
-          val implicitsImport = if (!gte210) "" else
-            "import scala.language.implicitConversions"
-
           tr.delete()
           def wrap(s: String) = if (reservedWords(s)) "`%s`" format s else s
-          IO.write(tr, trTemplate format (p, implicitsImport,
+          IO.write(tr, trTemplate format (p,
             resources map { case (k,v) =>
               "  val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n",
