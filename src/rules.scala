@@ -21,6 +21,7 @@ import java.io.{PrintWriter, File}
 import scala.collection.JavaConversions._
 import scala.util.Try
 import scala.xml.XML
+import language.postfixOps
 
 import Keys._
 import Keys.Internal._
@@ -519,6 +520,8 @@ object Plugin extends sbt.Plugin {
                                 , state) map {
       (ldr, m, n, l, b, t, s) =>
 
+      // because of JavaProcessExecutor
+      import language.existentials
       val bldr = new AndroidBuilder(n, "android-sdk-plugin",
         new DefaultProcessExecutor(l(s.log)),
         new JavaProcessExecutor {

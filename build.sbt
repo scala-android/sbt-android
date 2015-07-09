@@ -10,7 +10,7 @@ organization := "com.hanhuy.sbt"
 
 sourceDirectories in Compile <<= baseDirectory(b => Seq(b / "src"))
 
-scalacOptions ++= Seq("-deprecation","-Xlint")
+scalacOptions ++= Seq("-deprecation","-Xlint","-feature")
 
 scalaSource in Compile <<= baseDirectory(_ / "src")
 

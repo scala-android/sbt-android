@@ -5,6 +5,7 @@ import java.nio.ByteBuffer
 import java.util.jar.JarInputStream
 
 import sbt._
+import language.postfixOps
 
 import net.orfjackal.retrolambda.{Main => RMain, Config => RConfig, Retrolambda}
 

@@ -14,6 +14,7 @@ import scala.collection.JavaConverters._
 import scala.collection.JavaConversions._
 import scala.util.Try
 import scala.xml._
+import language.postfixOps
 
 import java.util.Properties
 import java.io.{PrintWriter, File, FileInputStream}
@@ -23,7 +24,6 @@ import com.android.builder.model.{PackagingOptions, AaptOptions}
 import com.android.builder.signing.DefaultSigningConfig
 import com.android.builder.core._
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
-import com.android.ddmlib.IShellOutputReceiver
 import com.android.ddmlib.DdmPreferences
 import com.android.ddmlib.testrunner.ITestRunListener
 import com.android.ide.common.res2.FileStatus
@@ -1665,16 +1665,7 @@ object Tasks {
     val listener = TestListener(s.log)
     import com.android.ddmlib.testrunner.InstrumentationResultParser
     val p = new InstrumentationResultParser(testPackage, listener)
-    val receiver = new IShellOutputReceiver() {
-      val b = new StringBuilder
-      override def addOutput(data: Array[Byte], off: Int, len: Int) =
-        b.append(new String(data, off, len))
-      override def flush() {
-        p.processNewLines(b.toString().split("\\n").map(_.trim))
-        b.clear()
-      }
-      override def isCancelled = false
-    }
+    val receiver = new Commands.ShellLogging(l => p.processNewLines(Array(l)))
     val intent = testPackage + "/" + runner
     Commands.targetDevice(sdk, s.log) foreach { d =>
       val selection = testSelection map { "-e " + _ } getOrElse ""
@@ -1700,11 +1691,11 @@ object Tasks {
     (install, sdkPath, projectLayout, packageName, streams) map {
       (_, k, l, p, s) =>
 
-      val r = Def.spaceDelimited().parsed.mkString(" ")
+      val r = Def.spaceDelimited().parsed
       val manifestXml = l.bin / "AndroidManifest.xml"
       val m = XML.loadFile(manifestXml)
       // if an arg is specified, try to launch that
-      (if (r.isEmpty) None else r.headOption) orElse ((m \\ "activity") find {
+      (if (r.isEmpty) None else Some(r mkString " ")) orElse ((m \\ "activity") find {
         // runs the first-found activity
         a => (a \ "intent-filter") exists { filter =>
           val attrpath = "@{%s}name" format ANDROID_NS
@@ -1716,16 +1707,7 @@ object Tasks {
         "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
       }) match {
         case Some(intent) =>
-          val receiver = new IShellOutputReceiver() {
-            val b = new StringBuilder
-            override def addOutput(data: Array[Byte], off: Int, len: Int) =
-              b.append(new String(data, off, len))
-            override def flush() {
-              s.log.info(b.toString())
-              b.clear()
-            }
-            override def isCancelled = false
-          }
+          val receiver = new Commands.ShellLogging(l => s.log.info(l))
           Commands.targetDevice(k, s.log) foreach { d =>
             val command = "am start -n %s" format intent
             s.log.debug("Executing [%s]" format command)

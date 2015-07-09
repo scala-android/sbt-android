@@ -41,7 +41,7 @@ object ReferenceFinder {
           case _ =>
         }
         val x = thisMethod.getReturnType
-        if ( classes.exists(x==) )
+        if (classes.contains(x))
           classesMap(x)
         else
           null

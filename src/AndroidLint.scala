@@ -16,6 +16,7 @@ import com.android.tools.lint.detector.api.{Project => LintProject, Location, Te
 
 import collection.JavaConverters._
 import scala.annotation.tailrec
+import language.postfixOps
 
 /**
  * @author pfnguyen

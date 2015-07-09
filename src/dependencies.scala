@@ -4,6 +4,7 @@ import sbt._
 
 import scala.collection.JavaConversions._
 import scala.xml.XML
+import language.postfixOps
 
 import com.android.builder.dependency.JarDependency
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}

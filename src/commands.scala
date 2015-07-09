@@ -15,6 +15,7 @@ import com.android.SdkConstants
 
 import scala.annotation.tailrec
 import scala.util.Try
+import language.postfixOps
 
 object Commands {
 
@@ -285,22 +286,7 @@ object Commands {
       (s indexOf ":") > 0
     } getOrElse Plugin.fail("no device selected")
 
-    val receiver = new IShellOutputReceiver {
-      val b = new StringBuilder
-      var _result = ""
-
-      override def addOutput(data: Array[Byte], off: Int, len: Int) =
-        b.append(new String(data, off, len))
-
-      override def flush() {
-        _result = b.toString()
-        b.clear()
-      }
-
-      override def isCancelled = false
-
-      def result = _result
-    }
+    val receiver = new ShellResult()
     val d = targetDevice(sdk, state.log).get
     if (adbWifiOn) {
       state.log.info("turning ADB-over-wifi off")
@@ -451,6 +437,7 @@ object Commands {
   val pidcatAction: (State, String) => State = (state, args) => {
     val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
     val PID_START = """^Start proc ([a-zA-Z0-9._:]+) for ([a-z]+ [^:]+): pid=(\d+) uid=(\d+) gids=(.*)$""".r
+    val PID_START5_1 = """^Start proc (\d+):([a-zA-Z0-9._:]+)/[a-z0-9]+ for (.*)$""".r
     val PID_KILL = """^Killing (\d+):([a-zA-Z0-9._:]+)/[^:]+: (.*)$""".r
     val PID_LEAVE = """^No longer want ([a-zA-Z0-9._:]+) \(pid (\d+)\): .*$""".r
     val PID_DEATH = """^Process ([a-zA-Z0-9._:]+) \(pid (\d+)\) has died.?$""".r
@@ -476,57 +463,38 @@ object Commands {
       Plugin.fail("Usage: pidcat [<partial package-name>] [TAGs]...")
 
     targetDevice(sdk, state.log) map { d =>
-      val receiver = new IShellOutputReceiver() {
-        val b = new StringBuilder
-        var pids = Set.empty[String]
-
-        def addPid(pkg: String, pid: String) {
-          pkgOpt foreach { p => if (pkg contains p) pids += pid.trim}
-        }
-
-        def remPid(pkg: String, pid: String) {
-          pkgOpt foreach { p => if (pkg contains p) pids -= pid.trim}
-        }
-
-        override def addOutput(data: Array[Byte], off: Int, len: Int) = {
-          b.append(new String(data, off, len))
-          val lastNL = b.lastIndexOf("\n")
-          if (lastNL != -1) {
-            b.mkString.split("\\n") foreach logLine
-            b.delete(0, lastNL + 1)
-          }
-        }
-
-        private def logLine(l: String): Unit = {
-          if (l.trim.length > 0) {
-            l.trim match {
-              case LOG_LINE(level, tag, pid, msg) =>
-                if (tag == "ActivityManager") {
-                  msg match {
-                    case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
-                    case PID_KILL(pid2, pkg, _) => remPid(pkg, pid2)
-                    case PID_LEAVE(pkg, pid2) => remPid(pkg, pid2)
-                    case PID_DEATH(pkg, pid2) => remPid(pkg, pid2)
-                    case _ =>
-                  }
-                } else if (pids(pid.trim)) {
-                  if (tags.isEmpty)
-                    state.log.info(l.trim)
-                  else if (tags exists tag.contains)
-                    state.log.info(l.trim)
-                }
-              case _ => state.log.debug(l.trim)
-            }
-          }
-
-        }
-        override def flush() {
-          b.toString().split("\\n") foreach logLine
-          b.clear()
-        }
-
-        override def isCancelled = false
+      var pids = Set.empty[String]
+      def addPid(pkg: String, pid: String) {
+        pkgOpt foreach { p => if (pkg contains p) pids += pid.trim}
       }
+
+      def remPid(pkg: String, pid: String) {
+        pkgOpt foreach { p => if (pkg contains p) pids -= pid.trim}
+      }
+      def logLine(l: String): Unit = {
+        if (l.trim.length > 0) {
+          l.trim match {
+            case LOG_LINE(level, tag, pid, msg) =>
+              if (tag == "ActivityManager") {
+                msg match {
+                  case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
+                  case PID_START5_1(pid2, pkg, _) => addPid(pkg, pid2)
+                  case PID_KILL(pid2, pkg, _) => remPid(pkg, pid2)
+                  case PID_LEAVE(pkg, pid2) => remPid(pkg, pid2)
+                  case PID_DEATH(pkg, pid2) => remPid(pkg, pid2)
+                  case _ =>
+                }
+              } else if (pids(pid.trim)) {
+                if (tags.isEmpty)
+                  state.log.info(l.trim)
+                else if (tags exists tag.contains)
+                  state.log.info(l.trim)
+              }
+            case _ => state.log.debug(l.trim)
+          }
+        }
+      }
+      val receiver = new ShellLogging(logLine)
       d.executeShellCommand("logcat -d", receiver)
       receiver.flush()
 
@@ -535,25 +503,7 @@ object Commands {
   }
 
   private def executeShellCommand(d: IDevice, cmd: String, state: State) {
-    val receiver = new IShellOutputReceiver() {
-      val b = new StringBuilder
-
-      override def addOutput(data: Array[Byte], off: Int, len: Int) = {
-        b.append(new String(data, off, len))
-        val lastNL = b.lastIndexOf("\n")
-        if (lastNL != -1) {
-          b.mkString.split("\\n") foreach (l => state.log.info(l))
-          b.delete(0, lastNL + 1)
-        }
-      }
-
-      override def flush() {
-        b.toString().split("\\n").foreach { l => state.log.info(l) }
-        b.clear()
-      }
-
-      override def isCancelled = false
-    }
+    val receiver = new ShellLogging(l => state.log.info(l))
     executeShellCommand(d, cmd, receiver)
   }
 
@@ -672,5 +622,40 @@ object Commands {
           else
             None: Option[String]
       }) getOrElse Plugin.fail("ANDROID_HOME or sdk.dir is not set")
+  }
+  class ShellLogging[A](logger: String => A) extends IShellOutputReceiver {
+    val b = new StringBuilder
+
+    override def addOutput(data: Array[Byte], off: Int, len: Int) = {
+      b.append(new String(data, off, len))
+      val lastNL = b.lastIndexOf("\n")
+      if (lastNL != -1) {
+        b.mkString.split("\\n") foreach logger
+        b.delete(0, lastNL + 1)
+      }
+    }
+
+    override def flush() {
+      b.mkString.split("\\n") foreach logger
+      b.clear()
+    }
+
+    override def isCancelled = false
+  }
+  class ShellResult extends IShellOutputReceiver {
+    private[this] val b = new StringBuilder
+    private[this] var _result = ""
+
+    override def addOutput(data: Array[Byte], off: Int, len: Int) =
+      b.append(new String(data, off, len))
+
+    override def flush() {
+      _result = b.mkString
+      b.clear()
+    }
+
+    override def isCancelled = false
+
+    def result = _result
   }
 }

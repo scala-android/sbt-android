@@ -3,6 +3,7 @@ package android
 import javassist.util.proxy.{MethodHandler, MethodFilter, ProxyFactory}
 
 import sbt._
+import language.postfixOps
 
 import org.objectweb.asm._
 
@@ -18,7 +19,7 @@ object NativeFinder {
     val factory = new ProxyFactory()
     factory.setSuperclass(classOf[ClassVisitor])
     factory.setFilter(new MethodFilter {
-      override def isHandled(p1: Method): Boolean = Seq("visit", "visitMethod").exists(p1.getName==)
+      override def isHandled(p1: Method): Boolean = Seq("visit", "visitMethod").contains(p1.getName)
     })
     val h = new MethodHandler {
       override def invoke(self: scala.Any, thisMethod: Method, proceed: Method, args: Array[AnyRef]) = {

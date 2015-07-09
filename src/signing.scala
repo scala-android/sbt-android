@@ -1,6 +1,7 @@
 package android
 
 import sbt._
+import language.postfixOps
 
 trait ApkSigningConfig {
   def storeType = "jks"
