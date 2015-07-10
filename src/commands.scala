@@ -485,10 +485,12 @@ object Commands {
                   case _ =>
                 }
               } else if (pids(pid.trim)) {
+                val colored =
+                  f"${colorLevel(level)}/${colorTag(tag)}%8s($pid%5s): $msg"
                 if (tags.isEmpty)
-                  state.log.info(l.trim)
+                  state.log.info(colored)
                 else if (tags exists tag.contains)
-                  state.log.info(l.trim)
+                  state.log.info(colored)
               }
             case _ => state.log.debug(l.trim)
           }
@@ -501,6 +503,36 @@ object Commands {
       state
     } getOrElse Plugin.fail("no device connected")
   }
+
+  def colorLevel(level: String) = {
+    LEVEL_COLORS.getOrElse(level, scala.Console.BOLD + scala.Console.YELLOW) + level + scala.Console.RESET
+  }
+  def colorTag(tag: String) = {
+    val idx = math.abs(tag.hashCode % TAG_COLORS.length)
+    TAG_COLORS(idx) + tag + scala.Console.RESET
+  }
+  lazy val LEVEL_COLORS = Map(
+    "D" -> (scala.Console.BOLD + scala.Console.CYAN),
+    "E" -> (scala.Console.BOLD + scala.Console.RED),
+    "I" -> (scala.Console.BOLD + scala.Console.GREEN),
+    "V" -> (scala.Console.BOLD + scala.Console.BLUE),
+    "W" -> (scala.Console.BOLD + scala.Console.MAGENTA)
+  )
+
+  lazy val TAG_COLORS = Vector(
+    scala.Console.BLUE,
+    scala.Console.BOLD + scala.Console.BLUE,
+    scala.Console.GREEN,
+    scala.Console.BOLD + scala.Console.GREEN,
+    scala.Console.RED,
+    scala.Console.BOLD + scala.Console.RED,
+    scala.Console.MAGENTA,
+    scala.Console.BOLD + scala.Console.MAGENTA,
+    scala.Console.YELLOW,
+    scala.Console.BOLD + scala.Console.YELLOW,
+    scala.Console.CYAN,
+    scala.Console.BOLD + scala.Console.CYAN
+  )
 
   private def executeShellCommand(d: IDevice, cmd: String, state: State) {
     val receiver = new ShellLogging(l => state.log.info(l))
