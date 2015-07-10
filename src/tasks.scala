@@ -1684,43 +1684,43 @@ object Tasks {
   }
 
   val runTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
-    (install, sdkPath, projectLayout, packageName, streams) map {
-      (_, k, l, p, s) =>
-
-      val r = Def.spaceDelimited().parsed
-      val manifestXml = l.bin / "AndroidManifest.xml"
-      val m = XML.loadFile(manifestXml)
-      // if an arg is specified, try to launch that
-      (if (r.isEmpty) None else Some(r mkString " ")) orElse ((m \\ "activity") find {
-        // runs the first-found activity
-        a => (a \ "intent-filter") exists { filter =>
-          val attrpath = "@{%s}name" format ANDROID_NS
-          (filter \\ attrpath) exists (_.text == "android.intent.action.MAIN")
-        }
-      } map { activity =>
-        val name = activity.attribute(ANDROID_NS, "name") get 0 text
-
-        "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
-      }) match {
-        case Some(intent) =>
-          val receiver = new Commands.ShellLogging(l => s.log.info(l))
-          Commands.targetDevice(k, s.log) foreach { d =>
-            val command = "am start -n %s" format intent
-            s.log.debug("Executing [%s]" format command)
-            d.executeShellCommand(command, receiver)
-
-            if (receiver.b.toString().length > 0)
-              s.log.info(receiver.b.toString())
-
-            s.log.debug("run command executed")
-          }
-        case None =>
-          Plugin.fail(
-            "No activity found with action 'android.intent.action.MAIN'")
+    val k = sdkPath.value
+    val l = projectLayout.value
+    val p = packageName.value
+    val s = streams.value
+    val r = Def.spaceDelimited().parsed
+    val manifestXml = l.bin / "AndroidManifest.xml"
+    val m = XML.loadFile(manifestXml)
+    // if an arg is specified, try to launch that
+    (if (r.isEmpty) None else Some(r mkString " ")) orElse ((m \\ "activity") find {
+      // runs the first-found activity
+      a => (a \ "intent-filter") exists { filter =>
+        val attrpath = "@{%s}name" format ANDROID_NS
+        (filter \\ attrpath) exists (_.text == "android.intent.action.MAIN")
       }
+    } map { activity =>
+      val name = activity.attribute(ANDROID_NS, "name") get 0 text
 
-      ()
+      "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
+    }) match {
+      case Some(intent) =>
+        val receiver = new Commands.ShellLogging(l => s.log.info(l))
+        Commands.targetDevice(k, s.log) foreach { d =>
+          val command = "am start -n %s" format intent
+          s.log.debug("Executing [%s]" format command)
+          d.executeShellCommand(command, receiver)
+
+          if (receiver.b.toString().length > 0)
+            s.log.info(receiver.b.toString())
+
+          s.log.debug("run command executed")
+        }
+      case None =>
+        Plugin.fail(
+          "No activity found with action 'android.intent.action.MAIN'")
     }
+
+    ()
   }
 
   val KB = 1024 * 1.0

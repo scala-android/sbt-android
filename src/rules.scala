@@ -305,6 +305,7 @@ object Plugin extends sbt.Plugin {
     test                    <<= test dependsOn (compile in Android, install),
     testOnly                <<= testOnlyTaskDef,
     run                     <<= runTaskDef,
+    run                     <<= run dependsOn install,
     cleanForR               <<= (rGenerator
                                 , genPath
                                 , classDirectory in Compile
