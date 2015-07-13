@@ -486,11 +486,13 @@ object Commands {
                 }
               } else if (pids(pid.trim)) {
                 val colored =
-                  f"${colorLevel(level)}/${colorTag(tag)}%8s($pid%5s): $msg"
+                  f"${colorLevel(level)} ($pid%5s) ${colorTag(tag)}%8s: $msg"
                 if (tags.isEmpty)
-                  state.log.info(colored)
+//                  state.log.info(colored)
+                  scala.Console.out.println(colored)
                 else if (tags exists tag.contains)
-                  state.log.info(colored)
+//                  state.log.info(colored)
+                  scala.Console.out.println(colored)
               }
             case _ => state.log.debug(l.trim)
           }
@@ -505,18 +507,21 @@ object Commands {
   }
 
   def colorLevel(level: String) = {
-    LEVEL_COLORS.getOrElse(level, scala.Console.BOLD + scala.Console.YELLOW) + level + scala.Console.RESET
+    LEVEL_COLORS.getOrElse(level,
+      scala.Console.BOLD + scala.Console.YELLOW_B + scala.Console.WHITE) +
+      " " + level + " " +
+      scala.Console.RESET
   }
   def colorTag(tag: String) = {
     val idx = math.abs(tag.hashCode % TAG_COLORS.length)
     TAG_COLORS(idx) + tag + scala.Console.RESET
   }
   lazy val LEVEL_COLORS = Map(
-    "D" -> (scala.Console.BOLD + scala.Console.CYAN),
-    "E" -> (scala.Console.BOLD + scala.Console.RED),
-    "I" -> (scala.Console.BOLD + scala.Console.GREEN),
-    "V" -> (scala.Console.BOLD + scala.Console.BLUE),
-    "W" -> (scala.Console.BOLD + scala.Console.MAGENTA)
+    "D" -> (scala.Console.BOLD + scala.Console.CYAN_B + scala.Console.WHITE),
+    "E" -> (scala.Console.BOLD + scala.Console.RED_B + scala.Console.WHITE),
+    "I" -> (scala.Console.BOLD + scala.Console.GREEN_B + scala.Console.WHITE),
+    "V" -> (scala.Console.BOLD + scala.Console.BLUE_B + scala.Console.WHITE),
+    "W" -> (scala.Console.BOLD + scala.Console.MAGENTA_B + scala.Console.WHITE)
   )
 
   lazy val TAG_COLORS = Vector(
