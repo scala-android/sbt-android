@@ -25,8 +25,6 @@ libraryDependencies ++= Seq(
   "javassist" % "javassist" % "3.12.1.GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
   "io.argonaut" %% "argonaut" % "6.0.4",
-  "org.slf4j" % "slf4j-nop" % "1.7.9",
-  "net.databinder.dispatch" %% "dispatch-core" % "0.11.2",
   "com.android.tools.build" % "builder" % "1.2.3",
   "com.android.tools.build" % "gradle-core" % "1.2.3" excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
