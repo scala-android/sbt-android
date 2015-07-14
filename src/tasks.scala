@@ -1097,7 +1097,10 @@ object Tasks {
       val jin = new JarInputStream(new FileInputStream(jarfile.data))
       try {
         val classes = Iterator.continually(jin.getNextJarEntry) takeWhile (
-          _ != null) map (_.getName) filter (_ endsWith ".class") toList
+          _ != null) map (_.getName) filter { n =>
+          // R.class (and variants) are irrelevant
+          n.endsWith(".class") && !n.matches(".*/R\\W+.*class")
+        } toList
 
         classes
       } finally {
