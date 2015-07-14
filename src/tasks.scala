@@ -1267,7 +1267,7 @@ object Tasks {
     val hashFunction = Hashing.sha1
     val hashCode = hashFunction.hashString(input, Charsets.UTF_16LE)
 
-    val f = new File(binPath, name + "-" + hashCode.toString + SdkConstants.DOT_JAR)
+    val f = new File(binPath / "predex-libraries", name + "-" + hashCode.toString + SdkConstants.DOT_JAR)
     f.mkdirs()
     f
   }
@@ -1336,7 +1336,9 @@ object Tasks {
         out.mkdirs()
 
         // TODO cache resutls of jar listing
-        val filtered = injars filter (_.data.isFile) filterNot (file => listjar(file) exists (inPackages(_, pc)))
+        val cacheJars = injars filter (listjar(_) exists (inPackages(_, pc))) toSet
+        val filtered = injars filterNot cacheJars
+
         val indeps = filtered map {
           f => deps / (f.data.getName + "-" +
             Hash.toHex(Hash(f.data.getAbsolutePath)))
@@ -1357,6 +1359,10 @@ object Tasks {
         val allhash = Hash.toHex(Hash(alldeps))
 
         val cacheJar = out / ("proguard-cache-" + allhash + ".jar")
+        FileFunction.cached(st.cacheDirectory / "cacheJar", FilesInfo.hash) { in =>
+          cacheJar.delete()
+          in
+        }(cacheJars map (_.data))
 
         ProguardInputs(injars, file(p) +: (extras ++ l), Some(cacheJar))
       } else ProguardInputs(injars, file(p) +: (extras ++ l))
