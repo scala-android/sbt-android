@@ -2,6 +2,7 @@ package android
 
 import java.util.jar.JarInputStream
 
+import com.android.builder.internal.ClassFieldImpl
 import com.android.ide.common.signing.KeystoreHelper
 import com.android.manifmerger.ManifestMerger2
 import com.google.common.base.Charsets
@@ -42,7 +43,7 @@ import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 import Keys._
 import Keys.Internal._
 import Dependencies.{LibraryProject => _, AutoLibraryProject => _, _}
-import com.android.builder.compiling.BuildConfigGenerator
+import com.android.builder.compiling.{ResValueGenerator, BuildConfigGenerator}
 import java.net.URLEncoder
 
 object Tasks {
@@ -73,6 +74,17 @@ object Tasks {
 
   def resourceUrl =
     Plugin.getClass.getClassLoader.getResource _
+
+  val resValuesGeneratorTaskDef = Def.task {
+    val resources = resValues.value
+    val items = resources map { case (typ, n, value) =>
+      new ClassFieldImpl(typ, n, value)
+    }
+    val resTarget = projectLayout.value.bin / "resources" / "res"
+    val generator = new ResValueGenerator(resTarget)
+    generator.addItems(items)
+    generator.generate()
+  }
 
   val buildConfigGeneratorTaskDef = ( platformTarget
                                     , genPath

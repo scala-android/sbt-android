@@ -76,6 +76,10 @@ object Keys {
     "automatically remove unused resources from final apk, default false")
   val resourceShrinker = TaskKey[File]("resource-shrinker",
     "Resource shrinking task, dual to shrinkResources")
+  val resValues = TaskKey[Seq[(String,String,String)]]("res-values",
+    "a sequence of ('type', 'field name', 'value') to inject into res values.xml")
+  val resValuesGenerator = TaskKey[Unit]("res-values-generator",
+    "generate res-values into values.xml")
   val extraResDirectories = SettingKey[Seq[File]]("extra-res-directories",
     "list of additional android res folders to include (primarily for flavors")
 
