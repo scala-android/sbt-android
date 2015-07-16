@@ -124,14 +124,17 @@ object Keys {
     "setting indicating whether or not this is a library project")
 
   // manifest-related keys
-  val packageName = TaskKey[String]("package-name",
-    "android package name, can be changed to create a different apk package")
+  val applicationId = TaskKey[String]("application-id",
+    "apk pkg id, is android:packageName if set, otherwise manifest package name")
+  @deprecated("Use `applicationId in Android` instead", "1.4.6")
+  val packageName = SettingKey[String]("package-name",
+    "Deprecated android application ID, use android:application-id instead")
   val manifest = TaskKey[Elem]("manifest",
     "android manifest xml object, read-only, do not modify")
   val manifestPlaceholders = TaskKey[Map[String,String]](
     "manifest-placeholders", "${variable} expansion for AndroidManifest.xml")
   val packageForR = TaskKey[String]("packageForR",
-    "Custom package name for aapt --custom-package, defaults to packageName")
+    "Custom package name for aapt --custom-package, defaults to manifest package name")
   val versionName = TaskKey[Option[String]]("version-name",
     "application version name")
   val versionCode = TaskKey[Option[Int]]("version-code",

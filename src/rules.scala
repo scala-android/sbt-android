@@ -385,8 +385,8 @@ object Plugin extends sbt.Plugin {
     packageForR             <<= manifest map { m =>
       m.attribute("package") get 0 text
     },
-    packageName             <<= manifest map { m =>
-      m.attribute("package") get 0 text
+    applicationId            := {
+      packageName.?.value getOrElse manifest.value.attribute("package").head.text
     },
     targetSdkVersion        <<= (manifest, minSdkVersion) map { (m, min) =>
       val usesSdk = m \ "uses-sdk"

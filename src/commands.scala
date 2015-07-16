@@ -447,7 +447,7 @@ object Commands {
     val packageName = thisProject flatMap { prj =>
       scala.util.control.Exception.catching(classOf[RuntimeException]) opt {
         Project.extract(state).runTask(
-          Keys.packageName in(prj, Keys.Android), state)._2
+          Keys.applicationId in(prj, Keys.Android), state)._2
       }
     }
 
@@ -568,7 +568,7 @@ object Commands {
       val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
       val packageName = thisProject flatMap { prj =>
         Try(Project.extract(state).runTask(
-          Keys.packageName in(prj, Keys.Android), state)).toOption map (_._2)
+          Keys.applicationId in(prj, Keys.Android), state)).toOption map (_._2)
       }
       val targetPackage = Option(str).filter(_.nonEmpty) orElse packageName
       if (targetPackage.isEmpty)
@@ -586,7 +586,7 @@ object Commands {
       val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
       val packageName = thisProject flatMap { prj =>
         Try(Project.extract(state).runTask(
-          Keys.packageName in(prj, Keys.Android), state)).toOption map (_._2)
+          Keys.applicationId in(prj, Keys.Android), state)).toOption map (_._2)
       }
       if (packageName.isEmpty)
         Plugin.fail("Unable to determine package name\n\n" +
