@@ -1,5 +1,7 @@
 # Android SDK Plugin for SBT #
 
+[![Join the chat at https://gitter.im/pfn/android-sdk-plugin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/pfn/android-sdk-plugin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Current version is 1.4.5
 
 ## Description ##
