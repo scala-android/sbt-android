@@ -41,6 +41,7 @@ object RetrolambdaSupport {
       val config = s.cacheDirectory / "retro-config.properties"
       val p = new java.util.Properties
       val out = new FileOutputStream(config)
+      p.setProperty("retrolambda.defaultMethods", "true")
       p.setProperty("retrolambda.inputDir", dest.getAbsolutePath)
       p.setProperty("retrolambda.classpath", cp map (
         _.getAbsolutePath) mkString java.io.File.pathSeparator)

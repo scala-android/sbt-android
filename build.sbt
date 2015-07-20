@@ -1,5 +1,4 @@
 import ScriptedPlugin._
-
 import bintray.Keys._
 
 name := "android-sdk-plugin"
@@ -29,7 +28,7 @@ libraryDependencies ++= Seq(
   "com.android.tools.build" % "gradle-core" % "1.2.3" excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
   "com.android.tools.lint" % "lint" % "24.2.3",
-  "net.orfjackal.retrolambda" % "retrolambda" % "1.8.0"
+  "net.orfjackal.retrolambda" % "retrolambda" % "2.0.5"
 )
 
 sbtPlugin := true
