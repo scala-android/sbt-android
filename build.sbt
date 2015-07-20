@@ -20,10 +20,10 @@ unmanagedBase <<= baseDirectory(_ / "libs")
 resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 
 libraryDependencies ++= Seq(
-  "org.ow2.asm" % "asm-all" % "5.0.2",
-  "javassist" % "javassist" % "3.12.1.GA",
+  "org.ow2.asm" % "asm-all" % "5.0.4",
+  "org.javassist" % "javassist" % "3.20.0-GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
-  "io.argonaut" %% "argonaut" % "6.0.4",
+  "io.argonaut" %% "argonaut" % "6.1",
   "com.android.tools.build" % "builder" % "1.2.3",
   "com.android.tools.build" % "gradle-core" % "1.2.3" excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
