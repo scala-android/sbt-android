@@ -1,2 +1,3 @@
 > android:package
 > flavor1/android:test
+> flavor1/android:uninstall
