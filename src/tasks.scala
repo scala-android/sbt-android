@@ -1306,6 +1306,10 @@ object Tasks {
         val isBE = endianness == reverse_endian_constant
         if (isBE)
           header.order(ByteOrder.BIG_ENDIAN)
+        else if (endianness != endian_constant) {
+          log.warn(dexFile.getName + " does not define endianness properly")
+        }
+
         header.position(88) // method_ids_size
         val methodIds = header.getInt
         methodIds
@@ -1319,18 +1323,21 @@ object Tasks {
   }
 
   val proguardInputsTaskDef = ( useProguard
-                              , proguardScala
-                              , proguardCache
+                              , proguardOptions
+                              , proguardConfig
                               , proguardLibraries
                               , dependencyClasspath
                               , platformJars
                               , classesJar
-                              , binPath
+                              , thisProjectRef
                               , state
                               , apkbuildDebug
                               , streams
                               ) map {
-    case (u, s, pc, l, d, (p, x), c, b, stat, debug, st) =>
+    case (u, pgOptions, pgConfig, l, d, (p, x), c, prj, stat, debug, st) =>
+    val extracted = Project.extract(stat)
+    val s = extracted.get(proguardScala in (prj, Android))
+    val pc = extracted.get(proguardCache in (prj, Android))
     val cacheDir = st.cacheDirectory
     if (u) {
       val injars = d.filter { a =>
@@ -1370,7 +1377,8 @@ object Tasks {
         val alldeps = (indeps flatMap {
           dep => IO.readLines(dep) }).sortWith(_>_).distinct.mkString("\n")
 
-        val allhash = Hash.toHex(Hash(pc.mkString(":") + "\n" + alldeps))
+        val allhash = Hash.toHex(Hash((pgConfig ++ pgOptions).mkString("\n") +
+          "\n" + pc.mkString(":") + "\n" + alldeps))
 
         val cacheJar = out / ("proguard-cache-" + allhash + ".jar")
         FileFunction.cached(st.cacheDirectory / "cacheJar", FilesInfo.hash) { in =>
