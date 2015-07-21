@@ -25,7 +25,7 @@ import com.android.builder.model.{PackagingOptions, AaptOptions}
 import com.android.builder.signing.DefaultSigningConfig
 import com.android.builder.core._
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
-import com.android.ddmlib.DdmPreferences
+import com.android.ddmlib.{IDevice, DdmPreferences}
 import com.android.ddmlib.testrunner.ITestRunListener
 import com.android.ide.common.res2.FileStatus
 import com.android.ide.common.res2.FileValidity
@@ -1534,6 +1534,7 @@ object Tasks {
     val cache = s.cacheDirectory
     val re = extracted.get(retrolambdaEnable in (prj,Android))
     val debug = extracted.get(apkbuildDebug in (prj, Android))
+    val all = extracted.get(allDevices in (prj, Android))
     val placeholders = extracted.runTask(manifestPlaceholders in (prj, Android), st)._2
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
@@ -1605,12 +1606,12 @@ object Tasks {
       s.log.debug("Installing test apk: " + apk)
       installPackage(apk, sdk, s.log)
       try {
-        runTests(sdk, testPackage, s, trunner, timeo)
+        runTests(sdk, testPackage, s, trunner, timeo, all)
       } finally {
         uninstallPackage(None, testPackage, sdk, s.log)
       }
     } else {
-      runTests(sdk, pkg, s, runner, timeo)
+      runTests(sdk, pkg, s, runner, timeo, all)
     }
     ()
   }
@@ -1621,6 +1622,7 @@ object Tasks {
     val noTestApk = debugIncludesTests.value
     val pkg = applicationId.value
     val classes = (classDirectory in Test).value
+    val all = allDevices.value
     val st = state.value
     val s = streams.value
     val extracted = Project.extract(st)
@@ -1643,7 +1645,7 @@ object Tasks {
           i.attribute(ANDROID_NS, "targetPackage") map (_(0).text))
       }).headOption flatMap ( _._1) getOrElse runner
     }
-    runTests(sdk, testPackage, s, trunner, timeo, Some(testSelection))
+    runTests(sdk, testPackage, s, trunner, timeo, all, Some(testSelection))
   }
 
   private def generateTestManifest(pkg: String, classes: File,
@@ -1678,13 +1680,13 @@ object Tasks {
   }
 
   private def runTests(sdk: String, testPackage: String,
-      s: TaskStreams, runner: String, timeo: Int, testSelection: Option[String] = None) {
-    val listener = TestListener(s.log)
+      s: TaskStreams, runner: String, timeo: Int, all: Boolean, testSelection: Option[String] = None) {
     import com.android.ddmlib.testrunner.InstrumentationResultParser
-    val p = new InstrumentationResultParser(testPackage, listener)
-    val receiver = new Commands.ShellLogging(l => p.processNewLines(Array(l)))
     val intent = testPackage + "/" + runner
-    Commands.targetDevice(sdk, s.log) foreach { d =>
+    def execute(d: IDevice): Unit = {
+      val listener = TestListener(s.log)
+      val p = new InstrumentationResultParser(testPackage, listener)
+      val receiver = new Commands.ShellLogging(l => p.processNewLines(Array(l)))
       val selection = testSelection map { "-e " + _ } getOrElse ""
       val command = "am instrument -r -w %s %s" format(selection, intent)
       s.log.debug("Executing [%s]" format command)
@@ -1697,11 +1699,17 @@ object Tasks {
         s.log.info(receiver.b.toString())
 
       s.log.debug("instrument command executed")
+
+      if (listener.failures.nonEmpty) {
+        Plugin.fail("Tests failed: " + listener.failures.size + "\n" +
+          (listener.failures map (" - " + _)).mkString("\n"))
+      }
     }
-    if (listener.failures.nonEmpty) {
-      Plugin.fail("Tests failed: " + listener.failures.size + "\n" +
-        (listener.failures map (" - " + _)).mkString("\n"))
-    }
+    if (all)
+      Commands.deviceList(sdk, s.log).par foreach execute
+    else
+      Commands.targetDevice(sdk, s.log) foreach execute
+
   }
 
   val runTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
@@ -1709,6 +1717,7 @@ object Tasks {
     val l = projectLayout.value
     val p = applicationId.value
     val s = streams.value
+    val all = allDevices.value
     val r = Def.spaceDelimited().parsed
     val manifestXml = l.bin / "AndroidManifest.xml"
     val m = XML.loadFile(manifestXml)
@@ -1726,7 +1735,7 @@ object Tasks {
     }) match {
       case Some(intent) =>
         val receiver = new Commands.ShellLogging(l => s.log.info(l))
-        Commands.targetDevice(k, s.log) foreach { d =>
+        def execute(d: IDevice): Unit = {
           val command = "am start -n %s" format intent
           s.log.debug("Executing [%s]" format command)
           d.executeShellCommand(command, receiver)
@@ -1736,6 +1745,10 @@ object Tasks {
 
           s.log.debug("run command executed")
         }
+        if (all)
+          Commands.deviceList(k, s.log).par foreach execute
+        else
+          Commands.targetDevice(k, s.log) foreach execute
       case None =>
         Plugin.fail(
           "No activity found with action 'android.intent.action.MAIN'")
@@ -1749,11 +1762,12 @@ object Tasks {
   val installTaskDef = ( packageT
                        , libraryProject
                        , sdkPath
+                       , allDevices
                        , streams) map {
-    (p, l, k, s) =>
+    (p, l, k, all, s) =>
 
     if (!l) {
-      Commands.targetDevice(k, s.log) foreach { d =>
+      def execute(d: IDevice): Unit = {
         val cacheName = "install-" + URLEncoder.encode(
           d.getSerialNumber, "utf-8")
         FileFunction.cached(s.cacheDirectory / cacheName, FilesInfo.hash) { in =>
@@ -1762,6 +1776,10 @@ object Tasks {
           in
         }(Set(p))
       }
+      if (all)
+        Commands.deviceList(k, s.log).par foreach execute
+      else
+        Commands.targetDevice(k, s.log) foreach execute
     }
   }
 

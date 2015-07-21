@@ -299,6 +299,7 @@ object Plugin extends sbt.Plugin {
     apklibArtifact          <<= normalizedName { n => Artifact(n, "apklib", "apklib") },
     packageAar              <<= packageAarTaskDef,
     packageApklib           <<= packageApklibTaskDef,
+    allDevices               := false,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
     test                    <<= testTaskDef,
