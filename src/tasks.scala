@@ -714,10 +714,10 @@ object Tasks {
         mid.organization != "org.scala-lang" &&
           !(mid.configurations exists (_ contains "provided"))
       } getOrElse true) && a.data.exists
-    }.groupBy(_.data.getName).flatMap {
+    }.groupBy(_.data.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) if xs.head.data.isFile => xs.head :: Nil
-    }.map (_.data).toList
+    }.flatten.map (_.data).toList
 
     // workaround for https://code.google.com/p/android/issues/detail?id=73437
     val collectedJni = layout.bin / "collect-jni"
