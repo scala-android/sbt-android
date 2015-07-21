@@ -1368,7 +1368,7 @@ object Tasks {
         val alldeps = (indeps flatMap {
           dep => IO.readLines(dep) }).sortWith(_>_).distinct.mkString("\n")
 
-        val allhash = Hash.toHex(Hash(alldeps))
+        val allhash = Hash.toHex(Hash(pc.mkString(":") + "\n" + alldeps))
 
         val cacheJar = out / ("proguard-cache-" + allhash + ".jar")
         FileFunction.cached(st.cacheDirectory / "cacheJar", FilesInfo.hash) { in =>
