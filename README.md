@@ -577,26 +577,6 @@ found on the #sbt-android IRC channel on Freenode
 
 ### TODO / Known Issues ###
 
-* Changing usage of `implicit`s (defs, vals, classes, etc.) confuses
-  the proguard cache. It results in `NoSuchMethodError`s even though present
-  in the generated dex. Current workaround is to `clean` when `implicit`
-  usage changes occur.
-* Version checking of plugin and update notifications. This is not possible
-  with ivy. Options: relocate plugin to sonatype and/or host an off-site
-  versions config descriptor.
-* Changes to `AndroidManifest.xml` may require the plugin to be reloaded.
-  The manifest data is stored internally as read-only data and does not
-  reload automatically when it is changed. The current workaround is to
-  type `reload` manually anytime `AndroidManifest.xml` is updated if
-  necessary. This `reload` is necessary to keep `android:run` working
-  properly if activities are changed, and packaging operating correctly
-  when package names, or sdk references change.
-* sbt `0.12` and `0.13` currently have a bug where jars specified in javac's
-  -bootclasspath option forces a full rebuild of all classes everytime. sbt
-  `0.12.3` and later has a hack that should workaround this problem. The
-  plugin sets the system property `xsbt.skip.cp.lookup` to `true` to bypass
-  this issue; this disables certain incremental compilation checks, but should
-  not be an issue for the majority of use-cases.
 * `autolibs` do not properly process `apklib` and `aar` resources. If anything
   in an `autolib` uses resources from such a library, the answer is to create
   a standard multi-project build configuration rather than utilize `autolibs`.

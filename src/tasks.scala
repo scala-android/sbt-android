@@ -418,9 +418,11 @@ object Tasks {
     val ndkHome = Option(System.getenv("ANDROID_NDK_HOME")) orElse Option(
       p getProperty "ndk.dir")
 
-    val subndk = libs map { l => ndkbuild(l.layout, ndkHome, srcs, s.log, debug()) }
+    val subndk = libs flatMap { l =>
+      ndkbuild(l.layout, ndkHome, srcs, s.log, debug()).toSeq
+    }
 
-    Seq(ndkbuild(layout, ndkHome, srcs, s.log, debug())).flatten ++ subndk.flatten
+    ndkbuild(layout, ndkHome, srcs, s.log, debug()).toSeq ++ subndk
   }
 
   val collectProjectJniTaskDef = Def.task {
@@ -486,7 +488,7 @@ object Tasks {
       set
     }
 
-    val inputs = (respaths map { r => (r ***) get } flatten) filter (n =>
+    val inputs = (respaths flatMap { r => (r ***) get }) filter (n =>
       !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
     FileFunction.cached(cache / "collect-resources")(
@@ -712,10 +714,10 @@ object Tasks {
         mid.organization != "org.scala-lang" &&
           !(mid.configurations exists (_ contains "provided"))
       } getOrElse true) && a.data.exists
-    }.groupBy(_.data.getName).collect {
+    }.groupBy(_.data.getName).flatMap {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) if xs.head.data.isFile => xs.head :: Nil
-    }.flatten.map (_.data).toList
+    }.map (_.data).toList
 
     // workaround for https://code.google.com/p/android/issues/detail?id=73437
     val collectedJni = layout.bin / "collect-jni"
@@ -1544,7 +1546,6 @@ object Tasks {
     val placeholders = extracted.runTask(manifestPlaceholders in (prj, Android), st)._2
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
-    // TODO generate a test manifest if one does not exist
     val manifestFile = if (noTestApk || testManifest.exists) {
       testManifest
     } else {

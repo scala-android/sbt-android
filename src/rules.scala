@@ -475,7 +475,6 @@ object Plugin extends sbt.Plugin {
     setDebug                 := { apkbuildDebug.value(true) },
     setRelease               := { apkbuildDebug.value(false) },
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
-    // because of how packageXXX is implemented by using task.?
     packageDebug            <<= packageT,
     packageDebug            <<= packageDebug dependsOn setDebug,
     packageRelease          <<= packageT,
