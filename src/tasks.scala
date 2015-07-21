@@ -1435,23 +1435,29 @@ object Tasks {
       val jars = if (re && RetrolambdaSupport.isAvailable)
         RetrolambdaSupport(b, pjars, st, prj, s) else pjars
       val t = b / "classes.proguard.jar"
-      if (jars exists { _.lastModified > t.lastModified }) {
-        val injars = "-injars " + (jars map {
-          _.getPath + "(!META-INF/**,!rootdoc.txt)"
-        } mkString File.pathSeparator)
-        val libraryjars = for {
-          j <- libjars
-          a <- Seq("-libraryjars", j.getAbsolutePath)
-        } yield a
-        val outjars = "-outjars " + t.getAbsolutePath
-        val printmappings = Seq("-printmapping",
-          (b / "mappings.txt").getAbsolutePath)
-        val cfg = c ++ o ++ libraryjars ++ printmappings :+ injars :+ outjars
+
+      val libraryjars = for {
+        j <- libjars
+        a <- Seq("-libraryjars", j.getAbsolutePath)
+      } yield a
+      val injars = "-injars " + (jars map {
+        _.getPath + "(!META-INF/**,!rootdoc.txt)"
+      } mkString File.pathSeparator)
+      val outjars = "-outjars " + t.getAbsolutePath
+      val printmappings = Seq("-printmapping",
+        (b / "mappings.txt").getAbsolutePath)
+      val cfg = c ++ o ++ libraryjars ++ printmappings :+ injars :+ outjars
+      val ruleCache = s.cacheDirectory / "proguard-rules.hash"
+      val cacheHash = Try(IO.read(ruleCache)).toOption getOrElse ""
+      val rulesHash = Hash.toHex(Hash(cfg mkString "\n"))
+
+      if (jars.exists( _.lastModified > t.lastModified ) || cacheHash != rulesHash) {
         cfg foreach (l => s.log.debug(l))
         val config = new PgConfig
         import java.util.Properties
         val parser: ConfigurationParser = new ConfigurationParser(
           cfg.toArray[String], new Properties)
+        IO.write(s.cacheDirectory / "proguard-rules.hash", rulesHash)
         parser.parse(config)
         new ProGuard(config).execute()
       } else {
