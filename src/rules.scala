@@ -555,7 +555,7 @@ object Plugin extends sbt.Plugin {
                   s.log.debug(stdout)
                 val stderr = p.getErrorOutputAsString
                 if (!stderr.isEmpty)
-                  s.log.error(stderr)
+                  s.log.warn(stderr)
             }
           }
         },
