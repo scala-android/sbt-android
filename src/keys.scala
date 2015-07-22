@@ -277,8 +277,18 @@ object Keys {
     val setRelease = TaskKey[Unit]("set-release", "set release build")
     val aars = TaskKey[Seq[LibraryDependency]]("aars",
       "unpack the set of referenced aars")
-    val dexOptions = TaskKey[Tasks.DexOpts]("dex-options",
-      "Internal dex-related key consolidating task")
+    val testAggregate = TaskKey[Aggregate.AndroidTest]("test-aggregate",
+      "Internal android:test-related key aggregating task")
+    val apkbuildAggregate = TaskKey[Aggregate.Apkbuild]("apkbuild-aggregate",
+      "Internal apkbuild-related key aggregating task")
+    val proguardAggregate = TaskKey[Aggregate.Proguard]("proguard-aggregate",
+      "Internal proguard-related key aggregating task")
+    val manifestAggregate = TaskKey[Aggregate.Manifest]("manifest-aggregate",
+      "Internal manifest-related key aggregating task")
+    val retrolambdaAggregate = TaskKey[Aggregate.Retrolambda]("retrolambda-aggregate",
+      "Internal retrolambda-related key aggregating task")
+    val dexAggregate = TaskKey[Aggregate.Dex]("dex-aggregate",
+      "Internal dex-related key aggregating task")
 
     // alias to ease typing
     val packageT = sbt.Keys.`package`

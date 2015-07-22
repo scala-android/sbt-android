@@ -4,6 +4,7 @@ import java.io.{FileInputStream, FileOutputStream}
 import java.nio.ByteBuffer
 import java.util.jar.JarInputStream
 
+import com.android.builder.core.AndroidBuilder
 import sbt._
 import language.postfixOps
 
@@ -14,11 +15,9 @@ import net.orfjackal.retrolambda.{Main => RMain, Config => RConfig, Retrolambda}
  */
 object RetrolambdaSupport {
   def isAvailable = RMain.isRunningJava8
-  def apply(target: File, classpath: Seq[File], st: State, prj: ProjectRef,
+  def apply(target: File, classpath: Seq[File], forkClasspath: Seq[File], bldr: AndroidBuilder,
               s: sbt.Keys.TaskStreams): Seq[File] = synchronized {
     import collection.JavaConversions._
-    val e = Project.extract(st)
-    val bldr = e.runTask(Keys.Internal.builder in (prj,Keys.Android), st)._2
     val cp = (bldr.getBootClasspath map (f => f: sbt.File)) ++ classpath
     val dest = target / "retrolambda"
     val finalJar = target / "retrolambda-processed.jar"
@@ -34,7 +33,7 @@ object RetrolambdaSupport {
       val options = ForkOptions(
         runJVMOptions = Seq(
           "-noverify",
-          "-classpath", e.currentUnit.classpath map (
+          "-classpath", forkClasspath map (
             _.getAbsoluteFile) mkString java.io.File.pathSeparator
       ))
 

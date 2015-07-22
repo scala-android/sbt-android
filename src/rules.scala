@@ -356,7 +356,12 @@ object Plugin extends sbt.Plugin {
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) exists { _.equals("true") } },
     dexInputs               <<= dexInputsTaskDef,
-    dexOptions              <<= dexOptionsTaskDef,
+    dexAggregate            <<= dexAggregateTaskDef,
+    manifestAggregate       <<= manifestAggregateTaskDef,
+    proguardAggregate       <<= proguardAggregateTaskDef,
+    apkbuildAggregate       <<= apkbuildAggregateTaskDef,
+    retrolambdaAggregate    <<= retrolambdaAggregateTaskDef,
+    testAggregate           <<= testAggregateTaskDef,
     predex                  <<= predexTaskDef,
     dex                     <<= dexTaskDef,
     dexMaxHeap               := "1024m",

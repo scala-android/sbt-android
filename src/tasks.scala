@@ -683,28 +683,31 @@ object Tasks {
     p
   }
 
-  val apkbuildTaskDef = ( builder
-                        , state
-                        , thisProjectRef
-                        , resourceShrinker
-                        , dex
-                        , predex
+  val apkbuildAggregateTaskDef = Def.task {
+    Aggregate.Apkbuild(apkbuildExcludes.value, apkbuildPickFirsts.value,
+      apkbuildDebug.value(), dex.value, predex.value,
+      collectJni.value, resourceShrinker.value)
+  }
+
+  val apkbuildTaskDef = ( apkbuildAggregate
+                        , name
+                        , builder
+                        , projectLayout
+                        , ilogger
                         , unmanagedJars in Compile
                         , managedClasspath
                         , dependencyClasspath in Compile
-                        , collectJni
                         , streams
                         ) map {
-    (bldr, st, prj, r, d, pd, u, m, dcp, jni, s) =>
-    val extracted = Project.extract(st)
-    import extracted._
+    (a, n, bldr, layout, logger, u, m, dcp, s) =>
 
-    val n = get(name in prj)
-    val excl = get(apkbuildExcludes in (prj, Android))
-    val fsts = get(apkbuildPickFirsts in (prj, Android))
-    val layout = get(projectLayout in (prj, Android))
-    val logger = get(ilogger in (prj, Android))
-    val debug = get(apkbuildDebug in (prj, Android))
+    val excl = a.apkbuildExcludes
+    val fsts = a.apkbuildPickFirsts
+    val r = a.resourceShrinker
+    val d = a.dex
+    val pd = a.predex
+    val jni = a.collectJni
+    val debug = a.apkbuildDebug
     val cacheDir = s.cacheDirectory
     val predexed = pd flatMap (_._2 * "*.dex" get)
 
@@ -744,7 +747,7 @@ object Tasks {
         debugConfig.getKeyAlias, logger(s.log))
     }
 
-    val rel = if (debug()) "-debug-unaligned.apk"
+    val rel = if (debug) "-debug-unaligned.apk"
       else "-release-unsigned.apk"
     val pkg = n + rel
     val output = layout.bin / pkg
@@ -762,15 +765,15 @@ object Tasks {
       }
       s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s, %s)" format (
         r.getAbsolutePath, d.getAbsolutePath, jars,
-          if (collectedJni.exists) Seq(collectedJni) else Seq.empty, debug(),
-          if (debug()) debugConfig else null, output.getAbsolutePath,
+          if (collectedJni.exists) Seq(collectedJni) else Seq.empty, debug,
+          if (debug) debugConfig else null, output.getAbsolutePath,
           options
       ))
       bldr.packageApk(r.getAbsolutePath, d, predexed, jars,
         layout.resources.getAbsolutePath,
         (if (collectedJni.exists) Seq(collectedJni) else Seq.empty).asJava,
-        null, debug(),
-        if (debug()) debugConfig else null, options, output.getAbsolutePath)
+        null, debug,
+        if (debug) debugConfig else null, options, output.getAbsolutePath)
       s.log.debug("Including predexed: " + predexed)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))
@@ -917,23 +920,21 @@ object Tasks {
   }
 
   val processManifestTaskDef = ( builder
-                               , debugIncludesTests
-                               , projectLayout
                                , libraryProject
                                , libraryProjects
-                               , applicationId
-                               , state
-                               , thisProjectRef
+                               , manifestAggregate
+                               , mergeManifests
                                , instrumentTestRunner
-                               , manifestPlaceholders
+                               , projectLayout
+                               , debugIncludesTests
                                ) map {
-    (bldr, noTestApk, layout, isLib, libs, pkg, st, prj, trunner, ph) =>
-    val extracted = Project.extract(st)
-    val vc = extracted.runTask(versionCode in (prj,Android), st)._2
-    val vn = extracted.runTask(versionName in (prj,Android), st)._2
-    val sdk = extracted.runTask(targetSdkVersion in (prj,Android), st)._2
-    val minSdk = extracted.runTask(minSdkVersion in (prj,Android), st)._2
-    val merge = extracted.get(mergeManifests in (prj,Android))
+    (bldr, isLib, libs, a, merge, trunner, layout, noTestApk) =>
+    val pkg = a.applicationId
+    val ph = a.placeholders
+    val vc = a.versionCode
+    val vn = a.versionName
+    val sdk = a.targetSdkVersion
+    val minSdk = a.minSdkVersion
 
     layout.bin.mkdirs()
     val output = layout.bin / "AndroidManifest.xml"
@@ -1126,23 +1127,28 @@ object Tasks {
   def inPackages(s: String, pkgs: Seq[String]): Boolean =
     startsWithAny(s.replace('/','.'), pkgs map (_ + "."))
 
+  val retrolambdaAggregateTaskDef = Def.task {
+    Aggregate.Retrolambda(retrolambdaEnable.value,
+      Project.extract(state.value).currentUnit.classpath, builder.value)
+  }
   val dexInputsTaskDef = ( proguard
                          , proguardInputs
-                         , proguardCache
-                         , thisProjectRef
-                         , retrolambdaEnable
+                         , proguardAggregate
+                         , retrolambdaAggregate
                          , dexMulti
                          , binPath
                          , dependencyClasspath
                          , classesJar
-                         , state
+                         , apkbuildDebug
                          , streams) map {
-    (progOut, in, progCache, prj, re, multiDex, b, deps, classJar, st, s) =>
+    (progOut, in, pa, ra, multiDex, b, deps, classJar, debug, s) =>
 
-      val extracted = Project.extract(st)
-      val debug = extracted.get(apkbuildDebug in (prj, Android))
-      val proguardRelease = extracted.get(useProguard in (prj, Android))
-      val proguardDebug = extracted.get(useProguardInDebug in (prj, Android))
+
+      val re = ra.enable
+      val bldr = ra.builder
+      val progCache = pa.proguardCache
+      val proguardRelease = pa.useProguard
+      val proguardDebug = pa.useProguardInDebug
 
       val proguarding = (proguardDebug && debug()) || (proguardRelease && !debug())
       // TODO use getIncremental in DexOptions instead
@@ -1166,7 +1172,7 @@ object Tasks {
         } ++ in.proguardCache :+ classJar
         // TODO may fail badly in the presence of proguard-cache?
         if (re && RetrolambdaSupport.isAvailable)
-          RetrolambdaSupport(b, inputs, st, prj, s)
+          RetrolambdaSupport(b, inputs, ra.classpath, bldr, s)
         else inputs
       }
 
@@ -1174,20 +1180,20 @@ object Tasks {
       (incrementalDex && !proguardedDexMarker.exists) -> jarsToDex
   }
 
-  private[android] case class DexOpts(inputs: (Boolean,Seq[File]),
-                                         maxHeap: String,
-                                         multi: Boolean,
-                                         mainFileClassesConfig: File,
-                                         minimizeMainFile: Boolean,
-                                         additionalParams: Seq[String])
-  val dexOptionsTaskDef = Def.task {
-    DexOpts(dexInputs.value, dexMaxHeap.value, dexMulti.value,
+  val manifestAggregateTaskDef = Def.task {
+    Aggregate.Manifest(applicationId.value,
+      versionName.value, versionCode.value,
+      minSdkVersion.value, targetSdkVersion.value,
+      manifestPlaceholders.value)
+  }
+  val dexAggregateTaskDef = Def.task {
+    Aggregate.Dex(dexInputs.value, dexMaxHeap.value, dexMulti.value,
       dexMainFileClassesConfig.value, dexMinimizeMainFile.value,
       dexAdditionalParams.value)
   }
 
   val dexTaskDef = ( builder
-                   , dexOptions
+                   , dexAggregate
                    , predex
                    , proguard
                    , classesJar
@@ -1237,7 +1243,7 @@ object Tasks {
   }
 
   val predexTaskDef = Def.task {
-    val opts = dexOptions.value
+    val opts = dexAggregate.value
     val inputs = opts.inputs._2
     val multiDex = opts.multi
     val minSdk = minSdkVersion.value
@@ -1328,15 +1334,12 @@ object Tasks {
                               , dependencyClasspath
                               , platformJars
                               , classesJar
-                              , thisProjectRef
-                              , state
+                              , proguardScala
+                              , proguardCache
                               , apkbuildDebug
                               , streams
                               ) map {
-    case (u, pgOptions, pgConfig, l, d, (p, x), c, prj, stat, debug, st) =>
-    val extracted = Project.extract(stat)
-    val s = extracted.get(proguardScala in (prj, Android))
-    val pc = extracted.get(proguardCache in (prj, Android))
+    case (u, pgOptions, pgConfig, l, d, (p, x), c, s, pc, debug, st) =>
     val cacheDir = st.cacheDirectory
     if (u) {
       val injars = d.filter { a =>
@@ -1419,22 +1422,28 @@ object Tasks {
     }
   }
 
+  val proguardAggregateTaskDef = Def.task {
+    Aggregate.Proguard(useProguard.value, useProguardInDebug.value,
+      proguardScala.value,
+      proguardConfig.value, proguardOptions.value, proguardCache.value)
+  }
+
   val proguardTaskDef: Def.Initialize[Task[Option[File]]] =
-      ( useProguard
-      , useProguardInDebug
-      , proguardConfig
-      , proguardOptions
-      , proguardCache
+      ( proguardAggregate
+      , builder
       , libraryProject
       , proguardInputs
-      , thisProjectRef
-      , state
-      , retrolambdaEnable
+      , apkbuildDebug
+      , binPath
+      , retrolambdaAggregate
       , streams
-      ) map { case (p, d, c, o, pc, l, inputs, prj, st, re, s) =>
-    val e = Project.extract(st)
-    val debug = e.get(apkbuildDebug in (prj,Android))
-    val b = e.get(binPath in (prj,Android))
+      ) map { case (a, bldr, l, inputs, debug, b, ra, s) =>
+    val p = a.useProguard
+    val d = a.useProguardInDebug
+    val c = a.proguardConfig
+    val o = a.proguardOptions
+    val pc = a.proguardCache
+    val re = ra.enable
     if (inputs.proguardCache exists (_.exists)) {
       s.log.info("[debug] cache hit, skipping proguard!")
       None
@@ -1442,7 +1451,7 @@ object Tasks {
       val libjars = inputs.libraryjars
       val pjars = inputs.injars map (_.data)
       val jars = if (re && RetrolambdaSupport.isAvailable)
-        RetrolambdaSupport(b, pjars, st, prj, s) else pjars
+        RetrolambdaSupport(b, pjars, ra.classpath, bldr, s) else pjars
       val t = b / "classes.proguard.jar"
 
       val libraryjars = for {
@@ -1527,30 +1536,36 @@ object Tasks {
     }
   }
 
+  val testAggregateTaskDef = Def.task {
+    Aggregate.AndroidTest(debugIncludesTests.value, instrumentTestRunner.value,
+      instrumentTestTimeout.value, apkbuildDebug.value(),
+      (externalDependencyClasspath in Test).value map (_.data),
+      (externalDependencyClasspath in Compile).value map (_.data))
+  }
   val testTaskDef = ( projectLayout
-                    , thisProjectRef
-                    , debugIncludesTests
                     , builder
-                    , applicationId
-                    , libraryProjects
                     , classDirectory
-                    , externalDependencyClasspath in Compile
-                    , externalDependencyClasspath in Test
-                    , state
+                    , sdkPath
+                    , allDevices
+                    , dexMaxHeap
+                    , testAggregate
+                    , manifestAggregate
+                    , retrolambdaAggregate
+                    , libraryProjects
                     , streams) map {
-    (layout, prj, noTestApk, bldr, pkg, libs, classes, clib, tlib, st, s) =>
-    val extracted = Project.extract(st)
-    val timeo = extracted.get(instrumentTestTimeout in (prj,Android))
-    val sdk = extracted.get(sdkPath in (prj,Android))
-    val targetSdk = extracted.runTask(targetSdkVersion in Android, st)._2
-    val minSdk = extracted.runTask(minSdkVersion in Android, st)._2
-    val runner = extracted.get(instrumentTestRunner in (prj,Android))
-    val xmx = extracted.get(dexMaxHeap in (prj,Android))
+    (layout, bldr, classes, sdk, all, xmx, ta, ma, ra, libs, s) =>
+    val pkg = ma.applicationId
+    val minSdk = ma.minSdkVersion
+    val targetSdk = ma.targetSdkVersion
+    val placeholders = ma.placeholders
+    val timeo = ta.instrumentTestTimeout
+    val noTestApk = ta.debugIncludesTests
+    val runner = ta.instrumentTestRunner
+    val clib = ta.externalDependencyClasspathInCompile
+    val tlib = ta.externalDependencyClassPathInTest
     val cache = s.cacheDirectory
-    val re = extracted.get(retrolambdaEnable in (prj,Android))
-    val debug = extracted.get(apkbuildDebug in (prj, Android))
-    val all = extracted.get(allDevices in (prj, Android))
-    val placeholders = extracted.runTask(manifestPlaceholders in (prj, Android), st)._2
+    val re = ra.enable
+    val debug = ta.apkbuildDebug
 
     val testManifest = layout.testSources / "AndroidManifest.xml"
     val manifestFile = if (noTestApk || testManifest.exists) {
@@ -1591,7 +1606,7 @@ object Tasks {
       val apk = layout.bin / "instrumentation-test.ap_"
 
       if (!rTxt.exists) rTxt.createNewFile()
-      aapt(bldr, processedManifest, testPackage, libs, false, debug(),
+      aapt(bldr, processedManifest, testPackage, libs, false, debug,
         layout.testRes, layout.testAssets,
         res.getAbsolutePath, classes, null, s.log)
 
@@ -1599,12 +1614,12 @@ object Tasks {
       val tmp = cache / "test-dex"
       tmp.mkdirs()
       val inputs = if (re && RetrolambdaSupport.isAvailable) {
-        RetrolambdaSupport(classes, deps map (_.data), st, prj, s)
+        RetrolambdaSupport(classes, deps, ra.classpath, bldr, s)
       } else {
-        Seq(classes) ++ (deps map (_.data))
+        Seq(classes) ++ deps
       }
       bldr.convertByteCode(inputs, Seq.empty[File],
-        dex, false, false, null, options, Nil, tmp, false, !debug())
+        dex, false, false, null, options, Nil, tmp, false, !debug)
 
       val debugConfig = new DefaultSigningConfig("debug")
       debugConfig.initDebug()
@@ -1615,8 +1630,7 @@ object Tasks {
       }
       bldr.packageApk(res.getAbsolutePath, dex,
         Seq.empty[File], Seq.empty[File], null, null, null,
-        debug(), debugConfig, opts, apk.getAbsolutePath)
-      s.log.info("Testing...")
+        debug, debugConfig, opts, apk.getAbsolutePath)
       s.log.debug("Installing test apk: " + apk)
       installPackage(apk, sdk, s.log)
       try {
@@ -1632,17 +1646,14 @@ object Tasks {
 
   val testOnlyTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     val layout = projectLayout.value
-    val prj = thisProjectRef.value
     val noTestApk = debugIncludesTests.value
     val pkg = applicationId.value
     val classes = (classDirectory in Test).value
     val all = allDevices.value
-    val st = state.value
     val s = streams.value
-    val extracted = Project.extract(st)
-    val timeo = extracted.get(instrumentTestTimeout in (prj,Android))
-    val sdk = extracted.get(sdkPath in (prj,Android))
-    val runner = extracted.get(instrumentTestRunner in (prj,Android))
+    val timeo = instrumentTestTimeout.value
+    val sdk = sdkPath.value
+    val runner = instrumentTestRunner.value
     val testManifest = layout.testSources / "AndroidManifest.xml"
     val manifestFile = if (noTestApk || testManifest.exists) {
       testManifest
