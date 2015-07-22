@@ -56,16 +56,18 @@ object Commands {
     if (list.isEmpty) {
       state.log.warn("No devices connected")
     } else {
-      state.log.info("Connected devices:")
+      state.log.info(" %-22s %-16s %8s Android Version" format ("Serial", "Model", "Battery %"))
+      state.log.info(       " %s %s %s ---------------" format ("-" * 22, "-" * 16, "-" * 9))
       list foreach { dev =>
         val name = Option(dev.getAvdName) orElse
-          Option(dev.getProperty("ro.build.product")) getOrElse (
+          Option(dev.getProperty(IDevice.PROP_DEVICE_MODEL)) getOrElse (
             if (dev.isEmulator) "emulator" else "device")
 
-        val sel = defaultDevice map { d =>
-          if (d == dev.getSerialNumber) "*" else " " } getOrElse " "
+        val sel = defaultDevice.fold(" ") { d =>
+          if (d == dev.getSerialNumber) "*" else " "
+        }
 
-        state.log.info(" %s%-22s %s" format (sel, dev.getSerialNumber, name))
+        state.log.info(f"$sel${dev.getSerialNumber}%-22s $name%-16s ${dev.getBattery.get}%8s%% ${dev.getProperty(IDevice.PROP_BUILD_VERSION)}%-6s API ${dev.getProperty(IDevice.PROP_BUILD_API_LEVEL)}")
       }
     }
     state
@@ -661,7 +663,7 @@ object Commands {
       }) getOrElse Plugin.fail("ANDROID_HOME or sdk.dir is not set")
   }
   class ShellLogging[A](logger: String => A) extends IShellOutputReceiver {
-    val b = new StringBuilder
+    private[this] val b = new StringBuilder
 
     override def addOutput(data: Array[Byte], off: Int, len: Int) = {
       b.append(new String(data, off, len))
@@ -673,7 +675,7 @@ object Commands {
     }
 
     override def flush() {
-      b.mkString.split("\\n") foreach logger
+      b.mkString.split("\\n").filterNot(_.isEmpty) foreach logger
       b.clear()
     }
 

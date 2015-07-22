@@ -1704,14 +1704,12 @@ object Tasks {
       val receiver = new Commands.ShellLogging(l => p.processNewLines(Array(l)))
       val selection = testSelection map { "-e " + _ } getOrElse ""
       val command = "am instrument -r -w %s %s" format(selection, intent)
+      s.log.info(s"Testing on ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
       s.log.debug("Executing [%s]" format command)
       val timeout = DdmPreferences.getTimeOut
       DdmPreferences.setTimeOut(timeo)
       d.executeShellCommand(command, receiver)
       DdmPreferences.setTimeOut(timeout)
-
-      if (receiver.b.toString().length > 0)
-        s.log.info(receiver.b.toString())
 
       s.log.debug("instrument command executed")
 
@@ -1752,12 +1750,9 @@ object Tasks {
         val receiver = new Commands.ShellLogging(l => s.log.info(l))
         def execute(d: IDevice): Unit = {
           val command = "am start -n %s" format intent
+          s.log.info(s"Running on ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
           s.log.debug("Executing [%s]" format command)
           d.executeShellCommand(command, receiver)
-
-          if (receiver.b.toString().length > 0)
-            s.log.info(receiver.b.toString())
-
           s.log.debug("run command executed")
         }
         if (all)
@@ -1786,7 +1781,7 @@ object Tasks {
         val cacheName = "install-" + URLEncoder.encode(
           d.getSerialNumber, "utf-8")
         FileFunction.cached(s.cacheDirectory / cacheName, FilesInfo.hash) { in =>
-          s.log.info("Installing...")
+          s.log.info(s"Installing to ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
           installPackage(p, k, s.log)
           in
         }(Set(p))
@@ -1825,6 +1820,7 @@ object Tasks {
           Set.empty
         }(Set.empty)
       }
+      log.info(s"Uninstalling from ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
       Option(d.uninstallPackage(packageName)) map { err =>
         Plugin.fail("[%s] Uninstall failed: %s" format (packageName, err))
       } getOrElse {
