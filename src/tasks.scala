@@ -411,12 +411,11 @@ object Tasks {
                         , libraryProjects
                         , sourceManaged in Compile
                         , ndkJavah
+                        , ndkPath
                         , properties
                         , streams
                         , apkbuildDebug
-                        ) map { (layout, libs, srcs, h, p, s, debug) =>
-    val ndkHome = Option(System.getenv("ANDROID_NDK_HOME")) orElse Option(
-      p getProperty "ndk.dir")
+                        ) map { (layout, libs, srcs, h, ndkHome, p, s, debug) =>
 
     val subndk = libs flatMap { l =>
       ndkbuild(l.layout, ndkHome, srcs, s.log, debug()).toSeq

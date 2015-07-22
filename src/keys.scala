@@ -39,6 +39,11 @@ object Keys {
   val LibraryProject = Dependencies.LibraryProject
 
   // build-environment keys
+  // automatically set from ANDROID_HOME or *.properties ("sdk.dir")
+  val sdkPath = SettingKey[String]("sdk-path",
+    "Path to the Android SDK, defaults to ANDROID_HOME or 'sdk.dir' from properties")
+  val ndkPath = SettingKey[Option[String]]("ndk-path",
+    "Path to the Android NDK, defaults to ANDROID_NDK_HOME or 'ndk.dir' from properties")
   val platformTarget = SettingKey[String]("platform-target",
     "target API level as described by 'android list targets' (the ID string)")
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
@@ -266,8 +271,6 @@ object Keys {
       "Android SdkManager object")
     val properties = SettingKey[Properties]("properties",
       "Properties loaded from the project's .property files")
-    // should only be set via local.properties or ANDROID_HOME
-    val sdkPath = SettingKey[String]("sdk-path", "Path to the Android SDK")
     val processManifest = TaskKey[File]("process-manifest",
       "manifest munging task")
     val setDebug = TaskKey[Unit]("set-debug", "set debug build")

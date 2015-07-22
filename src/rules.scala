@@ -491,6 +491,16 @@ object Plugin extends sbt.Plugin {
             "set ANDROID_HOME or run 'android update project -p %s'"
               format p.base)
     },
+    ndkPath                 <<= (thisProject,properties) { (p,props) =>
+      (Option(System getenv "ANDROID_NDK_HOME") orElse
+        Option(props get "ndk.dir")) flatMap { p =>
+        val f = file(p + File.separator)
+        if (f.exists && f.isDirectory)
+          Some(p + File.separator)
+        else
+          None
+      }
+    },
     zipalignPath            <<= ( sdkPath
                                 , sdkManager
                                 , buildTools
