@@ -552,7 +552,7 @@ object Plugin extends sbt.Plugin {
               case p: BaseProcessOutput =>
                 val stdout = p.getStandardOutputAsString
                 if (!stdout.isEmpty)
-                  s.log.info(stdout)
+                  s.log.debug(stdout)
                 val stderr = p.getErrorOutputAsString
                 if (!stderr.isEmpty)
                   s.log.error(stderr)
