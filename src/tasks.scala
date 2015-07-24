@@ -1741,6 +1741,10 @@ object Tasks {
     val p = applicationId.value
     val s = streams.value
     val all = allDevices.value
+    val isLib = libraryProject.value
+    if (isLib)
+      Plugin.fail("This project is not runnable, it has set 'libraryProject in Android := true")
+
     val r = Def.spaceDelimited().parsed
     val manifestXml = l.bin / "AndroidManifest.xml"
     val m = XML.loadFile(manifestXml)
