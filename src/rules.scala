@@ -80,10 +80,12 @@ object Plugin extends sbt.Plugin {
   }
 
   lazy val androidBuildAar: Seq[Setting[_]] = androidBuildAar()
+  @deprecated("Use aar files instead", "gradle compatibility")
   lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
   def androidBuildAar(projects: Project*): Seq[Setting[_]] = {
     androidBuild(projects:_*) ++ buildAar
   }
+  @deprecated("Use aar files instead", "gradle compatibility")
   def androidBuildApklib(projects: Project*): Seq[Setting[_]] = {
     androidBuild(projects:_*) ++ buildApklib
   }
