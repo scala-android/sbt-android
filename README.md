@@ -26,8 +26,8 @@ containing:
 See [proguard bug #549](https://sourceforge.net/p/proguard/bugs/549/) and
 [SI-8931](https://issues.scala-lang.org/browse/SI-8931)
 
-NOTE: support-v4 22.2.0 triggers a scalac assertion error, 2.11.7 will address
-this issue, see [SI-7741](https://issues.scala-lang.org/browse/SI-7741)
+NOTE: support-v4 22.2.x triggers compilation errors, see #173 and
+[SI-7741](https://issues.scala-lang.org/browse/SI-7741)
 
 ## Support and Help ##
 
