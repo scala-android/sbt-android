@@ -1094,15 +1094,44 @@ object Tasks {
   }
 
   val dexMainFileClassesConfigTaskDef = ( projectLayout
-                                        , dexMainFileClasses) map {
-    (layout, mainDexClasses) =>
+                                        , dexMulti
+                                        , dexInputs
+                                        , dexMainFileClasses
+                                        , buildTools
+                                        , streams) map {
+    case (layout, multidex, (_,inputs), mainDexClasses, bt, s) =>
       val mainDexListTxt = (layout.bin / "maindexlist.txt").getAbsoluteFile
-      val writer = new PrintWriter(mainDexListTxt)
-      try {
-        writer.write(mainDexClasses.mkString("\n"))
-      } finally {
-        writer.close()
-      }
+      if (multidex) {
+        if (mainDexClasses.nonEmpty) {
+          IO.writeLines(mainDexListTxt, mainDexClasses)
+        } else {
+          val btl = bt.getLocation
+          val script = if (!Commands.isWindows) btl / "mainDexClasses"
+          else {
+            val f = btl / "mainDexClasses.cmd"
+            if (f.exists) f else btl / "mainDexClasses.bat"
+          }
+          val injars = inputs map (_.getAbsolutePath) mkString File.pathSeparator
+          FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
+            val cmd = Seq(
+              script.getAbsolutePath,
+              "--output", mainDexListTxt.getAbsolutePath,
+              "\"" + injars + "\""
+            )
+
+            s.log.info("Generating maindexlist.txt")
+            s.log.debug("mainDexClasses => " + cmd.mkString(" "))
+            val rc = Process(cmd, layout.base, Nil: _*) !
+
+            if (rc != 0) {
+              Plugin.fail("failed to determine mainDexClasses")
+            }
+            Set(mainDexListTxt)
+          }(inputs.toSet)
+
+        }
+      } else
+        mainDexListTxt.delete()
       mainDexListTxt
   }
 
@@ -1210,6 +1239,8 @@ object Tasks {
       val minMainDex = dexOpts.minimizeMainFile
       val additionalParams = dexOpts.additionalParams
       val incremental = incr && !multiDex
+      val minLevel = Try(minSdk.toInt).toOption getOrElse
+        SdkVersionInfo.getApiByBuildCode(minSdk, true)
       if (!incremental && inputs.exists(_.getName.startsWith("proguard-cache"))) {
         s.log.debug("Cleaning dex files for proguard cache and incremental dex")
         (bin * "*.dex" get) foreach (_.delete())
@@ -1221,7 +1252,7 @@ object Tasks {
         override def getJumboMode = false
         override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
       }
-      s.log.info(s"Generating dex, incremental=$incremental, multiDex=$multiDex")
+      s.log.info(s"Generating dex, incremental=$incremental, multidex=$multiDex")
       s.log.debug("Dex inputs: " + inputs)
 
       val tmp  = s.cacheDirectory / "dex"
@@ -1235,7 +1266,7 @@ object Tasks {
       s.log.debug("DEX IN: " + dexIn)
       s.log.debug("PRE-DEXED: " + predex2)
       bldr.convertByteCode(dexIn, predex2, bin,
-        multiDex, multiDex, mainDexListTxt,
+        multiDex, minLevel < 21 && multiDex, mainDexListTxt,
         options, additionalDexParams, tmp, incremental, !debug())
       s.log.info("dex method count: " + ((bin * "*.dex" get) map(dexMethodCount(_, s.log))).sum)
 
