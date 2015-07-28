@@ -1126,13 +1126,8 @@ object Tasks {
             if (rc != 0) {
               Plugin.fail("failed to determine mainDexClasses")
             }
-            // better way:
-            // copy maindexlist.txt, then:
-            // `dexMainFileClasses in Android` := IO.readLines(file("maindexlist.txt"))
-            // this is way too verbose:
-            // val lines = IO.readLines(mainDexListTxt)
-            // s.log.warn("Set `dexMainFileClasses in Android` to improve build time:")
-            // s.log.warn("dexMainFileClasses in Android :=\n  " + (lines map ("\"" + _ + "\"") mkString " ::\n  ") + " ::\n  Nil")
+            s.log.warn("Set mainDexClasses to improve build times:")
+            s.log.warn("""  dexMainFileClassesConfig in Android := baseDirectory.value / "copy-of-maindexlist.txt"""")
             Set(mainDexListTxt)
           }(inputs.toSet)
 
