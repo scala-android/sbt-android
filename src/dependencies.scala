@@ -2,7 +2,7 @@ package android
 
 import sbt._
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.xml.XML
 import language.postfixOps
 
@@ -40,7 +40,7 @@ object Dependencies {
     override def isOptional = false
 
     override def getJarFile = path / FN_CLASSES_JAR
-    override def getLocalJars = (path / LIBS_FOLDER) ** "*.jar" get
+    override def getLocalJars = ((path / LIBS_FOLDER) ** "*.jar" get).asJava
     override def getResFolder = path / FD_RES
     override def getAssetsFolder = path / FD_ASSETS
     override def getJniFolder = path / "jni"
@@ -50,13 +50,14 @@ object Dependencies {
     override def getLintJar = path / "lint.jar"
     override def getProguardRules = path / "proguard.txt"
 
-    override def getDependencies = Seq.empty[LibraryDependency]
+    override def getDependencies = Seq.empty.asJava
     override def getLibraryDependencies = getDependencies
     override def getManifestDependencies = getDependencies
 
-    override def getLocalDependencies = getLocalJars map {
+    override def getLocalDependencies = getLocalJars.asScala map {
       j => new JarDependency(j, true, true, false, null, null)
-    }
+    } asJava
+
     override def getProjectVariant = null
 
     override def getRequestedCoordinates = null
@@ -92,23 +93,18 @@ object Dependencies {
     override def getPublicResources = layout.bin / "public.txt"
 
     override def getJniFolder = layout.jniLibs
-    override def getLocalJars = layout.libs ** "*.jar" get
+    override def getLocalJars = (layout.libs ** "*.jar" get).asJava
     override def getResFolder = layout.res
     override def getAssetsFolder = layout.assets
     override def getAidlFolder = layout.aidl
     override def getRenderscriptFolder = layout.renderscript
 
     override def getDependencies = {
-      Option((path / "target" / "aars").listFiles).map { list =>
-        list filter (_.isDirectory) map { d =>
-          AarLibrary(d, None): LibraryDependency
-        }
-      }.getOrElse(Array.empty).toSeq ++
-        Option((path / "target" / "apklibs").listFiles).map { list =>
-          list filter (_.isDirectory) map { d =>
-            ApkLibrary(d): LibraryDependency
-          }
-        }.getOrElse(Array.empty).toSeq
+      ((IO.listFiles(path / "target" / "aars") filter (_.isDirectory) map { d =>
+        AarLibrary(d, None): AndroidLibrary
+      }) ++ (IO.listFiles(path / "target" / "apklibs") filter (_.isDirectory) map { d =>
+        ApkLibrary(d): AndroidLibrary
+      })).toList.asJava
     }
   }
   trait Pkg {

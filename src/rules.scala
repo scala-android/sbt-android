@@ -19,7 +19,7 @@ import com.android.utils.ILogger
 
 import java.io.{PrintWriter, File}
 
-import scala.collection.JavaConversions._
+import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.xml.XML
 import language.postfixOps
@@ -171,7 +171,7 @@ object Plugin extends sbt.Plugin {
       (o,bldr, debug, re) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (debug()) Seq("-g") else Seq.empty
-      val bcp = bldr.getBootClasspath mkString File.pathSeparator
+      val bcp = bldr.getBootClasspath.asScala mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
       o ++ (if (!re) Seq("-bootclasspath" , bcp) else
@@ -179,15 +179,15 @@ object Plugin extends sbt.Plugin {
     },
     scalacOptions     <<= (scalacOptions, builder in Android) map { (o,bldr) =>
       // scalac has -g:vars by default
-      val bcp = bldr.getBootClasspath mkString File.pathSeparator
+      val bcp = bldr.getBootClasspath.asScala mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
     exportJars         := false,
     managedClasspath <++= (platform in Android) map { t =>
-      (Option(t.getOptionalLibraries) map {
-        _ map ( j => Attributed.blank(j.getJar) )
-      } getOrElse List.empty).toSeq
+      t.getOptionalLibraries.asScala map { l =>
+        Attributed.blank(l.getJar)
+      }
     },
     scalacOptions in console    := Seq.empty
   )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
@@ -366,8 +366,7 @@ object Plugin extends sbt.Plugin {
     dexMainFileClassesConfig <<= dexMainFileClassesConfigTaskDef,
     platformJars            <<= platform map { p =>
       (p.getPath(IAndroidTarget.ANDROID_JAR),
-      (Option(p.getOptionalLibraries) map(_ map(_.getJar.getAbsolutePath))).getOrElse(
-        List.empty).toSeq)
+      p.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))
     },
     projectLayout           <<= baseDirectory (ProjectLayout.apply),
     manifestPath            <<= projectLayout { l =>
@@ -543,10 +542,10 @@ object Plugin extends sbt.Plugin {
         new JavaProcessExecutor {
           override def execute(javaProcessInfo: JavaProcessInfo, processOutputHandler: ProcessOutputHandler) = {
             val options = ForkOptions(
-              envVars = javaProcessInfo.getEnvironment map { case ((x,y)) => x -> y.toString } toMap,
-              runJVMOptions = javaProcessInfo.getJvmArgs ++
+              envVars = javaProcessInfo.getEnvironment.asScala map { case ((x,y)) => x -> y.toString } toMap,
+              runJVMOptions = javaProcessInfo.getJvmArgs.asScala ++
                 ("-cp" :: javaProcessInfo.getClasspath :: Nil))
-            val r = Fork.java(options, (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs)
+            val r = Fork.java(options, (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs.asScala)
             new ProcessResult {
               override def assertNormalExitValue() = {
                 if (r != 0) throw new ProcessException("error code: " + r)
@@ -584,10 +583,10 @@ object Plugin extends sbt.Plugin {
         l(s.log), false)
       val sdkInfo = ldr.getSdkInfo(l(s.log))
       val targetInfo = ldr.getTargetInfo(t, b.getRevision, l(s.log))
-      bldr.setTargetInfo(sdkInfo, targetInfo, reqs map { case (name, required) => new LibraryRequest(name, required) })
+      bldr.setTargetInfo(sdkInfo, targetInfo, reqs map { case ((nm, required)) => new LibraryRequest(nm, required) } asJava)
       bldr
     },
-    bootClasspath            := builder.value.getBootClasspath map Attributed.blank,
+    bootClasspath            := builder.value.getBootClasspath.asScala map Attributed.blank,
     sdkManager              <<= (sdkPath,ilogger, streams) map { (p, l, s) =>
       SdkManager.createManager(p, l(s.log))
     },
@@ -757,8 +756,9 @@ object NullLogger extends ILogger {
 }
 
 trait AutoBuild extends Build {
-  private def loadLibraryProjects(b: File, p: Properties): Seq[Project] = {
-    (p.stringPropertyNames.collect {
+  private def loadLibraryProjects(b: File, props: Properties): Seq[Project] = {
+    val p = props.asScala
+    (p.keys.collect {
       case k if k.startsWith("android.library.reference") => k
     }.toList.sortWith { (a,b) => a < b } flatMap { k =>
       val layout = ProjectLayout(b/p(k))

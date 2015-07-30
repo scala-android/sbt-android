@@ -12,7 +12,6 @@ import sbt.Keys._
 import sbt.classpath.ClasspathUtilities
 
 import scala.collection.JavaConverters._
-import scala.collection.JavaConversions._
 import scala.util.Try
 import scala.xml._
 import language.postfixOps
@@ -82,7 +81,7 @@ object Tasks {
     }
     val resTarget = projectLayout.value.bin / "resources" / "res"
     val generator = new ResValueGenerator(resTarget)
-    generator.addItems(items)
+    generator.addItems((items: Seq[Object]).asJava)
     generator.generate()
   }
 
@@ -395,7 +394,7 @@ object Tasks {
       val javah = Seq("javah",
         "-d", src.getAbsolutePath,
         "-classpath", cp map (_.data.getAbsolutePath) mkString File.pathSeparator,
-        "-bootclasspath", bldr.getBootClasspath mkString File.pathSeparator) ++ natives
+        "-bootclasspath", bldr.getBootClasspath.asScala mkString File.pathSeparator) ++ natives
 
       s.log.debug(javah mkString " ")
 
@@ -431,7 +430,7 @@ object Tasks {
   val collectJniTaskDef = Def.task {
     def libJni(lib: LibraryDependency): Seq[File] =
       Seq(lib.getJniFolder).filter(_.isDirectory) ++
-        lib.getDependencies.flatMap(l => libJni(l.asInstanceOf[LibraryDependency]))
+        lib.getDependencies.asScala.flatMap(l => libJni(l.asInstanceOf[LibraryDependency]))
 
     collectProjectJni.value ++ libraryProjects.value.flatMap(libJni)
   }
@@ -525,7 +524,7 @@ object Tasks {
     if (!merger.loadFromBlob(blobDir, true)) {
       slog.debug("Could not load merge blob (no full merge yet?)")
       merge()
-    } else if (!merger.checkValidUpdate(resources)) {
+    } else if (!merger.checkValidUpdate(resources.asJava)) {
       slog.debug("requesting full merge: !checkValidUpdate")
       merge()
     } else {
@@ -759,11 +758,11 @@ object Tasks {
     FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
       s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s, %s)" format (
         r.getAbsolutePath, d.getAbsolutePath, jars,
-          if (collectedJni.exists) Seq(collectedJni) else Seq.empty, debug,
+          if (collectedJni.exists) Seq(collectedJni).asJava else Seq.empty.asJava, debug,
           if (debug) debugConfig else null, output.getAbsolutePath,
           options
       ))
-      bldr.packageApk(r.getAbsolutePath, d, predexed, jars,
+      bldr.packageApk(r.getAbsolutePath, d, predexed.asJava, jars.asJava,
         layout.resources.getAbsolutePath,
         (if (collectedJni.exists) Seq(collectedJni) else Seq.empty).asJava,
         s.cacheDirectory / "apkbuild-merging", null, debug,
@@ -837,8 +836,8 @@ object Tasks {
     val rsOutput = rsBinPath.value
 
     val processor = new RenderScriptProcessor(
-      scripts,
-      List.empty[File],
+      scripts.asJava,
+      List.empty.asJava,
       binPath.value,
       genPath.value,
       rsOutput / "res",
@@ -854,10 +853,10 @@ object Tasks {
       override def launch(executable: sbt.File, arguments: java.util.List[String],
                           envVariableMap: java.util.Map[String, String]): Unit = {
         
-        val cmd = executable.getAbsolutePath +: arguments
-        streams.value.log.debug(s"renderscript command: $cmd, env: ${envVariableMap.toSeq}")
+        val cmd = executable.getAbsolutePath +: arguments.asScala
+        streams.value.log.debug(s"renderscript command: $cmd, env: ${envVariableMap.asScala.toSeq}")
 
-        val r = Process(cmd, None, envVariableMap.toSeq: _*).!
+        val r = Process(cmd, None, envVariableMap.asScala.toSeq: _*).!
         if (r != 0)
           Plugin.fail("renderscript failed: " + r)
       }
@@ -935,12 +934,12 @@ object Tasks {
     if (isLib)
       layout.manifest
     else {
-      bldr.mergeManifests(layout.manifest, Seq.empty[File],
-        if (merge) libs else Seq.empty[LibraryDependency],
+      bldr.mergeManifests(layout.manifest, Seq.empty.asJava,
+        if (merge) libs.asJava else Seq.empty.asJava,
         pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
         output.getAbsolutePath, null,
         if (isLib) ManifestMerger2.MergeType.LIBRARY else
-          ManifestMerger2.MergeType.APPLICATION, ph,
+          ManifestMerger2.MergeType.APPLICATION, ph.asJava,
         layout.bin / "manifestmerge-report.txt")
       if (noTestApk) {
          val top = XML.loadFile(output)
@@ -1029,7 +1028,7 @@ object Tasks {
       override def getIgnoreAssets = null
       override def getNoCompress = null
       override def getFailOnMissingConfigEntry = false
-      override def getAdditionalParameters = Nil
+      override def getAdditionalParameters = List.empty.asJava
     }
     val genPath = gen.getAbsolutePath
     val all = collectdeps(libs) ++ libs
@@ -1044,7 +1043,7 @@ object Tasks {
       aaptCommand.setResFolder(res)
     if (assets.isDirectory)
       aaptCommand.setAssetsFolder(assets)
-    aaptCommand.setLibraries(all)
+    aaptCommand.setLibraries(all.asJava)
     aaptCommand.setPackageForR(pkg)
     aaptCommand.setResPackageOutput(resApk)
     aaptCommand.setSourceOutputDir(genPath)
@@ -1056,7 +1055,7 @@ object Tasks {
   }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
-    val deps = libs flatMap (_.getDependencies)
+    val deps = libs flatMap (_.getDependencies.asScala)
 
     if (libs.isEmpty) Seq.empty else collectdeps(deps) ++ deps
   }
@@ -1262,9 +1261,9 @@ object Tasks {
       val predex2 = pd flatMap (_._2 * "*.dex" get)
       s.log.debug("DEX IN: " + dexIn)
       s.log.debug("PRE-DEXED: " + predex2)
-      bldr.convertByteCode(dexIn, predex2, bin,
+      bldr.convertByteCode(dexIn.asJava, predex2.asJava, bin,
         multiDex, mainDexListTxt,
-        options, additionalDexParams, tmp, incremental, !debug())
+        options, additionalDexParams.asJava, tmp, incremental, !debug())
       s.log.info("dex method count: " + ((bin * "*.dex" get) map(dexMethodCount(_, s.log))).sum)
 
       bin
@@ -1618,8 +1617,8 @@ object Tasks {
       val processedManifest = classes / "AndroidManifest.xml"
       // profiling and functional test? false for now
       bldr.processTestManifest(testPackage, minSdk.toString, targetSdk.toString,
-        tpkg, trunner, false, false, manifestFile, libs,
-        placeholders, processedManifest.getAbsoluteFile,
+        tpkg, trunner, false, false, manifestFile, libs.asJava,
+        (placeholders: Map[String,Object]).asJava, processedManifest.getAbsoluteFile,
         cache / "processTestManifest")
       val options = new DexOptions {
         override def getIncremental = true
@@ -1647,15 +1646,15 @@ object Tasks {
       } else {
         Seq(classes) ++ deps
       }
-      bldr.convertByteCode(inputs, Seq.empty[File],
-        dex, false, null, options, Nil, tmp, false, !debug)
+      bldr.convertByteCode(inputs.asJava, List.empty.asJava,
+        dex, false, null, options, List.empty.asJava, tmp, false, !debug)
 
       val debugConfig = new DefaultSigningConfig("debug")
       debugConfig.initDebug()
 
       val opts = ta.packagingOptions
       bldr.packageApk(res.getAbsolutePath, dex,
-        Seq.empty[File], Seq.empty[File], null, null, s.cacheDirectory / "test-apkbuild-merge", null,
+        List.empty.asJava, List.empty.asJava, null, null, s.cacheDirectory / "test-apkbuild-merge", null,
         debug, debugConfig, opts.asAndroid, apk.getAbsolutePath)
       s.log.debug("Installing test apk: " + apk)
       installPackage(apk, sdk, s.log)
@@ -1880,9 +1879,10 @@ object Tasks {
     uninstallPackage(Some(s.cacheDirectory), p, k, s.log)
   }
 
-  def loadLibraryReferences(b: File, p: Properties, prefix: String = ""):
+  def loadLibraryReferences(b: File, props: Properties, prefix: String = ""):
   Seq[AutoLibraryProject] = {
-    (p.stringPropertyNames.collect {
+    val p = props.asScala
+    (p.keys.collect {
         case k if k.startsWith("android.library.reference") => k
       }.toList.sortWith { (a,b) => a < b } flatMap { k =>
         AutoLibraryProject(b/p(k)) +:
@@ -1922,7 +1922,7 @@ object Tasks {
           case _: AarLibrary => true
           case _ => false
         }*/
-        j <- d.getLocalJars
+        j <- d.getLocalJars.asScala
       } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
         d <- Seq(b / "libs", b / "lib")
         j <- d * "*.jar" get
@@ -1953,7 +1953,7 @@ object Tasks {
         p => attributed(p.getJarFile.getCanonicalFile, p.moduleID.get)
       }) ++ (for {
         d <- aars
-        j <- d.getLocalJars
+        j <- d.getLocalJars.asScala
       } yield attributed(j.getCanonicalFile, d.moduleID.get))
   }
 }
