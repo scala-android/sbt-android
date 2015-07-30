@@ -17,7 +17,7 @@ import scala.xml._
 import language.postfixOps
 
 import java.util.Properties
-import java.io.{PrintWriter, File, FileInputStream}
+import java.io.{File, FileInputStream}
 
 import com.android.SdkConstants
 import com.android.builder.model.AaptOptions
@@ -591,7 +591,6 @@ object Tasks {
     libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
     bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger) {
 
-    val base = layout.base
     slog.info("Performing full resource merge")
     val merger = new ResourceMerger
 
@@ -1235,8 +1234,6 @@ object Tasks {
       val minMainDex = dexOpts.minimizeMainFile
       val additionalParams = dexOpts.additionalParams
       val incremental = incr && !multiDex
-      val minLevel = Try(minSdk.toInt).toOption getOrElse
-        SdkVersionInfo.getApiByBuildCode(minSdk, true)
       if (!incremental && inputs.exists(_.getName.startsWith("proguard-cache"))) {
         s.log.debug("Cleaning dex files for proguard cache and incremental dex")
         (bin * "*.dex" get) foreach (_.delete())

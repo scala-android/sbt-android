@@ -126,7 +126,7 @@ object Dependencies {
     override def hashCode() = path.getCanonicalFile.hashCode
   }
 
-  case class RichProject(project: Project) {
+  implicit class RichProject(val project: Project) extends AnyVal {
     import sbt.Keys._
     import android.Keys._
     def androidBuildWith(deps: Project*): Project = {

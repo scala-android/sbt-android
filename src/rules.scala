@@ -810,9 +810,8 @@ trait AutoBuild extends Build {
         val libProjects = loadLibraryProjects(basedir, props)
 
         val project = Project(id=pkgFor(layout.manifest),
-          base=basedir).settings(
-            Plugin.androidBuild(libProjects: _*) :+
-              (platformTarget in Android := target(basedir)):_*) enablePlugins
+          base=basedir).androidBuildWith(libProjects: _*).settings(
+              platformTarget in Android := target(basedir)) enablePlugins
                 AndroidPlugin
         project +: libProjects
       } else Nil
