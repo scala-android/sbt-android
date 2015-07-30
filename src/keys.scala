@@ -44,6 +44,8 @@ object Keys {
     "Path to the Android SDK, defaults to ANDROID_HOME or 'sdk.dir' from properties")
   val ndkPath = SettingKey[Option[String]]("ndk-path",
     "Path to the Android NDK, defaults to ANDROID_NDK_HOME or 'ndk.dir' from properties")
+  val libraryRequests = SettingKey[Seq[(String,Boolean)]]("library-requests",
+    "android library requests, name -> required")
   val platformTarget = SettingKey[String]("platform-target",
     "target API level as described by 'android list targets' (the ID string)")
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
@@ -103,6 +105,8 @@ object Keys {
     "filepaths to take first when packing apk, e.g. in case of duplicates")
   val apkbuildExcludes = SettingKey[Seq[String]]("apkbuild-excludes",
     "filepaths to exclude from apk, e.g. in case of duplicates")
+  val packagingOptions = SettingKey[PackagingOptions]("packaging-options",
+    "android packaging options, excludes, firsts and merges")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")
   val apkbuildDebug = SettingKey[MutableSetting[Boolean]]("apkbuild-debug",
     "setting that determines whether to package debug or release, default: debug")
@@ -230,6 +234,14 @@ object Keys {
 
   implicit def toRichProject(project: Project): RichProject = RichProject(project)
 
+  case class PackagingOptions(excludes: Seq[String] = Nil, pickFirsts: Seq[String] = Nil, merges: Seq[String] = Nil) {
+    import collection.JavaConverters._
+    def asAndroid = new com.android.builder.model.PackagingOptions {
+      override def getPickFirsts = pickFirsts.toSet.asJava
+      override def getMerges = merges.toSet.asJava
+      override def getExcludes = excludes.toSet.asJava
+    }
+  }
   // yuck, but mutable project global state is better than build global state
   object MutableSetting {
     def apply[A](value: A) = new MutableSetting(value)

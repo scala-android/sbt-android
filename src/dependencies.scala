@@ -33,6 +33,12 @@ object Dependencies {
     override def getBundle = null
     override def getManifest = layout.manifest
     override def getFolder = path
+
+    // new in builder 1.3.0
+    override def getPublicResources = path / FN_PUBLIC_TXT
+    // try to figure out how to identify this from a library?
+    override def isOptional = false
+
     override def getJarFile = path / FN_CLASSES_JAR
     override def getLocalJars = (path / LIBS_FOLDER) ** "*.jar" get
     override def getResFolder = path / FD_RES
@@ -82,6 +88,9 @@ object Dependencies {
     override def getSymbolFile = layout.gen / "R.txt"
     override def getJarFile = layout.bin / FN_CLASSES_JAR
     override def getProguardRules = layout.bin / "proguard.txt"
+
+    override def getPublicResources = layout.bin / "public.txt"
+
     override def getJniFolder = layout.jniLibs
     override def getLocalJars = layout.libs ** "*.jar" get
     override def getResFolder = layout.res

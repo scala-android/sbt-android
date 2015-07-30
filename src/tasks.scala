@@ -21,7 +21,7 @@ import java.util.Properties
 import java.io.{PrintWriter, File, FileInputStream}
 
 import com.android.SdkConstants
-import com.android.builder.model.{PackagingOptions, AaptOptions}
+import com.android.builder.model.AaptOptions
 import com.android.builder.signing.DefaultSigningConfig
 import com.android.builder.core._
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
@@ -493,7 +493,7 @@ object Tasks {
     FileFunction.cached(cache / "collect-resources")(
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
-      incrResourceMerge(layout.base, resTarget, isLib, libs,
+      incrResourceMerge(layout, resTarget, isLib, libs,
         cache / "collect-resources", logger(s.log), bldr, sets, inChanges, s.log)
       (resTarget ***).get.toSet
     }(inputs toSet)
@@ -514,12 +514,12 @@ object Tasks {
       doCollectResources(bldr, noTestApk, isLib, libs, layout, er, logger, s.cacheDirectory, s)
   }
 
-  def incrResourceMerge(base: File, resTarget: File, isLib: Boolean,
+  def incrResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
       libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
       bldr: AndroidBuilder, resources: Seq[ResourceSet],
       changes: ChangeReport[File], slog: Logger) {
 
-    def merge() = fullResourceMerge(base, resTarget, isLib, libs, blobDir,
+    def merge() = fullResourceMerge(layout, resTarget, isLib, libs, blobDir,
       logger, bldr, resources, slog)
     val merger = new ResourceMerger
     if (!merger.loadFromBlob(blobDir, true)) {
@@ -582,16 +582,17 @@ object Tasks {
       }
       if (!exists) {
         slog.info("Performing incremental resource merge")
-        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true)
+        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.bin / "public.txt")
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
     }
   }
-  def fullResourceMerge(base: File, resTarget: File, isLib: Boolean,
+  def fullResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
     libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
     bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger) {
 
+    val base = layout.base
     slog.info("Performing full resource merge")
     val merger = new ResourceMerger
 
@@ -601,7 +602,7 @@ object Tasks {
       r.loadFromFiles(logger)
       merger.addDataSet(r)
     }
-    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true)
+    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.bin / "public.txt")
     merger.mergeData(writer, false)
     merger.writeBlobTo(blobDir, writer)
   }
@@ -684,7 +685,7 @@ object Tasks {
   }
 
   val apkbuildAggregateTaskDef = Def.task {
-    Aggregate.Apkbuild(apkbuildExcludes.value, apkbuildPickFirsts.value,
+    Aggregate.Apkbuild(packagingOptions.value,
       apkbuildDebug.value(), dex.value, predex.value,
       collectJni.value, resourceShrinker.value)
   }
@@ -701,8 +702,7 @@ object Tasks {
                         ) map {
     (a, n, bldr, layout, logger, u, m, dcp, s) =>
 
-    val excl = a.apkbuildExcludes
-    val fsts = a.apkbuildPickFirsts
+    val options = a.packagingOptions
     val r = a.resourceShrinker
     val d = a.dex
     val pd = a.predex
@@ -757,12 +757,6 @@ object Tasks {
     val deps = Set(r +: ((d * "*.dex" get) ++ jars ++ jniInputs):_*)
 
     FileFunction.cached(cacheDir / pkg, FilesInfo.hash) { in =>
-      val options = new PackagingOptions {
-        override def getExcludes = excl.toSet.asJava
-        override def getPickFirsts = fsts.toSet.asJava
-        override def toString =
-          "PackagingOptions[%s, %s]" format (getExcludes, getPickFirsts)
-      }
       s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s, %s)" format (
         r.getAbsolutePath, d.getAbsolutePath, jars,
           if (collectedJni.exists) Seq(collectedJni) else Seq.empty, debug,
@@ -772,8 +766,8 @@ object Tasks {
       bldr.packageApk(r.getAbsolutePath, d, predexed, jars,
         layout.resources.getAbsolutePath,
         (if (collectedJni.exists) Seq(collectedJni) else Seq.empty).asJava,
-        null, debug,
-        if (debug) debugConfig else null, options, output.getAbsolutePath)
+        s.cacheDirectory / "apkbuild-merging", null, debug,
+        if (debug) debugConfig else null, options.asAndroid, output.getAbsolutePath)
       s.log.debug("Including predexed: " + predexed)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))
@@ -1035,6 +1029,7 @@ object Tasks {
       override def getIgnoreAssets = null
       override def getNoCompress = null
       override def getFailOnMissingConfigEntry = false
+      override def getAdditionalParameters = Nil
     }
     val genPath = gen.getAbsolutePath
     val all = collectdeps(libs) ++ libs
@@ -1268,7 +1263,7 @@ object Tasks {
       s.log.debug("DEX IN: " + dexIn)
       s.log.debug("PRE-DEXED: " + predex2)
       bldr.convertByteCode(dexIn, predex2, bin,
-        multiDex, minLevel < 21 && multiDex, mainDexListTxt,
+        multiDex, mainDexListTxt,
         options, additionalDexParams, tmp, incremental, !debug())
       s.log.info("dex method count: " + ((bin * "*.dex" get) map(dexMethodCount(_, s.log))).sum)
 
@@ -1573,7 +1568,8 @@ object Tasks {
     Aggregate.AndroidTest(debugIncludesTests.value, instrumentTestRunner.value,
       instrumentTestTimeout.value, apkbuildDebug.value(),
       (externalDependencyClasspath in Test).value map (_.data),
-      (externalDependencyClasspath in Compile).value map (_.data))
+      (externalDependencyClasspath in Compile).value map (_.data),
+      packagingOptions.value)
   }
   val testTaskDef = ( projectLayout
                     , builder
@@ -1652,18 +1648,15 @@ object Tasks {
         Seq(classes) ++ deps
       }
       bldr.convertByteCode(inputs, Seq.empty[File],
-        dex, false, false, null, options, Nil, tmp, false, !debug)
+        dex, false, null, options, Nil, tmp, false, !debug)
 
       val debugConfig = new DefaultSigningConfig("debug")
       debugConfig.initDebug()
 
-      val opts = new PackagingOptions {
-        def getExcludes = Set.empty[String]
-        def getPickFirsts = Set.empty[String]
-      }
+      val opts = ta.packagingOptions
       bldr.packageApk(res.getAbsolutePath, dex,
-        Seq.empty[File], Seq.empty[File], null, null, null,
-        debug, debugConfig, opts, apk.getAbsolutePath)
+        Seq.empty[File], Seq.empty[File], null, null, s.cacheDirectory / "test-apkbuild-merge", null,
+        debug, debugConfig, opts.asAndroid, apk.getAbsolutePath)
       s.log.debug("Installing test apk: " + apk)
       installPackage(apk, sdk, s.log)
       try {

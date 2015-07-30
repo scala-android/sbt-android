@@ -24,10 +24,10 @@ libraryDependencies ++= Seq(
   "org.javassist" % "javassist" % "3.20.0-GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
   "io.argonaut" %% "argonaut" % "6.1",
-  "com.android.tools.build" % "builder" % "1.2.3",
-  "com.android.tools.build" % "gradle-core" % "1.2.3" excludeAll
+  "com.android.tools.build" % "builder" % "1.3.0",
+  "com.android.tools.build" % "gradle-core" % "1.3.0" excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
-  "com.android.tools.lint" % "lint" % "24.2.3",
+  "com.android.tools.lint" % "lint" % "24.3.0",
   "net.orfjackal.retrolambda" % "retrolambda" % "2.0.5"
 )
 

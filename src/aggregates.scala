@@ -2,6 +2,7 @@ package android
 
 import java.io.File
 
+import android.Keys.PackagingOptions
 import com.android.builder.core.AndroidBuilder
 
 object Aggregate {
@@ -14,10 +15,10 @@ object Aggregate {
                                           instrumentTestTimeout: Int,
                                           apkbuildDebug: Boolean,
                                           externalDependencyClassPathInTest: Seq[File],
-                                          externalDependencyClasspathInCompile: Seq[File])
+                                          externalDependencyClasspathInCompile: Seq[File],
+                                          packagingOptions: PackagingOptions)
 
-  private[android] case class Apkbuild(apkbuildExcludes: Seq[String],
-                                       apkbuildPickFirsts: Seq[String],
+  private[android] case class Apkbuild(packagingOptions: PackagingOptions,
                                        apkbuildDebug: Boolean,
                                        dex: File,
                                        predex: Seq[(File,File)],

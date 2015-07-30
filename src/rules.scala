@@ -3,13 +3,14 @@ package android
 import java.util.Properties
 
 import android.Dependencies.LibraryProject
+import com.android.builder.model.SyncIssue
 import com.android.ide.common.process.BaseProcessOutputHandler.BaseProcessOutput
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
 import sbt._
 import sbt.Keys._
 
-import com.android.builder.core.AndroidBuilder
+import com.android.builder.core.{LibraryRequest, EvaluationErrorReporter, AndroidBuilder}
 import com.android.builder.sdk.DefaultSdkLoader
 import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkManager}
 import com.android.sdklib.repository.FullRevision
@@ -185,8 +186,8 @@ object Plugin extends sbt.Plugin {
     exportJars         := false,
     managedClasspath <++= (platform in Android) map { t =>
       (Option(t.getOptionalLibraries) map {
-        _ map ( j => Attributed.blank(file(j.getJarPath)) )
-      } getOrElse Array.empty).toSeq
+        _ map ( j => Attributed.blank(j.getJar) )
+      } getOrElse List.empty).toSeq
     },
     scalacOptions in console    := Seq.empty
   )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
@@ -365,8 +366,8 @@ object Plugin extends sbt.Plugin {
     dexMainFileClassesConfig <<= dexMainFileClassesConfigTaskDef,
     platformJars            <<= platform map { p =>
       (p.getPath(IAndroidTarget.ANDROID_JAR),
-      (Option(p.getOptionalLibraries) map(_ map(_.getJarPath))).getOrElse(
-        Array.empty).toSeq)
+      (Option(p.getOptionalLibraries) map(_ map(_.getJar.getAbsolutePath))).getOrElse(
+        List.empty).toSeq)
     },
     projectLayout           <<= baseDirectory (ProjectLayout.apply),
     manifestPath            <<= projectLayout { l =>
@@ -438,6 +439,7 @@ object Plugin extends sbt.Plugin {
     collectJni              <<= collectJniTaskDef,
     apkbuildExcludes         := Seq.empty,
     apkbuildPickFirsts       := Seq.empty,
+    packagingOptions         := PackagingOptions(apkbuildExcludes.value, apkbuildPickFirsts.value, Nil),
     apkbuildDebug            := MutableSetting(true),
     apkbuild                <<= apkbuildTaskDef,
     apkbuild                <<= apkbuild dependsOn (managedResources in Compile),
@@ -523,14 +525,16 @@ object Plugin extends sbt.Plugin {
     sdkLoader               <<= sdkManager map { m =>
       DefaultSdkLoader.getLoader(file(m.getLocation))
     },
+    libraryRequests          := Nil,
     builder                 <<= ( sdkLoader
                                 , sdkManager
                                 , name
                                 , ilogger
                                 , buildTools
                                 , platformTarget
+                                , libraryRequests
                                 , state) map {
-      (ldr, m, n, l, b, t, s) =>
+      (ldr, m, n, l, b, t, reqs, s) =>
 
       // because of JavaProcessExecutor
       import language.existentials
@@ -566,11 +570,21 @@ object Plugin extends sbt.Plugin {
                   s.log.warn(stderr)
             }
           }
+        }, new EvaluationErrorReporter(EvaluationErrorReporter.EvaluationMode.STANDARD) {
+          override def handleSyncError(data: String, `type`: Int, msg: String) = {
+            s.log.error(s"android sync error: data=$data, type=${`type`}, msg=$msg")
+            new SyncIssue {
+              override def getType = `type`
+              override def getData = data
+              override def getMessage = msg
+              override def getSeverity = SyncIssue.SEVERITY_ERROR
+            }
+          }
         },
         l(s.log), false)
       val sdkInfo = ldr.getSdkInfo(l(s.log))
       val targetInfo = ldr.getTargetInfo(t, b.getRevision, l(s.log))
-      bldr.setTargetInfo(sdkInfo, targetInfo)
+      bldr.setTargetInfo(sdkInfo, targetInfo, reqs map { case (name, required) => new LibraryRequest(name, required) })
       bldr
     },
     bootClasspath            := builder.value.getBootClasspath map Attributed.blank,
