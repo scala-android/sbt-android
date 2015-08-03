@@ -1,6 +1,6 @@
 import android.Keys._
 
-android.Plugin.androidBuildAar
+android.Plugin.androidBuild
 
 name := "renderscript"
 
