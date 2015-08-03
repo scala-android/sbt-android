@@ -3,7 +3,7 @@ import bintray.Keys._
 
 name := "android-sdk-plugin"
 
-version := "1.4.8-SNAPSHOT"
+version := "1.4.8"
 
 organization := "com.hanhuy.sbt"
 

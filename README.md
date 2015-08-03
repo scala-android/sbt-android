@@ -2,7 +2,7 @@
 
 [![Join the chat at https://gitter.im/pfn/android-sdk-plugin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/pfn/android-sdk-plugin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.4.7
+Current version is 1.4.8
 
 ## Description ##
 
@@ -36,6 +36,13 @@ found on the #sbt-android IRC channel on Freenode
 
 ## New features in 1.4.x ##
 
+* `1.4.8`:
+  * Update to new android gradle/builder 1.3.0
+  * warn about performance when using generated `maindexlist.txt`
+  * add `androidBuildJar` and `buildJar` for creating jar libraries without
+    resources (anytime aar or apklib is not required).
+  * automatically cleanup resources when aar/apklib dependencies are changed,
+    no longer requires clean build after changes.
 * `1.4.7`:
   * proguard + cache improvements:
     * no longer need to clean after updating proguard and/or cache rules
@@ -248,7 +255,7 @@ found on the #sbt-android IRC channel on Freenode
     directory names for packaging
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.7")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.8")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -414,7 +421,7 @@ found on the #sbt-android IRC channel on Freenode
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.7")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.8")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -435,7 +442,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.7")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.8")
    ```
 
 4. Create a file named `project/build.scala` and add the
