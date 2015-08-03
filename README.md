@@ -38,6 +38,7 @@ found on the #sbt-android IRC channel on Freenode
 
 * `1.4.8`:
   * Update to new android gradle/builder 1.3.0
+    * add `libraryRequests` and `packagingOptions` settings
   * warn about performance when using generated `maindexlist.txt`
   * add `androidBuildJar` and `buildJar` for creating jar libraries without
     resources (anytime aar or apklib is not required).
