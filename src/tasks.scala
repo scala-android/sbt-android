@@ -489,6 +489,10 @@ object Tasks {
     val inputs = (respaths flatMap { r => (r ***) get }) filter (n =>
       !n.getName.startsWith(".") && !n.getName.startsWith("_"))
 
+    FileFunction.cached(cache / "nuke-res-if-changed", FilesInfo.lastModified) { in =>
+      IO.delete(resTarget)
+      in
+    }(depres.toSet)
     FileFunction.cached(cache / "collect-resources")(
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
@@ -692,14 +696,17 @@ object Tasks {
                         , name
                         , builder
                         , projectLayout
+                        , libraryProject
                         , ilogger
                         , unmanagedJars in Compile
                         , managedClasspath
                         , dependencyClasspath in Compile
                         , streams
                         ) map {
-    (a, n, bldr, layout, logger, u, m, dcp, s) =>
+    (a, n, bldr, layout, isLib, logger, u, m, dcp, s) =>
 
+    if (isLib)
+      Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true")
     val options = a.packagingOptions
     val r = a.resourceShrinker
     val d = a.dex
@@ -1407,7 +1414,7 @@ object Tasks {
           "\n" + pc.mkString(":") + "\n" + alldeps))
 
         val cacheJar = out / ("proguard-cache-" + allhash + ".jar")
-        FileFunction.cached(st.cacheDirectory / "cacheJar", FilesInfo.hash) { in =>
+        FileFunction.cached(st.cacheDirectory / s"cacheJar-$allhash", FilesInfo.hash) { in =>
           cacheJar.delete()
           in
         }(cacheJars map (_.data))
@@ -1565,7 +1572,7 @@ object Tasks {
       instrumentTestTimeout.value, apkbuildDebug.value(),
       (externalDependencyClasspath in Test).value map (_.data),
       (externalDependencyClasspath in Compile).value map (_.data),
-      packagingOptions.value)
+      packagingOptions.value, libraryProject.value)
   }
   val testTaskDef = ( projectLayout
                     , builder
@@ -1579,6 +1586,8 @@ object Tasks {
                     , libraryProjects
                     , streams) map {
     (layout, bldr, classes, sdk, all, xmx, ta, ma, ra, libs, s) =>
+    if (ta.libraryProject)
+      Plugin.fail("This project cannot `android:test`, it has set 'libraryProject in Android := true")
     val pkg = ma.applicationId
     val minSdk = ma.minSdkVersion
     val targetSdk = ma.targetSdkVersion

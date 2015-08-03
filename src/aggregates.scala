@@ -16,7 +16,8 @@ object Aggregate {
                                           apkbuildDebug: Boolean,
                                           externalDependencyClassPathInTest: Seq[File],
                                           externalDependencyClasspathInCompile: Seq[File],
-                                          packagingOptions: PackagingOptions)
+                                          packagingOptions: PackagingOptions,
+                                          libraryProject: Boolean)
 
   private[android] case class Apkbuild(packagingOptions: PackagingOptions,
                                        apkbuildDebug: Boolean,

@@ -80,6 +80,8 @@ object Plugin extends sbt.Plugin {
       })
   }
 
+  lazy val androidBuildJar: Seq[Setting[_]] = androidBuild ++ buildJar
+
   lazy val androidBuildAar: Seq[Setting[_]] = androidBuildAar()
   @deprecated("Use aar files instead", "gradle compatibility")
   lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
@@ -91,6 +93,18 @@ object Plugin extends sbt.Plugin {
     androidBuild(projects:_*) ++ buildApklib
   }
 
+  def buildJar = Seq(
+    manifest in Android := <manifest package="com.hanhuy.sbt.placeholder">
+      <application/>
+    </manifest>,
+    buildConfigGenerator in Android := Nil,
+    rGenerator in Android := Nil,
+    debugIncludesTests in Android := false,
+    libraryProject in Android := true,
+    publishArtifact in (Compile,packageBin) := true,
+    publishArtifact in (Compile,packageSrc) := true,
+    mappings in (Compile,packageSrc) := (managedSources in Compile).value map (s => (s,s.getName))
+  )
   def buildAar = Seq(libraryProject in Android := true) ++
       addArtifact(aarArtifact in Android, packageAar in Android)
 
