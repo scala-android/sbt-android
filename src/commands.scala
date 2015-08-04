@@ -488,7 +488,7 @@ object Commands {
                 }
               } else if (pids(pid.trim)) {
                 val colored =
-                  f"${colorLevel(level)} ($pid%5s) ${colorTag(tag)}%8s: $msg"
+                  f"${colorLevel(level)} (${colorPid(pid)}) ${colorTag(tag)}%8s: $msg"
                 if (tags.isEmpty)
 //                  state.log.info(colored)
                   scala.Console.out.println(colored)
@@ -517,6 +517,12 @@ object Commands {
   def colorTag(tag: String) = {
     val idx = math.abs(tag.hashCode % TAG_COLORS.length)
     TAG_COLORS(idx) + tag + scala.Console.RESET
+  }
+  def colorPid(p: String) = {
+    val pid = p.trim.toInt
+    val idx = pid % TAG_COLORS.length
+    // can't do formatting in 'colored' because escape codes
+    TAG_COLORS(idx) + f"$pid%5d" + scala.Console.RESET
   }
   lazy val LEVEL_COLORS = Map(
     "D" -> (scala.Console.BOLD + scala.Console.CYAN_B + scala.Console.WHITE),
