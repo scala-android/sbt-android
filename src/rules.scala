@@ -50,11 +50,12 @@ object Plugin extends sbt.Plugin {
   // unfortunately, flavors must be defined in build.scala definitions, not build.sbt
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
     val base = p.base.getAbsoluteFile
+    val tgt = base / (id + "-target")
     p.copy(id = id).settings(Seq((projectLayout in Android) :=
       new ProjectLayout.Wrapped(ProjectLayout(base)) {
-        override def gen = base / (id + "-target") / "android-gen"
-        override def bin = base / (id + "-target") / "android-bin"
-      }, sbt.Keys.target := file(id + "-target")) ++ settings:_*)
+        override def gen = tgt / "android-gen"
+        override def bin = tgt / "android-bin"
+      }, sbt.Keys.target := tgt) ++ settings:_*)
   }
 
   lazy val androidBuild: Seq[Setting[_]]= {
