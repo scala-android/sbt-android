@@ -56,7 +56,7 @@ bintrayOrganization in bintray := None
 // scripted-test settings
 scriptedSettings
 
-scriptedLaunchOpts ++= Seq("-Xmx1024m", "-XX:PermSize=512m")
+scriptedLaunchOpts ++= Seq("-Xmx1024m")
 
 //scriptedBufferLog := false
 
