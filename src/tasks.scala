@@ -706,7 +706,7 @@ object Tasks {
     (a, n, bldr, layout, isLib, logger, u, m, dcp, s) =>
 
     if (isLib)
-      Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true")
+      Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true'")
     val options = a.packagingOptions
     val r = a.resourceShrinker
     val d = a.dex
