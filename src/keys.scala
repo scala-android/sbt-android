@@ -196,7 +196,7 @@ object Keys {
   // proguard-related keys
   val proguardScala = SettingKey[Boolean]("proguard-scala",
     "include scala-library in proguard: true if scala source present")
-  val proguardLibraries = SettingKey[Seq[File]]("proguard-libraries",
+  val proguardLibraries = TaskKey[Seq[File]]("proguard-libraries",
     "files to pass as proguard -libraryjars")
   val proguardOptions = TaskKey[Seq[String]]("proguard-options",
     "additional options to add to proguard-config")
