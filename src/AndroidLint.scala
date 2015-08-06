@@ -1,9 +1,8 @@
 package android
 
-import java.text.{MessageFormat, ChoiceFormat}
+import java.text.MessageFormat
 import java.util
 
-import Keys._
 import com.android.sdklib.SdkVersionInfo
 import com.android.utils.SdkUtils
 import sbt.Keys.TaskStreams
@@ -15,7 +14,6 @@ import com.android.tools.lint.client.api.{IssueRegistry, LintClient}
 import com.android.tools.lint.detector.api.{Project => LintProject, Location, TextFormat, Severity, Issue}
 
 import collection.JavaConverters._
-import scala.annotation.tailrec
 import language.postfixOps
 
 /**
@@ -41,7 +39,6 @@ object AndroidLint {
   }
 
   case class SbtLintClient(layout: ProjectLayout, flags: LintCliFlags, minSdk: String, targetSdk: String) extends LintCliClient(flags) {
-
     override def addProgressPrinter() = {
 //      super.addProgressPrinter()
     }
@@ -166,7 +163,7 @@ object AndroidLint {
         location <- loc
         msg <- Option(location.getMessage) if msg.nonEmpty
       } yield {
-        if (b.length > 0) b.append(", ")
+        if (b.nonEmpty) b.append(", ")
         b.append(getDisplayPath(issue.project, location.getFile))
         Option(location.getStart) foreach { pos =>
           val line = pos.getLine

@@ -105,8 +105,19 @@ object Plugin extends sbt.Plugin {
     publishArtifact in (Compile,packageBin) := true,
     publishArtifact in (Compile,packageSrc) := true,
     mappings in (Compile,packageSrc) := (managedSources in Compile).value map (s => (s,s.getName)),
-    lintFlags in Android ~= { flags =>
-      flags.getSuppressedIds.add("ParserError")
+    lintFlags in Android := {
+      val flags = (lintFlags in Android).value
+      val layout = (projectLayout in Android).value
+      val config = layout.bin / "library-lint.xml"
+      (layout.manifest relativeTo layout.base) foreach { path =>
+        val lintconfig = <lint>
+          <issue id="ParserError">
+            <ignore path={path.getPath}/>
+          </issue>
+        </lint>
+        scala.xml.XML.save(config.getAbsolutePath, lintconfig, "utf-8")
+        flags.setDefaultConfiguration(config)
+      }
       flags
     }
   )
