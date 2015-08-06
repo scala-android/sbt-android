@@ -108,6 +108,7 @@ object Plugin extends sbt.Plugin {
     lintFlags in Android := {
       val flags = (lintFlags in Android).value
       val layout = (projectLayout in Android).value
+      layout.bin.mkdirs()
       val config = layout.bin / "library-lint.xml"
       (layout.manifest relativeTo layout.base) foreach { path =>
         val lintconfig = <lint>
