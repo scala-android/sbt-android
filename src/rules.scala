@@ -207,6 +207,15 @@ object Plugin extends sbt.Plugin {
       o ++ (if (!re) Seq("-bootclasspath" , bcp) else
         Seq("-Xbootclasspath/a:" + bcp)) ++ debugOptions
     },
+    javacOptions in doc := {
+      (javacOptions in doc).value flatMap { opt =>
+        if (opt.startsWith("-Xbootclasspath/a:"))
+          Seq("-bootclasspath", opt.substring(opt.indexOf(":") + 1))
+        else if (opt == "-g")
+          Seq.empty
+        else Seq(opt)
+      }
+    },
     scalacOptions     <<= (scalacOptions, builder in Android) map { (o,bldr) =>
       // scalac has -g:vars by default
       val bcp = bldr.getBootClasspath.asScala mkString File.pathSeparator
