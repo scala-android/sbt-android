@@ -104,7 +104,11 @@ object Plugin extends sbt.Plugin {
     libraryProject in Android := true,
     publishArtifact in (Compile,packageBin) := true,
     publishArtifact in (Compile,packageSrc) := true,
-    mappings in (Compile,packageSrc) := (managedSources in Compile).value map (s => (s,s.getName))
+    mappings in (Compile,packageSrc) := (managedSources in Compile).value map (s => (s,s.getName)),
+    lintFlags in Android ~= { flags =>
+      flags.getSuppressedIds.add("ParserError")
+      flags
+    }
   )
   def buildAar = Seq(libraryProject in Android := true) ++
       addArtifact(aarArtifact in Android, packageAar in Android)
