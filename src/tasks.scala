@@ -984,9 +984,7 @@ object Tasks {
           } else top
         }
 
-        val writer = new java.io.FileWriter(output, false)
-        XML.write(writer, last.get, "utf-8", true, null)
-        writer.close()
+        XML.save(output.getAbsolutePath, last.get, "utf-8", true, null)
       }
       output
     }
@@ -1138,9 +1136,9 @@ object Tasks {
   }
 
   def listjar(jarfile: Attributed[File]): List[String] = {
-    if (!jarfile.data.isFile) Nil else {
-      val jin = new JarInputStream(new FileInputStream(jarfile.data))
-      try {
+    if (!jarfile.data.isFile) Nil
+    else {
+      Using.fileInputStream(jarfile.data)(Using.jarInputStream(_) { jin =>
         val classes = Iterator.continually(jin.getNextJarEntry) takeWhile (
           _ != null) map (_.getName) filter { n =>
           // R.class (and variants) are irrelevant
@@ -1148,9 +1146,7 @@ object Tasks {
         } toList
 
         classes
-      } finally {
-        jin.close()
-      }
+      })
     }
   }
 
@@ -1330,8 +1326,7 @@ object Tasks {
     val reverse_endian_constant = 0x78563412
     val dex_magic = Array(0x64, 0x65, 0x78, 0x0a, 0x30, 0x33, 0x35, 0x00) map (_.toByte)
     val buf = Array.ofDim[Byte](header_size)
-    val fin = new FileInputStream(dexFile)
-    try {
+    Using.fileInputStream(dexFile) { fin =>
       fin.read(buf)
       val header = ByteBuffer.wrap(buf)
       val isDex = (dex_magic zip buf) forall { case (a, b) => a == b }
@@ -1353,8 +1348,6 @@ object Tasks {
         log.info(dexFile.getName + " is not a valid dex file")
         0
       }
-    } finally {
-      fin.close()
     }
   }
 
@@ -1729,9 +1722,7 @@ object Tasks {
       "manifest", pkgAttr, ns, minimizeEmpty = false, usesSdk, app, instrumentation)
 
     val manifestFile = classes / "GeneratedTestAndroidManifest.xml"
-    val writer = new java.io.FileWriter(manifestFile, false)
-    XML.write(writer, manifest, "utf-8", true, null)
-    writer.close()
+    XML.save(manifestFile.getAbsolutePath, manifest, "utf-8", true, null)
     manifestFile
   }
 
@@ -1899,7 +1890,7 @@ object Tasks {
   def loadProperties(path: File): Properties = {
     val p = new Properties
     (path * "*.properties" get) foreach { f =>
-      Using.file(new FileInputStream(_))(f) { p.load }
+      Using.fileInputStream(f) { p.load }
     }
     p
   }

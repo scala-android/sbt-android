@@ -62,20 +62,20 @@ object ReferenceFinder {
         val buf = new ByteArrayOutputStream
 
         val jin = new JarInputStream(new FileInputStream(jar))
+        Using.fileInputStream(jar) (Using.jarInputStream(_) { jin =>
+          Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) foreach {
+            entry =>
+              if (entry.getName.endsWith(".class")) {
+                buf.reset()
+                Stream.continually(jin.read(readbuf)) takeWhile (
+                  _ != -1) foreach (buf.write(readbuf, 0, _))
+                val r = new ClassReader(buf.toByteArray)
+                r.accept(x, 0)
+              }
+              jin.closeEntry()
+          }
 
-        Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) foreach {
-          entry =>
-            if (entry.getName.endsWith(".class")) {
-              buf.reset()
-              Stream.continually(jin.read(readbuf)) takeWhile (
-                _ != -1) foreach (buf.write(readbuf, 0, _))
-              val r = new ClassReader(buf.toByteArray)
-              r.accept(x, 0)
-            }
-            jin.closeEntry()
-        }
-
-        jin.close()
+        })
     }
 
     (map flatMap { case (k,v) => v }).toList.sortWith(_>_).distinct

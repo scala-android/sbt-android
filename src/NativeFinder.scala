@@ -41,10 +41,10 @@ object NativeFinder {
     factory.create(Array(classOf[Int]), Array(Opcodes.ASM4.asInstanceOf[AnyRef]), h) match {
       case x: ClassVisitor =>
         (classDir ** "*.class" get) foreach { entry =>
-          val in = new FileInputStream(entry)
-          val r = new ClassReader(in)
-          r.accept(x, 0)
-          in.close()
+          Using.fileInputStream(entry) { in =>
+            val r = new ClassReader(in)
+            r.accept(x, 0)
+          }
         }
 
         nativeList.distinct

@@ -14,6 +14,7 @@ object ProguardUtil {
   def createCacheJar(proguardJar: File, outJar: File,
                      rules: Seq[String], log: Logger): Unit = {
     log.info("Creating proguard cache: " + outJar.getName)
+    // not going to use 'Using' here because it's so ugly!
     val jin = new JarInputStream(new FileInputStream(proguardJar))
     val jout = new JarOutputStream(new FileOutputStream(outJar))
     try {

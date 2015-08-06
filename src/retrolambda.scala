@@ -39,15 +39,15 @@ object RetrolambdaSupport {
 
       val config = s.cacheDirectory / "retro-config.properties"
       val p = new java.util.Properties
-      val out = new FileOutputStream(config)
-      p.setProperty("retrolambda.defaultMethods", "true")
-      p.setProperty("retrolambda.inputDir", dest.getAbsolutePath)
-      p.setProperty("retrolambda.classpath", cp map (
-        _.getAbsolutePath) mkString java.io.File.pathSeparator)
-      p.setProperty("retrolambda.includedFiles", (
-        in map (_.getAbsoluteFile)) mkString java.io.File.pathSeparator)
-      p.store(out, "auto-generated")
-      out.close()
+      Using.fileOutputStream(false)(config) { out =>
+        p.setProperty("retrolambda.defaultMethods", "true")
+        p.setProperty("retrolambda.inputDir", dest.getAbsolutePath)
+        p.setProperty("retrolambda.classpath", cp map (
+          _.getAbsolutePath) mkString java.io.File.pathSeparator)
+        p.setProperty("retrolambda.includedFiles", (
+          in map (_.getAbsoluteFile)) mkString java.io.File.pathSeparator)
+        p.store(out, "auto-generated")
+      }
       val r = Fork.java(options, "android.RetroMain" :: config.getAbsolutePath :: Nil)
       IO.delete(config)
       if (r != 0) Plugin.fail(s"Retrolambda failure: exit $r")
@@ -63,8 +63,7 @@ object RetrolambdaSupport {
 object Java8Detector {
   def apply(jar: File): Boolean = {
     val jin = new JarInputStream(new FileInputStream(jar))
-
-    try {
+    Using.fileInputStream(jar)(Using.jarInputStream(_) { jin =>
       val buf = Array.ofDim[Byte](8)
       Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) exists { j =>
         if (j.getName.endsWith(".class")) {
@@ -79,15 +78,14 @@ object Java8Detector {
           major >= 52 // java8
         } else false
       }
-    } finally {
-      jin.close()
-    }
+    })
   }
 }
 
 object RetroMain {
   def main(args: Array[String]): Unit = {
     val p = new java.util.Properties
+    // don't care about using because we're forked off and short-lived
     val in = new FileInputStream(args(0))
     p.load(in)
     in.close()
