@@ -142,10 +142,6 @@ object Plugin extends sbt.Plugin {
         AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)
       c
     },
-    update                     <<= (update, state) map { (u, s) =>
-      UpdateChecker(s.log)
-      u
-    },
     sourceManaged              <<= (projectLayout in Android) (_.gen),
     unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
       Set(l.sources, l.javaSource, l.scalaSource).toSeq),
@@ -323,6 +319,19 @@ object Plugin extends sbt.Plugin {
       }
     },
     // end for Classpaths.configSettings
+    updateCheck              := UpdateChecker(streams.value.log),
+    antLayoutDetector        := {
+      val log = streams.value.log
+      val prj = thisProjectRef.value.project
+      val layout = projectLayout.value
+      projectLayout.value match {
+        case ProjectLayout.Ant(_) if layout.manifest.exists =>
+          log.warn(s"Detected an ant-style project layout in $prj;")
+          log.warn("  this format has been deprecated in favor of modern layouts")
+          log.warn("  If this is what you want, set 'antLayoutDetector in Android := ()'")
+        case _ =>
+      }
+    },
     transitiveAndroidLibs    := true,
     transitiveAndroidWarning := true,
     autolibs                <<= autolibsTaskDef,
@@ -675,6 +684,20 @@ object Plugin extends sbt.Plugin {
   )
 
   override def buildSettings = androidCommands
+
+  override def globalSettings = (onLoad := onLoad.value andThen { s =>
+    val e = Project.extract(s)
+    val refs = e.currentRef +: e.currentProject.referenced collect {
+      case ref if e.getOpt(projectLayout in (ref, Android)).isDefined => ref
+    }
+    val s2 = if (refs.nonEmpty) {
+      e.runTask(updateCheck in (refs.head,Android), s)._1
+    } else s
+
+    refs.foldLeft(s2) { (s, ref) =>
+      e.runTask(antLayoutDetector in (ref,Android), s)._1
+    }
+  }) :: Nil
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
     commands ++= Seq(genAndroid, genAndroidSbt, pidcat, logcat, adbLs, adbShell,

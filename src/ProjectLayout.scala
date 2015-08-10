@@ -26,13 +26,13 @@ trait ProjectLayout {
 }
 object ProjectLayout {
   def apply(base: File) = {
-    if ((base / "src" / "main" / "AndroidManifest.xml").isFile) {
-      if ((base / "AndroidManifest.xml").isFile) {
+    if ((base / "AndroidManifest.xml").isFile) {
+      if ((base / "src" / "main" / "AndroidManifest.xml").isFile) {
         Plugin.fail(s"Both $base/AndroidManifest.xml and $base/src/main/AndroidManifest.xml exist, unable to determine project layout")
       }
-      ProjectLayout.Gradle(base)
-    } else {
       ProjectLayout.Ant(base)
+    } else {
+      ProjectLayout.Gradle(base)
     }
   }
   case class Ant(base: File) extends ProjectLayout {

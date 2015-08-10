@@ -52,6 +52,7 @@ object Keys {
     "Version of Android build-tools to utilize, None (default) for latest")
   val bootClasspath = TaskKey[Seq[Attributed[java.io.File]]](
     "boot-classpath", "boot classpath for android platform jar")
+  val updateCheck = TaskKey[Unit]("update-check", "Check for a new version of the plugin")
 
   // layout-related keys
   val projectLayout = SettingKey[ProjectLayout]("project-layout",
@@ -60,6 +61,8 @@ object Keys {
   val genPath = SettingKey[File]("gen-path", "android generated code path")
   val classesJar = SettingKey[File]("classes-jar",
     "generated classes.jar file if in a library project")
+  val antLayoutDetector = TaskKey[Unit]("ant-layout-detector",
+    "detects and warns if an android project is using an ant-style layout")
 
   // resource-related keys
   val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
