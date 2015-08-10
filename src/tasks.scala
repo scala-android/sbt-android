@@ -1,7 +1,5 @@
 package android
 
-import java.util.jar.JarInputStream
-
 import com.android.builder.internal.ClassFieldImpl
 import com.android.ide.common.signing.KeystoreHelper
 import com.android.manifmerger.ManifestMerger2
@@ -1831,20 +1829,25 @@ object Tasks {
 
   def installPackage(apk: File, sdkPath: String, log: Logger) {
     val start = System.currentTimeMillis
-    Commands.targetDevice(sdkPath, log) foreach { d =>
-      Option(d.installPackage(apk.getAbsolutePath, true)) map { err =>
-        Plugin.fail("Install failed: " + err)
-      } getOrElse {
-        val size = apk.length
-        val end = System.currentTimeMillis
-        val secs = (end - start) / 1000d
-        val rate = size/KB/secs
-        val mrate = if (rate > MB) rate / MB else rate
-        log.info("[%s] Install finished: %s in %.2fs. %.2f%s/s" format (
-          apk.getName, sizeString(size), secs, mrate,
-          if (rate > MB) "MB" else "KB"))
+    logRate(log, "[%s] Install finished:" format apk.getName, apk.length) {
+      Commands.targetDevice(sdkPath, log) foreach { d =>
+        Option(d.installPackage(apk.getAbsolutePath, true)) map { err =>
+          Plugin.fail("Install failed: " + err)
+        }
       }
     }
+  }
+
+  def logRate[A](log: Logger, msg: String, size: Long)(f: => A): A = {
+    val start = System.currentTimeMillis
+    val a = f
+    val end = System.currentTimeMillis
+    val secs = (end - start) / 1000d
+    val rate = size/KB/secs
+    val mrate = if (rate > MB) rate / MB else rate
+    log.info("%s %s in %.2fs. %.2f%s/s" format (msg, sizeString(size), secs, mrate,
+      if (rate > MB) "MB" else "KB"))
+    a
   }
 
   def uninstallPackage(cacheDir: Option[File], packageName: String, sdkPath: String, log: Logger) {
