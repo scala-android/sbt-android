@@ -2,7 +2,7 @@
 
 [![Join the chat at https://gitter.im/pfn/android-sdk-plugin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/pfn/android-sdk-plugin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.4.8
+Current version is 1.4.9
 
 ## Description ##
 
@@ -36,6 +36,16 @@ found on the #sbt-android IRC channel on Freenode
 
 ## New features in 1.4.x ##
 
+* `1.4.9`:
+  * add color to pid in `pidcat`
+  * fix flavor target directory when flavoring a subproject
+  * suppress lint error in androidBuildJar
+  * fix `javacOptions in doc`
+  * turn update checker into `updateCheck in Android` which can be set to `()`
+    to squelch
+  * refactoring to support [Protify](https://github.com/pfn/protify), see demos
+    [Protify Layout Prototyper Demo](https://www.youtube.com/watch?v=sgT9RA4SONU)
+    and [Protify Code Prototyper Demo](https://youtu.be/g63I87UZ6bg?t=3m10s)
 * `1.4.8`:
   * Update to new android gradle/builder 1.3.0
     * add `libraryRequests` and `packagingOptions` settings
@@ -256,7 +266,7 @@ found on the #sbt-android IRC channel on Freenode
     directory names for packaging
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.8")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.9")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -422,7 +432,7 @@ found on the #sbt-android IRC channel on Freenode
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.8")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.9")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -443,7 +453,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.8")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.9")
    ```
 
 4. Create a file named `project/build.scala` and add the
