@@ -205,12 +205,14 @@ object Plugin extends sbt.Plugin {
         Seq("-Xbootclasspath/a:" + bcp)) ++ debugOptions
     },
     javacOptions in doc := {
-      (javacOptions in doc).value flatMap { opt =>
+      (javacOptions in doc).value.flatMap { opt =>
         if (opt.startsWith("-Xbootclasspath/a:"))
           Seq("-bootclasspath", opt.substring(opt.indexOf(":") + 1))
         else if (opt == "-g")
           Seq.empty
         else Seq(opt)
+      }.foldRight(List.empty[String]) {
+        (x, a) => if (x != "-target") x :: a else a.drop(1)
       }
     },
     scalacOptions     <<= (scalacOptions, builder in Android) map { (o,bldr) =>
