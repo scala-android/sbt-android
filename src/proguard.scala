@@ -3,7 +3,11 @@ package android
 import java.io.{File, FileOutputStream, FileInputStream}
 import java.util.jar.{JarOutputStream, JarInputStream}
 
+import com.android.SdkConstants
 import com.android.builder.core.{DexOptions, AndroidBuilder}
+import com.android.sdklib.SdkVersionInfo
+import com.google.common.base.Charsets
+import com.google.common.hash.Hashing
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 import sbt._
 
@@ -257,6 +261,48 @@ object Dex {
     s.log.info("dex method count: " + ((bin * "*.dex" get) map(dexMethodCount(_, s.log))).sum)
 
     bin
+  }
+
+  def predexFileOutput(binPath: File, inFile: File) = {
+    val n = inFile.getName
+    val pos = n.lastIndexOf('.')
+
+    val name = if (pos != -1) n.substring(0, pos) else n
+
+    // add a hash of the original file path.
+    val input = inFile.getAbsolutePath
+    val hashFunction = Hashing.sha1
+    val hashCode = hashFunction.hashString(input, Charsets.UTF_16LE)
+
+    val f = new File(binPath / "predex-libraries", name + "-" + hashCode.toString + SdkConstants.DOT_JAR)
+    f.mkdirs()
+    f
+  }
+
+  def predex(opts: Aggregate.Dex, inputs: Seq[File], multiDex: Boolean,
+             minSdk: String, classes: File, pg: Option[File],
+             bldr: AndroidBuilder, bin: File, s: sbt.Keys.TaskStreams) = {
+    val minLevel = Try(minSdk.toInt).toOption getOrElse
+      SdkVersionInfo.getApiByBuildCode(minSdk, true)
+    val options = new DexOptions {
+      override def getIncremental = false
+      override def getJavaMaxHeapSize = opts.maxHeap
+      override def getPreDexLibraries = false
+      override def getJumboMode = false
+      override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+    }
+    if (minLevel >= 21 && multiDex) {
+      inputs filterNot (i => i == classes || pg.exists(_ == i)) map { i =>
+        val out = predexFileOutput(bin, i)
+        val predexed = out * "*.dex" get
+
+        if (predexed.isEmpty || predexed.exists (_.lastModified < i.lastModified)) {
+          s.log.info("Pre-dexing: " + i.getName)
+          bldr.preDexLibrary(i, out, multiDex, options)
+        }
+        (i,out)
+      }
+    } else Nil
   }
 
   // see https://source.android.com/devices/tech/dalvik/dex-format.html
