@@ -1021,7 +1021,7 @@ object Tasks {
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: String,
       libs: Seq[LibraryDependency], lib: Boolean, debug: Boolean,
       res: File, assets: File, resApk: String, gen: File, proguardTxt: String,
-      logger: Logger) {
+      logger: Logger) = synchronized {
 
     gen.mkdirs()
     val options = new AaptOptions {
