@@ -460,9 +460,7 @@ object Plugin extends sbt.Plugin {
     proguard                <<= proguardTaskDef,
     proguardInputs          <<= proguardInputsTaskDef,
     proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),
-    proguardScala           <<= (scalaSource in Compile) {
-      s => (s ** "*.scala").get.nonEmpty
-    },
+    proguardScala           <<= autoScalaLibrary,
     retrolambdaEnable       <<= (javaSource in Compile) {
       s => (s ** "*.java").get.nonEmpty && RetrolambdaSupport.isAvailable
     },
@@ -661,9 +659,12 @@ object Plugin extends sbt.Plugin {
       plat getOrElse fail("Platform %s unknown in %s" format (p, prj.base))
     }
   )) ++ Seq(
-    crossPaths      <<= (scalaSource in Compile) { src =>
-      (src ** "*.scala").get.nonEmpty
+    autoScalaLibrary   := {
+      ((scalaSource in Compile).value ** "*.scala").get.nonEmpty ||
+        (managedSourceDirectories in Compile).value.exists(d =>
+          (d ** "*.scala").get.nonEmpty)
     },
+    crossPaths        <<= autoScalaLibrary,
     resolvers        <++= (sdkPath in Android) { p => Seq(
       "google libraries" at (
         file(p) / "extras" / "google" / "m2repository").toURI.toString,
