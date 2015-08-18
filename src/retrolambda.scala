@@ -29,33 +29,35 @@ object RetrolambdaSupport {
       in
     }(java8jars.toSet)
 
-    FileFunction.cached(s.cacheDirectory / ("retro-" + target.getName), FilesInfo.lastModified) { in =>
-      val options = ForkOptions(
-        runJVMOptions = Seq(
-          "-noverify",
-          "-classpath", forkClasspath map (
-            _.getAbsoluteFile) mkString java.io.File.pathSeparator
-      ))
+    if (java8jars.nonEmpty) {
+      FileFunction.cached(s.cacheDirectory / ("retro-" + target.getName), FilesInfo.lastModified) { in =>
+        val options = ForkOptions(
+          runJVMOptions = Seq(
+            "-noverify",
+            "-classpath", forkClasspath map (
+              _.getAbsoluteFile) mkString java.io.File.pathSeparator
+          ))
 
-      val config = s.cacheDirectory / "retro-config.properties"
-      val p = new java.util.Properties
-      Using.fileOutputStream(false)(config) { out =>
-        p.setProperty("retrolambda.defaultMethods", "true")
-        p.setProperty("retrolambda.inputDir", dest.getAbsolutePath)
-        p.setProperty("retrolambda.classpath", cp map (
-          _.getAbsolutePath) mkString java.io.File.pathSeparator)
-        p.setProperty("retrolambda.includedFiles", (
-          in map (_.getAbsoluteFile)) mkString java.io.File.pathSeparator)
-        p.store(out, "auto-generated")
-      }
-      val r = Fork.java(options, "android.RetroMain" :: config.getAbsolutePath :: Nil)
-      IO.delete(config)
-      if (r != 0) Plugin.fail(s"Retrolambda failure: exit $r")
-      in
-    }((dest ** "*.class" get).toSet)
+        val config = s.cacheDirectory / "retro-config.properties"
+        val p = new java.util.Properties
+        Using.fileOutputStream(false)(config) { out =>
+          p.setProperty("retrolambda.defaultMethods", "true")
+          p.setProperty("retrolambda.inputDir", dest.getAbsolutePath)
+          p.setProperty("retrolambda.classpath", cp map (
+            _.getAbsolutePath) mkString java.io.File.pathSeparator)
+          p.setProperty("retrolambda.includedFiles", (
+            in map (_.getAbsoluteFile)) mkString java.io.File.pathSeparator)
+          p.store(out, "auto-generated")
+        }
+        val r = Fork.java(options, "android.RetroMain" :: config.getAbsolutePath :: Nil)
+        IO.delete(config)
+        if (r != 0) Plugin.fail(s"Retrolambda failure: exit $r")
+        in
+      }((dest ** "*.class" get).toSet)
+      IO.jar((PathFinder(dest) ***) pair rebase(dest, "") filter (
+        _._1.getName endsWith ".class"), finalJar, new java.util.jar.Manifest)
+    }
 
-    IO.jar((PathFinder(dest) ***) pair rebase(dest, "") filter (
-      _._1.getName endsWith ".class"), finalJar, new java.util.jar.Manifest)
     finalJar :: (classpath.toSet -- java8jars).toList
   }
 }

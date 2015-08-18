@@ -231,34 +231,44 @@ object Dex {
     val minMainDex = dexOpts.minimizeMainFile
     val additionalParams = dexOpts.additionalParams
     val incremental = incr && !multiDex
-    if (!incremental && inputs.exists(_.getName.startsWith("proguard-cache"))) {
-      s.log.debug("Cleaning dex files for proguard cache and incremental dex")
-      (bin * "*.dex" get) foreach (_.delete())
-    }
-    val options = new DexOptions {
-      override def getIncremental = incr
-      override def getJavaMaxHeapSize = xmx
-      override def getPreDexLibraries = false
-      override def getJumboMode = false
-      override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
-    }
-    s.log.info(s"Generating dex, incremental=$incremental, multidex=$multiDex")
-    s.log.debug("Dex inputs: " + inputs)
-
-    val tmp  = s.cacheDirectory / "dex"
-    tmp.mkdirs()
-
-    def minimalMainDexParam = if (minMainDex) "--minimal-main-dex" else ""
-    val additionalDexParams = (additionalParams.toList :+ minimalMainDexParam).distinct.filterNot(_.isEmpty)
-
     val dexIn = (inputs filter (_.isFile)) filterNot (pd map (_._1) contains _)
-    val predex2 = pd flatMap (_._2 * "*.dex" get)
-    s.log.debug("DEX IN: " + dexIn)
-    s.log.debug("PRE-DEXED: " + predex2)
-    bldr.convertByteCode(dexIn.asJava, predex2.asJava, bin,
-      multiDex, mainDexListTxt,
-      options, additionalDexParams.asJava, tmp, incremental, !debug)
-    s.log.info("dex method count: " + ((bin * "*.dex" get) map(dexMethodCount(_, s.log))).sum)
+    val dexes = (bin ** "*.dex").get
+//    if (dexes.isEmpty || dexIn.exists(i => dexes exists(_.lastModified <= i.lastModified))) {
+    FileFunction.cached(s.cacheDirectory / "dex", FilesInfo.lastModified) { in =>
+      s.log.debug("Invalidated cache because: " + dexIn.filter(i => dexes.exists(_.lastModified <= i.lastModified)))
+      if (!incremental && inputs.exists(_.getName.startsWith("proguard-cache"))) {
+        s.log.debug("Cleaning dex files for proguard cache and incremental dex")
+        (bin * "*.dex" get) foreach (_.delete())
+      }
+      val options = new DexOptions {
+        override def getIncremental = incr
+
+        override def getJavaMaxHeapSize = xmx
+
+        override def getPreDexLibraries = false
+
+        override def getJumboMode = false
+
+        override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+      }
+      s.log.info(s"Generating dex, incremental=$incremental, multidex=$multiDex")
+      s.log.debug("Dex inputs: " + inputs)
+
+      val tmp = s.cacheDirectory / "dex"
+      tmp.mkdirs()
+
+      def minimalMainDexParam = if (minMainDex) "--minimal-main-dex" else ""
+      val additionalDexParams = (additionalParams.toList :+ minimalMainDexParam).distinct.filterNot(_.isEmpty)
+
+      val predex2 = pd flatMap (_._2 * "*.dex" get)
+      s.log.debug("DEX IN: " + dexIn)
+      s.log.debug("PRE-DEXED: " + predex2)
+      bldr.convertByteCode(dexIn.asJava, predex2.asJava, bin,
+        multiDex, mainDexListTxt,
+        options, additionalDexParams.asJava, tmp, incremental, !debug)
+      s.log.info("dex method count: " + ((bin * "*.dex" get) map (dexMethodCount(_, s.log))).sum)
+      (bin ** "*.dex").get.toSet
+    }(dexIn.toSet)
 
     bin
   }

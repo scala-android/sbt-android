@@ -605,48 +605,53 @@ object Tasks {
     merger.writeBlobTo(blobDir, writer)
   }
 
-  val packageApklibTaskDef = ( manifestPath
-                             , projectLayout
-                             , name
-                             , streams
-                             ) map { (m, layout, n, st) =>
-    val outfile = layout.bin / (n + ".apklib")
-    st.log.info("Packaging " + outfile.getName)
+  val packageApklibMappings = Def.task {
+    val layout = projectLayout.value
     import layout._
-    val mapping =
-      (PathFinder(manifest)                 pair flat) ++
-      (PathFinder(javaSource) ** "*.java"   pair rebase(javaSource,  "src"))  ++
-      (PathFinder(scalaSource) ** "*.scala" pair rebase(scalaSource, "src"))  ++
-      ((PathFinder(libs) ***)               pair rebase(libs,        "libs")) ++
-      ((PathFinder(res) ***)                pair rebase(res,         "res"))  ++
-      ((PathFinder(assets) ***)             pair rebase(assets,      "assets"))
+
+    (PathFinder(manifest)                 pair flat) ++
+    (PathFinder(javaSource) ** "*.java"   pair rebase(javaSource,  "src"))  ++
+    (PathFinder(scalaSource) ** "*.scala" pair rebase(scalaSource, "src"))  ++
+    ((PathFinder(libs) ***)               pair rebase(libs,        "libs")) ++
+    ((PathFinder(res) ***)                pair rebase(res,         "res"))  ++
+    ((PathFinder(assets) ***)             pair rebase(assets,      "assets"))
+  }
+  val packageApklibTaskDef = Def.task {
+    val outfile = projectLayout.value.bin / (name.value + ".apklib")
+    streams.value.log.info("Packaging " + outfile.getName)
+    val mapping = (mappings in packageApklib).value
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
   }
-  val packageAarTaskDef = ( packageT in Compile
-                          , projectLayout
-                          , collectResources
-                          , collectProjectJni
-                          , rsBinPath
-                          , name
-                          , streams
-                          ) map { case (j, layout, (_, r), so, rs, n, s) =>
+
+  val packageAarMappings = Def.task {
+    val layout = projectLayout.value
     import layout._
-    val outfile = bin / (n + ".aar")
+
+    val so = collectProjectJni.value
+    val j = (packageT in Compile).value
+    val rs = rsBinPath.value
     val rsLibs = rs / "lib"
     val rsRes = bin / "renderscript" / "res"
-    s.log.info("Packaging " + outfile.getName)
-    val mapping =
-      (PathFinder(manifest)             pair flat) ++
-      (PathFinder(gen / "R.txt")        pair flat) ++
-      (PathFinder(bin / "proguard.txt") pair flat) ++
-      (PathFinder(j)                    pair flat) ++
-      ((PathFinder(libs) ** "*.jar")    pair rebase(libs,   "libs")) ++
-      ((PathFinder(rsLibs) * "*.jar")   pair rebase(rsLibs, "libs")) ++
-      ((PathFinder(res) ***)            pair rebase(res,    "res"))  ++
-      ((PathFinder(rsRes) ***)          pair rebase(rsRes,  "res"))  ++
-      ((PathFinder(assets) ***)         pair rebase(assets, "assets")) ++
-      so.flatMap { d => (PathFinder(d) ** "*.so") pair rebase(d, "jni") }
+
+
+    (PathFinder(manifest)             pair flat) ++
+    (PathFinder(gen / "R.txt")        pair flat) ++
+    (PathFinder(bin / "proguard.txt") pair flat) ++
+    (PathFinder(j)                    pair flat) ++
+    ((PathFinder(libs) ** "*.jar")    pair rebase(libs,   "libs")) ++
+    ((PathFinder(rsLibs) * "*.jar")   pair rebase(rsLibs, "libs")) ++
+    ((PathFinder(res) ***)            pair rebase(res,    "res"))  ++
+    ((PathFinder(rsRes) ***)          pair rebase(rsRes,  "res"))  ++
+    ((PathFinder(assets) ***)         pair rebase(assets, "assets")) ++
+    so.flatMap { d => (PathFinder(d) ** "*.so") pair rebase(d, "jni") }
+  }
+
+  val packageAarTaskDef = Def.task {
+    val outfile = projectLayout.value.bin / (name.value + ".aar")
+    val mapping = (mappings in packageAar).value
+    streams.value.log.info("Packaging " + outfile.getName)
+
     IO.jar(mapping, outfile, new java.util.jar.Manifest)
     outfile
   }
