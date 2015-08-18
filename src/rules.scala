@@ -171,24 +171,21 @@ object Plugin extends sbt.Plugin {
     //managedClasspath  <<= managedClasspathTaskDef,
     unmanagedClasspath <+= classDirectory map Attributed.blank,
     classDirectory    <<= (binPath in Android) (_ / "classes"),
-    sourceGenerators  <+= (rGenerator in Android
-                          , typedResourcesGenerator in Android
-                          , apklibs in Android
-                          , autolibs in Android
-                          , aidl in Android
-                          , buildConfigGenerator in Android
-                          , renderscript in Android
-                          , debugTestsGenerator in Android
-                          , cleanForR in Android
-                          ) map {
-      (a, tr, apkl, autos, aidl, bcg, rs, deb, _) =>
-      val autosrcs = (apkl ++ autos) flatMap { l =>
-        (l.layout.javaSource ** "*.java" get) ++
-          (l.layout.scalaSource ** "*.scala" get)
-      } map (_.getAbsoluteFile)
-
-      a ++ tr ++ aidl ++ bcg ++ rs ++ autosrcs ++ deb
-    },
+    sourceGenerators   := sourceGenerators.value ++ List(
+      (rGenerator in Android).taskValue,
+      (typedResourcesGenerator in Android).taskValue,
+      (aidl in Android).taskValue,
+      (buildConfigGenerator in Android).taskValue,
+      (renderscript in Android).taskValue,
+      (debugTestsGenerator in Android).taskValue,
+      (cleanForR in Android).taskValue,
+      Def.task {
+        ((apklibs in Android).value ++ (autolibs in Android).value) flatMap { l =>
+          (l.layout.javaSource ** "*.java" get) ++
+            (l.layout.scalaSource ** "*.scala" get)
+        } map (_.getAbsoluteFile)
+      }.taskValue
+    ),
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn compile,
     javacOptions      <<= ( javacOptions
