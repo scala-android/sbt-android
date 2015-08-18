@@ -3,8 +3,6 @@ package android
 import com.android.builder.internal.ClassFieldImpl
 import com.android.ide.common.signing.KeystoreHelper
 import com.android.manifmerger.ManifestMerger2
-import com.google.common.base.Charsets
-import com.google.common.hash.Hashing
 import sbt._
 import sbt.Keys._
 import sbt.classpath.ClasspathUtilities
@@ -29,7 +27,7 @@ import com.android.ide.common.res2.FileValidity
 import com.android.ide.common.res2.MergedResourceWriter
 import com.android.ide.common.res2.ResourceMerger
 import com.android.ide.common.res2.ResourceSet
-import com.android.sdklib.{SdkVersionInfo, IAndroidTarget}
+import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.BuildToolInfo.PathId
 import com.android.sdklib.build.RenderScriptProcessor
 import com.android.sdklib.build.RenderScriptProcessor.CommandLineLauncher
@@ -184,7 +182,7 @@ object Tasks {
       // TODO collect resources from apklibs and aars
 //      doCollectResources(bldr, true, true, Seq.empty, lib.layout,
 //        logger, file("/"), s)
-      aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
+      Resources.aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
           lib.getResFolder, lib.getAssetsFolder, null,
           lib.layout.gen, lib.getProguardRules.getAbsolutePath,
           s.log)
@@ -225,7 +223,7 @@ object Tasks {
           d.mkdirs()
           IO.unzip(l, d)
 
-          aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
+          Resources.aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
               lib.getResFolder, lib.getAssetsFolder, null,
               lib.layout.gen, lib.getProguardRules.getAbsolutePath,
               st.log)
@@ -431,74 +429,6 @@ object Tasks {
     collectProjectJni.value ++ libraryProjects.value.flatMap(libJni)
   }
 
-  def doCollectResources( bldr: AndroidBuilder
-                        , noTestApk: Boolean
-                        , isLib: Boolean
-                        , libs: Seq[LibraryDependency]
-                        , layout: ProjectLayout
-                        , extraRes: Seq[File]
-                        , logger: Logger => ILogger
-                        , cache: File
-                        , s: TaskStreams
-                        ): (File,File) = {
-
-    val assetBin = layout.bin / "assets"
-    val assets = layout.assets
-    val resTarget = layout.bin / "resources" / "res"
-    val rsResources = layout.bin / "renderscript" / "res"
-
-    resTarget.mkdirs()
-    assetBin.mkdirs
-
-    // copy assets to single location
-    libs collect {
-      case r if r.layout.assets.isDirectory => r.layout.assets
-    } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
-
-    if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
-    if (noTestApk && layout.testAssets.exists)
-      IO.copyDirectory(layout.testAssets, assetBin, false, true)
-    // prepare resource sets for merge
-    val res = extraRes ++ Seq(layout.res, rsResources) ++
-      (libs map { _.layout.res } filter { _.isDirectory })
-
-    s.log.debug("Local/library-project resources: " + res)
-    // this needs to wait for other projects to at least finish their
-    // apklibs tasks--handled if androidBuild() is called properly
-    val depres = collectdeps(libs) collect {
-      case m: ApkLibrary => m
-      case n: AarLibrary => n
-    } collect { case n if n.getResFolder.isDirectory => n.getResFolder }
-    s.log.debug("apklib/aar resources: " + depres)
-
-    val respaths = depres ++ res.reverse ++
-      (if (layout.res.isDirectory) Seq(layout.res) else Seq.empty) ++
-      (if (noTestApk && layout.testRes.isDirectory)
-        Seq(layout.res) else Seq.empty)
-    val sets = respaths.distinct map { r =>
-      val set = new ResourceSet(r.getAbsolutePath)
-      set.addSource(r)
-      s.log.debug("Adding resource path: " + r)
-      set
-    }
-
-    val inputs = (respaths flatMap { r => (r ***) get }) filter (n =>
-      !n.getName.startsWith(".") && !n.getName.startsWith("_"))
-
-    FileFunction.cached(cache / "nuke-res-if-changed", FilesInfo.lastModified) { in =>
-      IO.delete(resTarget)
-      in
-    }(depres.toSet)
-    FileFunction.cached(cache / "collect-resources")(
-      FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
-      s.log.info("Collecting resources")
-      incrResourceMerge(layout, resTarget, isLib, libs,
-        cache / "collect-resources", logger(s.log), bldr, sets, inChanges, s.log)
-      (resTarget ***).get.toSet
-    }(inputs toSet)
-
-    (assetBin, resTarget)
-  }
 
   val collectResourcesTaskDef = ( builder
                                 , debugIncludesTests
@@ -510,100 +440,9 @@ object Tasks {
                                 , streams
                                 ) map {
     (bldr, noTestApk, isLib, libs, er, layout, logger, s) =>
-      doCollectResources(bldr, noTestApk, isLib, libs, layout, er, logger, s.cacheDirectory, s)
+      Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, er, logger, s.cacheDirectory, s)
   }
 
-  def incrResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
-      libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
-      bldr: AndroidBuilder, resources: Seq[ResourceSet],
-      changes: ChangeReport[File], slog: Logger) {
-
-    def merge() = fullResourceMerge(layout, resTarget, isLib, libs, blobDir,
-      logger, bldr, resources, slog)
-    val merger = new ResourceMerger
-    if (!merger.loadFromBlob(blobDir, true)) {
-      slog.debug("Could not load merge blob (no full merge yet?)")
-      merge()
-    } else if (!merger.checkValidUpdate(resources.asJava)) {
-      slog.debug("requesting full merge: !checkValidUpdate")
-      merge()
-    } else {
-
-      val fileValidity = new FileValidity[ResourceSet]
-      val exists = changes.added ++ changes.removed ++ changes.modified exists {
-        file =>
-        val status = if (changes.added contains file)
-          FileStatus.NEW
-        else if (changes.removed contains file)
-          FileStatus.REMOVED
-        else if (changes.modified contains file)
-          FileStatus.CHANGED
-        else
-          sys.error("Unknown file status: " + file)
-
-        merger.findDataSetContaining(file, fileValidity)
-        val vstatus = fileValidity.getStatus
-
-        if (vstatus == FileValidity.FileStatus.UNKNOWN_FILE) {
-          merge()
-          slog.debug("Incremental merge aborted, unknown file: " + file)
-          true
-        } else if (vstatus == FileValidity.FileStatus.VALID_FILE) {
-          // begin workaround
-          // resource merger doesn't seem to actually copy changed files over...
-          // values.xml gets merged, but if files are changed...
-          val targetFile = resTarget / (
-            file relativeTo fileValidity.getSourceFile).get.getPath
-          val copy = Seq((file, targetFile))
-          status match {
-            case FileStatus.NEW =>
-            case FileStatus.CHANGED =>
-              if (targetFile.exists) IO.copy(copy, false, true)
-            case FileStatus.REMOVED => targetFile.delete()
-          }
-          // end workaround
-          try {
-            if (!fileValidity.getDataSet.updateWith(
-                fileValidity.getSourceFile, file, status, logger)) {
-              slog.debug("Unable to handle changed file: " + file)
-              merge()
-              true
-            } else
-              false
-          } catch {
-            case e: RuntimeException =>
-              slog.warn("Unable to handle changed file: " + file + ": " + e)
-              merge()
-              true
-          }
-        } else
-          false
-      }
-      if (!exists) {
-        slog.info("Performing incremental resource merge")
-        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.bin / "public.txt")
-        merger.mergeData(writer, true)
-        merger.writeBlobTo(blobDir, writer)
-      }
-    }
-  }
-  def fullResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
-    libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
-    bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger) {
-
-    slog.info("Performing full resource merge")
-    val merger = new ResourceMerger
-
-    resTarget.mkdirs()
-
-    resources foreach { r =>
-      r.loadFromFiles(logger)
-      merger.addDataSet(r)
-    }
-    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.bin / "public.txt")
-    merger.mergeData(writer, false)
-    merger.writeBlobTo(blobDir, writer)
-  }
 
   val packageApklibMappings = Def.task {
     val layout = projectLayout.value
@@ -680,7 +519,7 @@ object Tasks {
 
     FileFunction.cached(cache / basename, FilesInfo.hash) { _ =>
       s.log.info("Packaging resources: " + p.getName)
-      aapt(bldr, manif, pkg, libs, lib, debug(), res, assets,
+      Resources.aapt(bldr, manif, pkg, libs, lib, debug(), res, assets,
         p.getAbsolutePath, layout.gen, proguardTxt, s.log)
       Set(p)
     }(inputs.toSet)
@@ -1014,55 +853,13 @@ object Tasks {
       s.log.info("Processing resources")
       if (!res.exists)
         s.log.warn("No resources found at " + res.getAbsolutePath)
-      aapt(bldr, manif, pkg, libs, lib, debug(), res, assets, null,
+      Resources.aapt(bldr, manif, pkg, libs, lib, debug(), res, assets, null,
         layout.gen, proguardTxt, s.log)
       s.log.debug(
         "In modified: %s\nInRemoved: %s\nOut checked: %s\nOut modified: %s"
           format (in.modified, in.removed, out.checked, out.modified))
       (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
     }(inputs.toSet).toSeq
-  }
-
-  def aapt(bldr: AndroidBuilder, manifest: File, pkg: String,
-      libs: Seq[LibraryDependency], lib: Boolean, debug: Boolean,
-      res: File, assets: File, resApk: String, gen: File, proguardTxt: String,
-      logger: Logger) = synchronized {
-
-    gen.mkdirs()
-    val options = new AaptOptions {
-      override def getIgnoreAssets = null
-      override def getNoCompress = null
-      override def getFailOnMissingConfigEntry = false
-      override def getAdditionalParameters = List.empty.asJava
-    }
-    val genPath = gen.getAbsolutePath
-    val all = collectdeps(libs) ++ libs
-    logger.debug("All libs: " + all)
-    logger.debug("All packages: " + (all map { l =>
-      XML.loadFile(l.getManifest).attribute("package").head.text
-    }))
-    logger.debug("packageForR: " + pkg)
-    logger.debug("proguard.txt: " + proguardTxt)
-    val aaptCommand = new AaptPackageProcessBuilder(manifest, options)
-    if (res.isDirectory)
-      aaptCommand.setResFolder(res)
-    if (assets.isDirectory)
-      aaptCommand.setAssetsFolder(assets)
-    aaptCommand.setLibraries(all.asJava)
-    aaptCommand.setPackageForR(pkg)
-    aaptCommand.setResPackageOutput(resApk)
-    aaptCommand.setSourceOutputDir(genPath)
-    aaptCommand.setSymbolOutputDir(genPath)
-    aaptCommand.setProguardOutput(proguardTxt)
-    aaptCommand.setType(if (lib) VariantType.LIBRARY else VariantType.DEFAULT)
-    aaptCommand.setDebuggable(debug)
-    bldr.processResources(aaptCommand, true)
-  }
-
-  def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
-    val deps = libs flatMap (_.getDependencies.asScala)
-
-    if (libs.isEmpty) Seq.empty else collectdeps(deps) ++ deps
   }
 
   val proguardConfigTaskDef = ( projectLayout
@@ -1379,7 +1176,7 @@ object Tasks {
       val apk = layout.bin / "instrumentation-test.ap_"
 
       if (!rTxt.exists) rTxt.createNewFile()
-      aapt(bldr, processedManifest, testPackage, libs, false, debug,
+      Resources.aapt(bldr, processedManifest, testPackage, libs, false, debug,
         layout.testRes, layout.testAssets,
         res.getAbsolutePath, classes, null, s.log)
 
