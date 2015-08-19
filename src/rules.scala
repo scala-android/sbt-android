@@ -464,9 +464,7 @@ object Plugin extends sbt.Plugin {
     proguardInputs          <<= proguardInputsTaskDef,
     proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),
     proguardScala           <<= autoScalaLibrary,
-    retrolambdaEnable       <<= (javaSource in Compile) {
-      s => (s ** "*.java").get.nonEmpty && RetrolambdaSupport.isAvailable
-    },
+    retrolambdaEnable        := false,
     typedResources          <<= proguardScala,
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
