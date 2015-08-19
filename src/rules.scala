@@ -441,22 +441,19 @@ object Plugin extends sbt.Plugin {
     },
     targetSdkVersion        <<= (manifest, minSdkVersion) map { (m, min) =>
       val usesSdk = m \ "uses-sdk"
-      if (usesSdk.isEmpty) "1" else
-        usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion") map {
-            _(0) text } getOrElse min
+      if (usesSdk.isEmpty) min else
+        usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion").fold(min) { _.head.text }
     },
     minSdkVersion            := {
       val m = manifest.value
       val t = platformTarget.value
       val ldr = sdkLoader.value
+      val tgt = ldr.getTargetInfo(t, buildTools.value.getRevision, ilogger.value(streams.value.log))
+      val min = tgt.getTarget.getVersion.getApiLevel.toString
 
       val usesSdk = m \ "uses-sdk"
-      if (usesSdk.isEmpty) "1" else
-        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion") map {
-          _(0) text } getOrElse {
-          val tgt = ldr.getTargetInfo(t, buildTools.value.getRevision, ilogger.value(streams.value.log))
-          tgt.getTarget.getVersion.getApiLevel.toString
-        }
+      if (usesSdk.isEmpty) min else
+        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion").fold(min) { _.head.text }
     },
     proguardCache            := "scala" :: Nil,
     proguardLibraries        := Seq.empty,
