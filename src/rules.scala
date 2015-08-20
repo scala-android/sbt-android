@@ -413,7 +413,7 @@ object Plugin extends sbt.Plugin {
     dexMainFileClasses       := Seq.empty,
     dexMinimizeMainFile      := false,
     dexAdditionalParams      := Seq.empty,
-    dexMainFileClassesConfig <<= dexMainFileClassesConfigTaskDef,
+    dexMainFileClassesConfig <<= dexMainFileClassesConfigTaskDef dependsOn (packageT in Compile),
     platformJars            <<= platform map { p =>
       (p.getPath(IAndroidTarget.ANDROID_JAR),
       p.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))
