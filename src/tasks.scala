@@ -865,8 +865,9 @@ object Tasks {
   val proguardConfigTaskDef = ( projectLayout
                               , sdkPath
                               , useSdkProguard
+                              , aars
                               , streams) map {
-    (layout, p, u, s) =>
+    (layout, p, u, a, s) =>
     val proguardTxt     = layout.bin  / "proguard.txt"
     val proguardProject = layout.base / "proguard-project.txt"
 
@@ -886,7 +887,11 @@ object Tasks {
     def lines(file: File): Seq[String] =
       if (file.exists) IO.readLines(file) else Seq.empty
 
-    (base ++ lines(proguardProject) ++ lines(proguardTxt)).toSeq: Seq[String]
+    val aarConfig = a.flatMap { l =>
+      val pc = l.path / "proguard.txt"
+      if (pc.isFile) IO.readLines(pc) else Seq.empty
+    }
+    (base ++ lines(proguardProject) ++ lines(proguardTxt) ++ aarConfig).toSeq: Seq[String]
   }
 
   val dexMainFileClassesConfigTaskDef = ( projectLayout
