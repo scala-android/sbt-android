@@ -16,22 +16,14 @@ import java.util.Properties
 import java.io.File
 
 import com.android.SdkConstants
-import com.android.builder.model.AaptOptions
 import com.android.builder.signing.DefaultSigningConfig
 import com.android.builder.core._
-import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.ddmlib.{IDevice, DdmPreferences}
 import com.android.ddmlib.testrunner.ITestRunListener
-import com.android.ide.common.res2.FileStatus
-import com.android.ide.common.res2.FileValidity
-import com.android.ide.common.res2.MergedResourceWriter
-import com.android.ide.common.res2.ResourceMerger
-import com.android.ide.common.res2.ResourceSet
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.BuildToolInfo.PathId
 import com.android.sdklib.build.RenderScriptProcessor
 import com.android.sdklib.build.RenderScriptProcessor.CommandLineLauncher
-import com.android.utils.ILogger
 
 import Keys._
 import Keys.Internal._
