@@ -917,12 +917,12 @@ object Tasks {
             val cmd = Seq(
               script.getAbsolutePath,
               "--output", mainDexListTxt.getAbsolutePath,
-              "\"" + injars + "\""
+              if (Commands.isWindows) s""""$injars"""" else injars
             )
 
             s.log.info("Generating maindexlist.txt")
             s.log.debug("mainDexClasses => " + cmd.mkString(" "))
-            val rc = Process(cmd, layout.base, Nil: _*) !
+            val rc = Process(cmd, layout.base) !
 
             if (rc != 0) {
               Plugin.fail("failed to determine mainDexClasses")
