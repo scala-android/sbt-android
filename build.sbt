@@ -98,6 +98,8 @@ libraryDependencies ++= Seq(
   "net.orfjackal.retrolambda" % "retrolambda" % "2.0.5"
 )
 
+aggregate := false
+
 sbtPlugin := true
 
 // build info plugin
