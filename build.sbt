@@ -1,6 +1,8 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
+val pluginVersion = "1.4.11-SNAPSHOT3"
+
 // gradle-plugin and gradle-model projects
 val model = project.in(file("gradle-model")).settings(
   name := "gradle-discovery-model",
@@ -31,16 +33,46 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
     Nil
 ) dependsOn(model % "provided")
 
-val plugin = project.in(file(".")).dependsOn(model % "provided")
-
-mappings in (Compile, packageBin) ++=
-  (mappings in (Compile, packageBin) in model).value
+val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettings:_*).settings(
+  version := "0.1-SNAPSHOT",
+  mappings in (Compile, packageBin) ++=
+    (mappings in (Compile, packageBin) in model).value,
+  name := "android-gradle-build",
+  organization := "com.hanhuy.sbt",
+  scalacOptions ++= Seq("-deprecation","-Xlint","-feature"),
+  libraryDependencies ++= Seq(
+    "org.gradle" % "gradle-tooling-api" % "2.6" % "provided",
+    "org.slf4j" % "slf4j-api" % "1.7.10" // required by gradle-tooling-api
+  ),
+  // embed gradle-tooling-api jar in plugin since they don't publish on central
+  products in Compile := {
+    val p = (products in Compile).value
+    val t = crossTarget.value
+    val m = (managedClasspath in Compile).value
+    val g = t / "gradle-tooling-api"
+    val apiJar = m.collect {
+      case j if j.get(moduleID.key).exists(_.organization == "org.gradle") &&
+        j.get(moduleID.key).exists(_.name == "gradle-tooling-api") => j.data
+    }.headOption
+    FileFunction.cached(streams.value.cacheDirectory / "gradle-tooling-api", FilesInfo.lastModified) { in =>
+      in foreach (IO.unzip(_, g, { n: String => !n.startsWith("META-INF") }))
+      (g ** "*.class").get.toSet
+    }(apiJar.toSet)
+    g +: p
+  },
+  sbtPlugin := true,
+  repository in bintray := "sbt-plugins",
+  publishMavenStyle := false,
+  licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
+  bintrayOrganization in bintray := None
+).settings(addSbtPlugin(
+  "com.hanhuy.sbt" % "android-sdk-plugin" % pluginVersion)).dependsOn(model % "provided")
 
 name := "android-sdk-plugin"
 
 organization := "com.hanhuy.sbt"
 
-version := "1.4.11-SNAPSHOT2"
+version := pluginVersion
 
 scalacOptions ++= Seq("-deprecation","-Xlint","-feature")
 
@@ -63,27 +95,8 @@ libraryDependencies ++= Seq(
   "com.android.tools.build" % "gradle-core" % "1.3.1" excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
   "com.android.tools.lint" % "lint" % "24.3.1",
-  "net.orfjackal.retrolambda" % "retrolambda" % "2.0.5",
-  "org.gradle" % "gradle-tooling-api" % "2.6" % "provided",
-  "org.slf4j" % "slf4j-api" % "1.7.10" // required by gradle-tooling-api
+  "net.orfjackal.retrolambda" % "retrolambda" % "2.0.5"
 )
-
-// embed gradle-tooling-api jar in plugin since they don't publish on central
-products in Compile := {
-  val p = (products in Compile).value
-  val t = crossTarget.value
-  val m = (managedClasspath in Compile).value
-  val g = t / "gradle-tooling-api"
-  val apiJar = m.collect {
-    case j if j.get(moduleID.key).exists(_.organization == "org.gradle") &&
-      j.get(moduleID.key).exists(_.name == "gradle-tooling-api") => j.data
-  }.headOption
-  FileFunction.cached(streams.value.cacheDirectory / "gradle-tooling-api", FilesInfo.lastModified) { in =>
-    in foreach (IO.unzip(_, g, { n: String => !n.startsWith("META-INF") }))
-    (g ** "*.class").get.toSet
-  }(apiJar.toSet)
-  g +: p
-}
 
 sbtPlugin := true
 

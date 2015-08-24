@@ -1,15 +1,14 @@
 package android
 
-import java.io.File
-import java.io._
+import java.io.{File, _}
 import java.util.concurrent.TimeUnit
 
-import com.android.builder.model.{MavenCoordinates, AndroidProject}
-import Keys._
+import android.Keys._
+import com.android.builder.model.{AndroidProject, MavenCoordinates}
 import com.hanhuy.gradle.discovery.{AndroidDiscoveryModel, RepositoryListModel}
-import org.gradle.tooling.{ProjectConnection, GradleConnector}
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 import org.gradle.tooling.model.GradleProject
+import org.gradle.tooling.{GradleConnector, ProjectConnection}
 import sbt.Keys._
 import sbt._
 
