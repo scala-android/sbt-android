@@ -1,0 +1,14 @@
+initscript {
+    repositories {
+        maven {
+            url 'http://dl.bintray.com/pfn/maven'
+        }
+    }
+    dependencies {
+        classpath 'com.hanhuy.gradle:gradle-discovery-plugin:0.2'
+    }
+}
+allprojects {
+    apply plugin: com.hanhuy.gradle.discovery.RepositoryListPlugin
+    apply plugin: com.hanhuy.gradle.discovery.AndroidDiscoveryPlugin
+}

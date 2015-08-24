@@ -1,15 +1,50 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
-name := "android-sdk-plugin"
+// gradle-plugin and gradle-model projects
+val model = project.in(file("gradle-model")).settings(
+  name := "gradle-discovery-model",
+  organization := "com.hanhuy.gradle",
+  resolvers += Resolver.jcenterRepo,
+  autoScalaLibrary := false,
+  crossPaths := false,
+  libraryDependencies +=
+    "org.gradle" % "gradle-tooling-api" % "2.6" % "provided"
+)
 
-version := "1.4.11-SNAPSHOT"
+val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_*).settings(
+  name := "gradle-discovery-plugin",
+  mappings in (Compile, packageBin) ++= (mappings in (Compile, packageBin) in model).value,
+  repository in bintray := "maven",
+  organization := "com.hanhuy.gradle",
+  bintrayOrganization in bintray := None,
+  resolvers += Resolver.jcenterRepo,
+  publishMavenStyle := true,
+  autoScalaLibrary := false,
+  crossPaths := false,
+  sbtPlugin := false,
+  licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
+  version := "0.2",
+  libraryDependencies ++=
+    "org.gradle" % "gradle-tooling-api" % "2.6" % "provided" ::
+    "javax.inject" % "javax.inject" % "1" % "provided" ::
+    Nil
+) dependsOn(model % "provided")
+
+val plugin = project.in(file(".")).dependsOn(model % "provided")
+
+mappings in (Compile, packageBin) ++=
+  (mappings in (Compile, packageBin) in model).value
+
+name := "android-sdk-plugin"
 
 organization := "com.hanhuy.sbt"
 
-sourceDirectories in Compile <<= baseDirectory(b => Seq(b / "src"))
+version := "1.4.11-SNAPSHOT2"
 
 scalacOptions ++= Seq("-deprecation","-Xlint","-feature")
+
+sourceDirectories in Compile <<= baseDirectory(b => Seq(b / "src"))
 
 scalaSource in Compile <<= baseDirectory(_ / "src")
 
@@ -28,8 +63,27 @@ libraryDependencies ++= Seq(
   "com.android.tools.build" % "gradle-core" % "1.3.1" excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
   "com.android.tools.lint" % "lint" % "24.3.1",
-  "net.orfjackal.retrolambda" % "retrolambda" % "2.0.5"
+  "net.orfjackal.retrolambda" % "retrolambda" % "2.0.5",
+  "org.gradle" % "gradle-tooling-api" % "2.6" % "provided",
+  "org.slf4j" % "slf4j-api" % "1.7.10" // required by gradle-tooling-api
 )
+
+// embed gradle-tooling-api jar in plugin since they don't publish on central
+products in Compile := {
+  val p = (products in Compile).value
+  val t = crossTarget.value
+  val m = (managedClasspath in Compile).value
+  val g = t / "gradle-tooling-api"
+  val apiJar = m.collect {
+    case j if j.get(moduleID.key).exists(_.organization == "org.gradle") &&
+      j.get(moduleID.key).exists(_.name == "gradle-tooling-api") => j.data
+  }.headOption
+  FileFunction.cached(streams.value.cacheDirectory / "gradle-tooling-api", FilesInfo.lastModified) { in =>
+    in foreach (IO.unzip(_, g, { n: String => !n.startsWith("META-INF") }))
+    (g ** "*.class").get.toSet
+  }(apiJar.toSet)
+  g +: p
+}
 
 sbtPlugin := true
 
@@ -43,6 +97,7 @@ buildInfoKeys := Seq(name, version, scalaVersion, sbtVersion)
 
 buildInfoPackage := "android"
 
+// bintray
 bintrayPublishSettings
 
 repository in bintray := "sbt-plugins"
@@ -59,7 +114,6 @@ scriptedSettings
 scriptedLaunchOpts ++= Seq("-Xmx1024m")
 
 //scriptedBufferLog := false
-
 sbtTestDirectory <<= baseDirectory (_ / "sbt-test")
 
 // TODO reorganize tests better, ditch android-sdk-plugin prefix
@@ -73,7 +127,7 @@ scriptedDependencies <<= ( sbtTestDirectory
   (dir,s, org, n, v, sbtv) =>
   val testBase = dir / "android-sdk-plugin"
   val tests = testBase.listFiles(DirectoryFilter) filter { d =>
-    (d ** "*.sbt").get.size > 0 || (d / "project").isDirectory
+    (d ** "*.sbt").get.nonEmpty || (d / "project").isDirectory
   }
   tests foreach { test =>
     val project = test / "project"
@@ -89,3 +143,4 @@ scriptedDependencies <<= ( sbtTestDirectory
 }
 
 scriptedDependencies <<= scriptedDependencies dependsOn publishLocal
+
