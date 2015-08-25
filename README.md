@@ -2,7 +2,7 @@
 
 [![Join the chat at https://gitter.im/pfn/android-sdk-plugin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/pfn/android-sdk-plugin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.4.10
+Current version is 1.4.11
 
 ## Description ##
 
@@ -36,6 +36,16 @@ found on the #sbt-android IRC channel on Freenode
 
 ## New features in 1.4.x ##
 
+* `1.4.11`:
+  * include `aars` when generating `proguardConfig`
+  * fix `mainDexClasses` on non-Windows platforms
+  * implement `android.GradleBuild` in `"com.hanhuy.sbt" % "android-gradle-build" % "0.1"`
+    * Automatic building from gradle projects without having to configure SBT
+    * See the [gradle-build test case](sbt-test/android-sdk-plugin/gradle-build)
+      for an example of usage
+    * Known issue: transitive aar libraries that are specified in both library
+      and app modules will fail to build
+  * use `AutoPlugin` triggers
 * `1.4.10`:
   * Set `autoScalaLibrary` based on presence of scala sources
   * Set `minSdkVersion` and `targetSdkVersion` based on `platformTarget`
@@ -275,7 +285,7 @@ found on the #sbt-android IRC channel on Freenode
     directory names for packaging
 * Global plugin installation friendly
   * For sbt 0.13, add to `~/.sbt/0.13/plugins/android.sbt`
-  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.10")`
+  * `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.11")`
 * New commands, all commands have proper tab-completion:
   * `gen-android` - creates android projects from scratch with sbt plumbing
   * `gen-android-sbt` - creates SBT files for an existing android project
@@ -441,7 +451,7 @@ found on the #sbt-android IRC channel on Freenode
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.10")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.11")
    ```
    
 2. Create a new android project using `gen-android` if the plugin is installed
@@ -462,7 +472,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.10")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.4.11")
    ```
 
 4. Create a file named `project/build.scala` and add the
