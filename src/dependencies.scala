@@ -76,7 +76,13 @@ object Dependencies {
     override def getSymbolFile = path / "gen" / "R.txt"
     override def getJarFile = path / "bin" / FN_CLASSES_JAR
   }
-  case class AarLibrary(path: File, moduleID: Option[ModuleID]) extends LibraryDependency {
+  def moduleIdFile(path: File) = path / "sbt-module-id"
+  case class AarLibrary(path: File) extends LibraryDependency {
+    lazy val moduleID: ModuleID = {
+      val mfile = moduleIdFile(path)
+      val parts = IO.readLines(mfile).head.split(":")
+      parts(0) % parts(1) % parts(2)
+    }
     override lazy val layout = new ProjectLayout.Ant(path) {
       override def jniLibs = getJniFolder
     }
@@ -101,7 +107,7 @@ object Dependencies {
 
     override def getDependencies = {
       ((IO.listFiles(path / "target" / "aars") filter (_.isDirectory) map { d =>
-        AarLibrary(d, None): AndroidLibrary
+        AarLibrary(d): AndroidLibrary
       }) ++ (IO.listFiles(path / "target" / "apklibs") filter (_.isDirectory) map { d =>
         ApkLibrary(d): AndroidLibrary
       })).toList.asJava
@@ -127,20 +133,9 @@ object Dependencies {
   }
 
   implicit class RichProject(val project: Project) extends AnyVal {
-    import sbt.Keys._
-    import android.Keys._
     def androidBuildWith(deps: Project*): Project = {
-      project.settings(android.Plugin.androidBuild ++
-        (deps flatMap { p =>
-          Seq(
-            collectResources in Android <<=
-              collectResources in Android dependsOn (compile in Compile in p),
-            compile in Compile <<= compile in Compile dependsOn(
-              sbt.Keys.`package` in Compile in p)
-          )
-        }) :+ (localProjects in Android := deps map { p =>
-        Dependencies.LibraryProject(p.base)
-      }):_*) dependsOn (deps map { x => x: ClasspathDep[ProjectReference] }:_*)
+      project.settings(Plugin.androidBuild ++ Plugin.buildWith(deps:_*):_*) dependsOn (
+        deps map { x => x: ClasspathDep[ProjectReference] }:_*)
     }
   }
 }

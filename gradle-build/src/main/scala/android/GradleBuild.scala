@@ -41,23 +41,17 @@ trait GradleBuild extends Build {
       f.delete()
       val projects = discovered map { case (p, deps) =>
         val orig = originalProjects.get(p.id)
-        val p2 = deps.foldLeft(p) { (prj, dep) =>
-          val d = discovered.find(_._1.id == dep).get._1
-          prj.settings(
-            collectResources in Android <<=
-              collectResources in Android dependsOn (compile in Compile in d),
-            compile in Compile <<= compile in Compile dependsOn(
-              android.Keys.Internal.packageT in Compile in d),
-            localProjects in Android += LibraryProject(d.base)
-          )
-        }
+
+        val ds = deps.toList.map (dep => discovered.find(_._1.id == dep).get._1)
+        val p2 = p.settings(Plugin.buildWith(ds: _*): _*).dependsOn(ds map { d =>
+          classpathDependency(Project.projectToRef(d)) }: _*)
         orig.fold(p2)(o => p2.copy(settings = o.asInstanceOf[ProjectDefinition[_]].settings ++ p.settings))
       }
+
       projectsMap = projects map { p => (p.id, p) } toMap
 
       println("Discovered gradle projects:")
-      println("  " + projects.map(p => p.id).mkString("\n  "))
-
+      println(projects.map(p => f"${p.id}%20s at ${p.base}").mkString("\n"))
       projects
     } catch {
       case ex: Exception =>

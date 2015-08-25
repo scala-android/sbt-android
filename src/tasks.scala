@@ -117,10 +117,30 @@ object Tasks {
                     , libraryDependencies in Compile
                     , transitiveAndroidLibs
                     , transitiveAndroidWarning
+                    , localProjects
+                    , thisProjectRef
+                    , state
+                    , buildStructure
                     , target
                     , streams
                     ) map {
-    (u,local,d,tx,tw,t,s) =>
+    (u,local,d,tx,tw,lp,ref, st, struct, t,s) =>
+
+    def collectSubAar(ps: Seq[ProjectRef]): Seq[AarLibrary] = ps flatMap { p =>
+      val aarlibs = Project.runTask(libraryProjects in(p, Android), st).collect {
+        case (_, Value(value)) => value
+      }.fold(Seq.empty[AarLibrary])(_ collect {
+        case a: AarLibrary => a
+      })
+      val sub = Project.getProject(p, struct)
+      aarlibs ++ sub.fold(Seq.empty[AarLibrary])(s => collectSubAar(s.dependencies.map(_.project)))
+    }
+    val subaars = collectSubAar(
+      Project.getProject(ref, struct).fold(
+        Seq.empty[ProjectRef])(_.dependencies map (_.project))).map (m =>
+      moduleString(m.moduleID)).toSet
+    s.log.debug("dependencies: " + Project.getProject(ref, struct).map(_.dependencies))
+    s.log.debug("aars in subprojects: " + subaars)
     val libs = u.matching(artifactFilter(`type` = "aar"))
     val dest = t / "aars"
 
@@ -130,7 +150,12 @@ object Tasks {
       val m = moduleForFile(u, l)
       if (tx || deps(moduleString(m))) {
         val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
-        Some(unpackAar(l, d, m, s.log): LibraryDependency)
+        if (!subaars(moduleString(m)))
+          Some(unpackAar(l, d, m, s.log): LibraryDependency)
+        else {
+          s.log.debug(m + " was already included by a dependent project, skipping")
+          None
+        }
       } else {
         if (tw)
           s.log.warn(m + " is not an explicit dependency, skipping")
@@ -142,9 +167,12 @@ object Tasks {
   }
 
   def unpackAar(aar: File, dest: File, m: ModuleID, log: Logger): LibraryDependency = {
-    val lib = AarLibrary(dest, Option(m))
+    val lib = AarLibrary(dest)
     if (dest.lastModified < aar.lastModified || !lib.getManifest.exists) {
       dest.delete()
+      val mfile = Dependencies.moduleIdFile(dest)
+      val mline = s"${m.organization}:${m.name}:${m.revision}"
+      IO.writeLines(mfile, mline :: Nil)
       log.info("Unpacking aar: %s to %s" format (aar.getName, dest.getName))
       dest.mkdirs()
       IO.unzip(aar, dest)
@@ -154,7 +182,7 @@ object Tasks {
     if (lib.getJarFile.exists) {
       lib.getJarFile.renameTo(renamedJar)
     }
-    new AarLibrary(dest, Option(m)) {
+    new AarLibrary(dest) {
       override def getJarFile = renamedJar
     }
   }
@@ -1472,30 +1500,5 @@ object Tasks {
     ) filter { c =>
       !c.data.getName.startsWith("scala-library") && c.data.isFile
     }
-  }
-
-  val managedClasspathTaskDef = ( managedClasspath in Compile
-                                , baseDirectory
-                                , libraryProjects in Android
-                                , streams) map {
-    (m, b, l, s) =>
-
-      def attributed(f: File, m: ModuleID): Attributed[java.io.File] =
-        Attributed(f)(
-          AttributeMap.empty
-            .put(moduleID.key, m)
-            .put(artifact.key, Artifact(m.name, "jar", "jar"))
-            .put(configuration.key, Compile))
-
-      // handle AAR as managed dependencies
-      // local aar is incorrectly managed here, though  :-(
-      val aars = l collect { case a: AarLibrary => a }
-
-      m ++ (aars map {
-        p => attributed(p.getJarFile.getCanonicalFile, p.moduleID.get)
-      }) ++ (for {
-        d <- aars
-        j <- d.getLocalJars.asScala
-      } yield attributed(j.getCanonicalFile, d.moduleID.get))
   }
 }

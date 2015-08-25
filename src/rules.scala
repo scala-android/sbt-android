@@ -67,18 +67,19 @@ object Plugin extends sbt.Plugin {
   }
 
   @deprecated("Use Project.androidBuildWith(subprojects) instead", "1.3.3")
-  def androidBuild(projects: Project*): Seq[Setting[_]]= {
-    androidBuild ++
-      (projects flatMap { p =>
-        Seq(
-          collectResources in Android <<=
-            collectResources in Android dependsOn (compile in Compile in p),
-          compile in Compile <<= compile in Compile dependsOn(
-            packageT in Compile in p)
-        )
-      }) :+ (localProjects in Android := projects map { p =>
-        LibraryProject(p.base)
-      })
+  def androidBuild(projects: Project*): Seq[Setting[_]]=
+    androidBuild ++ buildWith(projects: _*)
+
+  def buildWith(projects: Project*): Seq[Setting[_]] = {
+    projects flatMap { p =>
+      Seq(
+        collectResources in Android <<=
+          collectResources in Android dependsOn (compile in Compile in p),
+        compile in Compile <<= compile in Compile dependsOn(
+          packageT in Compile in p),
+        localProjects in Android += LibraryProject(p.base)
+      )
+    }
   }
 
   lazy val androidBuildJar: Seq[Setting[_]] = androidBuild ++ buildJar
@@ -391,12 +392,7 @@ object Plugin extends sbt.Plugin {
     localProjects           <<= (baseDirectory, properties) { (b,p) =>
       loadLibraryReferences(b, p)
     },
-    libraryProjects         <<= ( baseDirectory
-                                , localProjects
-                                , apklibs
-                                , aars) map {
-      (b,local,a,aa) => a ++ aa ++ local
-    },
+    libraryProjects          := localProjects.value ++ apklibs.value ++ aars.value,
     libraryProject          <<= properties { p =>
       Option(p.getProperty("android.library")) exists { _.equals("true") } },
     dexInputs               <<= dexInputsTaskDef,
