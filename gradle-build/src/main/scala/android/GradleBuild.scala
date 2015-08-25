@@ -132,11 +132,15 @@ trait GradleBuild extends Build {
           dexMulti in Android := _
         } ++ Option(flavor.getMultiDexKeepFile).toList.map {
           dexMainFileClasses in Android := IO.readLines(_, IO.utf8)
+        } ++ Option(model.getPackagingOptions).toList.map { po =>
+          packagingOptions in Android := PackagingOptions(
+            po.getExcludes.asScala.toList, po.getPickFirsts.asScala.toList, po.getMerges.asScala.toList
+          )
         }
         val v = ap.getVariants.asScala.head
         val art = v.getMainArtifact
         def libraryDependency(m: MavenCoordinates) =
-          libraryDependencies += m.getGroupId % m.getArtifactId % m.getVersion
+          libraryDependencies += m.getGroupId % m.getArtifactId % m.getVersion intransitive()
 
         val androidLibraries = art.getDependencies.getLibraries.asScala
         val (aars,projects) = androidLibraries.partition(_.getProject == null)

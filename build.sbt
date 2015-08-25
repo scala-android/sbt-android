@@ -27,8 +27,10 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
   crossPaths := false,
   sbtPlugin := false,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
-  version := "0.3",
+  version := "0.4",
   libraryDependencies ++=
+    "org.codehaus.groovy" % "groovy" % "2.4.4" % "provided" ::
+    "com.android.tools.build" % "gradle" % "1.3.1" ::
     "com.android.tools.build" % "builder-model" % "1.3.1" ::
     "org.gradle" % "gradle-tooling-api" % "2.6" % "provided" ::
     "javax.inject" % "javax.inject" % "1" % "provided" ::
@@ -36,7 +38,7 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
 ) dependsOn(model % "provided")
 
 val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettings:_*).settings(
-  version := "0.3",
+  version := "0.4",
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
   name := "android-gradle-build",

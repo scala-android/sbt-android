@@ -1,6 +1,8 @@
 package com.hanhuy.gradle.discovery;
 
+import com.android.build.gradle.BaseExtension;
 import com.android.builder.model.AndroidProject;
+import com.android.builder.model.PackagingOptions;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.dsl.RepositoryHandler;
@@ -12,9 +14,12 @@ import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry;
 
 import javax.inject.Inject;
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Set;
 
 /**
@@ -49,6 +54,25 @@ public class GradleBuildPlugin implements Plugin<Project> {
         }
     }
 
+    private static Method findMethod(Object instance, String name)
+            throws NoSuchMethodException {
+        for (Class<?> clazz = instance.getClass(); clazz != null; clazz = clazz.getSuperclass()) {
+            try {
+                Method method = clazz.getDeclaredMethod(name);
+
+
+                if (!method.isAccessible()) {
+                    method.setAccessible(true);
+                }
+
+                return method;
+            } catch (NoSuchMethodException e) {
+                // ignore and search next
+            }
+        }
+
+        throw new NoSuchMethodException("Method " + name);
+    }
     public static class GradleBuildM implements Serializable {
         private final static String GRADLE_PROJECT = GradleProject.class.getName();
         private final static String ANDROID_PROJECT = AndroidProject.class.getName();
@@ -56,6 +80,7 @@ public class GradleBuildPlugin implements Plugin<Project> {
         private final RepositoryListModel repositories;
         private final Object gradleProject;
         private final Object androidProject;
+        private final Object packagingOptions;
         public GradleBuildM(Project project, ToolingModelBuilderRegistry registry) {
             ToolingModelBuilder b;
             discovery = new AndroidDiscovery(
@@ -67,8 +92,10 @@ public class GradleBuildPlugin implements Plugin<Project> {
             if (discovery.isApplication() || discovery.isLibrary()) {
                 b = registry.getBuilder(ANDROID_PROJECT);
                 androidProject = b.buildAll(ANDROID_PROJECT, project);
+                packagingOptions = new PO(project.getExtensions().findByName("android"));
             } else {
                 androidProject = null;
+                packagingOptions = null;
             }
         }
         public RepositoryListModel getRepositories() {
@@ -85,6 +112,44 @@ public class GradleBuildPlugin implements Plugin<Project> {
 
         public Object getGradleProject() {
             return gradleProject;
+        }
+
+        public Object getPackagingOptions() { return packagingOptions; }
+    }
+
+    public static class PO implements PackagingOptions, Serializable {
+        private final Set<String> excludes;
+        private final Set<String> firsts;
+        private final Set<String> merges;
+        @SuppressWarnings("unchecked")
+        public PO(Object extension) {
+            Set<String> e = Collections.EMPTY_SET, f = Collections.EMPTY_SET, m = Collections.EMPTY_SET;
+            try {
+                Object po = findMethod(extension, "getPackagingOptions").invoke(extension);
+                e    = (Set<String>) findMethod(po, "getExcludes").invoke(po);
+                f    = (Set<String>) findMethod(po, "getPickFirsts").invoke(po);
+                m    = (Set<String>) findMethod(po, "getMerges").invoke(po);
+            } catch (Exception x) {
+                // noop
+            }
+            excludes = e;
+            firsts   = f;
+            merges   = m;
+
+        }
+        @Override
+        public Set<String> getExcludes() {
+            return excludes;
+        }
+
+        @Override
+        public Set<String> getPickFirsts() {
+            return firsts;
+        }
+
+        @Override
+        public Set<String> getMerges() {
+            return merges;
         }
     }
     public static class AndroidDiscovery implements Serializable, AndroidDiscoveryModel {
