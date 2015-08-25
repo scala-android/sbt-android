@@ -41,7 +41,7 @@ found on the #sbt-android IRC channel on Freenode
   * fix `mainDexClasses` on non-Windows platforms
   * implement `android.GradleBuild` in `"com.hanhuy.sbt" % "android-gradle-build" % "0.2"`
     * Automatic building from gradle projects without having to configure SBT
-    * See the [gradle-build test case](sbt-test/android-sdk-plugin/gradle-build)
+    * See the [gradle-build test cases](sbt-test/gradle-build)
       for an example of usage
     * Known issue: transitive aar libraries that are specified in both library
       and app modules will fail to build

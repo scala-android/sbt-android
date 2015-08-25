@@ -1,0 +1,2 @@
+> sample/android:package
+$ exists sample/target/android-bin/sample-debug.apk
