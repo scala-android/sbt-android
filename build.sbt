@@ -1,7 +1,7 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
-val pluginVersion = "1.4.12-SNAPSHOT"
+val pluginVersion = "1.4.12"
 
 // gradle-plugin and gradle-model projects
 val model = project.in(file("gradle-model")).settings(
@@ -36,7 +36,7 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
 ) dependsOn(model % "provided")
 
 val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettings:_*).settings(
-  version := "0.3-SNAPSHOT",
+  version := "0.3",
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
   name := "android-gradle-build",
