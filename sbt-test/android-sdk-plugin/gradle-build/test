@@ -1,0 +1,2 @@
+> viewserver-sample/android:package
+$ exists viewserver-sample/target/android-bin/viewserver-sample-debug.apk
