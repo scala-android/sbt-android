@@ -4,10 +4,9 @@ import java.io.{File, _}
 import java.util.concurrent.TimeUnit
 
 import android.Keys._
-import com.android.builder.model.{AndroidProject, MavenCoordinates}
-import com.hanhuy.gradle.discovery.{AndroidDiscoveryModel, RepositoryListModel}
+import com.android.builder.model.MavenCoordinates
+import com.hanhuy.gradle.discovery.GradleBuildModel
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector
-import org.gradle.tooling.model.GradleProject
 import org.gradle.tooling.{GradleConnector, ProjectConnection}
 import sbt.Keys._
 import sbt._
@@ -86,26 +85,18 @@ trait GradleBuild extends Build {
     modelBuilder(c, model).withArguments(
       "--init-script", initscript.getAbsolutePath)
 
-  def repositoryListModel(c: ProjectConnection, initscript: File) =
-    initScriptModelBuilder(c, classOf[RepositoryListModel], initscript).get()
-
-  def androidDiscoveryModel(c: ProjectConnection, initscript: File) =
-    initScriptModelBuilder(c, classOf[AndroidDiscoveryModel], initscript).get()
-
-  def gradleProject(c: ProjectConnection) =
-    modelBuilder(c, classOf[GradleProject]).get()
-
-  def androidProject(c: ProjectConnection) =
-    modelBuilder(c, classOf[AndroidProject]).get()
+  def gradleBuildModel(c: ProjectConnection, initscript: File) =
+    initScriptModelBuilder(c, classOf[GradleBuildModel], initscript).get()
 
   def processDirectoryAt(base: File, initscript: File,
                          connector: GradleConnector,
                          repositories: List[Resolver] = Nil, seen: Set[File] = Set.empty): (Set[File],List[(Project,Set[String])]) = {
     val c = connector.forProjectDirectory(base).connect()
-    val prj = gradleProject(c)
-    val discovery = androidDiscoveryModel(c, initscript)
+    val model = gradleBuildModel(c, initscript)
+    val prj = model.getGradleProject
+    val discovery = model.getDiscovery
     val repos = repositories ++ (
-      repositoryListModel(c, initscript).getResolvers.asScala.toList map (r =>
+      model.getRepositories.getResolvers.asScala.toList map (r =>
         r.getUrl.toString at r.getUrl.toString))
 
     val (visited,subprojects) = prj.getChildren.asScala.toList.foldLeft((seen + base.getCanonicalFile,List.empty[(Project,Set[String])])) { case ((saw,acc),child) =>
@@ -121,7 +112,7 @@ trait GradleBuild extends Build {
 
     try {
       if (discovery.isApplication || discovery.isLibrary) {
-        val ap = androidProject(c)
+        val ap = model.getAndroidProject
         val sourceVersion = ap.getJavaCompileOptions.getSourceCompatibility
         val targetVersion = ap.getJavaCompileOptions.getTargetCompatibility
 

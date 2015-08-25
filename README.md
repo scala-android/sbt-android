@@ -39,7 +39,7 @@ found on the #sbt-android IRC channel on Freenode
 * `1.4.11`:
   * include `aars` when generating `proguardConfig`
   * fix `mainDexClasses` on non-Windows platforms
-  * implement `android.GradleBuild` in `"com.hanhuy.sbt" % "android-gradle-build" % "0.1"`
+  * implement `android.GradleBuild` in `"com.hanhuy.sbt" % "android-gradle-build" % "0.2"`
     * Automatic building from gradle projects without having to configure SBT
     * See the [gradle-build test case](sbt-test/android-sdk-plugin/gradle-build)
       for an example of usage

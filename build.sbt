@@ -10,8 +10,9 @@ val model = project.in(file("gradle-model")).settings(
   resolvers += Resolver.jcenterRepo,
   autoScalaLibrary := false,
   crossPaths := false,
-  libraryDependencies +=
-    "org.gradle" % "gradle-tooling-api" % "2.6" % "provided"
+  libraryDependencies ++=
+    "com.android.tools.build" % "builder-model" % "1.3.1" ::
+    "org.gradle" % "gradle-tooling-api" % "2.6" % "provided" :: Nil
 )
 
 val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_*).settings(
@@ -26,15 +27,16 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
   crossPaths := false,
   sbtPlugin := false,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
-  version := "0.2",
+  version := "0.3",
   libraryDependencies ++=
+    "com.android.tools.build" % "builder-model" % "1.3.1" ::
     "org.gradle" % "gradle-tooling-api" % "2.6" % "provided" ::
     "javax.inject" % "javax.inject" % "1" % "provided" ::
     Nil
 ) dependsOn(model % "provided")
 
 val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettings:_*).settings(
-  version := "0.1",
+  version := "0.2",
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
   name := "android-gradle-build",
