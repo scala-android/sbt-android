@@ -139,8 +139,10 @@ trait GradleBuild extends Build {
         }
         val v = ap.getVariants.asScala.head
         val art = v.getMainArtifact
-        def libraryDependency(m: MavenCoordinates) =
-          libraryDependencies += m.getGroupId % m.getArtifactId % m.getVersion intransitive()
+        def libraryDependency(m: MavenCoordinates) = {
+          val module = m.getGroupId % m.getArtifactId % m.getVersion intransitive()
+          libraryDependencies += (if (m.getPackaging != "aar") module else Dependencies.aar(module))
+        }
 
         val androidLibraries = art.getDependencies.getLibraries.asScala
         val (aars,projects) = androidLibraries.partition(_.getProject == null)
