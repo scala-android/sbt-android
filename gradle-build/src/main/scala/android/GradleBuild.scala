@@ -4,7 +4,7 @@ import java.io.{File, _}
 import java.util.concurrent.TimeUnit
 
 import android.Keys._
-import com.android.builder.model.MavenCoordinates
+import com.android.builder.model.{JavaLibrary, AndroidLibrary, MavenCoordinates}
 import com.hanhuy.gradle.discovery.GradleBuildModel
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 import org.gradle.tooling.{GradleConnector, ProjectConnection}
@@ -25,6 +25,7 @@ trait GradleBuild extends Build {
   def gradle = projectsMap.apply _
 
   override def projects = {
+    val start = System.currentTimeMillis
     val originalProjects = super.projects.map (p => (p.id, p)).toMap
     val initgradle = IO.readLinesURL(Tasks.resourceUrl("plugin-init.gradle"))
     val f = File.createTempFile("plugin-init", ".gradle")
@@ -33,7 +34,7 @@ trait GradleBuild extends Build {
 
     println("Searching for android gradle projects...")
     val gconnection = GradleConnector.newConnector.asInstanceOf[DefaultGradleConnector]
-    gconnection.daemonMaxIdleTime(5, TimeUnit.SECONDS)
+    gconnection.daemonMaxIdleTime(60, TimeUnit.SECONDS)
     gconnection.setVerboseLogging(false)
 
     try {
@@ -50,7 +51,9 @@ trait GradleBuild extends Build {
 
       projectsMap = projects map { p => (p.id, p) } toMap
 
-      println("Discovered gradle projects:")
+      val end = System.currentTimeMillis
+      val elapsed = (end - start) / 1000.0f
+      println(f"Discovered gradle projects (in $elapsed%.02fs):")
       println(projects.map(p => f"${p.id}%20s at ${p.base}").mkString("\n"))
       projects
     } catch {
@@ -141,17 +144,33 @@ trait GradleBuild extends Build {
         val art = v.getMainArtifact
         def libraryDependency(m: MavenCoordinates) = {
           val module = m.getGroupId % m.getArtifactId % m.getVersion intransitive()
-          libraryDependencies += (if (m.getPackaging != "aar") module else Dependencies.aar(module))
+          val mID = if (m.getPackaging != "aar") module else Dependencies.aar(module)
+          val classifier = Option(m.getClassifier)
+          libraryDependencies += classifier.fold(mID)(mID.classifier)
         }
 
-        val androidLibraries = art.getDependencies.getLibraries.asScala
+        val androidLibraries = art.getDependencies.getLibraries.asScala.toList
         val (aars,projects) = androidLibraries.partition(_.getProject == null)
         val (resolved,localAars) = aars.partition(a => Option(a.getResolvedCoordinates.getGroupId).exists(_.nonEmpty))
         val localAar = localAars.toList map { l =>
           android.Keys.localAars in Android += l.getBundle
         }
-        val libs = resolved.toList ++
-          art.getDependencies.getJavaLibraries.asScala.toList filter (j =>
+        def dependenciesOf[A](l: A, seen: Set[File] = Set.empty)(children: A => List[A])(fileOf: A => File): List[A] = {
+          val deps = children(l) filterNot(l => seen(fileOf(l)))
+          deps ++ deps.flatMap(d => dependenciesOf(d, seen ++ deps.map(fileOf))(children)(fileOf))
+        }
+        def aarDependencies(l: AndroidLibrary): List[AndroidLibrary] =
+          dependenciesOf(l)(_.getLibraryDependencies.asScala.toList)(_.getBundle)
+        def javaDependencies(l: JavaLibrary): List[JavaLibrary] =
+          dependenciesOf(l)(_.getDependencies.asScala.toList)(_.getJarFile)
+        val allAar = (resolved ++ resolved.flatMap(aarDependencies)).groupBy(
+            _.getBundle.getCanonicalFile).map(_._2.head).toList
+
+        val javalibs = art.getDependencies.getJavaLibraries.asScala.toList
+        val allJar = (javalibs ++ javalibs.flatMap(javaDependencies)).groupBy(
+          _.getJarFile.getCanonicalFile).map(_._2.head).toList
+
+        val libs = allAar ++ allJar filter (j =>
           Option(j.getResolvedCoordinates.getGroupId).exists(_.nonEmpty)) map { j =>
           libraryDependency(j.getResolvedCoordinates)
         }
