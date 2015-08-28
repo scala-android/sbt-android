@@ -106,7 +106,7 @@ trait GradleBuild extends Build {
   import GradleBuildSerializer._
   def processDirectoryAt(base: File, initscript: File,
                          connector: GradleConnector,
-                         repositories: List[Resolver] = Nil, seen: Set[File] = Set.empty): (Set[File],List[SbtProject]) = {//(Project,Set[String])]) = {
+                         repositories: List[Resolver] = Nil, seen: Set[File] = Set.empty): (Set[File],List[SbtProject]) = {
     val c = connector.forProjectDirectory(base).connect()
     val model = gradleBuildModel(c, initscript)
     val prj = model.getGradleProject
@@ -223,14 +223,10 @@ trait GradleBuild extends Build {
             override def jniLibs = sourceProvider.getJniLibsDirectories.asScala.head
           }
         )
-        val p = Project(base = base, id = ap.getName).settings(
-          (if (discovery.isApplication) Plugin.androidBuild else Plugin.androidBuildAar): _*).settings(
-          standard.map(_.setting): _*).settings(optional.map(_.setting): _*).settings(
-            libs.map(_.setting): _*).settings(localAar.map(_.setting): _*)
         val sp = SbtProject(ap.getName, base, discovery.isApplication,
           projects.map(_.getProject.replace(":","")).toSet,
           optional ++ libs ++ localAar ++ standard ++ unmanaged)
-        (visited, sp :: subprojects)//(p, projects.map(_.getProject.replace(":","")).toSet) :: subprojects)
+        (visited, sp :: subprojects)
       } else
         (visited, subprojects)
     } finally {
@@ -409,7 +405,6 @@ object GradleBuildSerializer {
         s".settings($depSettings)"
       } else ""
     }
-    // TODO if (loaded) to selectively enable/disable .sbt file loading
     lazy val serialized =
       s"""
          |val ${escaped(id)} = Project(id = ${enc(id)}, base = ${enc(base)}).settings(
