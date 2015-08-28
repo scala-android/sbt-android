@@ -1,6 +1,6 @@
 package android
 
-import java.io.{File, _}
+import java.io.{OutputStream, File}
 import java.util.concurrent.TimeUnit
 
 import android.Keys._
@@ -20,11 +20,9 @@ import scala.util.Try
  * @author pfnguyen
  */
 trait GradleBuild extends Build {
-  private[this] var projectsMap = Map.empty[String,Project]
+  val generatedScript = file(".") / "00-gradle-generated.sbt"
 
-  def gradle = projectsMap.apply _
-
-  override def projects = {
+  def importFromGradle(): Unit = {
     val start = System.currentTimeMillis
     val originalProjects = super.projects.map (p => (p.id, p)).toMap
     val initgradle = IO.readLinesURL(Tasks.resourceUrl("plugin-init.gradle"))
@@ -32,30 +30,34 @@ trait GradleBuild extends Build {
     IO.writeLines(f, initgradle)
     f.deleteOnExit()
 
+    if (generatedScript.exists) {
+      println("Updating project because gradle scripts have changed")
+    }
+
     println("Searching for android gradle projects...")
     val gconnection = GradleConnector.newConnector.asInstanceOf[DefaultGradleConnector]
     gconnection.daemonMaxIdleTime(60, TimeUnit.SECONDS)
     gconnection.setVerboseLogging(false)
 
     try {
-      val discovered = processDirectoryAt(file("."), f, gconnection)._2
+      val discovered = GradleBuildSerializer.toposort(processDirectoryAt(file("."), f, gconnection)._2)
       f.delete()
-      val projects = discovered map { case (p, deps) =>
+      val projects = discovered map { sp =>
+        val deps = sp.dependencies
+        val p = sp.project
         val orig = originalProjects.get(p.id)
 
-        val ds = deps.toList.map (dep => discovered.find(_._1.id == dep).get._1)
+        val ds = deps.toList.map (dep => discovered.find(_.id == dep).get.project)
         val p2 = p.settings(Plugin.buildWith(ds: _*): _*).dependsOn(ds map { d =>
           classpathDependency(Project.projectToRef(d)) }: _*)
         orig.fold(p2)(o => p2.copy(settings = o.asInstanceOf[ProjectDefinition[_]].settings ++ p.settings))
       }
 
-      projectsMap = projects map { p => (p.id, p) } toMap
-
       val end = System.currentTimeMillis
       val elapsed = (end - start) / 1000.0f
       println(f"Discovered gradle projects (in $elapsed%.02fs):")
       println(projects.map(p => f"${p.id}%20s at ${p.base}").mkString("\n"))
-      projects
+      IO.writeLines(generatedScript, discovered map (_.serialized))
     } catch {
       case ex: Exception =>
         @tailrec
@@ -68,6 +70,19 @@ trait GradleBuild extends Build {
         throw new MessageOnlyException(collectMessages(ex))
     }
   }
+
+  def checkGeneratedScript(): Unit = {
+    val base = file(".")
+    val gradles = base ** "*.gradle" get
+    val lastModified = generatedScript.lastModified
+    if (gradles exists (_.lastModified > lastModified))
+      importFromGradle()
+    else {
+      println("Loading cached gradle project definitions")
+    }
+  }
+
+  checkGeneratedScript()
 
   val nullsink = new OutputStream {
     override def write(b: Int) = ()
@@ -85,9 +100,10 @@ trait GradleBuild extends Build {
   def gradleBuildModel(c: ProjectConnection, initscript: File) =
     initScriptModelBuilder(c, classOf[GradleBuildModel], initscript).get()
 
+  import GradleBuildSerializer._
   def processDirectoryAt(base: File, initscript: File,
                          connector: GradleConnector,
-                         repositories: List[Resolver] = Nil, seen: Set[File] = Set.empty): (Set[File],List[(Project,Set[String])]) = {
+                         repositories: List[Resolver] = Nil, seen: Set[File] = Set.empty): (Set[File],List[SbtProject]) = {//(Project,Set[String])]) = {
     val c = connector.forProjectDirectory(base).connect()
     val model = gradleBuildModel(c, initscript)
     val prj = model.getGradleProject
@@ -96,9 +112,9 @@ trait GradleBuild extends Build {
       model.getRepositories.getResolvers.asScala.toList map (r =>
         r.getUrl.toString at r.getUrl.toString))
 
-    val (visited,subprojects) = prj.getChildren.asScala.toList.foldLeft((seen + base.getCanonicalFile,List.empty[(Project,Set[String])])) { case ((saw,acc),child) =>
+    val (visited,subprojects) = prj.getChildren.asScala.toList.foldLeft((seen + base.getCanonicalFile,List.empty[SbtProject])) { case ((saw,acc),child) =>
       // gradle 2.4 added getProjectDirectory
-      val childDir = Try(child.getProjectDirectory).getOrElse(file(child.getPath.replaceAll(":", ""))).getCanonicalFile
+      val childDir = Try(child.getProjectDirectory).getOrElse(file(child.getPath.replace(":", ""))).getCanonicalFile
       if (!saw(childDir)) {
         println("Processing gradle sub-project at: " + childDir.getName)
         val (visited, subs) = processDirectoryAt(childDir, initscript, connector, repos, saw + childDir)
@@ -117,27 +133,27 @@ trait GradleBuild extends Build {
         val flavor = default.getProductFlavor
         val sourceProvider = default.getSourceProvider
 
-        val optional: List[Setting[_]] = Option(flavor.getApplicationId).toList.map {
-          applicationId in Android := _
+        val optional: List[SbtSetting] = Option(flavor.getApplicationId).toList.map {
+          applicationId in Android /:= _
         } ++ Option(flavor.getVersionCode).toList.map {
-          versionCode in Android := Some(_)
+          versionCode in Android /:= Some(_)
         } ++ Option(flavor.getVersionName).toList.map {
-          versionName in Android := Some(_)
+          versionName in Android /:= Some(_)
         } ++ Option(flavor.getMinSdkVersion).toList.map {
-          minSdkVersion in Android := _.getApiString
+          minSdkVersion in Android /:= _.getApiString
         } ++ Option(flavor.getTargetSdkVersion).toList.map {
-          targetSdkVersion in Android := _.getApiString
+          targetSdkVersion in Android /:= _.getApiString
         } ++ Option(flavor.getRenderscriptTargetApi).toList.map {
-          rsTargetApi in Android := _.toString
+          rsTargetApi in Android /:= _.toString
         } ++ Option(flavor.getRenderscriptSupportModeEnabled).toList.map {
-          rsSupportMode in Android := _
+          rsSupportMode in Android /:= _
         } ++ Option(flavor.getMultiDexEnabled).toList.map {
-          dexMulti in Android := _
+          dexMulti in Android /:= _
         } ++ Option(flavor.getMultiDexKeepFile).toList.map {
-          dexMainFileClasses in Android := IO.readLines(_, IO.utf8)
-        } ++ Option(model.getPackagingOptions).toList.map { po =>
-          packagingOptions in Android := PackagingOptions(
-            po.getExcludes.asScala.toList, po.getPickFirsts.asScala.toList, po.getMerges.asScala.toList
+          dexMainFileClasses in Android /:= IO.readLines(_, IO.utf8)
+        } ++ Option(model.getPackagingOptions).toList.map {
+          p => packagingOptions in Android /:= PackagingOptions(
+            p.getExcludes.asScala.toList, p.getPickFirsts.asScala.toList, p.getMerges.asScala.toList
           )
         }
         val v = ap.getVariants.asScala.head
@@ -146,14 +162,14 @@ trait GradleBuild extends Build {
           val module = m.getGroupId % m.getArtifactId % m.getVersion intransitive()
           val mID = if (m.getPackaging != "aar") module else Dependencies.aar(module)
           val classifier = Option(m.getClassifier)
-          libraryDependencies += classifier.fold(mID)(mID.classifier)
+          libraryDependencies /+= classifier.fold(mID)(mID.classifier)
         }
 
         val androidLibraries = art.getDependencies.getLibraries.asScala.toList
         val (aars,projects) = androidLibraries.partition(_.getProject == null)
         val (resolved,localAars) = aars.partition(a => Option(a.getResolvedCoordinates.getGroupId).exists(_.nonEmpty))
-        val localAar = localAars.toList map { l =>
-          android.Keys.localAars in Android += l.getBundle
+        val localAar = localAars.toList map {
+          android.Keys.localAars in Android /+= _.getBundle
         }
         def dependenciesOf[A](l: A, seen: Set[File] = Set.empty)(children: A => List[A])(fileOf: A => File): List[A] = {
           val deps = children(l) filterNot(l => seen(fileOf(l)))
@@ -175,22 +191,21 @@ trait GradleBuild extends Build {
           libraryDependency(j.getResolvedCoordinates)
         }
 
-        val p = Project(base = base, id = ap.getName).settings(
-          (if (discovery.isApplication) Plugin.androidBuild else Plugin.androidBuildAar): _*).settings(
-          resolvers ++= repos,
-          platformTarget in Android := ap.getCompileTarget,
-          name := ap.getName,
-          javacOptions in Compile ++= "-source" :: sourceVersion :: "-target" :: targetVersion :: Nil,
-          buildConfigOptions in Android ++= flavor.getBuildConfigFields.asScala.toList map { case (key, field) =>
+        val standard = List(
+          resolvers /++= repos,
+          platformTarget in Android /:= ap.getCompileTarget,
+          name /:= ap.getName,
+          javacOptions in Compile /++= "-source" :: sourceVersion :: "-target" :: targetVersion :: Nil,
+          buildConfigOptions in Android /++= flavor.getBuildConfigFields.asScala.toList map { case (key, field) =>
             (field.getType, key, field.getValue)
           },
-          resValues in Android ++= flavor.getResValues.asScala.toList map { case (key, field) =>
+          resValues in Android /++= flavor.getResValues.asScala.toList map { case (key, field) =>
             (field.getType, key, field.getValue)
           },
-          debugIncludesTests in Android := false, // default because can't express it easily otherwise
-          proguardOptions in Android ++= flavor.getProguardFiles.asScala.toList.flatMap(IO.readLines(_, IO.utf8)),
-          manifestPlaceholders in Android ++= flavor.getManifestPlaceholders.asScala.toMap map { case (k,o) => (k,o.toString) },
-          projectLayout in Android := new ProjectLayout.Wrapped((projectLayout in Android).value) {
+          debugIncludesTests in Android /:= false, // default because can't express it easily otherwise
+          proguardOptions in Android /++= flavor.getProguardFiles.asScala.toList.flatMap(IO.readLines(_, IO.utf8)),
+          manifestPlaceholders in Android /++= flavor.getManifestPlaceholders.asScala.toMap map { case (k,o) => (k,o.toString) },
+          projectLayout in Android /:= new ProjectLayout.Wrapped(ProjectLayout(base)) {
             override def manifest = sourceProvider.getManifestFile
             override def javaSource = sourceProvider.getJavaDirectories.asScala.head
             override def resources = sourceProvider.getResourcesDirectories.asScala.head
@@ -200,12 +215,267 @@ trait GradleBuild extends Build {
             override def assets = sourceProvider.getAssetsDirectories.asScala.head
             override def jniLibs = sourceProvider.getJniLibsDirectories.asScala.head
           }
-        ).settings(optional: _*).settings(libs: _*).settings(localAar: _*)
-        (visited, (p, projects.map(_.getProject.replaceAll(":","")).toSet) :: subprojects)
+        )
+        val p = Project(base = base, id = ap.getName).settings(
+          (if (discovery.isApplication) Plugin.androidBuild else Plugin.androidBuildAar): _*).settings(
+          standard.map(_.setting): _*).settings(optional.map(_.setting): _*).settings(
+            libs.map(_.setting): _*).settings(localAar.map(_.setting): _*)
+        val sp = SbtProject(ap.getName, base, discovery.isApplication, projects.map(_.getProject.replace(":","")).toSet, optional ++ libs ++ localAar ++ standard)
+        (visited, sp :: subprojects)//(p, projects.map(_.getProject.replace(":","")).toSet) :: subprojects)
       } else
         (visited, subprojects)
     } finally {
       c.close()
     }
+  }
+}
+
+object Serializer {
+  def enc[T : Encoder](t: T): String = implicitly[Encoder[T]].encode(t)
+
+  trait Encoder[T] {
+    def encode(t: T): String
+  }
+
+  implicit val stringEncoder = new Encoder[String] {
+    def encode(s: String) = "raw\"\"\"" + s + "\"\"\""
+  }
+  implicit val moduleEncoder = new Encoder[ModuleID] {
+    def encode(m: ModuleID) = {
+      val base = s""""${m.organization}" % "${m.name}" % "${m.revision}""""
+      base + m.configurations.fold("")(c => s""" % "$c"""") + m.explicitArtifacts.map(
+        a =>
+          if (a.classifier.isDefined) {
+            s" classifier(${enc(a.classifier.get)})"
+          } else
+            s""" artifacts(Artifact(${enc(a.name)}, ${enc(a.`type`)}, ${enc(a.extension)}))"""
+      ).mkString("")
+    }
+  }
+  implicit def seqEncoder[T : Encoder] = new Encoder[Seq[T]] {
+    def encode(l: Seq[T]) = if (l.isEmpty) "Nil" else "Seq(" + l.map(i => enc(i)).mkString(",") + ")"
+  }
+  implicit val packagingOptionsEncoding = new Encoder[PackagingOptions] {
+    def encode(p: PackagingOptions) =
+      s"android.Keys.PackagingOptions(${enc(p.excludes)}, ${enc(p.pickFirsts)}, ${enc(p.merges)})"
+  }
+  implicit val fileEncoder = new Encoder[File] {
+    def encode(f: File) = s"file(${enc(f.getAbsolutePath)})"
+  }
+  implicit val antProjectLayoutEncoding = new Encoder[ProjectLayout.Ant] {
+    def encode(p: ProjectLayout.Ant) =
+      s"ProjectLayout.Ant(${enc(p.base)})"
+  }
+  implicit val gradleProjectLayoutEncoding = new Encoder[ProjectLayout.Gradle] {
+    def encode(p: ProjectLayout.Gradle) =
+      s"ProjectLayout.Gradle(${enc(p.base)})"
+  }
+  implicit val ProjectLayoutEncoding = new Encoder[ProjectLayout] {
+    def encode(p: ProjectLayout) = p match {
+      case x: ProjectLayout.Ant => enc(x)
+      case x: ProjectLayout.Gradle => enc(x)
+      case x: ProjectLayout.Wrapped =>
+        s"""
+           |      new ProjectLayout.Wrapped(ProjectLayout(baseDirectory.value)) {
+           |        override def base = ${enc(x.base)}
+           |        override def resources = ${enc(x.resources)}
+           |        override def testSources = ${enc(x.testSources)}
+           |        override def sources = ${enc(x.sources)}
+           |        override def javaSource = ${enc(x.javaSource)}
+           |        override def libs = ${enc(x.libs)}
+           |        override def gen = ${enc(x.gen)}
+           |        override def testRes = ${enc(x.testRes)}
+           |        override def manifest = ${enc(x.manifest)}
+           |        override def scalaSource = ${enc(x.scalaSource)}
+           |        override def aidl = ${enc(x.aidl)}
+           |        override def bin = ${enc(x.bin)}
+           |        override def renderscript = ${enc(x.renderscript)}
+           |        override def testScalaSource = ${enc(x.testScalaSource)}
+           |        override def testAssets = ${enc(x.testAssets)}
+           |        override def jni = ${enc(x.jni)}
+           |        override def assets = ${enc(x.assets)}
+           |        override def testJavaSource = ${enc(x.testJavaSource)}
+           |        override def jniLibs = ${enc(x.jniLibs)}
+           |        override def res = ${enc(x.res)}
+           |      }
+           |""".stripMargin
+    }
+  }
+  implicit val wrappedProjectLayoutEncoding = new Encoder[ProjectLayout.Wrapped] {
+    def encode(p: ProjectLayout.Wrapped) =
+      s"new ProjectLayout.Wrapped(${enc(p.wrapped)})"
+  }
+  implicit val boolEncoder = new Encoder[Boolean] {
+    def encode(b: Boolean) = b.toString
+  }
+  implicit val intEncoder = new Encoder[Int] {
+    def encode(i: Int) = i.toString
+  }
+  implicit def listEncoder[T : Encoder] = new Encoder[List[T]] {
+    def encode(l: List[T]) = if (l.isEmpty) "Nil" else "List(" + l.map(i => enc(i)).mkString(",\n      ") + ")"
+  }
+  implicit def optionEncoder[T : Encoder] = new Encoder[Option[T]] {
+    def encode(l: Option[T]) = if (l.isEmpty) "None" else "Some(" + enc(l.get) + ")"
+  }
+  implicit def someEncoder[T : Encoder] = new Encoder[Some[T]] {
+    def encode(l: Some[T]) = "Some(" + enc(l.get) + ")"
+  }
+  implicit val resolverEncoder = new Encoder[Resolver] {
+    def encode(r: Resolver) = r match {
+      case MavenRepository(n, root) => enc(n) + " at " + enc(root)
+      case _ => throw new UnsupportedOperationException("Cannot handle: " + r)
+    }
+  }
+  implicit def tuple3Encoder[A : Encoder,B : Encoder,C : Encoder] = new Encoder[(A,B,C)] {
+    override def encode(t: (A, B, C)) = s"(${enc(t._1)}, ${enc(t._2)}, ${enc(t._3)})"
+  }
+  implicit def tuple2Encoder[A : Encoder,B : Encoder] = new Encoder[(A,B)] {
+    override def encode(t: (A, B)) = s"(${enc(t._1)}, ${enc(t._2)})"
+  }
+  implicit def mapEncoder[A : Encoder,B : Encoder] = new Encoder[Map[A,B]] {
+    override def encode(t: Map[A, B]) = s"Map(${t.toList.map(e => enc(e)).mkString(",\n      ")})"
+  }
+
+  sealed trait Op {
+    def serialized: String
+  }
+
+  def serialize[T : Manifest, U : Encoder](k: SettingKey[T], op: String, value: U) =
+    key(k) + " " + op + " " + enc(value)
+  def serialize[T : Manifest, U : Encoder](k: TaskKey[T], op: String, value: U) =
+    key(k) + " " + op + " " + enc(value)
+  def config(s: Scope) =
+    s.config.toOption.fold("")(c => s""" in config("${c.name}")""")
+  def typeName[T](implicit manifest: Manifest[T]): String = {
+    def capitalized(m: Manifest[_]) = {
+      if (m.runtimeClass.isPrimitive)
+        m.runtimeClass.getName.capitalize
+      else m.runtimeClass.getName
+    }
+    val typename = capitalized(manifest)
+    val types = if (manifest.typeArguments.isEmpty) "" else {
+      s"[${manifest.typeArguments.map(m => typeName(m)).mkString(",")}]"
+    }
+    (typename + types).replace("$",".") // replace hack, better solution?
+  }
+  def key[T : Manifest](k: SettingKey[T]): String = {
+    s"""SettingKey[${typeName[T]}]("${k.key.label}")""" + config(k.scope)
+  }
+  def key[T : Manifest](k: TaskKey[T]): String = {
+    s"""TaskKey[${typeName[T]}]("${k.key.label}")""" + config(k.scope)
+  }
+}
+
+object GradleBuildSerializer {
+  import Serializer._
+  case class SbtProject(id: String, base: File, isApplication: Boolean, dependencies: Set[String], settings: Seq[SbtSetting]) {
+    def escaped(s: String) = {
+      val needEscape = s.zipWithIndex exists { case (c, i) =>
+        (i == 0 && !Character.isJavaIdentifierStart(c)) || (i != 0 && !Character.isJavaIdentifierPart(c))
+      }
+      if (needEscape) {
+        s"`$s`"
+      } else s
+    }
+    lazy val project = Project(base = base, id = id).settings(
+      (if (isApplication) Plugin.androidBuild else Plugin.androidBuildAar): _*).settings(
+        settings.map(_.setting):_*)
+    lazy val dependsOnProjects = {
+      if (dependencies.nonEmpty) ".dependsOn(" + dependencies.map(escaped).mkString(",") + ")" else ""
+    }
+    lazy val dependsOnSettings = {
+      if (dependencies.nonEmpty) {
+        val depSettings = dependencies map { d =>
+          s"""
+           |  collectResources in Android <<=
+           |    collectResources in Android dependsOn (compile in Compile in ${escaped(d)}),
+           |  compile in Compile <<= compile in Compile dependsOn(
+           |    sbt.Keys.`package` in Compile in ${escaped(d)}),
+           |  localProjects in Android += LibraryProject(${escaped(d)}.base)
+           |""".
+            stripMargin
+          } mkString ",\n"
+        s".settings($depSettings)"
+      } else ""
+    }
+    // TODO if (loaded) to selectively enable/disable .sbt file loading
+    lazy val serialized =
+      s"""
+         |val ${escaped(id)} = Project(id = ${enc(id)}, base = ${enc(base)}).settings(
+         |  ${if (isApplication) "android.Plugin.androidBuild" else "android.Plugin.androidBuildAar"}:_*).settings(
+         |    ${settings.map(_.serialized).mkString(",\n    ")}
+         |)$dependsOnProjects$dependsOnSettings
+       """.stripMargin
+  }
+
+  case class ProjectNode(p: SbtProject, dependencies: Set[String])
+  def toposort(ps: List[SbtProject]): List[SbtProject] = {
+    /*
+        L ? Empty list that will contain the sorted elements
+        S ? Set of all nodes with no incoming edges
+        while S is non-empty do
+            remove a node n from S
+            add n to tail of L
+            for each node m with an edge e from n to m do
+                remove edge e from the graph
+                if m has no other incoming edges then
+                    insert m into S
+        if graph has edges then
+            return error (graph has at least one cycle)
+        else
+            return L (a topologically sorted order)
+     */
+    @tailrec
+    def doSort(S: List[ProjectNode], L: List[ProjectNode], ms: List[ProjectNode]): List[ProjectNode] = S match {
+      case n :: nS =>
+        val l1 = n :: L
+        val (s1, ms1) = ms.foldLeft((nS, List.empty[ProjectNode])) { case ((ns2, ms2), m) =>
+          val m2 = m.copy(dependencies = m.dependencies - n.p.id)
+          if (m2.dependencies.isEmpty)
+            (m2 :: ns2, ms2)
+          else
+            (ns2, m2 :: ms2)
+        }
+
+        doSort(s1, l1, ms1)
+      case Nil =>
+        if (ms.nonEmpty)
+          throw new IllegalStateException("Project graph is cyclical")
+        L
+    }
+    val graph = ps.map(p => ProjectNode(p, p.dependencies))
+    val (s, ms) = graph.partition(_.dependencies.isEmpty)
+    doSort(s, Nil, ms).map(_.p).reverse
+  }
+
+  import language.existentials
+  case class SbtSetting(serialized: String, setting: Def.Setting[_])
+  object Op {
+    case object := extends Op {
+      val serialized = ":="
+      def apply[T : Encoder : Manifest](lhs: SettingKey[T], rhs: T) = SbtSetting(serialize(lhs, serialized, rhs), lhs := rhs)
+      def apply[T : Encoder : Manifest](lhs: TaskKey[T], rhs: T) = SbtSetting(serialize(lhs, serialized, rhs), lhs := rhs)
+    }
+    case object += extends Op {
+      val serialized = "+="
+      def apply[T : Manifest,U : Encoder](lhs: SettingKey[T], rhs: U)(implicit m: Append.Value[T,U]) = SbtSetting(serialize(lhs, serialized, rhs), lhs += rhs)
+      def apply[T : Manifest,U : Encoder](lhs: TaskKey[T], rhs: U)(implicit m: Append.Value[T,U]) = SbtSetting(serialize(lhs, serialized, rhs), lhs += rhs)
+    }
+    case object ++= extends Op {
+      val serialized = "++="
+      def apply[T : Manifest, U : Encoder](lhs: SettingKey[T], rhs: U)(implicit m: Append.Values[T,U]) = SbtSetting(serialize(lhs, serialized, rhs), lhs ++= rhs)
+      def apply[T : Manifest, U : Encoder](lhs: TaskKey[T], rhs: U)(implicit m: Append.Values[T,U]) = SbtSetting(serialize(lhs, serialized, rhs), lhs ++= rhs)
+    }
+  }
+
+  implicit class SerializableSettingKey[T : Encoder : Manifest](val k: SettingKey[T]) {
+    def /:=(t: T) = Op := (k, t)
+    def /+=[U : Encoder](u: U)(implicit m: Append.Value[T,U]) = Op += (k, u)
+    def /++=[U : Encoder](u: U)(implicit m: Append.Values[T,U]) = Op ++= (k, u)
+  }
+  implicit class SerializableTaskKey[T : Encoder : Manifest](val k: TaskKey[T]) {
+    def /:=(t: T) = Op := (k, t)
+    def /+=[U : Encoder](u: U)(implicit m: Append.Value[T,U]) = Op += (k, u)
+    def /++=[U : Encoder](u: U)(implicit m: Append.Values[T,U]) = Op ++= (k, u)
   }
 }
