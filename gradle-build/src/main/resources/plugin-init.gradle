@@ -6,7 +6,7 @@ initscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.hanhuy.gradle:gradle-discovery-plugin:0.4'
+        classpath 'com.hanhuy.gradle:gradle-discovery-plugin:0.5'
     }
 }
 allprojects {

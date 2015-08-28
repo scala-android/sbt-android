@@ -8,6 +8,7 @@ val model = project.in(file("gradle-model")).settings(
   name := "gradle-discovery-model",
   organization := "com.hanhuy.gradle",
   resolvers += Resolver.jcenterRepo,
+  javacOptions ++= "-source" :: "1.6" :: "-target" :: "1.6" :: Nil,
   autoScalaLibrary := false,
   crossPaths := false,
   libraryDependencies ++=
@@ -27,7 +28,13 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
   crossPaths := false,
   sbtPlugin := false,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
-  version := "0.4",
+  version := "0.5",
+  javacOptions ++= "-source" :: "1.6" :: "-target" :: "1.6" :: Nil,
+  javacOptions in doc := {
+    (javacOptions in doc).value.foldRight(List.empty[String]) {
+      (x, a) => if (x != "-target") x :: a else a.drop(1)
+    }
+  },
   libraryDependencies ++=
     "org.codehaus.groovy" % "groovy" % "2.4.4" % "provided" ::
     "com.android.tools.build" % "gradle" % "1.3.1" ::
@@ -38,7 +45,7 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
 ) dependsOn(model % "provided")
 
 val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettings:_*).settings(
-  version := "0.7",
+  version := "0.8-SNAPSHOT",
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
   name := "android-gradle-build",

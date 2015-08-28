@@ -297,8 +297,7 @@ object Serializer {
            |        override def testJavaSource = ${enc(x.testJavaSource)}
            |        override def jniLibs = ${enc(x.jniLibs)}
            |        override def res = ${enc(x.res)}
-           |      }
-           |""".stripMargin
+           |      }""".stripMargin
     }
   }
   implicit val wrappedProjectLayoutEncoding = new Encoder[ProjectLayout.Wrapped] {
