@@ -67,7 +67,10 @@ trait GradleBuild extends Build {
           else
             collectMessages(e.getCause, e.getMessage :: msgs, seen + e)
         }
-        throw new MessageOnlyException(collectMessages(ex))
+        if (ex.getCause == null || ex == ex.getCause)
+          throw ex
+        else
+          throw new MessageOnlyException(collectMessages(ex))
     }
   }
 
