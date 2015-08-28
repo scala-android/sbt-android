@@ -190,8 +190,12 @@ trait GradleBuild extends Build {
           _.getJarFile.getCanonicalFile).map(_._2.head).toList
 
         val libs = allAar ++ allJar filter (j =>
-          Option(j.getResolvedCoordinates.getGroupId).exists(_.nonEmpty)) map { j =>
+          Option(j.getResolvedCoordinates).map(_.getGroupId).exists(_.nonEmpty)) map { j =>
           libraryDependency(j.getResolvedCoordinates)
+        }
+
+        val unmanaged = allJar filter (_.getResolvedCoordinates == null) map { j =>
+          unmanagedJars in Compile /+= Attributed.blank(j.getJarFile)
         }
 
         val standard = List(
@@ -223,7 +227,9 @@ trait GradleBuild extends Build {
           (if (discovery.isApplication) Plugin.androidBuild else Plugin.androidBuildAar): _*).settings(
           standard.map(_.setting): _*).settings(optional.map(_.setting): _*).settings(
             libs.map(_.setting): _*).settings(localAar.map(_.setting): _*)
-        val sp = SbtProject(ap.getName, base, discovery.isApplication, projects.map(_.getProject.replace(":","")).toSet, optional ++ libs ++ localAar ++ standard)
+        val sp = SbtProject(ap.getName, base, discovery.isApplication,
+          projects.map(_.getProject.replace(":","")).toSet,
+          optional ++ libs ++ localAar ++ standard ++ unmanaged)
         (visited, sp :: subprojects)//(p, projects.map(_.getProject.replace(":","")).toSet) :: subprojects)
       } else
         (visited, subprojects)
@@ -336,6 +342,9 @@ object Serializer {
   }
   implicit def mapEncoder[A : Encoder,B : Encoder] = new Encoder[Map[A,B]] {
     override def encode(t: Map[A, B]) = s"Map(${t.toList.map(e => enc(e)).mkString(",\n      ")})"
+  }
+  implicit def attributedEncoder[T : Encoder] = new Encoder[Attributed[T]] {
+    def encode(l: Attributed[T]) = s"Attributed.blank(${enc(l.data)})"
   }
 
   sealed trait Op {
