@@ -22,6 +22,9 @@ import scala.util.Try
 trait GradleBuild extends Build {
   val generatedScript = file(".") / "00-gradle-generated.sbt"
 
+  def inGradleProject(project: String)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
+    inScope(ThisScope.copy(project = Select(LocalProject(project))))(ss)
+
   def importFromGradle(): Unit = {
     val start = System.currentTimeMillis
     val originalProjects = super.projects.map (p => (p.id, p)).toMap
@@ -189,8 +192,13 @@ trait GradleBuild extends Build {
         val allJar = (javalibs ++ javalibs.flatMap(javaDependencies)).groupBy(
           _.getJarFile.getCanonicalFile).map(_._2.head).toList
 
-        val libs = allAar ++ allJar filter (j =>
-          Option(j.getResolvedCoordinates).map(_.getGroupId).exists(_.nonEmpty)) map { j =>
+        val libs = allAar ++ allJar filter { j =>
+          Option(j.getResolvedCoordinates).exists { c =>
+            val g = c.getGroupId
+            val n = c.getArtifactId
+            g.nonEmpty && (g != "com.google.android" || !n.startsWith("support-"))
+          }
+        } map { j =>
           libraryDependency(j.getResolvedCoordinates)
         }
 
@@ -254,7 +262,7 @@ object Serializer {
             s" classifier(${enc(a.classifier.get)})"
           } else
             s""" artifacts(Artifact(${enc(a.name)}, ${enc(a.`type`)}, ${enc(a.extension)}))"""
-      ).mkString("")
+      ).mkString("") + (if (m.isTransitive) "" else " intransitive()")
     }
   }
   implicit def seqEncoder[T : Encoder] = new Encoder[Seq[T]] {
