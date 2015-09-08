@@ -111,7 +111,7 @@ object Plugin extends sbt.Plugin {
       val layout = (projectLayout in Android).value
       layout.bin.mkdirs()
       val config = layout.bin / "library-lint.xml"
-      config.getParentFile().mkdirs()
+      config.getParentFile.mkdirs()
       (layout.manifest relativeTo layout.base) foreach { path =>
         val lintconfig = <lint>
           <issue id="ParserError">
