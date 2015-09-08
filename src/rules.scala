@@ -525,17 +525,16 @@ object Plugin extends sbt.Plugin {
     packageDebug            <<= packageDebug dependsOn setDebug,
     packageRelease          <<= packageT,
     packageRelease          <<= packageRelease dependsOn setRelease,
-    sdkPath                 <<= (thisProject,properties) { (p,props) =>
+    sdkPath                 <<= properties { props =>
       (Option(System getenv "ANDROID_HOME") orElse
-        Option(props get "sdk.dir")) flatMap { p =>
+        Option(props getProperty "sdk.dir")) flatMap { p =>
             val f = file(p + File.separator)
             if (f.exists && f.isDirectory)
               Some(p + File.separator)
             else
               None
           } getOrElse fail(
-            "set ANDROID_HOME or run 'android update project -p %s'"
-              format p.base)
+            "set the env variable ANDROID_HOME pointing to your Android SDK")
     },
     ndkPath                 <<= (thisProject,properties) { (p,props) =>
       (Option(System getenv "ANDROID_NDK_HOME") orElse
