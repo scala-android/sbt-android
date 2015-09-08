@@ -307,6 +307,7 @@ object Dex {
         val predexed = out * "*.dex" get
 
         if (predexed.isEmpty || predexed.exists (_.lastModified < i.lastModified)) {
+          predexed foreach (_.delete())
           s.log.info("Pre-dexing: " + i.getName)
           bldr.preDexLibrary(i, out, multiDex, options)
         }
