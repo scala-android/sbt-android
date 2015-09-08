@@ -914,48 +914,10 @@ object Tasks {
     (base ++ lines(proguardProject) ++ lines(proguardTxt) ++ aarConfig).toSeq: Seq[String]
   }
 
-  val dexMainFileClassesConfigTaskDef = ( projectLayout
-                                        , dexMulti
-                                        , dexInputs
-                                        , dexMainFileClasses
-                                        , buildTools
-                                        , streams) map {
-    case (layout, multidex, (_,inputs), mainDexClasses, bt, s) =>
-      val mainDexListTxt = (layout.bin / "maindexlist.txt").getAbsoluteFile
-      if (multidex) {
-        if (mainDexClasses.nonEmpty) {
-          IO.writeLines(mainDexListTxt, mainDexClasses)
-        } else {
-          val btl = bt.getLocation
-          val script = if (!Commands.isWindows) btl / "mainDexClasses"
-          else {
-            val f = btl / "mainDexClasses.cmd"
-            if (f.exists) f else btl / "mainDexClasses.bat"
-          }
-          val injars = inputs map (_.getAbsolutePath) mkString File.pathSeparator
-          FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
-            val cmd = Seq(
-              script.getAbsolutePath,
-              "--output", mainDexListTxt.getAbsolutePath,
-              if (Commands.isWindows) s""""$injars"""" else injars
-            )
-
-            s.log.info("Generating maindexlist.txt")
-            s.log.debug("mainDexClasses => " + cmd.mkString(" "))
-            val rc = Process(cmd, layout.base) !
-
-            if (rc != 0) {
-              Plugin.fail("failed to determine mainDexClasses")
-            }
-            s.log.warn("Set mainDexClasses to improve build times:")
-            s.log.warn("""  dexMainFileClassesConfig in Android := baseDirectory.value / "copy-of-maindexlist.txt"""")
-            Set(mainDexListTxt)
-          }(inputs.toSet)
-
-        }
-      } else
-        mainDexListTxt.delete()
-      mainDexListTxt
+  val dexMainFileClassesConfigTaskDef = Def.task {
+    Dex.dexMainFileClassesConfig(projectLayout.value, dexMulti.value,
+      dexInputs.value._2, dexMainFileClasses.value, buildTools.value,
+      streams.value)
   }
 
   val retrolambdaAggregateTaskDef = Def.task {

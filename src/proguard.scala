@@ -5,7 +5,7 @@ import java.util.jar.{JarOutputStream, JarInputStream}
 
 import com.android.SdkConstants
 import com.android.builder.core.{DexOptions, AndroidBuilder}
-import com.android.sdklib.SdkVersionInfo
+import com.android.sdklib.{BuildToolInfo, SdkVersionInfo}
 import com.google.common.base.Charsets
 import com.google.common.hash.Hashing
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
@@ -314,6 +314,46 @@ object Dex {
         (i,out)
       }
     } else Nil
+  }
+
+  def dexMainFileClassesConfig(layout: ProjectLayout, multidex: Boolean,
+                               inputs: Seq[File], mainDexClasses: Seq[String],
+                               bt: BuildToolInfo, s: sbt.Keys.TaskStreams) = {
+      val mainDexListTxt = (layout.bin / "maindexlist.txt").getAbsoluteFile
+      if (multidex) {
+        if (mainDexClasses.nonEmpty) {
+          IO.writeLines(mainDexListTxt, mainDexClasses)
+        } else {
+          val btl = bt.getLocation
+          val script = if (!Commands.isWindows) btl / "mainDexClasses"
+          else {
+            val f = btl / "mainDexClasses.cmd"
+            if (f.exists) f else btl / "mainDexClasses.bat"
+          }
+          val injars = inputs map (_.getAbsolutePath) mkString File.pathSeparator
+          FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
+            val cmd = Seq(
+              script.getAbsolutePath,
+              "--output", mainDexListTxt.getAbsolutePath,
+              if (Commands.isWindows) s""""$injars"""" else injars
+            )
+
+            s.log.info("Generating maindexlist.txt")
+            s.log.debug("mainDexClasses => " + cmd.mkString(" "))
+            val rc = Process(cmd, layout.base) !
+
+            if (rc != 0) {
+              Plugin.fail("failed to determine mainDexClasses")
+            }
+            s.log.warn("Set mainDexClasses to improve build times:")
+            s.log.warn("""  dexMainFileClassesConfig in Android := baseDirectory.value / "copy-of-maindexlist.txt"""")
+            Set(mainDexListTxt)
+          }(inputs.toSet)
+
+        }
+      } else
+        mainDexListTxt.delete()
+      mainDexListTxt
   }
 
   // see https://source.android.com/devices/tech/dalvik/dex-format.html
