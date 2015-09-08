@@ -1224,11 +1224,27 @@ object Tasks {
         List.empty.asJava, List.empty.asJava, null, null, s.cacheDirectory / "test-apkbuild-merge", null,
         debug, debugConfig, opts.asAndroid, apk.getAbsolutePath)
       s.log.debug("Installing test apk: " + apk)
-      installPackage(apk, sdk, s.log)
+
+      def install(device: IDevice) {
+        installPackage(apk, sdk, device, s.log)
+      }
+
+      if (all)
+        Commands.deviceList(sdk, s.log).par foreach install
+      else
+        Commands.targetDevice(sdk, s.log) foreach install
+
       try {
         runTests(sdk, testPackage, s, trunner, timeo, all)
       } finally {
-        uninstallPackage(None, testPackage, sdk, s.log)
+        def uninstall(device: IDevice) {
+          uninstallPackage(None, testPackage, sdk, device, s.log)
+        }
+
+        if (all)
+          Commands.deviceList(sdk, s.log).par foreach uninstall
+        else
+          Commands.targetDevice(sdk, s.log) foreach uninstall
       }
     } else {
       runTests(sdk, pkg, s, runner, timeo, all)
@@ -1404,7 +1420,7 @@ object Tasks {
           d.getSerialNumber, "utf-8")
         FileFunction.cached(s.cacheDirectory / cacheName, FilesInfo.hash) { in =>
           s.log.info(s"Installing to ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
-          installPackage(p, k, s.log)
+          installPackage(p, k, d, s.log)
           in
         }(Set(p))
       }
@@ -1415,13 +1431,11 @@ object Tasks {
     }
   }
 
-  def installPackage(apk: File, sdkPath: String, log: Logger) {
+  def installPackage(apk: File, sdkPath: String, device: IDevice, log: Logger) {
     val start = System.currentTimeMillis
     logRate(log, "[%s] Install finished:" format apk.getName, apk.length) {
-      Commands.targetDevice(sdkPath, log) foreach { d =>
-        Option(d.installPackage(apk.getAbsolutePath, true)) map { err =>
-          Plugin.fail("Install failed: " + err)
-        }
+      Option(device.installPackage(apk.getAbsolutePath, true)) map { err =>
+        Plugin.fail("Install failed: " + err)
       }
     }
   }
@@ -1438,21 +1452,19 @@ object Tasks {
     a
   }
 
-  def uninstallPackage(cacheDir: Option[File], packageName: String, sdkPath: String, log: Logger) {
-    Commands.targetDevice(sdkPath, log) foreach { d =>
-      val cacheName = "install-" + URLEncoder.encode(
-        d.getSerialNumber, "utf-8")
-      cacheDir foreach { c =>
-        FileFunction.cached(c / cacheName, FilesInfo.hash) { in =>
-          Set.empty
-        }(Set.empty)
-      }
-      log.info(s"Uninstalling from ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
-      Option(d.uninstallPackage(packageName)) map { err =>
-        Plugin.fail("[%s] Uninstall failed: %s" format (packageName, err))
-      } getOrElse {
-        log.info("[%s] Uninstall finished" format packageName)
-      }
+  def uninstallPackage(cacheDir: Option[File], packageName: String, sdkPath: String, device: IDevice, log: Logger) {
+    val cacheName = "install-" + URLEncoder.encode(
+      device.getSerialNumber, "utf-8")
+    cacheDir foreach { c =>
+      FileFunction.cached(c / cacheName, FilesInfo.hash) { in =>
+        Set.empty
+      }(Set.empty)
+    }
+    log.info(s"Uninstalling from ${device.getProperty(IDevice.PROP_DEVICE_MODEL)} (${device.getSerialNumber})...")
+    Option(device.uninstallPackage(packageName)) map { err =>
+      Plugin.fail("[%s] Uninstall failed: %s" format (packageName, err))
+    } getOrElse {
+      log.info("[%s] Uninstall finished" format packageName)
     }
   }
   private def sizeString(len: Long) = {
@@ -1463,8 +1475,15 @@ object Tasks {
       case s if s >= MB => "%.2fMB" format (s/MB)
     }
   }
-  val uninstallTaskDef = (sdkPath, applicationId, streams) map { (k,p,s) =>
-    uninstallPackage(Some(s.cacheDirectory), p, k, s.log)
+  val uninstallTaskDef = (sdkPath, applicationId, streams, allDevices) map { (k,p,s,all) =>
+    def uninstall(device: IDevice) {
+      uninstallPackage(Some(s.cacheDirectory), p, k, device, s.log)
+    }
+
+    if (all)
+      Commands.deviceList(k, s.log).par foreach uninstall
+    else
+      Commands.targetDevice(k, s.log) foreach uninstall
   }
 
   def loadLibraryReferences(b: File, props: Properties, prefix: String = ""):
