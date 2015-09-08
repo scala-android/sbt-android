@@ -1325,6 +1325,24 @@ object Tasks {
 
   }
 
+  val cleanTaskDef = Def.task {
+    val s = streams.value
+    def execute(d: IDevice): Unit = {
+      val receiver = new Commands.ShellLogging(l => s.log.info(l))
+      val pkg = applicationId.value
+      val command = "pm clear %s" format pkg
+      s.log.info(s"Clearing data for $pkg on ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
+      s.log.debug("Executing [%s]" format command)
+      d.executeShellCommand(command, receiver)
+    }
+    val all = allDevices.value
+    val k = sdkPath.value
+    if (all)
+      Commands.deviceList(k, s.log).par foreach execute
+    else
+      Commands.targetDevice(k, s.log) foreach execute
+  }
+
   val runTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     val k = sdkPath.value
     val l = projectLayout.value

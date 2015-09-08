@@ -347,6 +347,7 @@ object Plugin extends sbt.Plugin {
     allDevices               := false,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
+    clean                   <<= cleanTaskDef,
     test                    <<= testTaskDef,
     test                    <<= test dependsOn (compile in Android, install),
     testOnly                <<= testOnlyTaskDef,
