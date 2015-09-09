@@ -206,6 +206,9 @@ trait GradleBuild extends Build {
           unmanagedJars in Compile /+= Attributed.blank(j.getJarFile)
         }
 
+        def extraDirectories(dirs: java.util.Collection[File], key: SettingKey[Seq[File]]): Seq[SbtSetting] =
+          dirs.asScala.tail.map(d => key /+= d).toSeq
+
         val standard = List(
           resolvers /++= repos,
           platformTarget in Android /:= ap.getCompileTarget,
@@ -230,7 +233,9 @@ trait GradleBuild extends Build {
             override def assets = sourceProvider.getAssetsDirectories.asScala.head
             override def jniLibs = sourceProvider.getJniLibsDirectories.asScala.head
           }
-        )
+        ) ++ extraDirectories(sourceProvider.getJavaDirectories, sourceDirectories in Compile) ++
+          extraDirectories(sourceProvider.getResDirectories, extraResDirectories in Android) ++
+          extraDirectories(sourceProvider.getResourcesDirectories, resourceDirectories in Compile)
         val sp = SbtProject(ap.getName, base, discovery.isApplication,
           projects.map(_.getProject.replace(":","")).toSet,
           optional ++ libs ++ localAar ++ standard ++ unmanaged)
