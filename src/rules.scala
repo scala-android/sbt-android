@@ -317,7 +317,7 @@ object Plugin extends sbt.Plugin {
             (pvd exists (p => m.organization == p.organization &&
               m.name == p.name))
         }
-      }
+      } groupBy(_.data) map { case (k,v) => v.head } toList
     },
     // end for Classpaths.configSettings
     updateCheck              := UpdateChecker(streams.value.log),
