@@ -2,8 +2,8 @@
 $ exists target/android/output/hello-world-debug.apk
 $ exists target/android/generated/source/com/example/app/TR.scala
 $ exists target/android/intermediates/proguard/classes.proguard.jar
-> last android:proguard-inputs
-> last android:proguard
+# > last android:proguard-inputs
+# > last android:proguard
 > check-dex
 > check-cache
 $ copy-file MainActivity.scala-tmp src/main/scala/com/example/app/MainActivity.scala

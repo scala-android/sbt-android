@@ -67,10 +67,14 @@ object Tasks {
     val items = resources map { case (typ, n, value) =>
       new ClassFieldImpl(typ, n, value)
     }
-    val resTarget = projectLayout.value.mergedRes
-    val generator = new ResValueGenerator(resTarget)
-    generator.addItems((items: Seq[Object]).asJava)
-    generator.generate()
+    val resTarget = projectLayout.value.generatedRes
+    if (items.nonEmpty) {
+      val generator = new ResValueGenerator(resTarget)
+      generator.addItems((items: Seq[Object]).asJava)
+      generator.generate()
+    } else {
+      IO.delete(resTarget / "values" / "generated.xml")
+    }
   }
 
   val buildConfigGeneratorTaskDef = ( platformTarget
@@ -462,7 +466,7 @@ object Tasks {
                                 , streams
                                 ) map {
     (bldr, noTestApk, isLib, libs, er, layout, logger, s) =>
-      Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, er, logger, s.cacheDirectory, s)
+      Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, layout.generatedRes +: er, logger, s.cacheDirectory, s)
   }
 
 
