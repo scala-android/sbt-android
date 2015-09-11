@@ -1,7 +1,99 @@
 package android
 
+import com.android.sdklib.BuildToolInfo
 import sbt._
 
+object BuildOutput {
+  // TODO figure out how to make this user-configurable
+  implicit class AndroidOutput(val layout: ProjectLayout) extends AnyVal {
+    def intermediates = layout.bin / "intermediates"
+    def generated = layout.bin / "generated"
+    def packaging = intermediates / "packaging"
+    def output = layout.bin / "output"
+    def testOut = intermediates / "test"
+    def generatedSrc = generated / "source"
+    def generatedRes = generated / "res"
+    def rsBin = intermediates / "renderscript"
+    def rsRes = rsBin / "res"
+    def rsLib = rsBin / "lib"
+    def rsObj = rsBin / "obj"
+    def rsDeps = rsBin / "rsDeps"
+    def aars = intermediates / "aars"
+    def apklibs = intermediates / "apklibs"
+    def dex = intermediates / "dex"
+    def testDex = testOut / "dex"
+    def testResApk = testOut / "resources-test.ap_"
+    def testApk = testOut / "instrumentation-test.ap_"
+    def predex = intermediates / "predex"
+    def classes = intermediates / "classes"
+    def testClasses = testOut / "classes"
+    def classesJar = intermediates / "classes.jar"
+    def mergedRes = intermediates / "res"
+    def mergedAssets = intermediates / "assets"
+    def proguardOut = intermediates / "proguard"
+    def rTxt = generatedSrc / "R.txt"
+    def testRTxt = testOut / "R.txt"
+    def proguardTxt = proguardOut / "proguard.txt"
+    def publicTxt = intermediates / "public.txt"
+    def maindexlistTxt = dex / "maindexlist.txt"
+    def ndk = intermediates / "ndk"
+    def ndkObj = ndk / "obj"
+    def ndkBin = ndk / "jni"
+    def collectJni = ndk / "collect-jni"
+    def manifestProcessing = intermediates / "manifest"
+    def processedManifest = manifestProcessing / "AndroidManifest.xml"
+    def processedTestManifest = testOut / "TestAndroidManifest.xml"
+    def processedManifestReport = manifestProcessing / "merge-report.txt"
+
+    def libraryLintConfig = intermediates / "library-lint.xml"
+
+    def unsignedApk(debug: Boolean, name: String) = {
+      output.mkdirs()
+      val rel = if (debug) "-debug-unaligned.apk"
+      else "-release-unsigned.apk"
+      val pkg = name + rel
+      output / pkg
+    }
+    def signedApk(apk: File) =
+      output / apk.getName.replace("-unsigned", "-unaligned")
+
+    def alignedApk(apk: File) =
+      output / apk.getName.replace("-unaligned", "")
+
+    def resApk(debug: Boolean) = {
+      packaging.mkdirs()
+      packaging / s"resources-${if (debug) "debug" else "release"}.ap_"
+    }
+    def outputAarFile(name: String) = {
+      output.mkdirs()
+      output / (name + ".aar")
+    }
+    def outputApklibFile(name: String) = {
+      output.mkdirs()
+      output / (name + ".apklib")
+    }
+    def integrationApkFile(name: String) = {
+      val apkdir = intermediates / "build_integration"
+      apkdir.mkdirs()
+      apkdir / (name + "-BUILD-INTEGRATION.apk")
+    }
+  }
+
+  // THIS SUCKS!
+  def aarsPath(base: File) = ProjectLayout(base).aars
+  def apklibsPath(base: File) = ProjectLayout(base).aars
+}
+
+object SdkLayout {
+  def googleRepository(sdkPath: String) = "google libraries" at (
+    file(sdkPath) / "extras" / "google" / "m2repository").toURI.toString
+  def androidRepository(sdkPath: String) = "android libraries" at (
+    file(sdkPath) / "extras" / "android" / "m2repository").toURI.toString
+  def renderscriptSupportLibFile(t: BuildToolInfo) =
+    t.getLocation / "renderscript" / "lib"
+  def renderscriptSupportLibs(t: BuildToolInfo) =
+    (renderscriptSupportLibFile(t) * "*.jar").get
+}
 trait ProjectLayout {
   def base: File
   def scalaSource: File
@@ -16,6 +108,7 @@ trait ProjectLayout {
   def res: File
   def assets: File
   def manifest: File
+  def testManifest: File
   def gen: File
   def bin: File
   def libs: File
@@ -23,16 +116,17 @@ trait ProjectLayout {
   def jni: File
   def jniLibs: File
   def renderscript: File
+  def proguard = base / "proguard-project.txt"
 }
 object ProjectLayout {
-  def apply(base: File) = {
+  def apply(base: File, target: Option[File] = None) = {
     if ((base / "AndroidManifest.xml").isFile) {
       if ((base / "src" / "main" / "AndroidManifest.xml").isFile) {
         Plugin.fail(s"Both $base/AndroidManifest.xml and $base/src/main/AndroidManifest.xml exist, unable to determine project layout")
       }
       ProjectLayout.Ant(base)
     } else {
-      ProjectLayout.Gradle(base)
+      ProjectLayout.Gradle(base, target getOrElse (base / "target"))
     }
   }
   case class Ant(base: File) extends ProjectLayout {
@@ -48,7 +142,8 @@ object ProjectLayout {
     override def resources = base / "resources"
     override def assets = base / "assets"
     override def manifest = base / "AndroidManifest.xml"
-    override def gen = base / "gen"
+    override def testManifest = testSources / "AndroidManifest.xml"
+    override def gen = BuildOutput.AndroidOutput(this).generatedSrc
     override def bin = base / "bin"
     override def libs = base / "libs"
     override def aidl = sources
@@ -56,9 +151,10 @@ object ProjectLayout {
     override def jniLibs = libs
     override def renderscript = sources
   }
-  case class Gradle(base: File) extends ProjectLayout {
+  case class Gradle(base: File, target: File) extends ProjectLayout {
     override def manifest = sources / "AndroidManifest.xml"
     override def testSources = base / "src" / "androidTest"
+    override def testManifest = testSources / "AndroidManifest.xml"
     override def testJavaSource = testSources / "java"
     override def testScalaSource = testSources / "scala"
     override def testRes = testSources / "res"
@@ -70,8 +166,8 @@ object ProjectLayout {
     override def res = sources / "res"
     override def resources = sources / "resources"
     override def assets = sources / "assets"
-    override def gen = base / "target" / "android-gen"
-    override def bin = base / "target" / "android-bin"
+    override def gen = BuildOutput.AndroidOutput(this).generatedSrc
+    override def bin = target / "android"
     // XXX gradle project layouts don't really have a "libs"
     override def libs = sources / "libs"
     override def jniLibs = libs

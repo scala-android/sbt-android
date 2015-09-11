@@ -1,8 +1,8 @@
 > check-target-api-equals-min
 > android:package
 # > android:package-aar
-$ exists target/android-bin/renderscript-debug.apk
-# $ exists target/android-bin/renderscript.aar
+$ exists target/android/output/renderscript-debug.apk
+# $ exists target/android/output/renderscript.aar
 > check-apk-for-resource
 # > check-aar-for-resource
 # > check-aar-no-libs

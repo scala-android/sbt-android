@@ -1,5 +1,5 @@
 > show package
-$ exists target/android-bin/classes.jar
+$ exists target/android/intermediates/classes.jar
 -> android:package
 -> android:run
 -> android:test

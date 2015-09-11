@@ -30,6 +30,7 @@ import Keys._
 import Keys.Internal._
 import Tasks._
 import Commands._
+import BuildOutput._
 
 object Plugin extends sbt.Plugin {
 
@@ -53,11 +54,9 @@ object Plugin extends sbt.Plugin {
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
     val base = p.base.getAbsoluteFile
     val tgt = base / (id + "-target")
-    p.copy(id = id).settings(Seq((projectLayout in Android) :=
-      new ProjectLayout.Wrapped(ProjectLayout(base)) {
-        override def gen = tgt / "android-gen"
-        override def bin = tgt / "android-bin"
-      }, sbt.Keys.target := tgt) ++ settings:_*)
+    p.copy(id = id).settings(Seq(
+      (projectLayout in Android) := ProjectLayout(base, Some(tgt)),
+      sbt.Keys.target := tgt) ++ settings:_*)
   }
 
   lazy val androidBuild: Seq[Setting[_]]= {
@@ -112,7 +111,7 @@ object Plugin extends sbt.Plugin {
       val flags = (lintFlags in Android).value
       val layout = (projectLayout in Android).value
       layout.bin.mkdirs()
-      val config = layout.bin / "library-lint.xml"
+      val config = layout.libraryLintConfig
       config.getParentFile.mkdirs()
       (layout.manifest relativeTo layout.base) foreach { path =>
         val lintconfig = <lint>
@@ -154,9 +153,9 @@ object Plugin extends sbt.Plugin {
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
                                            , baseDirectory
                                            , libraryProject in Android
-                                           , classesJar in Android
+                                           , projectLayout in Android
                                            ) map {
-        (c, b, l, j) =>
+        (c, b, l, p) =>
         // remove R.java generated code from library projects
         val sources = if (l) {
           c.sources filter {
@@ -165,7 +164,7 @@ object Plugin extends sbt.Plugin {
         } else {
           c.sources
         }
-        new Package.Configuration(sources, j, c.options)
+        new Package.Configuration(sources, p.classesJar, c.options)
     },
     publishArtifact in packageBin := false,
     scalaSource       <<= (projectLayout in Android) (_.scalaSource),
@@ -174,7 +173,7 @@ object Plugin extends sbt.Plugin {
     // doesn't work properly yet, not for intellij integration
     //managedClasspath  <<= managedClasspathTaskDef,
     unmanagedClasspath <+= classDirectory map Attributed.blank,
-    classDirectory    <<= (binPath in Android) (_ / "classes"),
+    classDirectory     := (projectLayout in Android).value.classes,
     sourceGenerators   := sourceGenerators.value ++ List(
       (rGenerator in Android).taskValue,
       (typedResourcesGenerator in Android).taskValue,
@@ -326,9 +325,8 @@ object Plugin extends sbt.Plugin {
     antLayoutDetector        := {
       val log = streams.value.log
       val prj = thisProjectRef.value.project
-      val layout = projectLayout.value
       projectLayout.value match {
-        case ProjectLayout.Ant(_) if layout.manifest.exists =>
+        case a: ProjectLayout.Ant if a.manifest.exists =>
           log.warn(s"Detected an ant-style project layout in $prj;")
           log.warn("  this format has been deprecated in favor of modern layouts")
           log.warn("  If this is what you want, set 'antLayoutDetector in Android := ()'")
@@ -357,11 +355,11 @@ object Plugin extends sbt.Plugin {
     run                     <<= runTaskDef,
     run                     <<= run dependsOn install,
     cleanForR               <<= (rGenerator
-                                , genPath
+                                , projectLayout
                                 , classDirectory in Compile
                                 , streams
                                 ) map {
-      (_, g, d, s) =>
+      (_, l, d, s) =>
       FileFunction.cached(s.cacheDirectory / "clean-for-r",
           FilesInfo.hash, FilesInfo.exists) { in =>
         if (in.nonEmpty) {
@@ -369,15 +367,13 @@ object Plugin extends sbt.Plugin {
           IO.delete(d)
         }
         in
-      }(Set(g ** "R.java" get: _*))
+      }(Set(l.generatedSrc ** "R.java" get: _*))
       Seq.empty[File]
     },
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     buildConfigOptions       := Nil,
     resValues                := Nil,
     resValuesGenerator      <<= resValuesGeneratorTaskDef,
-    binPath                 <<= projectLayout (_.bin),
-    classesJar              <<= binPath (_ / "classes.jar"),
     rGenerator              <<= rGeneratorTaskDef,
     rGenerator              <<= rGenerator dependsOn renderscript,
     ndkJavah                <<= ndkJavahTaskDef,
@@ -390,9 +386,7 @@ object Plugin extends sbt.Plugin {
       Try(p.getProperty("renderscript.support.mode").toBoolean).getOrElse(false) 
     },
     rsOptimLevel            := 3,
-    rsBinPath               <<= binPath { _ / "renderscript" },
     renderscript            <<= renderscriptTaskDef,
-    genPath                 <<= projectLayout (_.gen),
     localProjects           <<= (baseDirectory, properties) { (b,p) =>
       loadLibraryReferences(b, p)
     },
@@ -418,7 +412,7 @@ object Plugin extends sbt.Plugin {
       (p.getPath(IAndroidTarget.ANDROID_JAR),
       p.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))
     },
-    projectLayout           <<= baseDirectory (ProjectLayout.apply),
+    projectLayout            := ProjectLayout(baseDirectory.value, Some(target.value)),
     manifestPath            <<= projectLayout { l =>
       l.manifest
     },
@@ -478,11 +472,7 @@ object Plugin extends sbt.Plugin {
     shrinkResources          := false,
     resourceShrinker        <<= resourceShrinkerTaskDef,
     packageResources        <<= packageResourcesTaskDef,
-    apkFile                 <<= (name, projectLayout) { (n,l) =>
-      val apkdir = l.bin / ".build_integration"
-      apkdir.mkdirs()
-      apkdir / (n + "-BUILD-INTEGRATION.apk")
-    },
+    apkFile                  := projectLayout.value.integrationApkFile(name.value),
     collectProjectJni       <<= collectProjectJniTaskDef,
     collectProjectJni       <<= collectProjectJni dependsOn renderscript,
     collectJni              <<= collectJniTaskDef,
@@ -634,14 +624,10 @@ object Plugin extends sbt.Plugin {
           (d ** "*.scala").get.nonEmpty)
     },
     crossPaths        <<= autoScalaLibrary,
-    resolvers        <++= (sdkPath in Android) { p => Seq(
-      "google libraries" at (
-        file(p) / "extras" / "google" / "m2repository").toURI.toString,
-      "android libraries" at (
-        file(p) / "extras" / "android" / "m2repository").toURI.toString)
+    resolvers        <++= (sdkPath in Android) { p =>
+      Seq(SdkLayout.googleRepository(p), SdkLayout.androidRepository(p))
     },
-    cleanFiles        <+= binPath in Android,
-    cleanFiles        <+= genPath in Android,
+    cleanFiles         += (projectLayout in Android).value.bin,
     exportJars         := true,
     unmanagedBase     <<= (projectLayout in Android) (_.libs),
     watchSources     <++= Def.task {

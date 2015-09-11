@@ -57,10 +57,6 @@ object Keys {
   // layout-related keys
   val projectLayout = SettingKey[ProjectLayout]("project-layout",
     "setting to determine whether the project is laid out ant or gradle-style")
-  val binPath = SettingKey[File]("bin-path", "android compiled bin path")
-  val genPath = SettingKey[File]("gen-path", "android generated code path")
-  val classesJar = SettingKey[File]("classes-jar",
-    "generated classes.jar file if in a library project")
   val antLayoutDetector = TaskKey[Unit]("ant-layout-detector",
     "detects and warns if an android project is using an ant-style layout")
 
@@ -176,7 +172,6 @@ object Keys {
   val rsTargetApi = taskKey[String]("renderscript target api, default: minSdkVersion")
   val rsSupportMode = settingKey[Boolean]("renderscript support mode, default: false")
   val rsOptimLevel = settingKey[Int]("renderscript optimization level, default: 3")
-  val rsBinPath = settingKey[File]("renderscript output directory")
   val renderscript = TaskKey[Seq[File]]("renderscript", "android renderscript source-gen task")
 
   // dex-related keys

@@ -1,7 +1,7 @@
 > android:package
-$ exists target/android-bin/com-example-proguardcache-debug.apk
-$ exists target/android-gen/com/example/proguardcache/TR.scala
-$ exists target/android-bin/classes.proguard.jar
+$ exists target/android/output/com-example-proguardcache-debug.apk
+$ exists target/android/generated/source/com/example/proguardcache/TR.scala
+$ exists target/android/intermediates/proguard/classes.proguard.jar
 > last android:proguard-inputs
 > last android:proguard
 > check-dex

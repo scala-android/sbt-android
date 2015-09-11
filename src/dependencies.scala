@@ -9,6 +9,8 @@ import language.postfixOps
 import com.android.builder.dependency.JarDependency
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 
+import BuildOutput._
+
 object Dependencies {
   // excludes are temporary until everything/one uses libraryDependencies
   // and only one version of the support libs
@@ -66,6 +68,7 @@ object Dependencies {
   }
 
   case class ApkLibrary(path: File) extends LibraryDependency with Pkg {
+    def target = path / "target"
     import com.android.SdkConstants._
 
     // apklib are always ant-style layouts
@@ -92,11 +95,11 @@ object Dependencies {
   case class LibraryProject(path: File) extends LibraryDependency {
     import com.android.SdkConstants._
 
-    override def getSymbolFile = layout.gen / "R.txt"
-    override def getJarFile = layout.bin / FN_CLASSES_JAR
-    override def getProguardRules = layout.bin / "proguard.txt"
+    override def getSymbolFile = layout.rTxt
+    override def getJarFile = layout.classesJar
+    override def getProguardRules = layout.proguardTxt
 
-    override def getPublicResources = layout.bin / "public.txt"
+    override def getPublicResources = layout.publicTxt
 
     override def getJniFolder = layout.jniLibs
     override def getLocalJars = (layout.libs ** "*.jar" get).asJava
@@ -106,9 +109,9 @@ object Dependencies {
     override def getRenderscriptFolder = layout.renderscript
 
     override def getDependencies = {
-      ((IO.listFiles(path / "target" / "aars") filter (_.isDirectory) map { d =>
+      ((IO.listFiles(aarsPath(path)) filter (_.isDirectory) map { d =>
         AarLibrary(d): AndroidLibrary
-      }) ++ (IO.listFiles(path / "target" / "apklibs") filter (_.isDirectory) map { d =>
+      }) ++ (IO.listFiles(apklibsPath(path)) filter (_.isDirectory) map { d =>
         ApkLibrary(d): AndroidLibrary
       })).toList.asJava
     }

@@ -1,6 +1,7 @@
 import android.Keys._
 import java.util.zip._
 import java.io._
+import android.BuildOutput._
 
 TaskKey[Unit]("check-dex") <<= ( TaskKey[com.android.builder.core.AndroidBuilder]("android-builder") in Android
                                , projectLayout in Android
@@ -10,7 +11,7 @@ TaskKey[Unit]("check-dex") <<= ( TaskKey[com.android.builder.core.AndroidBuilder
   val dexdump = tools / "dexdump"
   val lines = Seq(
     dexdump.getAbsolutePath,
-    (layout.bin / "classes.dex").getAbsolutePath).lines
+    (layout.dex / "classes.dex").getAbsolutePath).lines
   val hasMainActivity = lines exists { l =>
     l.trim.startsWith("Class descriptor") && l.trim.endsWith("MainActivity;'")}
   if (!hasMainActivity)

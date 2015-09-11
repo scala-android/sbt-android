@@ -1,4 +1,5 @@
 import android.Keys._
+import android.BuildOutput._
 import scala.xml._
 
 TaskKey[Unit]("verify-package") <<= (applicationId in Android) map { p =>
@@ -7,7 +8,7 @@ TaskKey[Unit]("verify-package") <<= (applicationId in Android) map { p =>
 }
 
 TaskKey[Unit]("verify-res-values") <<= (projectLayout in Android) map { p =>
-  val res = p.bin / "resources" / "res" / "values" / "generated.xml"
+  val res = p.mergedRes / "values" / "generated.xml"
   val root = XML.loadFile(res)
   val node = root \ "string"
   if (node.isEmpty) sys.error("string node not found")

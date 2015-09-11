@@ -476,7 +476,8 @@ found on the #sbt-android IRC channel on Freenode
     * The `idea-sbt-plugin` is still required to actually perform the build
     * `classDirectory in Compile` is not automatically included as a library,
       as a result apklib classes will not resolve unless it is added manually
-      (`bin/classes` or `target/android-bin/classes`) as a library.
+      (`bin/android/intermediates/classes` or
+      `target/android/intermediates/classes`) as a library.
       [SCL-7973](https://youtrack.jetbrains.com/issue/SCL-7973)
     * Gradle-style layouts still aren't fully supported (resources won't
       resolve in the IDE)

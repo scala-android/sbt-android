@@ -1,5 +1,5 @@
 > app/android:package
-$ exists app/bin/app-debug.apk
+$ exists app/bin/output/app-debug.apk
 > last app/android:apkbuild
 > check-for-properties
 > check-for-bin

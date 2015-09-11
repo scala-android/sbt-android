@@ -1,6 +1,6 @@
 > android:package
 > last android:apkbuild
-$ exists bin/android-main-debug-unaligned.apk
+$ exists bin/output/android-main-debug-unaligned.apk
 > show list-apk
 > check-lib-for-nothing
 > check-for-nothing

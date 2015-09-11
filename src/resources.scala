@@ -16,6 +16,8 @@ import scala.xml.XML
 
 import language.postfixOps
 
+import BuildOutput._
+
 object Resources {
 
   def doCollectResources( bldr: AndroidBuilder
@@ -29,10 +31,10 @@ object Resources {
                           , s: TaskStreams
                           ): (File,File) = {
 
-    val assetBin = layout.bin / "assets"
+    val assetBin = layout.mergedAssets
     val assets = layout.assets
-    val resTarget = layout.bin / "resources" / "res"
-    val rsResources = layout.bin / "renderscript" / "res"
+    val resTarget = layout.mergedRes
+    val rsResources = layout.rsRes
 
     resTarget.mkdirs()
     assetBin.mkdirs
@@ -154,7 +156,7 @@ object Resources {
       }
       if (!exists) {
         slog.info("Performing incremental resource merge")
-        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.bin / "public.txt")
+        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.publicTxt)
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
@@ -173,7 +175,7 @@ object Resources {
       r.loadFromFiles(logger)
       merger.addDataSet(r)
     }
-    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.bin / "public.txt")
+    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.publicTxt)
     merger.mergeData(writer, false)
     merger.writeBlobTo(blobDir, writer)
   }

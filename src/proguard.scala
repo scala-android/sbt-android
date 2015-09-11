@@ -14,6 +14,8 @@ import sbt._
 import scala.util.Try
 import language.postfixOps
 
+import BuildOutput._
+
 case class ProguardInputs(injars: Seq[Attributed[File]],
                           libraryjars: Seq[File],
                           proguardCache: Option[File] = None)
@@ -263,6 +265,7 @@ object Dex {
       val predex2 = pd flatMap (_._2 * "*.dex" get)
       s.log.debug("DEX IN: " + dexIn)
       s.log.debug("PRE-DEXED: " + predex2)
+      bin.mkdirs()
       bldr.convertByteCode(dexIn.asJava, predex2.asJava, bin,
         multiDex, mainDexListTxt,
         options, additionalDexParams.asJava, tmp, incremental, !debug)
@@ -284,7 +287,7 @@ object Dex {
     val hashFunction = Hashing.sha1
     val hashCode = hashFunction.hashString(input, Charsets.UTF_16LE)
 
-    val f = new File(binPath / "predex-libraries", name + "-" + hashCode.toString + SdkConstants.DOT_JAR)
+    val f = new File(binPath, name + "-" + hashCode.toString + SdkConstants.DOT_JAR)
     f.mkdirs()
     f
   }
@@ -292,6 +295,7 @@ object Dex {
   def predex(opts: Aggregate.Dex, inputs: Seq[File], multiDex: Boolean,
              minSdk: String, classes: File, pg: Option[File],
              bldr: AndroidBuilder, bin: File, s: sbt.Keys.TaskStreams) = {
+    bin.mkdirs()
     val minLevel = Try(minSdk.toInt).toOption getOrElse
       SdkVersionInfo.getApiByBuildCode(minSdk, true)
     val options = new DexOptions {
@@ -320,7 +324,7 @@ object Dex {
   def dexMainFileClassesConfig(layout: ProjectLayout, multidex: Boolean,
                                inputs: Seq[File], mainDexClasses: Seq[String],
                                bt: BuildToolInfo, s: sbt.Keys.TaskStreams) = {
-      val mainDexListTxt = (layout.bin / "maindexlist.txt").getAbsoluteFile
+      val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile
       if (multidex) {
         if (mainDexClasses.nonEmpty) {
           IO.writeLines(mainDexListTxt, mainDexClasses)
