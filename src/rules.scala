@@ -466,7 +466,7 @@ object Plugin extends sbt.Plugin {
     typedResources          <<= proguardScala,
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
-    useProguard             <<= proguardScala,
+    useProguard             <<= useProguardInDebug,
     useSdkProguard          <<= proguardScala (!_),
     useProguardInDebug      <<= proguardScala,
     extraResDirectories         := Nil,
