@@ -68,7 +68,7 @@ object Dependencies {
   }
 
   case class ApkLibrary(path: File) extends LibraryDependency with Pkg {
-    def target = path / "target"
+    def target = path
     import com.android.SdkConstants._
 
     // apklib are always ant-style layouts
@@ -76,7 +76,7 @@ object Dependencies {
     lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
 
     override def getJniFolder = layout.libs
-    override def getSymbolFile = path / "gen" / "R.txt"
+    override def getSymbolFile = layout.rTxt
     override def getJarFile = path / "bin" / FN_CLASSES_JAR
   }
   def moduleIdFile(path: File) = path / "sbt-module-id"
