@@ -915,7 +915,7 @@ object Tasks {
 
   val dexMainFileClassesConfigTaskDef = Def.task {
     Dex.dexMainFileClassesConfig(projectLayout.value, dexMulti.value,
-      dexInputs.value._2, dexMainFileClasses.value, buildTools.value,
+      dexInputs.value._2, dexMainClasses.value, buildTools.value,
       streams.value)
   }
 
@@ -945,7 +945,7 @@ object Tasks {
   }
   val dexAggregateTaskDef = Def.task {
     Aggregate.Dex(dexInputs.value, dexMaxHeap.value, dexMulti.value,
-      dexMainFileClassesConfig.value, dexMinimizeMainFile.value,
+      dexMainClassesConfig.value, dexMinimizeMain.value,
       buildTools.value, dexAdditionalParams.value)
   }
 

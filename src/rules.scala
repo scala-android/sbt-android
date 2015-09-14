@@ -404,10 +404,10 @@ object Plugin extends sbt.Plugin {
     dex                     <<= dexTaskDef,
     dexMaxHeap               := "1024m",
     dexMulti                 := false,
-    dexMainFileClasses       := Seq.empty,
-    dexMinimizeMainFile      := false,
+    dexMainClasses           := Seq.empty,
+    dexMinimizeMain          := false,
     dexAdditionalParams      := Seq.empty,
-    dexMainFileClassesConfig <<= dexMainFileClassesConfigTaskDef dependsOn (packageT in Compile),
+    dexMainClassesConfig    <<= dexMainFileClassesConfigTaskDef dependsOn (packageT in Compile),
     platformJars            <<= platform map { p =>
       (p.getPath(IAndroidTarget.ANDROID_JAR),
       p.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))

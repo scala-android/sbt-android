@@ -50,7 +50,7 @@ object Keys {
     "target API level as described by 'android list targets' (the ID string)")
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
     "Version of Android build-tools to utilize, None (default) for latest")
-  val bootClasspath = TaskKey[Seq[Attributed[java.io.File]]](
+  val bootClasspath = TaskKey[sbt.Keys.Classpath](
     "boot-classpath", "boot classpath for android platform jar")
   val updateCheck = TaskKey[Unit]("update-check", "Check for a new version of the plugin")
 
@@ -182,12 +182,12 @@ object Keys {
    "Maximum heapsize for dex, default 1024m")
   val dexMulti = SettingKey[Boolean]("dex-multi",
     "multi-dex flag for dex, default false")
-  val dexMainFileClasses = SettingKey[Seq[String]]("dex-main-file-classes",
+  val dexMainClasses = SettingKey[Seq[String]]("dex-main-classes",
     "list of class files that go into main-dex-list parameter for dex")
-  val dexMinimizeMainFile = SettingKey[Boolean]("dex-minimize-main-file",
+  val dexMinimizeMain = SettingKey[Boolean]("dex-minimize-main",
     "minimal-main-dex flag for dex, default false")
-  val dexMainFileClassesConfig = TaskKey[File]("dex-main-file-classes-list-config",
-    "task which produces main-dex-list input file using dex-main-dex-classes as input")
+  val dexMainClassesConfig = TaskKey[File]("dex-main-classes-config",
+    "task which produces main-dex-list input file using dex-main-classes as input")
   val dexAdditionalParams = SettingKey[Seq[String]]("dex-additional-params",
     "additional params to pass to dex")
 
