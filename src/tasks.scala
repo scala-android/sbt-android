@@ -169,7 +169,7 @@ object Tasks {
   def unpackAar(aar: File, dest: File, m: ModuleID, log: Logger): LibraryDependency = {
     val lib = AarLibrary(dest)
     if (dest.lastModified < aar.lastModified || !lib.getManifest.exists) {
-      dest.delete()
+      IO.delete(dest)
       val mfile = Dependencies.moduleIdFile(dest)
       val mline = s"${m.organization}:${m.name}:${m.revision}"
       IO.writeLines(mfile, mline :: Nil)
