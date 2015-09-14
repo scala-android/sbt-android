@@ -4,6 +4,7 @@ import java.io.File
 
 import android.Keys.PackagingOptions
 import com.android.builder.core.AndroidBuilder
+import com.android.sdklib.BuildToolInfo
 
 object Aggregate {
   private[android] case class Retrolambda(enable: Boolean,
@@ -38,6 +39,7 @@ object Aggregate {
                                   multi: Boolean,
                                   mainFileClassesConfig: File,
                                   minimizeMainFile: Boolean,
+                                  buildTools: BuildToolInfo,
                                   additionalParams: Seq[String])
 
   private[android] case class Proguard(useProguard: Boolean,

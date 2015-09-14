@@ -309,7 +309,8 @@ object Dex {
         if (predexed.isEmpty || predexed.exists (_.lastModified < i.lastModified)) {
           predexed foreach (_.delete())
           s.log.info("Pre-dexing: " + i.getName)
-          bldr.preDexLibrary(i, out, multiDex, options)
+          AndroidBuilder.preDexLibrary(i, out, multiDex, options, opts.buildTools,
+            true, SbtJavaProcessExecutor, SbtProcessOutputHandler(s.log))
         }
         (i,out)
       }

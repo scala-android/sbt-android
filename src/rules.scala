@@ -23,6 +23,8 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.xml.XML
 import language.postfixOps
+// because of JavaProcessExecutor
+import language.existentials
 
 import Keys._
 import Keys.Internal._
@@ -582,41 +584,10 @@ object Plugin extends sbt.Plugin {
                                 , state) map {
       (ldr, m, n, l, b, t, reqs, s) =>
 
-      // because of JavaProcessExecutor
-      import language.existentials
       val bldr = new AndroidBuilder(n, "android-sdk-plugin",
         new DefaultProcessExecutor(l(s.log)),
-        new JavaProcessExecutor {
-          override def execute(javaProcessInfo: JavaProcessInfo, processOutputHandler: ProcessOutputHandler) = {
-            val options = ForkOptions(
-              envVars = javaProcessInfo.getEnvironment.asScala map { case ((x,y)) => x -> y.toString } toMap,
-              runJVMOptions = javaProcessInfo.getJvmArgs.asScala ++
-                ("-cp" :: javaProcessInfo.getClasspath :: Nil))
-            val r = Fork.java(options, (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs.asScala)
-            new ProcessResult {
-              override def assertNormalExitValue() = {
-                if (r != 0) throw new ProcessException("error code: " + r)
-                this
-              }
-
-              override def rethrowFailure() = this
-
-              override def getExitValue = r
-            }
-          }
-        }, new BaseProcessOutputHandler {
-          override def handleOutput(processOutput: ProcessOutput) = {
-            processOutput match {
-              case p: BaseProcessOutput =>
-                val stdout = p.getStandardOutputAsString
-                if (!stdout.isEmpty)
-                  s.log.debug(stdout)
-                val stderr = p.getErrorOutputAsString
-                if (!stderr.isEmpty)
-                  s.log.warn(stderr)
-            }
-          }
-        }, new EvaluationErrorReporter(EvaluationErrorReporter.EvaluationMode.STANDARD) {
+        SbtJavaProcessExecutor, SbtProcessOutputHandler(s.log),
+        new EvaluationErrorReporter(EvaluationErrorReporter.EvaluationMode.STANDARD) {
           override def handleSyncError(data: String, `type`: Int, msg: String) = {
             s.log.error(s"android sync error: data=$data, type=${`type`}, msg=$msg")
             new SyncIssue {
@@ -779,6 +750,40 @@ object Plugin extends sbt.Plugin {
   }
 }
 
+object SbtJavaProcessExecutor extends JavaProcessExecutor {
+  override def execute(javaProcessInfo: JavaProcessInfo, processOutputHandler: ProcessOutputHandler) = {
+    val options = ForkOptions(
+      envVars = javaProcessInfo.getEnvironment.asScala map { case ((x, y)) => x -> y.toString } toMap,
+      runJVMOptions = javaProcessInfo.getJvmArgs.asScala ++
+        ("-cp" :: javaProcessInfo.getClasspath :: Nil))
+    val r = Fork.java(options, (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs.asScala)
+
+    new ProcessResult {
+      override def assertNormalExitValue() = {
+        if (r != 0) throw new ProcessException("error code: " + r)
+        this
+      }
+
+      override def rethrowFailure() = this
+
+      override def getExitValue = r
+    }
+  }
+}
+
+case class SbtProcessOutputHandler(lg: Logger) extends BaseProcessOutputHandler {
+  override def handleOutput(processOutput: ProcessOutput) = {
+    processOutput match {
+      case p: BaseProcessOutput =>
+        val stdout = p.getStandardOutputAsString
+        if (!stdout.isEmpty)
+          lg.debug(stdout)
+        val stderr = p.getErrorOutputAsString
+        if (!stderr.isEmpty)
+          lg.warn(stderr)
+    }
+  }
+}
 case class SbtLogger(lg: Logger) extends ILogger {
   override def verbose(fmt: java.lang.String, args: Object*) {
     lg.debug(String.format(fmt, args:_*))
