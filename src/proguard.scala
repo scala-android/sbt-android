@@ -302,7 +302,7 @@ object Dex {
       override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
     }
     if (minLevel >= 21 && multiDex) {
-      inputs filterNot (i => i == classes || pg.exists(_ == i)) map { i =>
+      ((inputs filterNot (i => i == classes || pg.exists(_ == i))).par map { i =>
         val out = predexFileOutput(bin, i)
         val predexed = out * "*.dex" get
 
@@ -313,7 +313,7 @@ object Dex {
             false, SbtJavaProcessExecutor, SbtProcessOutputHandler(s.log))
         }
         (i,out)
-      }
+      }).toList: Seq[(File,File)]
     } else Nil
   }
 
