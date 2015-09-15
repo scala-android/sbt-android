@@ -97,15 +97,11 @@ object Keys {
   val packageAar = TaskKey[File]("package-aar", "package aar artifact")
   val packageApklib = TaskKey[File]("package-apklib", "package apklib artifact")
   val apkFile = SettingKey[File]("apk-file",
-    "consistent file name for apk output, used for ide integration")
+    "consistent file name for apk output, used for IDE integration")
   val apkSigningConfig = SettingKey[Option[ApkSigningConfig]]("apk-signing-config",
     "signing configuration for release builds")
   val signRelease = TaskKey[File]("sign-release", "sign the release build")
   val zipalign = TaskKey[File]("zipalign", "zipalign the final package")
-  val apkbuildPickFirsts = SettingKey[Seq[String]]("apkbuild-pickfirsts",
-    "filepaths to take first when packing apk, e.g. in case of duplicates")
-  val apkbuildExcludes = SettingKey[Seq[String]]("apkbuild-excludes",
-    "filepaths to exclude from apk, e.g. in case of duplicates")
   val packagingOptions = SettingKey[PackagingOptions]("packaging-options",
     "android packaging options, excludes, firsts and merges")
   val apkbuild = TaskKey[File]("apkbuild", "generates an apk")
