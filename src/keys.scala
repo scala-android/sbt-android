@@ -88,6 +88,8 @@ object Keys {
     "generate res-values into values.xml")
   val extraResDirectories = SettingKey[Seq[File]]("extra-res-directories",
     "list of additional android res folders to include (primarily for flavors")
+  val extraAssetDirectories = SettingKey[Seq[File]]("extra-asset-directories",
+    "list of additional android asset folders to include (primarily for flavors")
 
   // packaging-related keys
   val packageRelease = TaskKey[File]("package-release", "create a release apk")

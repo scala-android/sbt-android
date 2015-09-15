@@ -461,12 +461,13 @@ object Tasks {
                                 , libraryProject
                                 , libraryProjects
                                 , extraResDirectories
+                                , extraAssetDirectories
                                 , projectLayout
                                 , ilogger
                                 , streams
                                 ) map {
-    (bldr, noTestApk, isLib, libs, er, layout, logger, s) =>
-      Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, layout.generatedRes +: er, logger, s.cacheDirectory, s)
+    (bldr, noTestApk, isLib, libs, er, ea, layout, logger, s) =>
+      Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, layout.generatedRes +: er, ea, logger, s.cacheDirectory, s)
   }
 
 

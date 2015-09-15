@@ -25,6 +25,7 @@ object Resources {
                           , isLib: Boolean
                           , libs: Seq[LibraryDependency]
                           , layout: ProjectLayout
+                          , extraAssets: Seq[File]
                           , extraRes: Seq[File]
                           , logger: Logger => ILogger
                           , cache: File
@@ -43,6 +44,9 @@ object Resources {
     libs collect {
       case r if r.layout.assets.isDirectory => r.layout.assets
     } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
+    extraAssets foreach { a =>
+      if (a.isDirectory) IO.copyDirectory(a, assetBin, false, true)
+    }
 
     if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
     if (noTestApk && layout.testAssets.exists)
