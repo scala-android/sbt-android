@@ -431,7 +431,11 @@ object Plugin extends sbt.Plugin {
       m.attribute("package") get 0 text
     },
     applicationId            := {
-      packageName.?.value getOrElse manifest.value.attribute("package").head.text
+      packageName.?.value.fold(manifest.value.attribute("package").head.text) { p =>
+        streams.value.log.warn(
+          "'packageName in Android' is deprecated, use 'applicationId in Android'")
+        p
+      }
     },
     targetSdkVersion        <<= (manifest, minSdkVersion) map { (m, min) =>
       val usesSdk = m \ "uses-sdk"

@@ -141,6 +141,8 @@ object Keys {
     "Deprecated android application ID, use android:application-id instead")
   val manifest = TaskKey[Elem]("manifest",
     "android manifest xml object, read-only, do not modify")
+  val processManifest = TaskKey[File]("process-manifest",
+    "manifest munging task, if desired, the resulting file can be modified")
   val manifestPlaceholders = TaskKey[Map[String,String]](
     "manifest-placeholders", "${variable} expansion for AndroidManifest.xml")
   val packageForR = TaskKey[String]("packageForR",
@@ -205,7 +207,7 @@ object Keys {
   val useSdkProguard = SettingKey[Boolean]("use-sdk-proguard",
     "use the sdk proguard config or this plugin's; default = !using scala")
   val useProguard = SettingKey[Boolean]("use-proguard",
-    "whether or not to run proguard, automatically true with scala")
+    "whether or not to run proguard, automatically true with useProguardInDebug")
   val useProguardInDebug = SettingKey[Boolean]("use-proguard-in-debug",
     "whether or not to run proguard in debug, automatically true with scala")
   val retrolambdaEnable = SettingKey[Boolean]("retrolambda-enable",
@@ -279,8 +281,6 @@ object Keys {
       "Android SdkManager object")
     val properties = SettingKey[Properties]("properties",
       "Properties loaded from the project's .property files")
-    val processManifest = TaskKey[File]("process-manifest",
-      "manifest munging task")
     val setDebug = TaskKey[Unit]("set-debug", "set debug build")
     val setRelease = TaskKey[Unit]("set-release", "set release build")
     val aars = TaskKey[Seq[LibraryDependency]]("aars",
