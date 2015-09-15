@@ -229,8 +229,8 @@ object Dex {
     val xmx = dexOpts.maxHeap
     val (incr, inputs) = dexOpts.inputs
     val multiDex = dexOpts.multi
-    val mainDexListTxt = dexOpts.mainFileClassesConfig
-    val minMainDex = dexOpts.minimizeMainFile
+    val mainDexListTxt = dexOpts.mainClassesConfig
+    val minMainDex = dexOpts.minimizeMain
     val additionalParams = dexOpts.additionalParams
     val incremental = incr && !multiDex
     val dexIn = (inputs filter (_.isFile)) filterNot (pd map (_._1) contains _)
@@ -321,7 +321,7 @@ object Dex {
     } else Nil
   }
 
-  def dexMainFileClassesConfig(layout: ProjectLayout, multidex: Boolean,
+  def dexMainClassesConfig(layout: ProjectLayout, multidex: Boolean,
                                inputs: Seq[File], mainDexClasses: Seq[String],
                                bt: BuildToolInfo, s: sbt.Keys.TaskStreams)(implicit m: ProjectLayout => BuildOutput) = {
       val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile

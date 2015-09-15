@@ -940,9 +940,9 @@ object Tasks {
     (base ++ lines(proguardProject) ++ lines(proguardTxt) ++ aarConfig).toSeq: Seq[String]
   }
 
-  val dexMainFileClassesConfigTaskDef = Def.task {
+  val dexMainClassesConfigTaskDef = Def.task {
     implicit val output = outputLayout.value
-    Dex.dexMainFileClassesConfig(projectLayout.value, dexMulti.value,
+    Dex.dexMainClassesConfig(projectLayout.value, dexMulti.value,
       dexInputs.value._2, dexMainClasses.value, buildTools.value,
       streams.value)
   }

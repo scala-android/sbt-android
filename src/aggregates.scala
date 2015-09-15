@@ -38,8 +38,8 @@ object Aggregate {
   private[android] case class Dex(inputs: (Boolean,Seq[File]),
                                   maxHeap: String,
                                   multi: Boolean,
-                                  mainFileClassesConfig: File,
-                                  minimizeMainFile: Boolean,
+                                  mainClassesConfig: File,
+                                  minimizeMain: Boolean,
                                   buildTools: BuildToolInfo,
                                   additionalParams: Seq[String])
 
