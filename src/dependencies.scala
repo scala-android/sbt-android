@@ -68,6 +68,7 @@ object Dependencies {
   }
 
   case class ApkLibrary(path: File) extends LibraryDependency with Pkg {
+    implicit val output = (p: ProjectLayout) => new AndroidOutput(p)
     def target = path
     import com.android.SdkConstants._
 
@@ -93,6 +94,7 @@ object Dependencies {
   }
 
   case class LibraryProject(path: File) extends LibraryDependency {
+    implicit val output = (p: ProjectLayout) => new AndroidOutput(p)
     import com.android.SdkConstants._
 
     override def getSymbolFile = layout.rTxt

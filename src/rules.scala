@@ -109,6 +109,7 @@ object Plugin extends sbt.Plugin {
     mappings in (Compile,packageSrc) := (managedSources in Compile).value map (s => (s,s.getName)),
     lintFlags in Android := {
       val flags = (lintFlags in Android).value
+      implicit val output = (outputLayout in Android).value
       val layout = (projectLayout in Android).value
       layout.bin.mkdirs()
       val config = layout.libraryLintConfig
@@ -154,9 +155,11 @@ object Plugin extends sbt.Plugin {
                                            , baseDirectory
                                            , libraryProject in Android
                                            , projectLayout in Android
+                                           , outputLayout in Android
                                            ) map {
-        (c, b, l, p) =>
+        (c, b, l, p, o) =>
         // remove R.java generated code from library projects
+        implicit val output = o
         val sources = if (l) {
           c.sources filter {
             case (f,n) => !f.getName.matches("R\\W+.*class")
@@ -173,7 +176,10 @@ object Plugin extends sbt.Plugin {
     // doesn't work properly yet, not for intellij integration
     //managedClasspath  <<= managedClasspathTaskDef,
     unmanagedClasspath <+= classDirectory map Attributed.blank,
-    classDirectory     := (projectLayout in Android).value.classes,
+    classDirectory     := {
+      implicit val output = (outputLayout in Android).value
+      (projectLayout in Android).value.classes
+    },
     sourceGenerators   := sourceGenerators.value ++ List(
       (rGenerator in Android).taskValue,
       (typedResourcesGenerator in Android).taskValue,
@@ -356,10 +362,12 @@ object Plugin extends sbt.Plugin {
     run                     <<= run dependsOn install,
     cleanForR               <<= (rGenerator
                                 , projectLayout
+                                , outputLayout
                                 , classDirectory in Compile
                                 , streams
                                 ) map {
-      (_, l, d, s) =>
+      (_, l, o, d, s) =>
+      implicit val output = o
       FileFunction.cached(s.cacheDirectory / "clean-for-r",
           FilesInfo.hash, FilesInfo.exists) { in =>
         if (in.nonEmpty) {
@@ -413,6 +421,7 @@ object Plugin extends sbt.Plugin {
       p.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))
     },
     projectLayout            := ProjectLayout(baseDirectory.value, Some(target.value)),
+    outputLayout             := { layout => new BuildOutput.AndroidOutput(layout) },
     manifestPath            <<= projectLayout { l =>
       l.manifest
     },
@@ -477,7 +486,10 @@ object Plugin extends sbt.Plugin {
     shrinkResources          := false,
     resourceShrinker        <<= resourceShrinkerTaskDef,
     packageResources        <<= packageResourcesTaskDef,
-    apkFile                  := projectLayout.value.integrationApkFile(name.value),
+    apkFile                  := {
+      implicit val output = outputLayout.value
+      projectLayout.value.integrationApkFile(name.value)
+    },
     collectProjectJni       <<= collectProjectJniTaskDef,
     collectProjectJni       <<= collectProjectJni dependsOn renderscript,
     collectJni              <<= collectJniTaskDef,

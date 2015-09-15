@@ -323,7 +323,7 @@ object Dex {
 
   def dexMainFileClassesConfig(layout: ProjectLayout, multidex: Boolean,
                                inputs: Seq[File], mainDexClasses: Seq[String],
-                               bt: BuildToolInfo, s: sbt.Keys.TaskStreams) = {
+                               bt: BuildToolInfo, s: sbt.Keys.TaskStreams)(implicit m: ProjectLayout => BuildOutput) = {
       val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile
       if (multidex) {
         if (mainDexClasses.nonEmpty) {

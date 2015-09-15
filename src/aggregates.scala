@@ -15,6 +15,7 @@ object Aggregate {
                                           instrumentTestRunner: String,
                                           instrumentTestTimeout: Int,
                                           apkbuildDebug: Boolean,
+                                          dexMaxHeap: String,
                                           externalDependencyClassPathInTest: Seq[File],
                                           externalDependencyClasspathInCompile: Seq[File],
                                           packagingOptions: PackagingOptions,

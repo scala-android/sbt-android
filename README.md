@@ -38,7 +38,25 @@ found on the #sbt-android IRC channel on Freenode
 
 * `1.5.0`:
   * build outputs completely refactored, `genPath`, `binPath`, and other
-    settings have been removed
+    settings have been removed; outputs are completely configurable by setting
+    `outputLayout in Android` to a function `ProjectLayout => BuildOutput`
+    ```
+    outputLayout in Android := {
+      val base = (outputLayout in Android).value
+      (p: ProjectLayout) => new android.BuildOutput.Wrapped(base(p)) {
+        // example: changes default from "target/android/intermediates"
+        // to "build/steps"
+        override def intermediates = p.base / "build" / "steps"
+      }
+    }
+    ```
+  * `apkbuildExcludes` and `apkbuildPickFirsts` have been removed,
+    use `packagingOptions in Android` in conjunction with the
+    `PackagingOptions` object
+  * Renamed `dexMainFileClasses`, `dexMinimizeMainFile`, and
+    `dexMainFileClassesConfig` to `dexMainClasses`, `dexMinimizeMain`,
+    and `dexMainClassesConfig`, respectively.
+  * Add `extraAssetDirectories`
 
 ## New features in 1.4.x (last version: 1.4.15) ##
 

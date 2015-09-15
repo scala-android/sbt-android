@@ -63,6 +63,7 @@ object Tasks {
     Plugin.getClass.getClassLoader.getResource _
 
   val resValuesGeneratorTaskDef = Def.task {
+    implicit val output = outputLayout.value
     val resources = resValues.value
     val items = resources map { case (typ, n, value) =>
       new ClassFieldImpl(typ, n, value)
@@ -131,6 +132,7 @@ object Tasks {
                     , streams
                     ) map {
     (u,local,d,tx,tw,lp,ref, st, struct, layout,s) =>
+    implicit val output = Project.extract(st).get(outputLayout in (ref,Android))
 
     def collectSubAar(ps: Seq[ProjectRef]): Seq[AarLibrary] = ps flatMap { p =>
       val aarlibs = Project.runTask(libraryProjects in(p, Android), st).collect {
@@ -195,12 +197,14 @@ object Tasks {
 
   val autolibsTaskDef = ( localProjects
                         , projectLayout
+                        , outputLayout
                         , libraryProject
                         , builder
                         , ilogger
                         , apkbuildDebug
                         , streams ) map {
-   (prjs,layout,isLib,bldr,logger,debug,s) =>
+   (prjs,layout,o, isLib,bldr,logger,debug,s) =>
+     implicit val output = o
      prjs collect { case a: AutoLibraryProject => a } flatMap { lib =>
       s.log.info("Processing library project: " + lib.pkg)
 
@@ -226,6 +230,7 @@ object Tasks {
   val apklibsTaskDef = ( update in Compile
                        , libraryDependencies in Compile
                        , projectLayout
+                       , outputLayout
                        , libraryProject
                        , transitiveAndroidLibs
                        , streams
@@ -233,7 +238,8 @@ object Tasks {
                        , apkbuildDebug
                        , streams
                        ) map {
-    (u,d,layout,isLib,tx,s,bldr,debug,st) =>
+    (u,d,layout,o, isLib,tx,s,bldr,debug,st) =>
+    implicit val output = o
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = layout.apklibs
     val deps = d.filterNot(_.configurations.exists(
@@ -366,8 +372,8 @@ object Tasks {
       }(a.toSet).toSeq
   }
 
-  def ndkbuild(layout: ProjectLayout,
-               ndkHome: Option[String], srcs: File, log: Logger, debug: Boolean) = {
+  def ndkbuild(layout: ProjectLayout, ndkHome: Option[String],
+               srcs: File, log: Logger, debug: Boolean)(implicit m: ProjectLayout => BuildOutput) = {
     val hasJni = (layout.jni ** "Android.mk" get).nonEmpty
     if (hasJni) {
       if (ndkHome.isEmpty) {
@@ -426,6 +432,7 @@ object Tasks {
     } else Seq.empty
   }
   val ndkBuildTaskDef = ( projectLayout
+                        , outputLayout
                         , libraryProjects
                         , sourceManaged in Compile
                         , ndkJavah
@@ -433,8 +440,8 @@ object Tasks {
                         , properties
                         , streams
                         , apkbuildDebug
-                        ) map { (layout, libs, srcs, h, ndkHome, p, s, debug) =>
-
+                        ) map { (layout, o, libs, srcs, h, ndkHome, p, s, debug) =>
+    implicit val output = o
     val subndk = libs flatMap { l =>
       ndkbuild(l.layout, ndkHome, srcs, s.log, debug()).toSeq
     }
@@ -444,6 +451,7 @@ object Tasks {
 
   val collectProjectJniTaskDef = Def.task {
     val layout = projectLayout.value
+    implicit val output = outputLayout.value
     ndkBuild.value ++ Seq(layout.jniLibs, layout.rsLib).filter(_.isDirectory)
   }
 
@@ -463,10 +471,12 @@ object Tasks {
                                 , extraResDirectories
                                 , extraAssetDirectories
                                 , projectLayout
+                                , outputLayout
                                 , ilogger
                                 , streams
                                 ) map {
-    (bldr, noTestApk, isLib, libs, er, ea, layout, logger, s) =>
+    (bldr, noTestApk, isLib, libs, er, ea, layout, o, logger, s) =>
+      implicit val output = o
       Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, layout.generatedRes +: er, ea, logger, s.cacheDirectory, s)
   }
 
@@ -483,6 +493,7 @@ object Tasks {
     ((PathFinder(assets) ***)             pair rebase(assets,      "assets"))
   }
   val packageApklibTaskDef = Def.task {
+    implicit val output = outputLayout.value
     val outfile = projectLayout.value.outputApklibFile(name.value)
     streams.value.log.info("Packaging " + outfile.getName)
     val mapping = (mappings in packageApklib).value
@@ -491,6 +502,7 @@ object Tasks {
   }
 
   val packageAarMappings = Def.task {
+    implicit val output = outputLayout.value
     val layout = projectLayout.value
     import layout._
 
@@ -512,6 +524,7 @@ object Tasks {
   }
 
   val packageAarTaskDef = Def.task {
+    implicit val output = outputLayout.value
     val outfile = projectLayout.value.outputAarFile(name.value)
     val mapping = (mappings in packageAar).value
     streams.value.log.info("Packaging " + outfile.getName)
@@ -522,6 +535,7 @@ object Tasks {
 
   val packageResourcesTaskDef = ( builder
                                 , projectLayout
+                                , outputLayout
                                 , processManifest
                                 , collectResources
                                 , packageForR
@@ -530,8 +544,9 @@ object Tasks {
                                 , apkbuildDebug
                                 , streams
                                 ) map {
-    case (bldr, layout, manif, (assets, res), pkg, lib, libs, debug, s) =>
+    case (bldr, layout, output, manif, (assets, res), pkg, lib, libs, debug, s) =>
     val cache = s.cacheDirectory
+    implicit val o = output
     val proguardTxt = layout.proguardTxt.getAbsolutePath
     layout.proguardTxt.getParentFile.mkdirs()
 
@@ -560,6 +575,7 @@ object Tasks {
                         , name
                         , builder
                         , projectLayout
+                        , outputLayout
                         , libraryProject
                         , ilogger
                         , unmanagedJars in Compile
@@ -567,7 +583,8 @@ object Tasks {
                         , dependencyClasspath in Compile
                         , streams
                         ) map {
-    (a, n, bldr, layout, isLib, logger, u, m, dcp, s) =>
+    (a, n, bldr, layout, out, isLib, logger, u, m, dcp, s) =>
+    implicit val o = out
 
     if (isLib)
       Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true'")
@@ -643,8 +660,9 @@ object Tasks {
     output
   }
 
-  val signReleaseTaskDef = (apkSigningConfig, apkbuild, apkbuildDebug, projectLayout, streams) map {
-    (c, a, d, l, s) =>
+  val signReleaseTaskDef = (apkSigningConfig, apkbuild, apkbuildDebug, projectLayout, outputLayout, streams) map {
+    (c, a, d, l, o, s) =>
+    implicit val output = o
     if (d()) {
       s.log.info("Debug package does not need signing: " + a.getName)
       a
@@ -673,8 +691,9 @@ object Tasks {
     }
   }
 
-  val zipalignTaskDef = (zipalignPath, signRelease, apkFile, projectLayout, streams) map {
-    (z, r, a, l, s) =>
+  val zipalignTaskDef = (zipalignPath, signRelease, apkFile, projectLayout, outputLayout, streams) map {
+    (z, r, a, l, o, s) =>
+    implicit val output = o
     if (r.getName.contains("-unsigned")) {
       s.log.warn("Package needs signing and zipaligning: " + r.getName)
       a.delete()
@@ -695,6 +714,7 @@ object Tasks {
   }
 
   val renderscriptTaskDef = Def.task {
+    implicit val output = outputLayout.value
     val layout = projectLayout.value
     val scripts = (layout.renderscript ** "*.rs").get
     val target = Try(rsTargetApi.value.toInt).getOrElse(11) max 11
@@ -783,9 +803,11 @@ object Tasks {
                                , mergeManifests
                                , instrumentTestRunner
                                , projectLayout
+                               , outputLayout
                                , debugIncludesTests
                                ) map {
-    (bldr, isLib, libs, a, merge, trunner, layout, noTestApk) =>
+    (bldr, isLib, libs, a, merge, trunner, layout, out, noTestApk) =>
+    implicit val o = out
     val pkg = a.applicationId
     val ph = a.placeholders
     val vc = a.versionCode
@@ -851,6 +873,7 @@ object Tasks {
 
   val rGeneratorTaskDef = ( builder
                           , projectLayout
+                          , outputLayout
                           , processManifest
                           , collectResources
                           , packageForR
@@ -859,7 +882,8 @@ object Tasks {
                           , apkbuildDebug
                           , streams
                           ) map {
-    case (bldr, layout, manif, (assets, res), pkg, lib, libs, debug, s) =>
+    case (bldr, layout, o, manif, (assets, res), pkg, lib, libs, debug, s) =>
+    implicit val output = o
     val cache = s.cacheDirectory
     val proguardTxt = layout.proguardTxt.getAbsolutePath
     layout.proguardTxt.getParentFile.mkdirs()
@@ -883,11 +907,13 @@ object Tasks {
   }
 
   val proguardConfigTaskDef = ( projectLayout
+                              , outputLayout
                               , sdkPath
                               , useSdkProguard
                               , aars
                               , streams) map {
-    (layout, p, u, a, s) =>
+    (layout, out, p, u, a, s) =>
+    implicit val output = out
     val proguardTxt     = layout.proguardTxt
     val proguardProject = layout.proguard
 
@@ -915,6 +941,7 @@ object Tasks {
   }
 
   val dexMainFileClassesConfigTaskDef = Def.task {
+    implicit val output = outputLayout.value
     Dex.dexMainFileClassesConfig(projectLayout.value, dexMulti.value,
       dexInputs.value._2, dexMainClasses.value, buildTools.value,
       streams.value)
@@ -930,11 +957,12 @@ object Tasks {
                          , retrolambdaAggregate
                          , dexMulti
                          , projectLayout
+                         , outputLayout
                          , dependencyClasspath
                          , apkbuildDebug
                          , streams) map {
-    (progOut, in, pa, ra, multiDex, b, deps, debug, s) =>
-
+    (progOut, in, pa, ra, multiDex, b, o, deps, debug, s) =>
+      implicit val output = o
       Dex.dexInputs(progOut, in, pa, ra, multiDex, b.dex, deps, b.classesJar, debug(), s)
   }
 
@@ -957,13 +985,16 @@ object Tasks {
                    , minSdkVersion
                    , libraryProject
                    , projectLayout
+                   , outputLayout
                    , apkbuildDebug
                    , streams) map {
-    case (bldr, dexOpts, pd, pg, minSdk, lib, bin, debug, s) =>
+    case (bldr, dexOpts, pd, pg, minSdk, lib, bin, o, debug, s) =>
+      implicit val output = o
       Dex.dex(bldr, dexOpts, pd, pg, bin.classesJar, minSdk, lib, bin.dex, debug(), s)
   }
 
   val predexTaskDef = Def.task {
+    implicit val output = outputLayout.value
     val opts = dexAggregate.value
     val inputs = opts.inputs._2
     val multiDex = opts.multi
@@ -976,25 +1007,25 @@ object Tasks {
     Dex.predex(opts, inputs, multiDex, minSdk, classes, pg, bldr, bin, s)
   }
 
-  val proguardInputsTaskDef = ( useProguard
-                              , proguardOptions
-                              , proguardConfig
+  val proguardInputsTaskDef = ( proguardAggregate
                               , proguardLibraries
                               , dependencyClasspath
                               , platformJars
                               , projectLayout
-                              , proguardScala
-                              , proguardCache
+                              , outputLayout
                               , apkbuildDebug
                               , streams
                               ) map {
-    case (u, pgOptions, pgConfig, l, d, (p, x), c, s, pc, debug, st) =>
+    case (pa, l, d, (p, x), c, o, debug, st) =>
+      implicit val output = o
       Proguard.proguardInputs(
-        u, pgOptions, pgConfig, l, d, p, x, c.classesJar, s, pc, debug(), st)
+        pa.useProguard, pa.proguardOptions, pa.proguardConfig,
+        l, d, p, x, c.classesJar, pa.proguardScala, pa.proguardCache, debug(), st)
   }
 
   val resourceShrinkerTaskDef = Def.task {
     val jar = proguard.value
+    implicit val out = outputLayout.value
     val resApk = packageResources.value
     val doShrink = shrinkResources.value
     val layout = projectLayout.value
@@ -1034,9 +1065,11 @@ object Tasks {
       , proguardInputs
       , apkbuildDebug
       , projectLayout
+      , outputLayout
       , retrolambdaAggregate
       , streams
-      ) map { case (a, bldr, l, inputs, debug, b, ra, s) =>
+      ) map { case (a, bldr, l, inputs, debug, b, output, ra, s) =>
+        implicit val o = output
         Proguard.proguard(a, bldr, l, inputs, debug(), b.proguardOut, ra, s)
   }
 
@@ -1090,25 +1123,27 @@ object Tasks {
 
   val testAggregateTaskDef = Def.task {
     Aggregate.AndroidTest(debugIncludesTests.value, instrumentTestRunner.value,
-      instrumentTestTimeout.value, apkbuildDebug.value(),
+      instrumentTestTimeout.value, apkbuildDebug.value(), dexMaxHeap.value,
       (externalDependencyClasspath in Test).value map (_.data),
       (externalDependencyClasspath in Compile).value map (_.data),
       packagingOptions.value, libraryProject.value)
   }
   val testTaskDef = ( projectLayout
+                    , outputLayout
                     , builder
                     , classDirectory
                     , sdkPath
                     , allDevices
-                    , dexMaxHeap
                     , testAggregate
                     , manifestAggregate
                     , retrolambdaAggregate
                     , libraryProjects
                     , streams) map {
-    (layout, bldr, classes, sdk, all, xmx, ta, ma, ra, libs, s) =>
+    (layout, o, bldr, classes, sdk, all, ta, ma, ra, libs, s) =>
     if (ta.libraryProject)
       Plugin.fail("This project cannot `android:test`, it has set 'libraryProject in Android := true")
+    implicit val output = o
+    val xmx = ta.dexMaxHeap
     val pkg = ma.applicationId
     val minSdk = ma.minSdkVersion
     val targetSdk = ma.targetSdkVersion
@@ -1214,6 +1249,7 @@ object Tasks {
 
   val testOnlyTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     val layout = projectLayout.value
+    implicit val output = outputLayout.value
     val noTestApk = debugIncludesTests.value
     val pkg = applicationId.value
     val all = allDevices.value
@@ -1324,6 +1360,7 @@ object Tasks {
     val s = streams.value
     val all = allDevices.value
     val isLib = libraryProject.value
+    implicit val output = outputLayout.value
     if (isLib)
       Plugin.fail("This project is not runnable, it has set 'libraryProject in Android := true")
 

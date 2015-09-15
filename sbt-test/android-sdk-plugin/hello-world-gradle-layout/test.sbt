@@ -3,8 +3,10 @@ import android.BuildOutput._
 
 TaskKey[Unit]("check-test-dex") <<= ( TaskKey[com.android.builder.core.AndroidBuilder]("android-builder") in Android
                                , projectLayout in Android
+                               , outputLayout in Android
                                ) map {
-  (p,layout) =>
+  (p,layout, o) =>
+  implicit val output = o
   val tools = p.getTargetInfo.getBuildTools.getLocation
   val dexdump = tools / "dexdump"
   val lines = Seq(

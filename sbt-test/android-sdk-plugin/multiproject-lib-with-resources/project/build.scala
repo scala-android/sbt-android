@@ -43,6 +43,7 @@ object MyProjectBuild extends Build {
         useProguardInDebug in Android := true,
         proguardScala in Android := true,
         proguardOptions in Android += "-dontwarn **",
-        apkbuildExcludes in Android ++= Seq("META-INF/LICENSE.txt",
-          "META-INF/NOTICE.txt"))
+        packagingOptions in Android := PackagingOptions(excludes = Seq(
+          "META-INF/LICENSE.txt",
+          "META-INF/NOTICE.txt")))
 }

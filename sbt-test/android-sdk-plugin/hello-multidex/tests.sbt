@@ -1,4 +1,4 @@
 TaskKey[Unit]("check-list") := {
-  val main = (dexMainFileClassesConfig in Android).value
+  val main = (dexMainClassesConfig in Android).value
   println(IO.read(main))
 }

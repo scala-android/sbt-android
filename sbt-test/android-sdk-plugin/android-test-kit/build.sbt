@@ -10,6 +10,6 @@ libraryDependencies in flavor1 ++=
   "com.android.support.test.espresso" % "espresso-core" % "2.1" ::
   Nil
 
-apkbuildExcludes in (flavor1,Android) += "LICENSE.txt"
+packagingOptions in (flavor1,Android) := PackagingOptions(excludes = Seq("LICENSE.txt"))
 
 autoScalaLibrary := false

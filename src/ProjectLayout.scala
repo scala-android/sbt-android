@@ -3,9 +3,62 @@ package android
 import com.android.sdklib.BuildToolInfo
 import sbt._
 
+trait BuildOutput extends Any {
+  def layout: ProjectLayout
+  def intermediates: File
+  def generated: File
+  def packaging: File
+  def output: File
+  def testOut: File
+  def generatedSrc: File
+  def generatedRes: File
+  def rsBin: File
+  def rsRes: File
+  def rsLib: File
+  def rsObj: File
+  def rsDeps: File
+  def aars: File
+  def apklibs: File
+  def dex: File
+  def testDex: File
+  def testResApk: File
+  def testApk: File
+  def predex: File
+  def classes: File
+  def testClasses: File
+  def classesJar: File
+  def mergedRes: File
+  def mergedAssets: File
+  def proguardOut: File
+  def rTxt: File
+  def testRTxt: File
+  def proguardTxt: File
+  def publicTxt: File
+  def maindexlistTxt: File
+  def ndk: File
+  def ndkObj: File
+  def ndkBin: File
+  def collectJni: File
+  def manifestProcessing: File
+  def processedManifest: File
+  def processedTestManifest: File
+  def processedManifestReport: File
+
+  def libraryLintConfig: File
+
+  def unsignedApk(debug: Boolean, name: String): File
+  def signedApk(apk: File): File
+
+  def alignedApk(apk: File): File
+
+  def resApk(debug: Boolean): File
+  def outputAarFile(name: String): File
+  def outputApklibFile(name: String): File
+  def integrationApkFile(name: String): File
+}
 object BuildOutput {
   // TODO figure out how to make this user-configurable
-  implicit class AndroidOutput(val layout: ProjectLayout) extends AnyVal {
+  class AndroidOutput(val layout: ProjectLayout) extends AnyVal with BuildOutput {
     def intermediates = layout.bin / "intermediates"
     def generated = layout.bin / "generated"
     def packaging = intermediates / "packaging"
@@ -78,10 +131,115 @@ object BuildOutput {
       apkdir / (name + "-BUILD-INTEGRATION.apk")
     }
   }
+  class Wrapped(val base: BuildOutput) extends BuildOutput {
+    def layout = base.layout
+    def intermediates = base.intermediates
+    def generated = base.generated
+    def packaging = base.packaging
+    def output = base.output
+    def testOut = base.testOut
+    def generatedSrc = base.generatedSrc
+    def generatedRes = base.generatedRes
+    def rsBin = base.rsBin
+    def rsRes = base.rsRes
+    def rsLib = base.rsLib
+    def rsObj = base.rsObj
+    def rsDeps = base.rsDeps
+    def aars = base.aars
+    def apklibs = base.apklibs
+    def dex = base.dex
+    def testDex = base.testDex
+    def testResApk = base.testResApk
+    def testApk = base.testApk
+    def predex = base.predex
+    def classes = base.classes
+    def testClasses = base.testClasses
+    def classesJar = base.classesJar
+    def mergedRes = base.mergedRes
+    def mergedAssets = base.mergedAssets
+    def proguardOut = base.proguardOut
+    def rTxt = base.rTxt
+    def testRTxt = base.testRTxt
+    def proguardTxt = base.proguardTxt
+    def publicTxt = base.publicTxt
+    def maindexlistTxt = base.maindexlistTxt
+    def ndk = base.ndk
+    def ndkObj = base.ndkObj
+    def ndkBin = base.ndkBin
+    def collectJni = base.collectJni
+    def manifestProcessing = base.manifestProcessing
+    def processedManifest = base.processedManifest
+    def processedTestManifest = base.processedTestManifest
+    def processedManifestReport = base.processedManifestReport
+
+    def libraryLintConfig = base.libraryLintConfig
+
+    def unsignedApk(debug: Boolean, name: String) = base.unsignedApk(debug,name)
+    def signedApk(apk: File) = base.signedApk(apk)
+
+    def alignedApk(apk: File) = base.alignedApk(apk)
+
+    def resApk(debug: Boolean) = base.resApk(debug)
+    def outputAarFile(name: String) = base.outputAarFile(name)
+    def outputApklibFile(name: String) = base.outputApklibFile(name)
+    def integrationApkFile(name: String) = base.integrationApkFile(name)
+  }
+  implicit class LayoutOutputExtension(val layout: ProjectLayout)(implicit val base: ProjectLayout => BuildOutput) extends BuildOutput {
+    def intermediates = base(layout).intermediates
+    def generated = base(layout).generated
+    def packaging = base(layout).packaging
+    def output = base(layout).output
+    def testOut = base(layout).testOut
+    def generatedSrc = base(layout).generatedSrc
+    def generatedRes = base(layout).generatedRes
+    def rsBin = base(layout).rsBin
+    def rsRes = base(layout).rsRes
+    def rsLib = base(layout).rsLib
+    def rsObj = base(layout).rsObj
+    def rsDeps = base(layout).rsDeps
+    def aars = base(layout).aars
+    def apklibs = base(layout).apklibs
+    def dex = base(layout).dex
+    def testDex = base(layout).testDex
+    def testResApk = base(layout).testResApk
+    def testApk = base(layout).testApk
+    def predex = base(layout).predex
+    def classes = base(layout).classes
+    def testClasses = base(layout).testClasses
+    def classesJar = base(layout).classesJar
+    def mergedRes = base(layout).mergedRes
+    def mergedAssets = base(layout).mergedAssets
+    def proguardOut = base(layout).proguardOut
+    def rTxt = base(layout).rTxt
+    def testRTxt = base(layout).testRTxt
+    def proguardTxt = base(layout).proguardTxt
+    def publicTxt = base(layout).publicTxt
+    def maindexlistTxt = base(layout).maindexlistTxt
+    def ndk = base(layout).ndk
+    def ndkObj = base(layout).ndkObj
+    def ndkBin = base(layout).ndkBin
+    def collectJni = base(layout).collectJni
+    def manifestProcessing = base(layout).manifestProcessing
+    def processedManifest = base(layout).processedManifest
+    def processedTestManifest = base(layout).processedTestManifest
+    def processedManifestReport = base(layout).processedManifestReport
+
+    def libraryLintConfig = base(layout).libraryLintConfig
+
+    def unsignedApk(debug: Boolean, name: String) = base(layout).unsignedApk(debug,name)
+    def signedApk(apk: File) = base(layout).signedApk(apk)
+
+    def alignedApk(apk: File) = base(layout).alignedApk(apk)
+
+    def resApk(debug: Boolean) = base(layout).resApk(debug)
+    def outputAarFile(name: String) = base(layout).outputAarFile(name)
+    def outputApklibFile(name: String) = base(layout).outputApklibFile(name)
+    def integrationApkFile(name: String) = base(layout).integrationApkFile(name)
+  }
 
   // THIS SUCKS!
-  def aarsPath(base: File) = ProjectLayout(base).aars
-  def apklibsPath(base: File) = ProjectLayout(base).aars
+  def aarsPath(base: File) = new AndroidOutput(ProjectLayout(base)).aars
+  def apklibsPath(base: File) = new AndroidOutput(ProjectLayout(base)).apklibs
 }
 
 object SdkLayout {
@@ -143,7 +301,7 @@ object ProjectLayout {
     override def assets = base / "assets"
     override def manifest = base / "AndroidManifest.xml"
     override def testManifest = testSources / "AndroidManifest.xml"
-    override def gen = BuildOutput.AndroidOutput(this).generatedSrc
+    override def gen = new BuildOutput.AndroidOutput(this).generatedSrc
     override def bin = base / "bin"
     override def libs = base / "libs"
     override def aidl = sources
@@ -166,7 +324,7 @@ object ProjectLayout {
     override def res = sources / "res"
     override def resources = sources / "resources"
     override def assets = sources / "assets"
-    override def gen = BuildOutput.AndroidOutput(this).generatedSrc
+    override def gen = new BuildOutput.AndroidOutput(this).generatedSrc
     override def bin = target / "android"
     // XXX gradle project layouts don't really have a "libs"
     override def libs = sources / "libs"

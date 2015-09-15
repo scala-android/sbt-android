@@ -26,9 +26,9 @@ proguardScala in Android := false
 
 dexMulti in Android := true
 
-dexMinimizeMainFile in Android := true
+dexMinimizeMain in Android := true
 
-dexMainFileClasses in Android := Seq(
+dexMainClasses in Android := Seq(
   "com/example/app/MultidexApplication.class",
   "android/support/multidex/BuildConfig.class",
   "android/support/multidex/MultiDex$V14.class",
@@ -43,12 +43,12 @@ dexMainFileClasses in Android := Seq(
 )
 
 
-apkbuildExcludes in Android ++= Seq(
+packagingOptions in Android := PackagingOptions(excludes = Seq(
   "META-INF/MANIFEST.MF",
   "META-INF/LICENSE.txt",
   "META-INF/LICENSE",
   "META-INF/NOTICE.txt",
   "META-INF/NOTICE"
-)
+))
 
 javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6")

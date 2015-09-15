@@ -7,7 +7,9 @@ TaskKey[Unit]("verify-package") <<= (applicationId in Android) map { p =>
   ()
 }
 
-TaskKey[Unit]("verify-res-values") <<= (projectLayout in Android) map { p =>
+TaskKey[Unit]("verify-res-values") <<= (
+  projectLayout in Android, outputLayout in Android) map { (p, o) =>
+  implicit val output = o
   val res = p.generatedRes / "values" / "generated.xml"
   val root = XML.loadFile(res)
   val node = root \ "string"

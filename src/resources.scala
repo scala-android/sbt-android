@@ -30,7 +30,7 @@ object Resources {
                           , logger: Logger => ILogger
                           , cache: File
                           , s: TaskStreams
-                          ): (File,File) = {
+                          )(implicit m: ProjectLayout => BuildOutput): (File,File) = {
 
     val assetBin = layout.mergedAssets
     val assets = layout.assets
@@ -95,7 +95,8 @@ object Resources {
   def incrResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
                         libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
                         bldr: AndroidBuilder, resources: Seq[ResourceSet],
-                        changes: ChangeReport[File], slog: Logger) {
+                        changes: ChangeReport[File],
+                        slog: Logger)(implicit m: ProjectLayout => BuildOutput) {
 
     def merge() = fullResourceMerge(layout, resTarget, isLib, libs, blobDir,
       logger, bldr, resources, slog)
@@ -168,7 +169,7 @@ object Resources {
   }
   def fullResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
                         libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
-                        bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger) {
+                        bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger)(implicit m: ProjectLayout => BuildOutput) {
 
     slog.info("Performing full resource merge")
     val merger = new ResourceMerger
