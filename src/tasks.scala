@@ -942,9 +942,9 @@ object Tasks {
 
   val dexMainClassesConfigTaskDef = Def.task {
     implicit val output = outputLayout.value
-    Dex.dexMainClassesConfig(projectLayout.value, dexMulti.value,
-      dexInputs.value._2, dexMainClasses.value, buildTools.value,
-      streams.value)
+    Dex.dexMainClassesConfig(projectLayout.value, minSdkVersion.value,
+      dexMulti.value, dexInputs.value._2, dexMainClasses.value,
+      buildTools.value, streams.value)
   }
 
   val retrolambdaAggregateTaskDef = Def.task {
@@ -980,6 +980,7 @@ object Tasks {
 
   val dexTaskDef = ( builder
                    , dexAggregate
+                   , dexShards
                    , predex
                    , proguard
                    , minSdkVersion
@@ -988,9 +989,9 @@ object Tasks {
                    , outputLayout
                    , apkbuildDebug
                    , streams) map {
-    case (bldr, dexOpts, pd, pg, minSdk, lib, bin, o, debug, s) =>
+    case (bldr, dexOpts, shards, pd, pg, minSdk, lib, bin, o, debug, s) =>
       implicit val output = o
-      Dex.dex(bldr, dexOpts, pd, pg, bin.classesJar, minSdk, lib, bin.dex, debug(), s)
+      Dex.dex(bldr, dexOpts, pd, pg, bin.classesJar, minSdk, lib, bin.dex, shards, debug(), s)
   }
 
   val predexTaskDef = Def.task {

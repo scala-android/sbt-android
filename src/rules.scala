@@ -410,6 +410,7 @@ object Plugin extends sbt.Plugin {
     testAggregate           <<= testAggregateTaskDef,
     predex                  <<= predexTaskDef,
     dex                     <<= dexTaskDef,
+    dexShards                := false,
     dexMaxHeap               := "1024m",
     dexMulti                 := false,
     dexMainClasses           := Seq.empty,

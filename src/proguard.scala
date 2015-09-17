@@ -224,8 +224,9 @@ object Dex {
   }
   def dex(bldr: AndroidBuilder, dexOpts: Aggregate.Dex, pd: Seq[(File,File)],
           pg: Option[File], classes: File, minSdk: String, lib: Boolean,
-          bin: File, debug: Boolean, s: sbt.Keys.TaskStreams) = {
-    import collection.JavaConverters._
+          bin: File, shard: Boolean, debug: Boolean, s: sbt.Keys.TaskStreams) = {
+    val minLevel = Try(minSdk.toInt).toOption getOrElse
+      SdkVersionInfo.getApiByBuildCode(minSdk, true)
     val xmx = dexOpts.maxHeap
     val (incr, inputs) = dexOpts.inputs
     val multiDex = dexOpts.multi
@@ -233,9 +234,102 @@ object Dex {
     val minMainDex = dexOpts.minimizeMain
     val additionalParams = dexOpts.additionalParams
     val incremental = incr && !multiDex
+//    if (dexes.isEmpty || dexIn.exists(i => dexes exists(_.lastModified <= i.lastModified))) {
+
+    if (minLevel >= 21 && shard && debug) {
+      shardedDex(bldr, inputs, pd, incremental, xmx, additionalParams, bin, debug, s)
+    } else {
+      singleDex(bldr, inputs, pd, incremental, minLevel, multiDex, minMainDex, mainDexListTxt, xmx, additionalParams, bin, debug, s)
+    }
+  }
+
+  private[this] def shardedDex(bldr: AndroidBuilder,
+                               inputs: Seq[File], pd: Seq[(File,File)],
+                               incremental: Boolean,
+                               xmx: String,
+                               additionalParams: Seq[String], bin: File,
+                               debug: Boolean, s: sbt.Keys.TaskStreams) = {
+    import collection.JavaConverters._
+    val dexIn = (inputs filter (_.isFile)) filterNot (pd map (_._1) contains _)
+    // double actual number, because "dex methods" include references to other methods
+    val totalMethods = (dexIn map MethodCounter.apply).sum * 2
+    // try to aim for an average of 3000 methods per shard
+    val SHARD_GOAL = 3000
+    val MAX_SHARDS = 50
+    val SUFFIX_LEN = ".class".length
+    val shards = math.min(math.max(1, totalMethods / SHARD_GOAL), math.max(10, MAX_SHARDS - pd.size))
+    s.log.debug("Dex shards to generate: " + shards)
+    val shardClasses = bin / "shard-classes"
+    val dexInUnpacked = bin / "shard-jars"
+    dexInUnpacked.mkdirs()
+    val unpackedClasses = dexIn flatMap { in =>
+      val loc = predexFileOutput(dexInUnpacked, in)
+      loc.mkdirs()
+      val outs = FileFunction.cached(s.cacheDirectory / s"unpack-${loc.getName}", FilesInfo.hash) { jar =>
+        IO.unzip(jar.head, loc)
+      }(Set(in))
+      outs filter (_.getName.endsWith(".class")) map ((loc,_))
+    } map { case ((loc,f)) =>
+      val name = f.relativeTo(loc).get.getPath
+      // shard by top-level classname hashcode
+      val i = name.indexOf("$")
+      val shardTarget = 1 + math.abs((if (i != -1) name.substring(0, i) else name.dropRight(SUFFIX_LEN)).hashCode % shards)
+      (f, shardClasses / f"$shardTarget%02d" / name)
+    }
+
+    IO.delete(shardClasses)
+    IO.copy(unpackedClasses)
+
+    val dexShards = shardClasses * "*" get
+
+    (bin * "*.dex" get) foreach (_.delete())
+
+    val shardDex = bin / "shard-dex"
+    (dexShards.par flatMap { shard =>
+      val sn = shard.getName
+      val shardPath = shardDex / sn
+      shardPath.mkdirs()
+      FileFunction.cached(s.cacheDirectory / s"dex-$sn", FilesInfo.hash) { in =>
+        val options = new DexOptions {
+          override def getIncremental = incremental
+          override def getJavaMaxHeapSize = xmx
+          override def getPreDexLibraries = false
+          override def getJumboMode = false
+          override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+        }
+        s.log.debug("$sn: Dex inputs: " + shard)
+
+        val tmp = s.cacheDirectory / s"dex-$sn"
+        tmp.mkdirs()
+
+        val predex2 = pd flatMap (_._2 * "*.dex" get)
+        s.log.debug("PRE-DEXED: " + predex2)
+        bin.mkdirs()
+        bldr.convertByteCode(Seq(shard).asJava, predex2.asJava, shardPath,
+          false, null, options, additionalParams.asJava, tmp, incremental, !debug)
+        val result = shardPath * "*.dex" get
+
+        s.log.info(s"$sn: Generated dex shard, method count: " + (result map (dexMethodCount(_, s.log))).sum)
+        result.toSet
+      }((shard ** "*.class" get).toSet)
+    } toList).sorted.zipWithIndex.foreach { case (f,i) =>
+      // dex file names must be classes.dex, classesN0.dex, classN0+i.dex where N0=2
+      IO.copyFile(f, bin / s"classes${if (i == 0) "" else (i+1).toString}.dex")
+    }
+
+    bin
+  }
+  private[this] def singleDex(bldr: AndroidBuilder,
+                              inputs: Seq[File], pd: Seq[(File,File)],
+                              incremental: Boolean,
+                              minLevel: Int,
+                              multiDex: Boolean, minMainDex: Boolean,
+                              mainDexListTxt: File, xmx: String,
+                              additionalParams: Seq[String], bin: File,
+                              debug: Boolean, s: sbt.Keys.TaskStreams) = {
+    import collection.JavaConverters._
     val dexIn = (inputs filter (_.isFile)) filterNot (pd map (_._1) contains _)
     val dexes = (bin ** "*.dex").get
-//    if (dexes.isEmpty || dexIn.exists(i => dexes exists(_.lastModified <= i.lastModified))) {
     FileFunction.cached(s.cacheDirectory / "dex", FilesInfo.lastModified) { in =>
       s.log.debug("Invalidated cache because: " + dexIn.filter(i => dexes.exists(_.lastModified <= i.lastModified)))
       if (!incremental && inputs.exists(_.getName.startsWith("proguard-cache"))) {
@@ -243,14 +337,10 @@ object Dex {
         (bin * "*.dex" get) foreach (_.delete())
       }
       val options = new DexOptions {
-        override def getIncremental = incr
-
+        override def getIncremental = incremental
         override def getJavaMaxHeapSize = xmx
-
         override def getPreDexLibraries = false
-
         override def getJumboMode = false
-
         override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
       }
       s.log.info(s"Generating dex, incremental=$incremental, multidex=$multiDex")
@@ -267,7 +357,7 @@ object Dex {
       s.log.debug("PRE-DEXED: " + predex2)
       bin.mkdirs()
       bldr.convertByteCode(dexIn.asJava, predex2.asJava, bin,
-        multiDex, mainDexListTxt,
+        multiDex, if (minLevel >= 21) null else mainDexListTxt,
         options, additionalDexParams.asJava, tmp, incremental, !debug)
       s.log.info("dex method count: " + ((bin * "*.dex" get) map (dexMethodCount(_, s.log))).sum)
       (bin ** "*.dex").get.toSet
@@ -321,44 +411,46 @@ object Dex {
     } else Nil
   }
 
-  def dexMainClassesConfig(layout: ProjectLayout, multidex: Boolean,
+  def dexMainClassesConfig(layout: ProjectLayout, minSdk: String, multidex: Boolean,
                                inputs: Seq[File], mainDexClasses: Seq[String],
                                bt: BuildToolInfo, s: sbt.Keys.TaskStreams)(implicit m: ProjectLayout => BuildOutput) = {
-      val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile
-      if (multidex) {
-        if (mainDexClasses.nonEmpty) {
-          IO.writeLines(mainDexListTxt, mainDexClasses)
-        } else {
-          val btl = bt.getLocation
-          val script = if (!Commands.isWindows) btl / "mainDexClasses"
-          else {
-            val f = btl / "mainDexClasses.cmd"
-            if (f.exists) f else btl / "mainDexClasses.bat"
-          }
-          val injars = inputs map (_.getAbsolutePath) mkString File.pathSeparator
-          FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
-            val cmd = Seq(
-              script.getAbsolutePath,
-              "--output", mainDexListTxt.getAbsolutePath,
-              if (Commands.isWindows) s""""$injars"""" else injars
-            )
-
-            s.log.info("Generating maindexlist.txt")
-            s.log.debug("mainDexClasses => " + cmd.mkString(" "))
-            val rc = Process(cmd, layout.base) !
-
-            if (rc != 0) {
-              Plugin.fail("failed to determine mainDexClasses")
-            }
-            s.log.warn("Set mainDexClasses to improve build times:")
-            s.log.warn("""  dexMainFileClassesConfig in Android := baseDirectory.value / "copy-of-maindexlist.txt"""")
-            Set(mainDexListTxt)
-          }(inputs.toSet)
-
+    val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile
+    val minLevel = Try(minSdk.toInt).toOption getOrElse
+      SdkVersionInfo.getApiByBuildCode(minSdk, true)
+    if (multidex && minLevel < 21) {
+      if (mainDexClasses.nonEmpty) {
+        IO.writeLines(mainDexListTxt, mainDexClasses)
+      } else {
+        val btl = bt.getLocation
+        val script = if (!Commands.isWindows) btl / "mainDexClasses"
+        else {
+          val f = btl / "mainDexClasses.cmd"
+          if (f.exists) f else btl / "mainDexClasses.bat"
         }
-      } else
-        mainDexListTxt.delete()
-      mainDexListTxt
+        val injars = inputs map (_.getAbsolutePath) mkString File.pathSeparator
+        FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
+          val cmd = Seq(
+            script.getAbsolutePath,
+            "--output", mainDexListTxt.getAbsolutePath,
+            if (Commands.isWindows) s""""$injars"""" else injars
+          )
+
+          s.log.info("Generating maindexlist.txt")
+          s.log.debug("mainDexClasses => " + cmd.mkString(" "))
+          val rc = Process(cmd, layout.base) !
+
+          if (rc != 0) {
+            Plugin.fail("failed to determine mainDexClasses")
+          }
+          s.log.warn("Set mainDexClasses to improve build times:")
+          s.log.warn("""  dexMainFileClassesConfig in Android := baseDirectory.value / "copy-of-maindexlist.txt"""")
+          Set(mainDexListTxt)
+        }(inputs.toSet)
+
+      }
+    } else
+      mainDexListTxt.delete()
+    mainDexListTxt
   }
 
   // see https://source.android.com/devices/tech/dalvik/dex-format.html

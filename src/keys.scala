@@ -177,6 +177,8 @@ object Keys {
   val renderscript = TaskKey[Seq[File]]("renderscript", "android renderscript source-gen task")
 
   // dex-related keys
+  val dexShards = SettingKey[Boolean]("dex-shards",
+    "whether to enable dex sharding, requires v21+, debug-only")
   val dex = TaskKey[File]("dex", "run bytecode dexer")
   val predex = TaskKey[Seq[(File,File)]]("predex", "pre-dex input libraries task")
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "incremental dex, input jars to dex")
