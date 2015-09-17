@@ -61,7 +61,6 @@ object ReferenceFinder {
         val readbuf = Array.ofDim[Byte](16384)
         val buf = new ByteArrayOutputStream
 
-        val jin = new JarInputStream(new FileInputStream(jar))
         Using.fileInputStream(jar) (Using.jarInputStream(_) { jin =>
           Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) foreach {
             entry =>
