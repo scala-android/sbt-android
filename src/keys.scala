@@ -305,4 +305,7 @@ object Keys {
     // alias to ease typing
     val packageT = sbt.Keys.`package`
   }
+
+  def inProjectScope(p: ProjectReference)(ss: Seq[Setting[_]]) =
+    inScope(ThisScope.copy(project = Select(p)))(ss)
 }

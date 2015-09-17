@@ -50,7 +50,9 @@ object Plugin extends sbt.Plugin {
   // * sign
   // * zipalign
 
-  // unfortunately, flavors must be defined in build.scala definitions, not build.sbt
+  // rules of using flavors
+  // 1. flavors of "." project must be defined in Build.scala
+  // 2. flavors of "subdirectory" projects can be defined in Build.scala or build.sbt
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
     val base = p.base.getAbsoluteFile
     val tgt = base / (id + "-target")
