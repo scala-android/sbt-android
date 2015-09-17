@@ -22,7 +22,7 @@ import language.postfixOps
 object AndroidLint {
 
   def apply(layout: ProjectLayout, flags: LintCliFlags, detectors: Seq[Issue], strict: Boolean,
-            minSdk: String, targetSdk: String, s: TaskStreams): Unit = {
+            minSdk: String, targetSdk: String, s: TaskStreams)(implicit m: ProjectLayout => BuildOutput): Unit = {
     val client = AndroidLint.SbtLintClient(layout, flags, minSdk, targetSdk)
     flags.getReporters.clear()
     flags.getReporters.add(SbtLintReporter(client, strict, s))
@@ -38,7 +38,7 @@ object AndroidLint {
     override def getIssues = issues.asJava
   }
 
-  case class SbtLintClient(layout: ProjectLayout, flags: LintCliFlags, minSdk: String, targetSdk: String) extends LintCliClient(flags) {
+  case class SbtLintClient(layout: ProjectLayout, flags: LintCliFlags, minSdk: String, targetSdk: String)(implicit m: ProjectLayout => BuildOutput) extends LintCliClient(flags) {
     override def addProgressPrinter() = {
 //      super.addProgressPrinter()
     }
@@ -56,9 +56,9 @@ object AndroidLint {
     }
 
   }
-  case class SbtProject(client: LintClient, layout: ProjectLayout, minSdk: String, targetSdk: String)
+  case class SbtProject(client: LintClient, layout: ProjectLayout, minSdk: String, targetSdk: String)(implicit m: ProjectLayout => BuildOutput)
     extends LintProject(client, layout.base, layout.base) {
-    override def getJavaClassFolders = List(layout.bin).asJava
+    override def getJavaClassFolders = List(layout.classes).asJava
     override def getManifestFiles    = List(layout.manifest).asJava
     override def getResourceFolders  = List(layout.res).asJava
     override def getMinSdkVersion    = SdkVersionInfo.getVersion(minSdk, client.getTargets)

@@ -139,9 +139,11 @@ object Plugin extends sbt.Plugin {
                 , lintEnabled in Android
                 , lintStrict in Android
                 , projectLayout in Android
+                , outputLayout in Android
                 , minSdkVersion in Android
                 , targetSdkVersion in Android
-                , streams) map { (c, ld, f, en, strict, layout, minSdk, tgtSdk, s) =>
+                , streams) map { (c, ld, f, en, strict, layout, o, minSdk, tgtSdk, s) =>
+      implicit val output = o
       if (en)
         AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)
       c
@@ -248,6 +250,7 @@ object Plugin extends sbt.Plugin {
     scalacOptions               := (scalacOptions in Compile).value,
     javacOptions                := (javacOptions in Compile).value,
     lint                        := {
+      implicit val output = outputLayout.value
       AndroidLint(projectLayout.value,
         lintFlags.value, lintDetectors.value, lintStrict.value,
         minSdkVersion.value, targetSdkVersion.value, streams.value)
