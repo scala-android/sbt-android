@@ -50,15 +50,14 @@ object Plugin extends sbt.Plugin {
   // * sign
   // * zipalign
 
-  // rules of using flavors
-  // 1. flavors of "." project must be defined in Build.scala
-  // 2. flavors of "subdirectory" projects can be defined in Build.scala or build.sbt
+  /**
+   * create a new project flavor, build outputs will go in "id/android"
+   */
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
-    val base = p.base.getAbsoluteFile
-    val tgt = base / (id + "-target")
-    p.copy(id = id).settings(Seq(
-      (projectLayout in Android) := ProjectLayout(base, Some(tgt)),
-      sbt.Keys.target := tgt) ++ settings:_*)
+    val base = p.base / id
+    p.copy(id = id, base = base).settings(Seq(
+      (projectLayout in Android) := ProjectLayout(p.base.getCanonicalFile, Some(base.getCanonicalFile)),
+      sbt.Keys.target := base) ++ settings:_*)
   }
 
   lazy val androidBuild: Seq[Setting[_]]= {
@@ -174,6 +173,7 @@ object Plugin extends sbt.Plugin {
         new Package.Configuration(sources, p.classesJar, c.options)
     },
     publishArtifact in packageBin := false,
+    resourceDirectory <<= (projectLayout in Android) (_.resources),
     scalaSource       <<= (projectLayout in Android) (_.scalaSource),
     javaSource        <<= (projectLayout in Android) (_.javaSource),
     unmanagedJars     <<= unmanagedJarsTaskDef,
@@ -431,7 +431,7 @@ object Plugin extends sbt.Plugin {
     manifestPath            <<= projectLayout { l =>
       l.manifest
     },
-    properties              <<= baseDirectory (b => loadProperties(b)),
+    properties              <<= projectLayout (l => loadProperties(l.base)),
     mergeManifests           := true,
     manifestPlaceholders     := Map.empty,
     processManifest         <<= processManifestTaskDef,

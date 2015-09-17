@@ -708,6 +708,7 @@ object Tasks {
       }
 
       s.log.info("zipaligned: " + aligned.getName)
+      a.getParentFile.mkdirs()
       IO.copyFile(aligned, a)
       aligned
     }
@@ -999,13 +1000,14 @@ object Tasks {
     val opts = dexAggregate.value
     val inputs = opts.inputs._2
     val multiDex = opts.multi
+    val shards = dexShards.value
     val minSdk = minSdkVersion.value
     val classes = projectLayout.value.classesJar
     val pg = proguard.value
     val bldr = builder.value
     val s = streams.value
     val bin = projectLayout.value.predex
-    Dex.predex(opts, inputs, multiDex, minSdk, classes, pg, bldr, bin, s)
+    Dex.predex(opts, inputs, multiDex || shards, minSdk, classes, pg, bldr, bin, s)
   }
 
   val proguardInputsTaskDef = ( proguardAggregate

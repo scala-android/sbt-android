@@ -127,7 +127,6 @@ object BuildOutput {
     }
     def integrationApkFile(name: String) = {
       val apkdir = intermediates / "build_integration"
-      apkdir.mkdirs()
       apkdir / (name + "-BUILD-INTEGRATION.apk")
     }
   }
