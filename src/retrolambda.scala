@@ -1,8 +1,7 @@
 package android
 
-import java.io.{FileInputStream, FileOutputStream}
+import java.io.FileInputStream
 import java.nio.ByteBuffer
-import java.util.jar.JarInputStream
 
 import com.android.builder.core.AndroidBuilder
 import sbt._
@@ -64,7 +63,6 @@ object RetrolambdaSupport {
 
 object Java8Detector {
   def apply(jar: File): Boolean = {
-    val jin = new JarInputStream(new FileInputStream(jar))
     Using.fileInputStream(jar)(Using.jarInputStream(_) { jin =>
       val buf = Array.ofDim[Byte](8)
       Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) exists { j =>
