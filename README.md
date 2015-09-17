@@ -50,6 +50,8 @@ found on the #sbt-android IRC channel on Freenode
       }
     }
     ```
+    * Project flavor build outputs also updated (no longer go into
+      `flavor-target`, instead just `flavor/`)
   * `apkbuildExcludes` and `apkbuildPickFirsts` have been removed,
     use `packagingOptions in Android` in conjunction with the
     `PackagingOptions` object
@@ -57,6 +59,8 @@ found on the #sbt-android IRC channel on Freenode
     `dexMainFileClassesConfig` to `dexMainClasses`, `dexMinimizeMain`,
     and `dexMainClassesConfig`, respectively.
   * Add `extraAssetDirectories`
+  * Dex sharding with `minSdkVersion` 21 or higher, dramatically improves
+    incremental build times, enable by setting `dexShards in Android := true`
 
 ## New features in 1.4.x (last version: 1.4.15) ##
 
