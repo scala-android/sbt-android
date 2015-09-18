@@ -1,4 +1,4 @@
-retrolambdaEnable in Android := true
+retrolambdaEnabled in Android := true
 
 libraryDependencies += "com.google.guava" % "guava" % "18.0"
 

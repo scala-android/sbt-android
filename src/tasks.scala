@@ -876,7 +876,7 @@ object Tasks {
   }
 
   val retrolambdaAggregateTaskDef = Def.task {
-    Aggregate.Retrolambda(retrolambdaEnable.value,
+    Aggregate.Retrolambda(retrolambdaEnabled.value,
       Project.extract(state.value).currentUnit.classpath, builder.value)
   }
   val dexInputsTaskDef = ( proguard

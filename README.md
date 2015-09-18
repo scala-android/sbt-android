@@ -60,6 +60,7 @@ found on the #sbt-android IRC channel on Freenode
   * Renamed `dexMainFileClasses`, `dexMinimizeMainFile`, and
     `dexMainFileClassesConfig` to `dexMainClasses`, `dexMinimizeMain`,
     and `dexMainClassesConfig`, respectively.
+  * Renamed `retrolambdaEnable` to `retrolambdaEnabled`
   * Add `extraAssetDirectories`
   * Dex sharding with `minSdkVersion` 21 or higher, dramatically improves
     incremental build times, enable by setting `dexShards in Android := true`

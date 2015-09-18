@@ -205,7 +205,7 @@ object Plugin extends sbt.Plugin {
     javacOptions      <<= ( javacOptions
                           , builder in Android
                           , apkbuildDebug in Android
-                          , retrolambdaEnable in Android) map {
+                          , retrolambdaEnabled in Android) map {
       (o,bldr, debug, re) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (debug()) Seq("-g") else Seq.empty
@@ -484,7 +484,7 @@ object Plugin extends sbt.Plugin {
     proguardInputs          <<= proguardInputsTaskDef,
     proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),
     proguardScala           <<= autoScalaLibrary,
-    retrolambdaEnable        := false,
+    retrolambdaEnabled       := false,
     typedResources          <<= proguardScala,
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,

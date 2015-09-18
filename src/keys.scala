@@ -216,7 +216,7 @@ object Keys {
     "whether or not to run proguard, automatically true with useProguardInDebug")
   val useProguardInDebug = SettingKey[Boolean]("use-proguard-in-debug",
     "whether or not to run proguard in debug, automatically true with scala")
-  val retrolambdaEnable = SettingKey[Boolean]("retrolambda-enable",
+  val retrolambdaEnabled = SettingKey[Boolean]("retrolambda-enable",
     "enable java8 backport support")
 
   val allDevices = SettingKey[Boolean]("all-devices",
