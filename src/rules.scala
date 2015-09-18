@@ -12,7 +12,7 @@ import sbt.Keys._
 
 import com.android.builder.core.{LibraryRequest, EvaluationErrorReporter, AndroidBuilder}
 import com.android.builder.sdk.DefaultSdkLoader
-import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkManager}
+import com.android.sdklib.{SdkVersionInfo, AndroidTargetHash, IAndroidTarget, SdkManager}
 import com.android.sdklib.repository.FullRevision
 import com.android.SdkConstants
 import com.android.utils.ILogger
@@ -416,6 +416,12 @@ object Plugin extends sbt.Plugin {
     predex                  <<= predexTaskDef,
     dex                     <<= dexTaskDef,
     dexShards                := false,
+    dexLegacyMode            := {
+      val minSdk = minSdkVersion.value
+      val minLevel = Try(minSdk.toInt).toOption getOrElse
+        SdkVersionInfo.getApiByBuildCode(minSdk, true)
+      minLevel < 21
+    },
     dexMaxHeap               := "1024m",
     dexMulti                 := false,
     dexMainClasses           := Seq.empty,

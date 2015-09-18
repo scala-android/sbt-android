@@ -5,7 +5,7 @@ import java.util.jar.{JarOutputStream, JarInputStream}
 
 import com.android.SdkConstants
 import com.android.builder.core.{DexOptions, AndroidBuilder}
-import com.android.sdklib.{BuildToolInfo, SdkVersionInfo}
+import com.android.sdklib.BuildToolInfo
 import com.google.common.base.Charsets
 import com.google.common.hash.Hashing
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
@@ -13,8 +13,6 @@ import sbt._
 
 import scala.util.Try
 import language.postfixOps
-
-import BuildOutput._
 
 case class ProguardInputs(injars: Seq[Attributed[File]],
                           libraryjars: Seq[File],
@@ -223,10 +221,8 @@ object Dex {
     (incrementalDex && !proguardedDexMarker.exists) -> jarsToDex
   }
   def dex(bldr: AndroidBuilder, dexOpts: Aggregate.Dex, pd: Seq[(File,File)],
-          pg: Option[File], classes: File, minSdk: String, lib: Boolean,
+          pg: Option[File], classes: File, legacy: Boolean, lib: Boolean,
           bin: File, shard: Boolean, debug: Boolean, s: sbt.Keys.TaskStreams) = {
-    val minLevel = Try(minSdk.toInt).toOption getOrElse
-      SdkVersionInfo.getApiByBuildCode(minSdk, true)
     val xmx = dexOpts.maxHeap
     val (incr, inputs) = dexOpts.inputs
     val multiDex = dexOpts.multi
@@ -236,10 +232,10 @@ object Dex {
     val incremental = incr && !multiDex
 //    if (dexes.isEmpty || dexIn.exists(i => dexes exists(_.lastModified <= i.lastModified))) {
 
-    if (minLevel >= 21 && shard && debug) {
+    if (!legacy && shard && debug) {
       shardedDex(bldr, inputs, pd, incremental, xmx, additionalParams, bin, debug, s)
     } else {
-      singleDex(bldr, inputs, pd, incremental, minLevel, multiDex, minMainDex, mainDexListTxt, xmx, additionalParams, bin, debug, s)
+      singleDex(bldr, inputs, pd, incremental, legacy, multiDex, minMainDex, mainDexListTxt, xmx, additionalParams, bin, debug, s)
     }
   }
 
@@ -322,7 +318,7 @@ object Dex {
   private[this] def singleDex(bldr: AndroidBuilder,
                               inputs: Seq[File], pd: Seq[(File,File)],
                               incremental: Boolean,
-                              minLevel: Int,
+                              legacy: Boolean,
                               multiDex: Boolean, minMainDex: Boolean,
                               mainDexListTxt: File, xmx: String,
                               additionalParams: Seq[String], bin: File,
@@ -357,7 +353,7 @@ object Dex {
       s.log.debug("PRE-DEXED: " + predex2)
       bin.mkdirs()
       bldr.convertByteCode(dexIn.asJava, predex2.asJava, bin,
-        multiDex, if (minLevel >= 21) null else mainDexListTxt,
+        multiDex, if (!legacy) null else mainDexListTxt,
         options, additionalDexParams.asJava, tmp, incremental, !debug)
       s.log.info("dex method count: " + ((bin * "*.dex" get) map (dexMethodCount(_, s.log))).sum)
       (bin ** "*.dex").get.toSet
@@ -383,11 +379,9 @@ object Dex {
   }
 
   def predex(opts: Aggregate.Dex, inputs: Seq[File], multiDex: Boolean,
-             minSdk: String, classes: File, pg: Option[File],
+             legacy: Boolean, classes: File, pg: Option[File],
              bldr: AndroidBuilder, bin: File, s: sbt.Keys.TaskStreams) = {
     bin.mkdirs()
-    val minLevel = Try(minSdk.toInt).toOption getOrElse
-      SdkVersionInfo.getApiByBuildCode(minSdk, true)
     val options = new DexOptions {
       override def getIncremental = false
       override def getJavaMaxHeapSize = opts.maxHeap
@@ -395,7 +389,7 @@ object Dex {
       override def getJumboMode = false
       override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
     }
-    if (minLevel >= 21 && multiDex) {
+    if (!legacy && multiDex) {
       ((inputs filterNot (i => i == classes || pg.exists(_ == i))).par map { i =>
         val out = predexFileOutput(bin, i)
         val predexed = out * "*.dex" get
@@ -411,13 +405,11 @@ object Dex {
     } else Nil
   }
 
-  def dexMainClassesConfig(layout: ProjectLayout, minSdk: String, multidex: Boolean,
+  def dexMainClassesConfig(layout: ProjectLayout, legacy: Boolean, multidex: Boolean,
                                inputs: Seq[File], mainDexClasses: Seq[String],
                                bt: BuildToolInfo, s: sbt.Keys.TaskStreams)(implicit m: ProjectLayout => BuildOutput) = {
     val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile
-    val minLevel = Try(minSdk.toInt).toOption getOrElse
-      SdkVersionInfo.getApiByBuildCode(minSdk, true)
-    if (multidex && minLevel < 21) {
+    if (multidex && legacy) {
       if (mainDexClasses.nonEmpty) {
         IO.writeLines(mainDexListTxt, mainDexClasses)
       } else {

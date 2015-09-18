@@ -571,93 +571,20 @@ object Tasks {
       collectJni.value, resourceShrinker.value)
   }
 
-  val apkbuildTaskDef = ( apkbuildAggregate
-                        , name
-                        , builder
-                        , projectLayout
-                        , outputLayout
-                        , libraryProject
-                        , ilogger
-                        , unmanagedJars in Compile
-                        , managedClasspath
-                        , dependencyClasspath in Compile
-                        , streams
-                        ) map {
-    (a, n, bldr, layout, out, isLib, logger, u, m, dcp, s) =>
-    implicit val o = out
-
-    if (isLib)
-      Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true'")
-    val options = a.packagingOptions
-    val r = a.resourceShrinker
-    val d = a.dex
-    val pd = a.predex
-    val jni = a.collectJni
-    val debug = a.apkbuildDebug
-    val cacheDir = s.cacheDirectory
-    val predexed = pd flatMap (_._2 * "*.dex" get)
-
-    val jars = (m ++ u ++ dcp).filter {
-      a => (a.get(moduleID.key) map { mid =>
-        mid.organization != "org.scala-lang" &&
-          !(mid.configurations exists (_ contains "provided"))
-      } getOrElse true) && a.data.exists
-    }.groupBy(_.data.getName).collect {
-      case ("classes.jar",xs) => xs.distinct
-      case (_,xs) if xs.head.data.isFile => xs.head :: Nil
-    }.flatten.map (_.data).toList
-
-    // workaround for https://code.google.com/p/android/issues/detail?id=73437
-    val collectedJni = layout.collectJni
-    if (jni.nonEmpty) {
-      collectedJni.mkdirs()
-      val copyList = for {
-        j <- jni
-        l <- (j ** "*.so").get ++ (j ** "gdbserver").get ++ (j ** "gdb.setup").get
-      } yield (l, collectedJni / (l relativeTo j).get.getPath)
-
-      IO.copy(copyList)
-    } else {
-      IO.delete(collectedJni)
-    }
-    val jniInputs = (collectedJni ** new SimpleFileFilter(_.isFile)).get
-    // end workaround
-
-    s.log.debug("jars to process for resources: " + jars)
-
-    val debugConfig = new DefaultSigningConfig("debug")
-    debugConfig.initDebug()
-    if (!debugConfig.getStoreFile.exists) {
-      KeystoreHelper.createDebugStore(null, debugConfig.getStoreFile,
-        debugConfig.getStorePassword, debugConfig.getKeyPassword,
-        debugConfig.getKeyAlias, logger(s.log))
-    }
-
-    val output = layout.unsignedApk(debug, n)
-
-    // filtering out org.scala-lang above should not cause an issue
-    // they should not be changing on us anyway
-    val deps = Set(r +: ((d * "*.dex" get) ++ jars ++ jniInputs):_*)
-
-    FileFunction.cached(cacheDir / output.getName, FilesInfo.hash) { in =>
-      s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s, %s)" format (
-        r.getAbsolutePath, d.getAbsolutePath, jars,
-          if (collectedJni.exists) Seq(collectedJni).asJava else Seq.empty.asJava, debug,
-          if (debug) debugConfig else null, output.getAbsolutePath,
-          options
-      ))
-      bldr.packageApk(r.getAbsolutePath, d, predexed.asJava, jars.asJava,
-        layout.resources.getAbsolutePath,
-        (if (collectedJni.exists) Seq(collectedJni) else Seq.empty).asJava,
-        s.cacheDirectory / "apkbuild-merging", null, debug,
-        if (debug) debugConfig else null, options.asAndroid, output.getAbsolutePath)
-      s.log.debug("Including predexed: " + predexed)
-      s.log.info("Packaged: %s (%s)" format (
-        output.getName, sizeString(output.length)))
-      Set(output)
-    }(deps)
-
-    output
+  val apkbuildTaskDef = Def.task {
+    implicit val output = outputLayout.value
+    val layout = projectLayout.value
+    val a = apkbuildAggregate.value
+    val n = name.value
+    val u = (unmanagedJars in Compile).value
+    val m = managedClasspath.value
+    val dcp = (dependencyClasspath in Compile).value
+    val s = streams.value
+    val logger = ilogger.value(s.log)
+    Packaging.apkbuild(builder.value, m, u, dcp, libraryProject.value,
+      a.packagingOptions, a.resourceShrinker, a.dex, a.predex, a.collectJni,
+      layout.collectJni, layout.resources, a.apkbuildDebug,
+      layout.unsignedApk(a.apkbuildDebug, n), logger, s)
   }
 
   val signReleaseTaskDef = (apkSigningConfig, apkbuild, apkbuildDebug, projectLayout, outputLayout, streams) map {
@@ -943,7 +870,7 @@ object Tasks {
 
   val dexMainClassesConfigTaskDef = Def.task {
     implicit val output = outputLayout.value
-    Dex.dexMainClassesConfig(projectLayout.value, minSdkVersion.value,
+    Dex.dexMainClassesConfig(projectLayout.value, dexLegacyMode.value,
       dexMulti.value, dexInputs.value._2, dexMainClasses.value,
       buildTools.value, streams.value)
   }
@@ -984,15 +911,15 @@ object Tasks {
                    , dexShards
                    , predex
                    , proguard
-                   , minSdkVersion
+                   , dexLegacyMode
                    , libraryProject
                    , projectLayout
                    , outputLayout
                    , apkbuildDebug
                    , streams) map {
-    case (bldr, dexOpts, shards, pd, pg, minSdk, lib, bin, o, debug, s) =>
+    case (bldr, dexOpts, shards, pd, pg, legacy, lib, bin, o, debug, s) =>
       implicit val output = o
-      Dex.dex(bldr, dexOpts, pd, pg, bin.classesJar, minSdk, lib, bin.dex, shards, debug(), s)
+      Dex.dex(bldr, dexOpts, pd, pg, bin.classesJar, legacy, lib, bin.dex, shards, debug(), s)
   }
 
   val predexTaskDef = Def.task {
@@ -1001,13 +928,13 @@ object Tasks {
     val inputs = opts.inputs._2
     val multiDex = opts.multi
     val shards = dexShards.value
-    val minSdk = minSdkVersion.value
+    val legacy = dexLegacyMode.value
     val classes = projectLayout.value.classesJar
     val pg = proguard.value
     val bldr = builder.value
     val s = streams.value
     val bin = projectLayout.value.predex
-    Dex.predex(opts, inputs, multiDex || shards, minSdk, classes, pg, bldr, bin, s)
+    Dex.predex(opts, inputs, multiDex || shards, legacy, classes, pg, bldr, bin, s)
   }
 
   val proguardInputsTaskDef = ( proguardAggregate
@@ -1047,7 +974,7 @@ object Tasks {
         val after = shrunkResApk.length
         val pct = (before - after) * 100 / before
         log.info(s"Resource Shrinker: $unused unused resources")
-        log.info(s"Resource Shrinker: data reduced from ${sizeString(before)} to ${sizeString(after)}, removed $pct%")
+        log.info(s"Resource Shrinker: data reduced from ${Packaging.sizeString(before)} to ${Packaging.sizeString(after)}, removed $pct%")
       }
       shrunkResApk
     } else {
@@ -1445,7 +1372,7 @@ object Tasks {
     val secs = (end - start) / 1000d
     val rate = size/KB/secs
     val mrate = if (rate > MB) rate / MB else rate
-    log.info("%s %s in %.2fs. %.2f%s/s" format (msg, sizeString(size), secs, mrate,
+    log.info("%s %s in %.2fs. %.2f%s/s" format (msg, Packaging.sizeString(size), secs, mrate,
       if (rate > MB) "MB" else "KB"))
     a
   }
@@ -1463,14 +1390,6 @@ object Tasks {
       Plugin.fail("[%s] Uninstall failed: %s" format (packageName, err))
     } getOrElse {
       log.info("[%s] Uninstall finished" format packageName)
-    }
-  }
-  private def sizeString(len: Long) = {
-    val KB = 1024 * 1.0
-    val MB = KB * KB
-    len match {
-      case s if s < MB  => "%.2fKB" format (s/KB)
-      case s if s >= MB => "%.2fMB" format (s/MB)
     }
   }
   val uninstallTaskDef = (sdkPath, applicationId, streams, allDevices) map { (k,p,s,all) =>
