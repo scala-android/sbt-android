@@ -51,7 +51,9 @@ found on the #sbt-android IRC channel on Freenode
     }
     ```
     * Project flavor build outputs also updated (no longer go into
-      `flavor-target`, instead just `flavor/`)
+      `flavor-target`, instead just `flavor/`), no longer work in conjunction
+      with `android.AutoBuild`, `androidBuild` must be explicitly set when
+      working with flavors.
   * `apkbuildExcludes` and `apkbuildPickFirsts` have been removed,
     use `packagingOptions in Android` in conjunction with the
     `PackagingOptions` object

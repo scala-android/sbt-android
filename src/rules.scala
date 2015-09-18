@@ -52,6 +52,7 @@ object Plugin extends sbt.Plugin {
 
   /**
    * create a new project flavor, build outputs will go in "id/android"
+   * does not work in conjunction with AutoBuild, must use standard build.
    */
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
     val base = p.base / id
