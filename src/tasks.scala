@@ -477,7 +477,7 @@ object Tasks {
                                 ) map {
     (bldr, noTestApk, isLib, libs, er, ea, layout, o, logger, s) =>
       implicit val output = o
-      Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, layout.generatedRes +: er, ea, logger, s.cacheDirectory, s)
+      Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, ea, layout.generatedRes +: er, logger, s.cacheDirectory, s)
   }
 
 
