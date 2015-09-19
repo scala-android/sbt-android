@@ -919,7 +919,7 @@ object Tasks {
                    , streams) map {
     case (bldr, dexOpts, shards, pd, pg, legacy, lib, bin, o, debug, s) =>
       implicit val output = o
-      Dex.dex(bldr, dexOpts, pd, pg, bin.classesJar, legacy, lib, bin.dex, shards, debug(), s)
+      Dex.dex(bldr, dexOpts, pd, pg, legacy, lib, bin.dex, shards, debug(), s)
   }
 
   val predexTaskDef = Def.task {

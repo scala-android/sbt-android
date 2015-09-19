@@ -221,7 +221,7 @@ object Dex {
     (incrementalDex && !proguardedDexMarker.exists) -> jarsToDex
   }
   def dex(bldr: AndroidBuilder, dexOpts: Aggregate.Dex, pd: Seq[(File,File)],
-          pg: Option[File], classes: File, legacy: Boolean, lib: Boolean,
+          pg: Option[File], legacy: Boolean, lib: Boolean,
           bin: File, shard: Boolean, debug: Boolean, s: sbt.Keys.TaskStreams) = {
     val xmx = dexOpts.maxHeap
     val (incr, inputs) = dexOpts.inputs
