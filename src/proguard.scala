@@ -6,8 +6,6 @@ import java.util.jar.{JarOutputStream, JarInputStream}
 import com.android.SdkConstants
 import com.android.builder.core.{DexOptions, AndroidBuilder}
 import com.android.sdklib.BuildToolInfo
-import com.google.common.base.Charsets
-import com.google.common.hash.Hashing
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 import sbt._
 
@@ -370,8 +368,7 @@ object Dex {
 
     // add a hash of the original file path.
     val input = inFile.getAbsolutePath
-    val hashFunction = Hashing.sha1
-    val hashCode = hashFunction.hashString(input, Charsets.UTF_16LE)
+    val hashCode = Hash.toHex(Hash(input))
 
     val f = new File(binPath, name + "-" + hashCode.toString + SdkConstants.DOT_JAR)
     f.mkdirs()
