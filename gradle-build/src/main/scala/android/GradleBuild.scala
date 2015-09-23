@@ -156,7 +156,7 @@ trait GradleBuild extends Build {
         } ++ Option(flavor.getMultiDexEnabled).toList.map {
           dexMulti in Android /:= _
         } ++ Option(flavor.getMultiDexKeepFile).toList.map {
-          dexMainFileClasses in Android /:= IO.readLines(_, IO.utf8)
+          dexMainClasses in Android /:= IO.readLines(_, IO.utf8)
         } ++ Option(model.getPackagingOptions).toList.map {
           p => packagingOptions in Android /:= PackagingOptions(
             p.getExcludes.asScala.toList, p.getPickFirsts.asScala.toList, p.getMerges.asScala.toList
@@ -235,7 +235,8 @@ trait GradleBuild extends Build {
           }
         ) ++ extraDirectories(sourceProvider.getJavaDirectories, sourceDirectories in Compile) ++
           extraDirectories(sourceProvider.getResDirectories, extraResDirectories in Android) ++
-          extraDirectories(sourceProvider.getResourcesDirectories, resourceDirectories in Compile)
+          extraDirectories(sourceProvider.getResourcesDirectories, resourceDirectories in Compile) ++
+          extraDirectories(sourceProvider.getAssetsDirectories, extraAssetDirectories in Android)
         val sp = SbtProject(ap.getName, base, discovery.isApplication,
           projects.map(_.getProject.replace(":","")).toSet,
           optional ++ libs ++ localAar ++ standard ++ unmanaged)
@@ -304,6 +305,7 @@ object Serializer {
            |        override def gen = ${enc(x.gen)}
            |        override def testRes = ${enc(x.testRes)}
            |        override def manifest = ${enc(x.manifest)}
+           |        override def testManifest = ${enc(x.testManifest)}
            |        override def scalaSource = ${enc(x.scalaSource)}
            |        override def aidl = ${enc(x.aidl)}
            |        override def bin = ${enc(x.bin)}
