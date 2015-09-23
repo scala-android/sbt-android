@@ -279,7 +279,7 @@ object Dex {
     (bin * "*.dex" get) foreach (_.delete())
 
     val shardDex = bin / "shard-dex"
-    (dexShards.par flatMap { shard =>
+    (dexShards flatMap { shard =>
       val sn = shard.getName
       val shardPath = shardDex / sn
       shardPath.mkdirs()
@@ -387,7 +387,7 @@ object Dex {
       override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
     }
     if (!legacy && multiDex) {
-      ((inputs filterNot (i => i == classes || pg.exists(_ == i))).par map { i =>
+      ((inputs filterNot (i => i == classes || pg.exists(_ == i))) map { i =>
         val out = predexFileOutput(bin, i)
         val predexed = out * "*.dex" get
 
