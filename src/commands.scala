@@ -129,8 +129,7 @@ object Commands {
   }
 
   def androidPathParser(entry: FileEntry, fs: FileListingService): Parser[FileEntry] = {
-    val children = fs.getChildrenSync(entry)  map { e =>
-      e.getName -> e} toMap
+    val children = fs.getChildrenSync(entry) map { e => e.getName -> e} toMap
 
     if (children.isEmpty) Parser.success(entry) else {
       val completions = children.keys map { e =>
@@ -141,7 +140,7 @@ object Commands {
       eof | (Parser.oneOf(completions) flatMap { e =>
         val entry = children(e)
         val eof = EOF map {_ => entry}
-        eof | ("/" ~> Parser.opt(androidPathParser(entry, fs)) map (
+        eof | (token("/") ~> Parser.opt(androidPathParser(entry, fs)) map (
           _ getOrElse entry))
       })
     }
@@ -152,7 +151,7 @@ object Commands {
       val fs = d.getFileListingService
       (EOF map { _ => (fs.getRoot,None) }) |
         ((Space ~> token("/") ~> androidPathParser(fs.getRoot, fs)) ~
-          Parser.opt("/" ~> token(Parsers.StringBasic, "")))
+          Parser.opt(token("/") ~> token(Parsers.StringBasic, "")))
     } getOrElse (Parser.failure("No devices connected") map ( _ => null))
   }
 
