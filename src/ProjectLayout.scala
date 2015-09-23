@@ -341,6 +341,7 @@ object ProjectLayout {
     override def gen = wrapped.gen
     override def testRes = wrapped.testRes
     override def manifest = wrapped.manifest
+    override def testManifest = wrapped.manifest
     override def scalaSource = wrapped.scalaSource
     override def aidl = wrapped.aidl
     override def bin = wrapped.bin
