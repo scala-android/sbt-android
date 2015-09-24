@@ -949,7 +949,8 @@ object Tasks {
     case (pa, l, d, (p, x), c, o, debug, st) =>
       implicit val output = o
       Proguard.proguardInputs(
-        pa.useProguard, pa.proguardOptions, pa.proguardConfig,
+        (pa.useProguard && !debug()) || (pa.useProguardInDebug && debug()),
+        pa.proguardOptions, pa.proguardConfig,
         l, d, p, x, c.classesJar, pa.proguardScala, pa.proguardCache, debug(), st)
   }
 
