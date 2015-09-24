@@ -1284,7 +1284,7 @@ object Tasks {
       Commands.targetDevice(k, s.log) foreach execute
   }
 
-  val runTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
+  def runTaskDef(debug: Boolean): Def.Initialize[InputTask[Unit]] = Def.inputTask {
     val k = sdkPath.value
     val l = projectLayout.value
     val p = applicationId.value
@@ -1312,8 +1312,8 @@ object Tasks {
     }) match {
       case Some(intent) =>
         val receiver = new Commands.ShellLogging(l => s.log.info(l))
+        val command = "am start %s -n %s" format (if (debug) "-D" else "", intent)
         def execute(d: IDevice): Unit = {
-          val command = "am start -n %s" format intent
           s.log.info(s"Running on ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
           s.log.debug("Executing [%s]" format command)
           d.executeShellCommand(command, receiver)

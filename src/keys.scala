@@ -223,6 +223,7 @@ object Keys {
     "android: execute install, run and test on all connected devices, or just selected")
   val install = TaskKey[Unit]("install", "Install the built app to device")
   val uninstall = TaskKey[Unit]("uninstall", "Remove the app from the device")
+  val debug = InputKey[Unit]("debug", "Run the app in debug mode, (wait for debugger on android)")
 
   val lint = TaskKey[Unit]("lint", "Run android lint checks independently of compile")
   val lintFlags = SettingKey[LintCliFlags]("lint-flags",
