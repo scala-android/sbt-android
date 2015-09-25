@@ -409,6 +409,8 @@ object GradleBuildSerializer {
       if (dependencies.nonEmpty) {
         val depSettings = dependencies map { d =>
           s"""
+           |  TaskKey[Seq[android.Dependencies.LibraryDependency]]("transitive-aars") in Android <++=
+           |    TaskKey[Seq[android.Dependencies.LibraryDependency]]("aars") in Android in ${escaped(d)},
            |  collectResources in Android <<=
            |    collectResources in Android dependsOn (compile in Compile in ${escaped(d)}),
            |  compile in Compile <<= compile in Compile dependsOn(

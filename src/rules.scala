@@ -76,6 +76,7 @@ object Plugin extends sbt.Plugin {
   def buildWith(projects: Project*): Seq[Setting[_]] = {
     projects flatMap { p =>
       Seq(
+        transitiveAars in Android <++= aars in Android in p,
         collectResources in Android <<=
           collectResources in Android dependsOn (compile in Compile in p),
         compile in Compile <<= compile in Compile dependsOn(
@@ -351,6 +352,7 @@ object Plugin extends sbt.Plugin {
     apklibs                 <<= apklibsTaskDef,
     localAars                := Nil,
     aars                    <<= aarsTaskDef,
+    transitiveAars           := Nil,
     aarArtifact             <<= normalizedName { n => Artifact(n, "aar", "aar") },
     apklibArtifact          <<= normalizedName { n => Artifact(n, "apklib", "apklib") },
     packageAar              <<= packageAarTaskDef,

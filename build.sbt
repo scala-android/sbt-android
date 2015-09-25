@@ -45,7 +45,7 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
 ) dependsOn(model % "provided")
 
 val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettings:_*).settings(
-  version := "1.0.0",
+  version := "1.0.1-SNAPSHOT",
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
   name := "android-gradle-build",

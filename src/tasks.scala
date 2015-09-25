@@ -124,30 +124,16 @@ object Tasks {
                     , libraryDependencies in Compile
                     , transitiveAndroidLibs
                     , transitiveAndroidWarning
+                    , transitiveAars
                     , localProjects
-                    , thisProjectRef
-                    , state
-                    , buildStructure
                     , projectLayout
+                    , outputLayout
                     , streams
                     ) map {
-    (u,local,d,tx,tw,lp,ref, st, struct, layout,s) =>
-    implicit val output = Project.extract(st).get(outputLayout in (ref,Android))
+    (u,local,d,tx,tw,ta,lp, layout,o,s) =>
+    implicit val output = o
 
-    def collectSubAar(ps: Seq[ProjectRef]): Seq[AarLibrary] = ps flatMap { p =>
-      val aarlibs = Project.runTask(libraryProjects in(p, Android), st).collect {
-        case (_, Value(value)) => value
-      }.fold(Seq.empty[AarLibrary])(_ collect {
-        case a: AarLibrary => a
-      })
-      val sub = Project.getProject(p, struct)
-      aarlibs ++ sub.fold(Seq.empty[AarLibrary])(s => collectSubAar(s.dependencies.map(_.project)))
-    }
-    val subaars = collectSubAar(
-      Project.getProject(ref, struct).fold(
-        Seq.empty[ProjectRef])(_.dependencies map (_.project))).map (m =>
-      moduleString(m.moduleID)).toSet
-    s.log.debug("dependencies: " + Project.getProject(ref, struct).map(_.dependencies))
+    val subaars = ta.collect { case a: AarLibrary => a }.map { a => moduleString(a.moduleID) }.toSet
     s.log.debug("aars in subprojects: " + subaars)
     val libs = u.matching(artifactFilter(`type` = "aar"))
     val dest = layout.aars
@@ -233,12 +219,12 @@ object Tasks {
                        , outputLayout
                        , libraryProject
                        , transitiveAndroidLibs
+                       , transitiveAndroidWarning
                        , streams
                        , builder
                        , apkbuildDebug
-                       , streams
                        ) map {
-    (u,d,layout,o, isLib,tx,s,bldr,debug,st) =>
+    (u,d,layout,o, isLib,tx,tw, s,bldr,debug) =>
     implicit val output = o
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = layout.apklibs
@@ -257,7 +243,7 @@ object Tasks {
           Resources.aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
               lib.getResFolder, lib.getAssetsFolder, null,
               lib.layout.gen, lib.getProguardRules.getAbsolutePath,
-              st.log)
+              s.log)
 
         }
         def copyDirectory(src: File, dst: File) {
@@ -268,7 +254,8 @@ object Tasks {
           copyDirectory(lib.layout.gen, layout.gen)
         Some(lib: LibraryDependency)
       } else {
-        s.log.warn(m + " is not an explicit dependency, skipping")
+        if (tw)
+          s.log.warn(m + " is not an explicit dependency, skipping")
         None
       }
     }

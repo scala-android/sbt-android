@@ -290,6 +290,8 @@ object Keys {
       "Properties loaded from the project's .property files")
     val setDebug = TaskKey[Unit]("set-debug", "set debug build")
     val setRelease = TaskKey[Unit]("set-release", "set release build")
+    val transitiveAars = TaskKey[Seq[LibraryDependency]]("transitive-aars",
+      "a list of transitive aar dependencies, internal-use only")
     val aars = TaskKey[Seq[LibraryDependency]]("aars",
       "unpack the set of referenced aars")
     val testAggregate = TaskKey[Aggregate.AndroidTest]("test-aggregate",
