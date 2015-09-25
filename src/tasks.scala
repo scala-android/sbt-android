@@ -731,11 +731,11 @@ object Tasks {
     val minSdk = a.minSdkVersion
 
     layout.bin.mkdirs()
-    val output = layout.processedManifest
-    output.getParentFile.mkdirs()
     if (isLib)
       layout.manifest
     else {
+      val output = layout.processedManifest
+      output.getParentFile.mkdirs()
       bldr.mergeManifests(layout.manifest, Seq.empty.asJava,
         if (merge) libs.asJava else Seq.empty.asJava,
         pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
