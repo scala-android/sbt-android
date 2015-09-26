@@ -70,10 +70,10 @@ object Plugin extends sbt.Plugin {
   }
 
   @deprecated("Use Project.androidBuildWith(subprojects) instead", "1.3.3")
-  def androidBuild(projects: Project*): Seq[Setting[_]]=
+  def androidBuild(projects: ProjectReference*): Seq[Setting[_]]=
     androidBuild ++ buildWith(projects: _*)
 
-  def buildWith(projects: Project*): Seq[Setting[_]] = {
+  def buildWith(projects: ProjectReference*): Seq[Setting[_]] = {
     projects flatMap { p =>
       Seq(
         transitiveAars in Android <++= aars in Android in p,
@@ -81,7 +81,7 @@ object Plugin extends sbt.Plugin {
           collectResources in Android dependsOn (compile in Compile in p),
         compile in Compile <<= compile in Compile dependsOn(
           packageT in Compile in p),
-        localProjects in Android += LibraryProject(p.base)
+        localProjects in Android += LibraryProject((baseDirectory in p).value)
       )
     }
   }
@@ -91,11 +91,11 @@ object Plugin extends sbt.Plugin {
   lazy val androidBuildAar: Seq[Setting[_]] = androidBuildAar()
   @deprecated("Use aar files instead", "gradle compatibility")
   lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
-  def androidBuildAar(projects: Project*): Seq[Setting[_]] = {
+  def androidBuildAar(projects: ProjectReference*): Seq[Setting[_]] = {
     androidBuild(projects:_*) ++ buildAar
   }
   @deprecated("Use aar files instead", "gradle compatibility")
-  def androidBuildApklib(projects: Project*): Seq[Setting[_]] = {
+  def androidBuildApklib(projects: ProjectReference*): Seq[Setting[_]] = {
     androidBuild(projects:_*) ++ buildApklib
   }
 
@@ -879,7 +879,7 @@ trait AutoBuild extends Build {
         val libProjects = loadLibraryProjects(basedir, props)
 
         val project = Project(id=pkgFor(layout.manifest),
-          base=basedir).androidBuildWith(libProjects: _*).settings(
+          base=basedir).androidBuildWith(libProjects map(a ⇒ a: ProjectReference): _*).settings(
               platformTarget in Android := target(basedir)) enablePlugins
                 AndroidPlugin
         project +: libProjects
