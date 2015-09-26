@@ -81,7 +81,7 @@ object Plugin extends sbt.Plugin {
           collectResources in Android dependsOn (compile in Compile in p),
         compile in Compile <<= compile in Compile dependsOn(
           packageT in Compile in p),
-        localProjects in Android += LibraryProject((baseDirectory in p).value),
+        localProjects in Android += LibraryProject((projectLayout in Android in p).value),
         localProjects in Android <++= localProjects in Android in p
       )
     }

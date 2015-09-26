@@ -26,8 +26,9 @@ object Dependencies {
 
   trait LibraryDependency extends AndroidLibrary {
     import com.android.SdkConstants._
-    def path: File
-    lazy val layout = ProjectLayout(path)
+    def layout: ProjectLayout
+
+    def path = layout.base
 
     override def getExternalAnnotations = path / FN_ANNOTATIONS_ZIP
     override def getName = path.getCanonicalPath
@@ -52,7 +53,8 @@ object Dependencies {
     override def getLintJar = path / "lint.jar"
     override def getProguardRules = path / "proguard.txt"
 
-    override def getDependencies = Seq.empty.asJava
+    override def getDependencies: java.util.List[AndroidLibrary] =
+      Seq.empty.asJava
     override def getLibraryDependencies = getDependencies
     override def getManifestDependencies = getDependencies
 
@@ -67,13 +69,13 @@ object Dependencies {
     override def getResolvedCoordinates = null
   }
 
-  case class ApkLibrary(path: File) extends LibraryDependency with Pkg {
+  case class ApkLibrary(base: File) extends LibraryDependency with Pkg {
     implicit val output = (p: ProjectLayout) => new AndroidOutput(p)
     def target = path
     import com.android.SdkConstants._
 
     // apklib are always ant-style layouts
-    override lazy val layout = ProjectLayout.Ant(path)
+    override lazy val layout = ProjectLayout.Ant(base)
     lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
 
     override def getJniFolder = layout.libs
@@ -81,19 +83,19 @@ object Dependencies {
     override def getJarFile = path / "bin" / FN_CLASSES_JAR
   }
   def moduleIdFile(path: File) = path / "sbt-module-id"
-  case class AarLibrary(path: File) extends LibraryDependency {
+  case class AarLibrary(base: File) extends LibraryDependency {
     lazy val moduleID: ModuleID = {
       val mfile = moduleIdFile(path)
       val parts = IO.readLines(mfile).head.split(":")
       parts(0) % parts(1) % parts(2)
     }
-    override lazy val layout = new ProjectLayout.Ant(path) {
+    override lazy val layout = new ProjectLayout.Ant(base) {
       override def jniLibs = getJniFolder
     }
     override def getJniFolder = path / "jni"
   }
 
-  case class LibraryProject(path: File) extends LibraryDependency {
+  case class LibraryProject(layout: ProjectLayout) extends LibraryDependency {
     implicit val output = (p: ProjectLayout) => new AndroidOutput(p)
     import com.android.SdkConstants._
 
@@ -111,9 +113,9 @@ object Dependencies {
     override def getRenderscriptFolder = layout.renderscript
 
     override def getDependencies = {
-      ((IO.listFiles(aarsPath(path)) filter (_.isDirectory) map { d =>
+      ((IO.listFiles(layout.aars) filter (_.isDirectory) map { d =>
         AarLibrary(d): AndroidLibrary
-      }) ++ (IO.listFiles(apklibsPath(path)) filter (_.isDirectory) map { d =>
+      }) ++ (IO.listFiles(layout.apklibs) filter (_.isDirectory) map { d =>
         ApkLibrary(d): AndroidLibrary
       })).toList.asJava
     }
@@ -124,8 +126,8 @@ object Dependencies {
   object AutoLibraryProject {
     def apply(path: File) = new AutoLibraryProject(path)
   }
-  class AutoLibraryProject(override val path: File)
-  extends LibraryProject(path) with Pkg {
+  class AutoLibraryProject(path: File)
+  extends LibraryProject(ProjectLayout(path)) with Pkg {
     lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
 
     override def equals(obj: scala.Any) = obj match {
