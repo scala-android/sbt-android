@@ -198,7 +198,7 @@ object Resources {
       override def getAdditionalParameters = List.empty.asJava
     }
     val genPath = gen.getAbsolutePath
-    val all = collectdeps(libs) ++ libs
+    val all = collectdeps(libs)
     logger.debug("All libs: " + all)
     logger.debug("All packages: " + (all map { l =>
       XML.loadFile(l.getManifest).attribute("package").head.text
@@ -221,9 +221,24 @@ object Resources {
     bldr.processResources(aaptCommand, true)
   }
 
-  def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
-    val deps = libs flatMap (_.getDependencies.asScala)
+  case class LibEquals(lib: AndroidLibrary)
+  {
+    override def equals(other: Any) = {
+      (lib, other) match {
+        case (l @ AarLibrary(_), LibEquals(r @ AarLibrary(_))) ⇒
+          l.moduleID == r.moduleID
+        case _ ⇒ false
+      }
+    }
+  }
 
-    if (libs.isEmpty) Seq.empty else collectdeps(deps) ++ deps
+  def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
+    libs
+      .map(_.getDependencies.asScala)
+      .flatMap(collectdeps)
+      .++(libs)
+      .map(LibEquals.apply)
+      .distinct
+      .map(_.lib)
   }
 }
