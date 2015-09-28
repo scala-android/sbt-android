@@ -2,7 +2,7 @@ package android
 
 import java.io.File
 
-import android.Dependencies.{AarLibrary, ApkLibrary, LibraryDependency}
+import android.Dependencies.{AarLibrary, ApkLibrary, LibraryDependency, LibraryProject}
 import com.android.builder.core.{VariantType, AaptPackageProcessBuilder, AndroidBuilder}
 import com.android.builder.model.AaptOptions
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
@@ -227,6 +227,8 @@ object Resources {
       (lib, other) match {
         case (l @ AarLibrary(_), LibEquals(r @ AarLibrary(_))) ⇒
           l.moduleID == r.moduleID
+        case (l @ LibraryProject(_), LibEquals(r @ LibraryProject(_))) ⇒
+          l.path == r.path
         case _ ⇒ false
       }
     }
