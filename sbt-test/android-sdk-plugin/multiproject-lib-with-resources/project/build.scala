@@ -37,7 +37,7 @@ object MyProjectBuild extends Build {
                         "org.slf4j" % "slf4j-simple" % "1.7.5"))
 
   lazy val appSettings = android.Plugin.androidBuild(guidemate_lib) ++
-    List(localProjects in Android += LibraryProject(guidemate_lib.base),
+    List(localProjects in Android += LibraryProject.at(guidemate_lib.base),
         platformTarget in Android := "android-17",
         useProguard in Android := true,
         useProguardInDebug in Android := true,
