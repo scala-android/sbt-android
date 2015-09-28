@@ -121,9 +121,8 @@ object Dependencies {
     }
   }
 
-  object LibraryProject
-  {
-    def at(base: File) = LibraryProject(ProjectLayout(base))
+  object LibraryProject {
+    def apply(base: File): LibraryProject = LibraryProject(ProjectLayout(base))
   }
 
   trait Pkg {

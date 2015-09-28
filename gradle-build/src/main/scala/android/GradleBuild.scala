@@ -415,7 +415,7 @@ object GradleBuildSerializer {
            |    collectResources in Android dependsOn (compile in Compile in ${escaped(d)}),
            |  compile in Compile <<= compile in Compile dependsOn(
            |    sbt.Keys.`package` in Compile in ${escaped(d)}),
-           |  localProjects in Android += LibraryProject.at(${escaped(d)}.base)
+           |  localProjects in Android += LibraryProject(${escaped(d)}.base)
            |""".
             stripMargin
           } mkString ",\n"
