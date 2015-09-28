@@ -313,4 +313,7 @@ object Keys {
 
   def inProjectScope(p: ProjectReference)(ss: Seq[Setting[_]]) =
     inScope(ThisScope.copy(project = Select(p)))(ss)
+
+  implicit def projectsToRefs(pros: Seq[Project]): Seq[ProjectReference] =
+      pros map(a ⇒ a: ProjectReference)
 }
