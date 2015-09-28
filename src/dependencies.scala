@@ -120,6 +120,12 @@ object Dependencies {
       })).toList.asJava
     }
   }
+
+  object LibraryProject
+  {
+    def at(base: File) = LibraryProject(ProjectLayout(base))
+  }
+
   trait Pkg {
     def pkg: String
   }
