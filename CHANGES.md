@@ -1,5 +1,18 @@
 ## New features in 1.5.x ##
 
+* `1.5.1`:
+  * add `android:debug` command to wait for debugger to connect on app launch
+  * properly include assets from transitive aar and apklibs
+  * change `androidBuildWith` and `buildWith` to accept `ProjectReference`
+    arguments instead of `Project`
+  * build optimizations for multi-project builds (more transitive library fixes,
+    thanks @tek)
+  * ensure consistent usage of `useProguardInDebug`, `proguardScala`, etc.
+    * fix `typedResources` to default to the value of `autoScalaLibrary` not
+      `proguardScala`
+  * turn `lintFlags` into a task, rather than setting
+  * add `predexSkip` defaults to all local library projects, defines jars
+    which should be included in main dex (for sharding, etc)
 * `1.5.0`:
   * build outputs completely refactored, `genPath`, `binPath`, and other
     settings have been removed; outputs are completely configurable by setting
