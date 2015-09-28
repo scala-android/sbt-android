@@ -393,6 +393,7 @@ object Dex {
 
         if (predexed.isEmpty || predexed.exists (_.lastModified < i.lastModified)) {
           predexed foreach (_.delete())
+          s.log.debug("Pre-dex input: " + i.getAbsolutePath)
           s.log.info("Pre-dexing: " + i.getName)
           AndroidBuilder.preDexLibrary(i, out, multiDex, options, opts.buildTools,
             false, SbtJavaProcessExecutor, SbtProcessOutputHandler(s.log))

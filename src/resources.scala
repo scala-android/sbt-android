@@ -40,10 +40,14 @@ object Resources {
     resTarget.mkdirs()
     assetBin.mkdirs
 
+    val depassets = collectdeps(libs) collect {
+      case m: ApkLibrary => m
+      case n: AarLibrary => n
+    } collect { case n if n.getAssetsFolder.isDirectory => n.getAssetsFolder }
     // copy assets to single location
-    libs collect {
+    depassets ++ (libs collect {
       case r if r.layout.assets.isDirectory => r.layout.assets
-    } foreach { a => IO.copyDirectory(a, assetBin, false, true) }
+    }) foreach { a => IO.copyDirectory(a, assetBin, false, true) }
     extraAssets foreach { a =>
       if (a.isDirectory) IO.copyDirectory(a, assetBin, false, true)
     }

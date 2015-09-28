@@ -183,6 +183,8 @@ object Keys {
     "whether to enable dex sharding, requires v21+, debug-only")
   val dex = TaskKey[File]("dex", "run bytecode dexer")
   val predex = TaskKey[Seq[(File,File)]]("predex", "pre-dex input libraries task")
+  val predexSkip = TaskKey[Seq[File]]("predex-skip",
+    "files to skip predexing, go straight into main dex")
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "incremental dex, input jars to dex")
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
    "Maximum heapsize for dex, default 1024m")
@@ -226,7 +228,7 @@ object Keys {
   val debug = InputKey[Unit]("debug", "Run the app in debug mode, (wait for debugger on android)")
 
   val lint = TaskKey[Unit]("lint", "Run android lint checks independently of compile")
-  val lintFlags = SettingKey[LintCliFlags]("lint-flags",
+  val lintFlags = TaskKey[LintCliFlags]("lint-flags",
     "flags for running lint, default = quiet")
   val lintStrict = SettingKey[Boolean]("lint-strict",
     "fail the build if true, default: false")

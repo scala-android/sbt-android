@@ -916,12 +916,15 @@ object Tasks {
     val multiDex = opts.multi
     val shards = dexShards.value
     val legacy = dexLegacyMode.value
+    val skip = predexSkip.value.map(_.getCanonicalFile).toSet
     val classes = projectLayout.value.classesJar
     val pg = proguard.value
     val bldr = builder.value
     val s = streams.value
     val bin = projectLayout.value.predex
-    Dex.predex(opts, inputs, multiDex || shards, legacy, classes, pg, bldr, bin, s)
+    Dex.predex(opts,
+      inputs.map(_.getCanonicalFile) filterNot skip,
+      multiDex || shards, legacy, classes, pg, bldr, bin, s)
   }
 
   val proguardInputsTaskDef = ( proguardAggregate

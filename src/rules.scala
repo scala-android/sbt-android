@@ -418,6 +418,9 @@ object Plugin extends sbt.Plugin {
     retrolambdaAggregate    <<= retrolambdaAggregateTaskDef,
     testAggregate           <<= testAggregateTaskDef,
     predex                  <<= predexTaskDef,
+    predexSkip               := {
+      localProjects.value map (_.getJarFile)
+    },
     dex                     <<= dexTaskDef,
     dexShards                := false,
     dexLegacyMode            := {
