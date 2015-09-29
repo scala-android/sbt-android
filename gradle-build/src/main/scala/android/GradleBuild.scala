@@ -391,6 +391,7 @@ object Serializer {
 object GradleBuildSerializer {
   import Serializer._
   case class SbtProject(id: String, base: File, isApplication: Boolean, dependencies: Set[String], settings: Seq[SbtSetting]) {
+    override def toString = s"SbtProject(id=$id, base=$base, dependencies=$dependencies"
     def escaped(s: String) = {
       val needEscape = s.zipWithIndex exists { case (c, i) =>
         (i == 0 && !Character.isJavaIdentifierStart(c)) || (i != 0 && !Character.isJavaIdentifierPart(c))
@@ -433,7 +434,7 @@ object GradleBuildSerializer {
 
   def toposort(ps: List[SbtProject]): List[SbtProject] = {
     val projectMap = ps.map(p => (p.id.replace(":", ""), p)).toMap
-    Dag.topologicalSort(ps)(_.dependencies map projectMap)
+    Dag.topologicalSort(ps)(_.dependencies flatMap projectMap.get)
   }
 
   import language.existentials
