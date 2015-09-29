@@ -431,44 +431,9 @@ object GradleBuildSerializer {
        """.stripMargin
   }
 
-  case class ProjectNode(p: SbtProject, dependencies: Set[String])
   def toposort(ps: List[SbtProject]): List[SbtProject] = {
-    /*
-        L ? Empty list that will contain the sorted elements
-        S ? Set of all nodes with no incoming edges
-        while S is non-empty do
-            remove a node n from S
-            add n to tail of L
-            for each node m with an edge e from n to m do
-                remove edge e from the graph
-                if m has no other incoming edges then
-                    insert m into S
-        if graph has edges then
-            return error (graph has at least one cycle)
-        else
-            return L (a topologically sorted order)
-     */
-    @tailrec
-    def doSort(S: List[ProjectNode], L: List[ProjectNode], ms: List[ProjectNode]): List[ProjectNode] = S match {
-      case n :: nS =>
-        val l1 = n :: L
-        val (s1, ms1) = ms.foldLeft((nS, List.empty[ProjectNode])) { case ((ns2, ms2), m) =>
-          val m2 = m.copy(dependencies = m.dependencies - n.p.id)
-          if (m2.dependencies.isEmpty)
-            (m2 :: ns2, ms2)
-          else
-            (ns2, m2 :: ms2)
-        }
-
-        doSort(s1, l1, ms1)
-      case Nil =>
-        if (ms.nonEmpty)
-          throw new IllegalStateException("Project graph is cyclical")
-        L
-    }
-    val graph = ps.map(p => ProjectNode(p, p.dependencies))
-    val (s, ms) = graph.partition(_.dependencies.isEmpty)
-    doSort(s, Nil, ms).map(_.p).reverse
+    val projectMap = ps.map(p => (p.id, p)).toMap
+    Dag.topologicalSort(ps)(_.dependencies map projectMap)
   }
 
   import language.existentials
