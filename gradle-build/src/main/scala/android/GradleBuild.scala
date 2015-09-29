@@ -432,7 +432,7 @@ object GradleBuildSerializer {
   }
 
   def toposort(ps: List[SbtProject]): List[SbtProject] = {
-    val projectMap = ps.map(p => (p.id, p)).toMap
+    val projectMap = ps.map(p => (p.id.replace(":", ""), p)).toMap
     Dag.topologicalSort(ps)(_.dependencies map projectMap)
   }
 
