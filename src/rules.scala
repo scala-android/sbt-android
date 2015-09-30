@@ -7,6 +7,7 @@ import com.android.builder.model.SyncIssue
 import com.android.ide.common.process.BaseProcessOutputHandler.BaseProcessOutput
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
+import com.hanhuy.sbt.bintray.UpdateChecker
 import sbt._
 import sbt.Keys._
 
@@ -335,7 +336,24 @@ object Plugin extends sbt.Plugin {
       } groupBy(_.data) map { case (k,v) => v.head } toList
     },
     // end for Classpaths.configSettings
-    updateCheck              := UpdateChecker(streams.value.log),
+    updateCheck              := {
+      val log = streams.value.log
+      UpdateChecker("pfn", "sbt-plugins", "android-sdk-plugin") {
+        case Left(t) =>
+          log.debug("Failed to load version info: " + t)
+        case Right((versions, current)) =>
+          log.debug("available versions: " + versions)
+          log.debug("current version: " + BuildInfo.version)
+          log.debug("latest version: " + current)
+          if (versions(BuildInfo.version)) {
+            if (BuildInfo.version != current) {
+              log.warn(
+                s"UPDATE: A newer android-sdk-plugin is available:" +
+                  s" $version, currently running: ${BuildInfo.version}")
+            }
+          }
+      }
+    },
     antLayoutDetector        := {
       val log = streams.value.log
       val prj = thisProjectRef.value.project

@@ -45,7 +45,7 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
     Nil
 ) dependsOn(model % "provided")
 
-val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettings:_*).settings(
+val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++ bintrayPublishSettings:_*).settings(
   version := gradleBuildVersion,
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
@@ -53,6 +53,7 @@ val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettin
   organization := "com.hanhuy.sbt",
   scalacOptions ++= Seq("-deprecation","-Xlint","-feature"),
   libraryDependencies ++= Seq(
+    "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
     "org.gradle" % "gradle-tooling-api" % "2.6" % "provided",
     "org.slf4j" % "slf4j-api" % "1.7.10" // required by gradle-tooling-api
   ),
@@ -76,7 +77,10 @@ val gradlebuild = project.in(file("gradle-build")).settings(bintrayPublishSettin
   repository in bintray := "sbt-plugins",
   publishMavenStyle := false,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
-  bintrayOrganization in bintray := None
+  bintrayOrganization in bintray := None,
+  sourceGenerators in Compile <+= buildInfo,
+  buildInfoKeys := Seq(name, version),
+  buildInfoPackage := "android.gradle"
 ).settings(addSbtPlugin(
   "com.hanhuy.sbt" % "android-sdk-plugin" % pluginVersion)).dependsOn(model % "provided")
 
@@ -102,7 +106,7 @@ libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "5.0.4",
   "org.javassist" % "javassist" % "3.20.0-GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
-  "io.argonaut" %% "argonaut" % "6.1",
+  "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
   "com.android.tools.build" % "builder" % "1.3.1",
   "com.android.tools.build" % "gradle-core" % "1.3.1" excludeAll
     ExclusionRule(organization = "net.sf.proguard"),

@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit
 import android.Keys._
 import com.android.builder.model.{JavaLibrary, AndroidLibrary, MavenCoordinates}
 import com.hanhuy.gradle.discovery.GradleBuildModel
+import com.hanhuy.sbt.bintray.UpdateChecker
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 import org.gradle.tooling.{GradleConnector, ProjectConnection}
 import sbt.Keys._
@@ -27,7 +28,24 @@ trait GradleBuild extends Build {
     onLoad in Global := (onLoad in Global).value andThen { s =>
       Project.runTask(updateCheck in Gradle, s).fold(s)(_._1)
     },
-    updateCheck in Gradle := GradleUpdateChecker(streams.value.log)
+    updateCheck in Gradle := {
+      val log = streams.value.log
+      UpdateChecker("pfn", "sbt-plugins", "android-gradle-build") {
+        case Left(t) =>
+          log.debug("Failed to load version info: " + t)
+        case Right((versions, current)) =>
+          log.debug("available versions: " + versions)
+          log.debug("current version: " + android.gradle.BuildInfo.version)
+          log.debug("latest version: " + current)
+          if (versions(android.gradle.BuildInfo.version)) {
+            if (BuildInfo.version != current) {
+              log.warn(
+                s"UPDATE: A newer android-gradle-build is available:" +
+                  s" $version, currently running: ${android.gradle.BuildInfo.version}")
+            }
+          }
+      }
+    }
   )
 
   val generatedScript = file(".") / "00-gradle-generated.sbt"
