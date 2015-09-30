@@ -1,7 +1,6 @@
 package android
 
-import java.io.{StringWriter, InputStreamReader}
-import java.nio.charset.Charset
+import java.io.StringWriter
 
 import argonaut._, Argonaut._
 import sbt.{IO, Using, Logger}
@@ -14,7 +13,6 @@ object UpdateChecker {
     "https://api.bintray.com/packages/pfn/sbt-plugins/android-sdk-plugin")
   def apply(log: Logger): Unit = {
     Future {
-      val uc = bintray.openConnection()
       Using.urlReader(IO.utf8)(bintray) { in =>
         val sw = new StringWriter
         val buf = Array.ofDim[Char](8192)
