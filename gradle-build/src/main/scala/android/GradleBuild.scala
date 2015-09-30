@@ -20,6 +20,16 @@ import scala.util.Try
  * @author pfnguyen
  */
 trait GradleBuild extends Build {
+
+  val Gradle = config("gradle")
+
+  override def settings = super.settings ++ List(
+    onLoad in Global := (onLoad in Global).value andThen { s =>
+      Project.runTask(updateCheck in Gradle, s).fold(s)(_._1)
+    },
+    updateCheck in Gradle := GradleUpdateChecker(streams.value.log)
+  )
+
   val generatedScript = file(".") / "00-gradle-generated.sbt"
 
   def inGradleProject(project: String)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
