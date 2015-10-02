@@ -51,7 +51,7 @@ trait GradleBuild extends Build {
   val generatedScript = file(".") / "00-gradle-generated.sbt"
 
   def inGradleProject(project: String)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
-    inScope(ThisScope.copy(project = Select(LocalProject(project))))(ss)
+    inScope(ThisScope.copy(project = Select(ProjectRef(file(".").getCanonicalFile, project))))(ss)
 
   def importFromGradle(): Unit = {
     val start = System.currentTimeMillis
