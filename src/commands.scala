@@ -746,7 +746,7 @@ object Commands {
           Parser.oneOf(literal("--") :: fl).map(f => if ("--" == f) None else Option(f))
         }
 
-        (Parser.success(p) ~ token(Space ~> typeParser) ~ token(Space ~> flavorParser)).map {
+        (Parser.success(p) ~ token(Space ~> typeParser) ~ (EOF.map(_ => Option.empty[String]) | token(Space ~> flavorParser))).map {
           case (((a,b),c)) => (a,b,c)
         }
       }
