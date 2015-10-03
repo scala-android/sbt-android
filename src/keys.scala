@@ -53,6 +53,10 @@ object Keys {
   val bootClasspath = TaskKey[sbt.Keys.Classpath](
     "boot-classpath", "boot classpath for android platform jar")
   val updateCheck = TaskKey[Unit]("update-check", "Check for a new version of the plugin")
+  val flavors = SettingKey[Map[String,Seq[Setting[_]]]]("flavors",
+    "build flavor definitions, map of flavor names to settings")
+  val buildTypes = SettingKey[Map[String,Seq[Setting[_]]]]("build-types",
+    "build type definitions, map of build type names to settings")
 
   // layout-related keys
   val projectLayout = SettingKey[ProjectLayout]("project-layout",
@@ -262,7 +266,7 @@ object Keys {
   }
 
   private[android] object Internal {
-    val buildTools = taskKey[BuildToolInfo]("Android build tools")
+    val buildTools = TaskKey[BuildToolInfo]("build-tools", "Android build tools")
     val ilogger = SettingKey[Logger => ILogger]("ilogger",
       "internal Android SDK logger")
     val debugTestsGenerator = TaskKey[Seq[File]]("debug-tests-generator",

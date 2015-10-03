@@ -15,9 +15,8 @@ object AndroidPlugin extends AutoPlugin {
 
   override def globalSettings = (onLoad := onLoad.value andThen { s =>
     val e = Project.extract(s)
-    val base = e.currentRef.build
 
-    val androids = e.structure.allProjects map (p => ProjectRef(base, p.id)) filter {
+    val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter {
       ref => e.getOpt(projectLayout in(ref, Android)).isDefined
     }
     val androidIds = androids.map(_.project).toSet

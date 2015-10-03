@@ -1413,7 +1413,7 @@ object Tasks {
     p
   }
 
-  val unmanagedJarsTaskDef = ( unmanagedJars in Compile
+  val unmanagedJarsTaskDef = ( unmanagedJars
                              , baseDirectory
                              , buildTools in Android
                              , rsSupportMode in Android

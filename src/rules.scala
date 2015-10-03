@@ -243,18 +243,8 @@ object Plugin extends sbt.Plugin {
     },
     scalacOptions in console    := Seq.empty
   )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
-    // support for android:test
-    classDirectory              := (classDirectory in Test).value,
-    sourceDirectory            <<= (projectLayout in Android) (_.testSources),
-    managedSources              := Nil,
-    unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
-      Set(l.testSources, l.testJavaSource, l.testScalaSource).toSeq),
-    unmanagedSources           <<= Defaults.collectFiles(
-      unmanagedSourceDirectories,
-      includeFilter in (Compile,unmanagedSources),
-      excludeFilter in (Compile,unmanagedSources)),
-    scalacOptions               := (scalacOptions in Compile).value,
-    javacOptions                := (javacOptions in Compile).value,
+    flavors                     := Map.empty,
+    buildTypes                  := Map.empty,
     lint                        := {
       implicit val output = outputLayout.value
       AndroidLint(projectLayout.value,
@@ -269,6 +259,18 @@ object Plugin extends sbt.Plugin {
     lintStrict                  := false,
     lintEnabled                 := true,
     lintDetectors               := AndroidLint.lintDetectorList,
+    // support for android:test
+    classDirectory              := (classDirectory in Test).value,
+    sourceDirectory            <<= (projectLayout in Android) (_.testSources),
+    managedSources              := Nil,
+    unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
+      Set(l.testSources, l.testJavaSource, l.testScalaSource).toSeq),
+    unmanagedSources           <<= Defaults.collectFiles(
+      unmanagedSourceDirectories,
+      includeFilter in (Compile,unmanagedSources),
+      excludeFilter in (Compile,unmanagedSources)),
+    scalacOptions               := (scalacOptions in Compile).value,
+    javacOptions                := (javacOptions in Compile).value,
     compile := {
       def exported(w: PrintWriter, command: String): Seq[String] => Unit =
         args => w.println((command +: args).mkString(" "))
@@ -696,7 +698,7 @@ object Plugin extends sbt.Plugin {
   lazy val androidCommands: Seq[Setting[_]] = Seq(
     commands ++= Seq(genAndroid, genAndroidSbt, pidcat, logcat, adbLs, adbShell,
       devices, device, reboot, adbScreenOn, adbRunas, adbKill,
-      adbWifi, adbPush, adbPull, adbCat, adbRm)
+      adbWifi, adbPush, adbPull, adbCat, adbRm, variant, variantClear)
   )
 
   private def adbCat = Command(
@@ -727,12 +729,12 @@ object Plugin extends sbt.Plugin {
   private def adbRunas = Command(
     "adb-runas", ("adb-runas", "execute shell commands on device as a debuggable package user"),
     "Run a command on a selected android device using adb with the permissions of the current package"
-  )(stringParser)(runasAction)
+  )(projectAndStringParser)(runasAction)
 
   private def adbKill = Command(
     "adb-kill", ("adb-kill", "kill the current/specified package"),
     "Kills the process if it is not currently in the foreground"
-  )(stringParser)(killAction)
+  )(projectAndStringParser)(killAction)
 
   private def adbLs = Command(
     "adb-ls", ("adb-ls", "list device files"),
@@ -747,7 +749,7 @@ object Plugin extends sbt.Plugin {
   private def pidcat = Command(
     "pidcat", ("pidcat", "grab device logcat for a package"),
     "Read logcat for a given package, defaults to project package if no arg"
-  )(stringParser)(pidcatAction)
+  )(projectAndStringParser)(pidcatAction)
 
   private def genAndroid = Command(
     "gen-android", ("gen-android", "Create an android project"),
@@ -782,6 +784,14 @@ object Plugin extends sbt.Plugin {
   private def devices = Command.command(
     "devices", "List connected and online android devices",
     "List all connected and online android devices")(devicesAction)
+
+  private def variant = Command("variant",
+    ("variant", "Load an Android build variant configuration (buildType + flavor)"),
+    "Usage: variant[/project] <buildType> <flavor>")(variantParser)(variantAction)
+
+  private def variantClear = Command("variant-reset",
+    ("variant-reset", "Clear loaded variant configuration from the project"),
+    "Usage: variant-reset[/project]")(projectParser)(variantClearAction)
 
   def fail[A](msg: => String): A = {
     throw new MessageOnlyException(msg)

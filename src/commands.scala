@@ -29,8 +29,7 @@ object Commands {
     ()
   }
 
-  def deviceList(state: State): Seq[IDevice] =
-    deviceList(sdkpath(state), state.log)
+  def deviceList(state: State): Seq[IDevice] = deviceList(sdkpath(state), state.log)
 
   def deviceList(sdkpath: String, log: Logger): Seq[IDevice] = {
     initAdb
@@ -430,12 +429,31 @@ object Commands {
   }
 
   val stringParser: State => Parser[String] = state => {
-    val anything = Parser.charClass(c => true)
-    val str = Parser.oneOrMore(anything) map (_ mkString "")
+    val str = Parser.oneOrMore(Parsers.any) map (_ mkString "")
     (EOF map { _ => ""}) | (Space ~> str)
   }
 
-  val pidcatAction: (State, String) => State = (state, args) => {
+  val projectParser: State => Parser[Option[ProjectRef]] = state => {
+    val NotSepClass = charClass(_ != '/')
+    val extracted = Project.extract(state)
+    import extracted._
+    val prjs = structure.allProjects.map(rp =>
+      (rp.id, ProjectRef(structure.root, rp.id))).filter { case (k, ref) =>
+      getOpt(Keys.projectLayout in Keys.Android in ref).isDefined &&
+        k != currentRef.project
+    }.toMap
+    val ids = prjs.keys.map(Parser.literal).toList
+
+    if (ids.isEmpty) Parser.success(None)
+    else
+      (Parser.success(None) <~ Parser.opt(NotSepClass)) | token("/" ~> oneOf(ids)).map(prjs.get)
+  }
+
+  val projectAndStringParser: State => Parser[(Option[ProjectRef],String)] = state =>
+    projectParser(state) ~ stringParser(state)
+
+  val pidcatAction: (State, (Option[ProjectRef],String)) => State = {
+    case (state, (prj,args)) =>
     val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
     val PID_START = """^Start proc ([a-zA-Z0-9._:]+) for ([a-z]+ [^:]+): pid=(\d+) uid=(\d+) gids=(.*)$""".r
     val PID_START5_1 = """^Start proc (\d+):([a-zA-Z0-9._:]+)/[a-z0-9]+ for (.*)$""".r
@@ -444,17 +462,13 @@ object Commands {
     val PID_DEATH = """^Process ([a-zA-Z0-9._:]+) \(pid (\d+)\) has died.?$""".r
 
     val sdk = sdkpath(state)
-    val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
-    val packageName = thisProject flatMap { prj =>
-      scala.util.control.Exception.catching(classOf[RuntimeException]) opt {
-        Project.extract(state).runTask(
-          Keys.applicationId in(prj, Keys.Android), state)._2
-      }
-    }
+    val packageName = thisPackageName(state, prj)
 
     val (pkgOpt, tags) = if (args.trim.nonEmpty) {
       val parts = args.trim.split(" ")
-      if (parts.size > 1) {
+      if (prj.isDefined) {
+        (packageName, parts.toSeq)
+      } else if (parts.size > 1) {
         (Some(parts(0)), parts.tail.toSeq)
       } else {
         (Some(parts(0)), Seq.empty[String])
@@ -569,32 +583,26 @@ object Commands {
     } getOrElse Plugin.fail("no device selected")
   }
 
-  val killAction: (State, String) => State = {
-    case (state, str) =>
+  val killAction: (State, (Option[ProjectRef],String)) => State = {
+    case (state, (prj,str)) =>
       val sdk = sdkpath(state)
-      val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
-      val packageName = thisProject flatMap { prj =>
-        Try(Project.extract(state).runTask(
-          Keys.applicationId in(prj, Keys.Android), state)).toOption map (_._2)
-      }
+      val packageName = thisPackageName(state, prj)
       val targetPackage = Option(str).filter(_.nonEmpty) orElse packageName
       if (targetPackage.isEmpty)
         Plugin.fail("Usage: adb-kill [<package-name>]")
       state.log.info("Attempting to kill: " + targetPackage.get)
       targetDevice(sdk, state.log) map { d =>
-        executeShellCommand(d,
-          "am kill " + FileEntry.escape(targetPackage.get), state)
+        val api = Try(d.getProperty(IDevice.PROP_BUILD_API_LEVEL).toInt).toOption getOrElse 0
+
+        val cmd = if (api >= 11) "am force-stop " else "am kill "
+        executeShellCommand(d, cmd + FileEntry.escape(targetPackage.get), state)
         state
       } getOrElse Plugin.fail("no device selected")
   }
-  val runasAction: (State, String) => State = {
-    case (state, args) =>
+  val runasAction: (State, (Option[ProjectRef],String)) => State = {
+    case (state, (prj,args)) =>
       val sdk = sdkpath(state)
-      val thisProject = Project.extract(state).getOpt(sbt.Keys.thisProjectRef)
-      val packageName = thisProject flatMap { prj =>
-        Try(Project.extract(state).runTask(
-          Keys.applicationId in(prj, Keys.Android), state)).toOption map (_._2)
-      }
+      val packageName = thisPackageName(state, prj)
       if (packageName.isEmpty)
         Plugin.fail("Unable to determine package name\n\n" +
           "Usage: adb-runas <command> [args...]")
@@ -701,5 +709,59 @@ object Commands {
     override def isCancelled = false
 
     def result = _result
+  }
+
+  def thisPackageName(s: State, ref: Option[ProjectRef]) = {
+    val extracted = Project.extract(s)
+    val prj = ref getOrElse extracted.currentRef
+    Try {
+      extracted.runTask(Keys.applicationId in(prj, Keys.Android), s)._2
+    }.toOption
+  }
+
+  type VariantResult = (ProjectRef,Option[String],Option[String])
+  type VariantParser = Parser[VariantResult]
+  val variantParser: State => VariantParser = s => {
+    val extracted = Project.extract(s)
+    projectParser(s) flatMap { r =>
+      val prj = r.orElse {
+        val ref = extracted.currentRef
+        if (extracted.getOpt(Keys.projectLayout in Keys.Android in ref).isDefined)
+          Some(ref)
+        else None
+      }
+
+      prj.fold(Parser.failure("No Android projects found"): VariantParser) { p =>
+        val typeParser = extracted.getOpt(Keys.buildTypes in Keys.Android in p).fold {
+          token("--").map(_ => Option.empty[String])
+        } { buildTypes =>
+          val bt = buildTypes.keys.map(literal).toList
+          Parser.oneOf(literal("--") :: bt).map(b => if ("--" == b) None else Option(b))
+        }
+
+        val flavorParser = extracted.getOpt(Keys.flavors in Keys.Android in p).fold {
+          token("--").map(_ => Option.empty[String])
+        } { flavors =>
+          val fl = flavors.keys.map(literal).toList
+          Parser.oneOf(literal("--") :: fl).map(f => if ("--" == f) None else Option(f))
+        }
+
+        (Parser.success(p) ~ token(Space ~> typeParser) ~ token(Space ~> flavorParser)).map {
+          case (((a,b),c)) => (a,b,c)
+        }
+      }
+    }
+  }
+  val variantAction: (State, VariantResult) => State = {
+    case (s, (prj, buildType, flavor)) =>
+      VariantSettings.setVariant(s, prj, buildType, flavor)
+  }
+
+  val variantClearAction: (State, Option[ProjectRef]) => State = {
+    (state, ref) =>
+      ref match {
+        case None      => VariantSettings.clearVariant(state)
+        case Some(prj) => VariantSettings.clearVariant(state, prj)
+      }
   }
 }
