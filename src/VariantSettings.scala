@@ -49,8 +49,7 @@ object VariantSettings {
         flavor.map(f => flavors.toSeq.flatMap(_.getOrElse(f, Nil))).getOrElse(Nil) ++
           buildType.map(t => buildTypes.toSeq.flatMap(_.getOrElse(t, Nil))).getOrElse(Nil)
 
-      val ss2 = ss map {
-        _.mapKey(new Def.MapScoped {
+        val scopeMod = new Def.MapScoped {
           override def apply[T](a: Def.ScopedKey[T]) = {
             val scope0 = if (a.scope.project == This)
               a.scope.copy(project = Select(project)) else a.scope
@@ -58,7 +57,9 @@ object VariantSettings {
             val scope2 = if (scope1.extra == This) scope1.copy(extra = Global) else scope1
             a.copy(scope = scope2)
           }
-        })
+        }
+      val ss2 = ss map {
+        _.mapKey(scopeMod).mapReferenced(scopeMod)
       }
       val newVariant = variants.copy(append = variants.append + ((project, ss2)))
       val bt = buildType.fold("")(t => s"buildType=$t ")
