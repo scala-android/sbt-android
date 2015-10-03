@@ -121,6 +121,29 @@ object Dependencies {
     }
   }
 
+  case class LibEquals[A <: AndroidLibrary](lib: A)
+  {
+    override def equals(other: Any) = {
+      (lib, other) match {
+        case (l @ AarLibrary(_), LibEquals(r @ AarLibrary(_))) ⇒
+          l.moduleID == r.moduleID
+        case (l @ LibraryProject(_), LibEquals(r @ LibraryProject(_))) ⇒
+          l.path.getCanonicalFile == r.path.getCanonicalFile
+        case _ ⇒ false
+      }
+    }
+  }
+
+  implicit class LibrarySeqOps[A <: AndroidLibrary](libs: Seq[A])
+  {
+    def distinctLibs = {
+      libs
+        .map(LibEquals.apply)
+        .distinct
+        .map(_.lib)
+    }
+  }
+
   object LibraryProject {
     def apply(base: File): LibraryProject = LibraryProject(ProjectLayout(base))
   }
@@ -148,6 +171,45 @@ object Dependencies {
     def androidBuildWith(deps: ProjectReference*): Project = {
       project.settings(Plugin.androidBuild ++ Plugin.buildWith(deps:_*):_*) dependsOn (
         deps map { x => x: ClasspathDep[ProjectReference] }:_*)
+    }
+  }
+
+  implicit class ModuleIDOps(id: ModuleID)
+  {
+    def revMatches(other: String) = {
+      def partMatches(p: (String, String)) = p._1 == p._2 || p._1 == "+"
+      val parts = id.revision.split('.')
+      val otherParts = other.split('.')
+      val partsMatch = parts zip(otherParts) forall(partMatches)
+      partsMatch && (
+        parts.length == otherParts.length ||
+        (parts.length < otherParts.length) && parts.lastOption.exists(_ == "+")
+      )
+    }
+
+    def matches(other: ModuleID) = {
+      id.organization == other.organization && id.name == other.name &&
+        revMatches(other.revision)
+    }
+  }
+
+  implicit class ProjectRefOps(project: ProjectRef)
+  (implicit struct: BuildStructure)
+  {
+    def resolved = Project.getProject(project, struct)
+
+    def deps = resolved map(_.dependencies) getOrElse(Nil) map(_.project)
+
+    def deepDeps: Seq[ProjectRef] =
+      ((deps flatMap(_.deepDeps)) :+ project).distinct
+
+    def libraryDependencies =
+      (sbt.Keys.libraryDependencies in project)
+        .get(struct.data)
+        .getOrElse(Nil)
+
+    def dependsOn(id: ModuleID) = {
+      libraryDependencies exists(_.matches(id))
     }
   }
 }

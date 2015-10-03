@@ -140,6 +140,7 @@ object Keys {
     "android library projects to reference, must be built separately") in Android
   val libraryProject = SettingKey[Boolean]("library-project",
     "setting indicating whether or not this is a library project") in Android
+  val checkAars = TaskKey[Unit]("check-aars", "check validity of aar deps") in Android
 
   // manifest-related keys
   val applicationId = TaskKey[String]("application-id",

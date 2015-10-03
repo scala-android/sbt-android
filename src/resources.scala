@@ -18,6 +18,8 @@ import language.postfixOps
 
 import BuildOutput._
 
+import Dependencies.LibrarySeqOps
+
 object Resources {
 
   def doCollectResources( bldr: AndroidBuilder
@@ -225,26 +227,11 @@ object Resources {
     bldr.processResources(aaptCommand, true)
   }
 
-  case class LibEquals(lib: AndroidLibrary)
-  {
-    override def equals(other: Any) = {
-      (lib, other) match {
-        case (l @ AarLibrary(_), LibEquals(r @ AarLibrary(_))) ⇒
-          l.moduleID == r.moduleID
-        case (l @ LibraryProject(_), LibEquals(r @ LibraryProject(_))) ⇒
-          l.path == r.path
-        case _ ⇒ false
-      }
-    }
-  }
-
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
     libs
       .map(_.getDependencies.asScala)
       .flatMap(collectdeps)
       .++(libs)
-      .map(LibEquals.apply)
-      .distinct
-      .map(_.lib)
+      .distinctLibs
   }
 }
