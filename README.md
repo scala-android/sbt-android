@@ -136,8 +136,8 @@ found on the #sbt-android IRC channel on Freenode
   * IntelliJ 14 now includes native support for importing projects from
     `android-sdk-plugin`. The process generally works well, however there
     are still several caveats:
-    * Android configurations are not properly loaded until
-     JetBrains/sbt-structure#26 has released
+    * Android configurations will not load properly until
+      `Scala plugin 1.5.4` is released
     * The `idea-sbt-plugin` is still required to actually perform the build
     * `classDirectory in Compile` is not automatically included as a library,
       as a result apklib classes will not resolve unless it is added manually
