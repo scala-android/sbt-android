@@ -197,7 +197,9 @@ trait GradleBuild extends Build {
   }
   def processDirectoryAt(base: File, initscript: File,
                          connector: GradleConnector,
-                         repositories: List[Resolver] = Nil, seen: Set[File] = Set.empty): (Set[File],List[SbtProject]) = {
+                         repositories: List[Resolver] = Nil, seen: Set[File] = Set.empty,
+                         origin: Option[File] = None,
+                         path: Option[String] = None): (Set[File],List[SbtProject]) = {
     val c = connector.forProjectDirectory(base).connect()
     val model = gradleBuildModel(c, initscript)
     val prj = model.getGradleProject
@@ -211,7 +213,11 @@ trait GradleBuild extends Build {
       val childDir = Try(child.getProjectDirectory).getOrElse(file(child.getPath.replace(":", ""))).getCanonicalFile
       if (!saw(childDir)) {
         println("Processing gradle sub-project at: " + childDir.getName)
-        val (visited, subs) = processDirectoryAt(childDir, initscript, connector, repos, saw + childDir)
+        val (visited, subs) = processDirectoryAt(childDir,
+          initscript, connector, repos, saw + childDir,
+          origin orElse Some(base),
+          origin flatMap { o => childDir.getParentFile.getCanonicalFile relativeTo
+            o.getCanonicalFile } map (_.getPath))
         (visited ++ saw, subs ++ acc)
       } else
         (saw,acc)
@@ -311,7 +317,9 @@ trait GradleBuild extends Build {
           extraDirectories(sourceProvider.getResDirectories, extraResDirectories in Android) ++
           extraDirectories(sourceProvider.getResourcesDirectories, resourceDirectories in Compile) ++
           extraDirectories(sourceProvider.getAssetsDirectories, extraAssetDirectories in Android)
-        val sp = SbtProject(ap.getName, base, discovery.isApplication,
+        val sp = SbtProject(
+          path.fold("")(_.replace("/","").replace("\\","")) + ap.getName,
+          base, discovery.isApplication,
           projects.map(_.getProject.replace(":","")).toSet, buildTypes, flavors,
           optional ++ libs ++ localAar ++ standard ++ unmanaged ++ defaultConfig.settings)
         (visited, sp :: subprojects)
