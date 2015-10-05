@@ -8,7 +8,8 @@ import VariantSettings._
  */
 object VariantSettings {
   type VariantMap = Map[ProjectRef, Seq[Setting[_]]]
-  def empty = VariantSettings(Map.empty, Nil)
+  type VariantStatus = Map[ProjectRef, (Option[String],Option[String])]
+  def empty = VariantSettings(Map.empty, Nil, Map.empty)
 
   private[android] val explicitGlobalLogLevels = AttributeKey[Boolean](
     "explicit-global-log-levels", "True if the global logging levels were explicitly set by the user.", 10)
@@ -22,7 +23,7 @@ object VariantSettings {
     val session = Project.extract(s).session
     s.log.info("Clearing variant configuration from " + session.current.project)
     withVariant(s)(variants => reapply(session,
-      variants.copy(append = variants.append - session.current), Project.structure(s), s))
+      variants.copy(append = variants.append - session.current, status = variants.status - session.current), Project.structure(s), s))
   }
   def clearAllVariants(s: State): State = {
     val session = Project.extract(s).session
@@ -34,39 +35,58 @@ object VariantSettings {
     val session = Project.extract(s).session
     s.log.info("Clearing variant configuration from " + ref.project)
     withVariant(s)(variants => reapply(session,
-      variants.copy(append = variants.append - ref), Project.structure(s), s))
+      variants.copy(append = variants.append - ref, status = variants.status - ref), Project.structure(s), s))
   }
 
+  def fixProjectScope(prj: ProjectRef): Setting[_] => Setting[_] = s => {
+    val mapper = new Def.MapScoped {
+      override def apply[T](a: Def.ScopedKey[T]) = {
+        val scope0 = if (a.scope.project == This)
+          a.scope.copy(project = Select(prj)) else a.scope
+        val scope1 = if (scope0.task == This) scope0.copy(task = Global) else scope0
+        val scope2 = if (scope1.extra == This) scope1.copy(extra = Global) else scope1
+        a.copy(scope = scope2)
+      }
+    }
+    s.mapKey(mapper).mapReferenced(mapper)
+  }
   def setVariant(s: State,
                  project: ProjectRef,
                  buildType: Option[String],
                  flavor: Option[String]): State = withVariant(s) { variants =>
     if (buildType.nonEmpty || flavor.nonEmpty) {
       val extracted = Project.extract(s)
-      val buildTypes = extracted.getOpt(Keys.buildTypes in Keys.Android in project)
-      val flavors = extracted.getOpt(Keys.flavors in Keys.Android in project)
+      val buildTypes = extracted.get(Keys.buildTypes in Keys.Android in project)
+      val flavors = extracted.get(Keys.flavors in Keys.Android in project)
       val ss: Seq[Setting[_]] =
-        flavor.map(f => flavors.toSeq.flatMap(_.getOrElse(f, Nil))).getOrElse(Nil) ++
-          buildType.map(t => buildTypes.toSeq.flatMap(_.getOrElse(t, Nil))).getOrElse(Nil)
+        flavor.toSeq.flatMap(f => flavors.getOrElse(f, Nil)) ++
+          buildType.toSeq.flatMap(t => buildTypes.getOrElse(t, Nil))
 
-        val scopeMod = new Def.MapScoped {
-          override def apply[T](a: Def.ScopedKey[T]) = {
-            val scope0 = if (a.scope.project == This)
-              a.scope.copy(project = Select(project)) else a.scope
-            val scope1 = if (scope0.task == This) scope0.copy(task = Global) else scope0
-            val scope2 = if (scope1.extra == This) scope1.copy(extra = Global) else scope1
-            a.copy(scope = scope2)
-          }
-        }
-      val ss2 = ss map {
-        _.mapKey(scopeMod).mapReferenced(scopeMod)
-      }
-      val newVariant = variants.copy(append = variants.append + ((project, ss2)))
-      val bt = buildType.fold("")(t => s"buildType=$t ")
-      val fl = flavor.fold("")(f => s"flavor=$f ")
-      s.log.info(s"Applying variant settings $bt${fl}to ${project.project}...")
+      val ss2 = ss map fixProjectScope(project)
+      val newVariant = variants.copy(append = variants.append + ((project, ss2)), status = variants.status + ((project, (buildType,flavor))))
+      val bt = buildType.getOrElse("(none)")
+      val fl = flavor.getOrElse("(none)")
+      s.log.info(s"Applying variant settings buildType=$bt flavor=$fl to ${project.project}...")
       reapply(extracted.session, newVariant, extracted.structure, s)
     } else s
+  }
+  def showVariantStatus(s: State, project: ProjectRef): State = withVariant(s) { variants =>
+      val extracted = Project.extract(s)
+      val (bt,f) = variants.status.getOrElse(project, (None,None))
+      val buildTypes = extracted.get(Keys.buildTypes in Keys.Android in project)
+      val flavors = extracted.get(Keys.flavors in Keys.Android in project)
+      val bts = bt.getOrElse("(none)")
+      val fs = f.getOrElse("(none)")
+      s.log.info(s"${project.project}: buildType=$bts flavor=$fs")
+      val abt = if (buildTypes.isEmpty) "  (none)"
+      else buildTypes.keys map ("  " + _) mkString "\n"
+      val af = if (flavors.isEmpty) "  (none)"
+      else flavors.keys map ("  " + _) mkString "\n"
+      s.log.info("Available buildTypes:")
+      s.log.info(abt)
+      s.log.info("Available flavors:")
+      s.log.info(af)
+      s
   }
 
   def reapply(session: SessionSettings, newVariant: VariantSettings, structure: BuildStructure, s: State): State =
@@ -119,10 +139,10 @@ object VariantSettings {
     }
 
 }
-final case class VariantSettings(append: VariantMap, rawAppend: Seq[Setting[_]]) {
+final case class VariantSettings(append: VariantMap, rawAppend: Seq[Setting[_]], status: VariantStatus) {
   def appendRaw(ss: Seq[Setting[_]]): VariantSettings = copy(rawAppend = rawAppend ++ ss)
   def mergeSettings: Seq[Setting[_]] = merge(append) ++ rawAppend
-  def clearExtraSettings: VariantSettings = copy(append = Map.empty, rawAppend = Nil)
+  def clearExtraSettings: VariantSettings = empty
 
   private[this] def merge(map: VariantMap): Seq[Setting[_]] = map.values.toList.flatten[Setting[_]]
 }

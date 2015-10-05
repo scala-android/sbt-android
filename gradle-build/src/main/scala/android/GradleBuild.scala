@@ -52,7 +52,7 @@ trait GradleBuild extends Build {
   val generatedScript = file(".") / "00-gradle-generated.sbt"
 
   def inGradleProject(project: String)(ss: Seq[Setting[_]]): Seq[Setting[_]] =
-    inScope(ThisScope.copy(project = Select(ProjectRef(file(".").getCanonicalFile, project))))(ss)
+    ss map VariantSettings.fixProjectScope(ProjectRef(file(".").getCanonicalFile, project))
 
   def importFromGradle(): Unit = {
     val start = System.currentTimeMillis
@@ -78,7 +78,9 @@ trait GradleBuild extends Build {
       val elapsed = (end - start) / 1000.0f
       println(f"Discovered gradle projects (in $elapsed%.02fs):")
       println(discovered.map(p => f"${p.id}%20s at ${p.base}").mkString("\n"))
-      IO.writeLines(generatedScript, discovered map (_.serialized))
+      IO.write(generatedScript,
+        "// AUTO-GENERATED SBT FILE, DO NOT MODIFY" ::
+          (discovered map (_.serialized)) mkString "\n" replace ("\r", ""))
     } catch {
       case ex: Exception =>
         @tailrec
@@ -138,7 +140,7 @@ trait GradleBuild extends Build {
     ) ++ Option(config.getMultiDexEnabled).toList.map { b =>
       dexMulti in Android /:= Literal("(dexMulti in Android).value || " + b.toString)
     } ++ Option(config.getMultiDexKeepFile).toList.map {
-      dexMainClasses in Android /+= IO.readLines(_, IO.utf8)
+      dexMainClasses in Android /++= IO.readLines(_, IO.utf8)
     }
   }
 

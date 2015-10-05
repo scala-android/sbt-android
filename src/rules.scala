@@ -786,7 +786,8 @@ object Plugin extends sbt.Plugin {
     "List all connected and online android devices")(devicesAction)
 
   private def variant = Command("variant",
-    ("variant", "Load an Android build variant configuration (buildType + flavor)"),
+    ("variant[/project] <buildType> <flavor>",
+      "Load an Android build variant configuration (buildType + flavor)"),
     "Usage: variant[/project] <buildType> <flavor>")(variantParser)(variantAction)
 
   private def variantClear = Command("variant-reset",

@@ -445,8 +445,9 @@ object Commands {
     val ids = prjs.keys.map(Parser.literal).toList
 
     if (ids.isEmpty) Parser.success(None)
+    else if (prjs.size == 1) Parser.success(Some(prjs.values.head))
     else
-      (Parser.success(None) <~ Parser.opt(NotSepClass)) | token("/" ~> oneOf(ids)).map(prjs.get)
+      (Parser.success(None) <~ Parser.opt(NotSepClass | EOF)) | token("/" ~> oneOf(ids)).map(prjs.get)
   }
 
   val projectAndStringParser: State => Parser[(Option[ProjectRef],String)] = state =>
@@ -731,7 +732,7 @@ object Commands {
         else None
       }
 
-      prj.fold(Parser.failure("No Android projects found"): VariantParser) { p =>
+      prj.fold(Parser.failure("No Android project selected"): VariantParser) { p =>
         val typeParser = extracted.getOpt(Keys.buildTypes in Keys.Android in p).fold {
           token("--").map(_ => Option.empty[String])
         } { buildTypes =>
@@ -746,7 +747,7 @@ object Commands {
           Parser.oneOf(literal("--") :: fl).map(f => if ("--" == f) None else Option(f))
         }
 
-        (Parser.success(p) ~ token(Space ~> typeParser) ~ (EOF.map(_ => Option.empty[String]) | token(Space ~> flavorParser))).map {
+        (Parser.success(p) ~ (EOF.map(_ => None) | token(Space ~> typeParser)) ~ (EOF.map(_ => None) | token(Space ~> flavorParser))).map {
           case (((a,b),c)) => (a,b,c)
         }
       }
@@ -754,7 +755,11 @@ object Commands {
   }
   val variantAction: (State, VariantResult) => State = {
     case (s, (prj, buildType, flavor)) =>
-      VariantSettings.setVariant(s, prj, buildType, flavor)
+      if (buildType.isEmpty && flavor.isEmpty) {
+        VariantSettings.showVariantStatus(s, prj)
+      } else {
+        VariantSettings.setVariant(s, prj, buildType, flavor)
+      }
   }
 
   val variantClearAction: (State, Option[ProjectRef]) => State = {
