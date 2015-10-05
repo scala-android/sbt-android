@@ -61,6 +61,28 @@ object Plugin extends sbt.Plugin {
       (projectLayout in Android) := ProjectLayout(p.base.getCanonicalFile, Some(base.getCanonicalFile)),
       sbt.Keys.target := base) ++ settings:_*)
   }
+  def withVariant(project: String,
+                  buildType: Option[String] = None,
+                  flavor: Option[String] = None): Setting[_] =
+    sbt.Keys.onLoad in Global := (sbt.Keys.onLoad in Global).value andThen { s =>
+      val ref = ProjectRef(Project.extract(s).structure.root, project)
+      android.VariantSettings.withVariant(s) { variants =>
+        if (!variants.status.contains(ref))
+          android.VariantSettings.setVariant(s, ref, buildType, flavor)
+        else s
+      }
+    }
+
+  def withVariant(p: ProjectReference,
+                  buildType: Option[String],
+                  flavor: Option[String]): Setting[_] = withVariant(
+    p match {
+      case ProjectRef(_, id) => id
+      case LocalProject(id)  => id
+      case _ => Plugin.fail("withVariant: Unsupported ProjectReference: " + p)
+    },
+    buildType, flavor)
+
 
   lazy val androidBuild: Seq[Setting[_]]= {
     // only set the property below if this plugin is actually used
