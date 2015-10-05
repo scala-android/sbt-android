@@ -4,6 +4,8 @@
 
 Current version is 1.5.1 ([Change log](CHANGES.md))
 
+Auto-import from gradle using [android-gradle-build](GRADLE.md)
+
 ## Description ##
 
 This is an easy-to-use plugin for existing and newly created android
