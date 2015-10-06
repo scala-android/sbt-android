@@ -373,7 +373,7 @@ object Plugin extends sbt.Plugin {
             if (BuildInfo.version != current) {
               log.warn(
                 s"UPDATE: A newer android-sdk-plugin is available:" +
-                  s" $version, currently running: ${BuildInfo.version}")
+                  s" $current, currently running: ${BuildInfo.version}")
             }
           }
       }

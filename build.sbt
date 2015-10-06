@@ -1,7 +1,7 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
-val pluginVersion = "1.5.3"
+val pluginVersion = "1.5.4"
 val gradleBuildVersion = "1.1.3"
 
 // gradle-plugin and gradle-model projects

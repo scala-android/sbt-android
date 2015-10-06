@@ -1,5 +1,6 @@
 ## New features in 1.5.x ##
 
+* `1.5.4`: update checker fix
 * `1.5.3`:
   * Fix bug when there are 2 android sub-projects and using a command that
     accepts the `/PROJECT` option (would select the incorrect project)
