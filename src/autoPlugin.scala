@@ -17,7 +17,7 @@ object AndroidPlugin extends AutoPlugin {
     val e = Project.extract(s)
 
     val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter {
-      ref => e.getOpt(projectLayout in(ref, Android)).isDefined
+      ref => e.getOpt(projectLayout in ref).isDefined
     }
     val androidIds = androids.map(_.project).toSet
 
@@ -36,11 +36,11 @@ object AndroidPlugin extends AutoPlugin {
     }
 
     val s2 = androids.headOption.fold(s)(a =>
-      e.runTask(updateCheck in (a,Android), s)._1
+      e.runTask(updateCheck in a, s)._1
     )
 
     androids.foldLeft(s2) { (s, ref) =>
-      e.runTask(antLayoutDetector in (ref,Android), s)._1
+      e.runTask(antLayoutDetector in ref, s)._1
     }
   }) :: Nil
 }

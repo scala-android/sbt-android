@@ -439,7 +439,7 @@ object Commands {
     import extracted._
     val prjs = structure.allProjects.map(rp =>
       (rp.id, ProjectRef(structure.root, rp.id))).filter { case (k, ref) =>
-      getOpt(Keys.projectLayout in Keys.Android in ref).isDefined
+      getOpt(Keys.projectLayout in ref).isDefined
     }.toMap
     val ids = prjs.keys.filterNot(_ == currentRef.project).map(Parser.literal).toList
 
@@ -665,7 +665,7 @@ object Commands {
 
   private def sdkpath(state: State): String = {
     Project.extract(state).getOpt(
-      Keys.sdkPath in Keys.Android) orElse (
+      Keys.sdkPath) orElse (
       Option(System getenv "ANDROID_HOME") flatMap {
         p =>
           val f = file(p)
@@ -715,7 +715,7 @@ object Commands {
     val extracted = Project.extract(s)
     val prj = ref getOrElse extracted.currentRef
     Try {
-      extracted.runTask(Keys.applicationId in(prj, Keys.Android), s)._2
+      extracted.runTask(Keys.applicationId in prj, s)._2
     }.toOption
   }
 
@@ -726,20 +726,20 @@ object Commands {
     projectParser(s) flatMap { r =>
       val prj = r.orElse {
         val ref = extracted.currentRef
-        if (extracted.getOpt(Keys.projectLayout in Keys.Android in ref).isDefined)
+        if (extracted.getOpt(Keys.projectLayout in ref).isDefined)
           Some(ref)
         else None
       }
 
       prj.fold(Parser.failure("No Android project selected"): VariantParser) { p =>
-        val typeParser = extracted.getOpt(Keys.buildTypes in Keys.Android in p).fold {
+        val typeParser = extracted.getOpt(Keys.buildTypes in p).fold {
           token("--").map(_ => Option.empty[String])
         } { buildTypes =>
           val bt = buildTypes.keys.map(literal).toList
           Parser.oneOf(literal("--") :: bt).map(b => if ("--" == b) None else Option(b))
         }
 
-        val flavorParser = extracted.getOpt(Keys.flavors in Keys.Android in p).fold {
+        val flavorParser = extracted.getOpt(Keys.flavors in p).fold {
           token("--").map(_ => Option.empty[String])
         } { flavors =>
           val fl = flavors.keys.map(literal).toList

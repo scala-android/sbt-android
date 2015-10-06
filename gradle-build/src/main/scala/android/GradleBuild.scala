@@ -129,18 +129,18 @@ trait GradleBuild extends Build {
   import GradleBuildSerializer._
   def processBaseConfig(config: BaseConfig): List[SbtSetting] = {
     List(
-      buildConfigOptions in Android /++= config.getBuildConfigFields.asScala.toList map { case (key, field) =>
+      buildConfigOptions /++= config.getBuildConfigFields.asScala.toList map { case (key, field) =>
         (field.getType, key, field.getValue)
       },
-      resValues in Android /++= config.getResValues.asScala.toList map { case (key, field) =>
+      resValues /++= config.getResValues.asScala.toList map { case (key, field) =>
           (field.getType, key, field.getValue)
       },
-      proguardOptions in Android /++= config.getProguardFiles.asScala.toList.flatMap(IO.readLines(_, IO.utf8)),
-      manifestPlaceholders in Android /++= config.getManifestPlaceholders.asScala.toMap map { case (k,o) => (k,o.toString) }
+      proguardOptions /++= config.getProguardFiles.asScala.toList.flatMap(IO.readLines(_, IO.utf8)),
+      manifestPlaceholders /++= config.getManifestPlaceholders.asScala.toMap map { case (k,o) => (k,o.toString) }
     ) ++ Option(config.getMultiDexEnabled).toList.map { b =>
-      dexMulti in Android /:= Literal("(dexMulti in Android).value || " + b.toString)
+      dexMulti /:= Literal("dexMulti.value || " + b.toString)
     } ++ Option(config.getMultiDexKeepFile).toList.map {
-      dexMainClasses in Android /++= IO.readLines(_, IO.utf8)
+      dexMainClasses /++= IO.readLines(_, IO.utf8)
     }
   }
 
@@ -148,23 +148,23 @@ trait GradleBuild extends Build {
     val debuggable = buildType.isDebuggable
     val minify = buildType.isMinifyEnabled
     SbtBuildType(buildType.getName, processBaseConfig(buildType) ++ List(
-      apkbuildDebug in Android /:= Literal(
+      apkbuildDebug /:= Literal(
         s"""
           |      {
-          |        val debug = (apkbuildDebug in Android).value
+          |        val debug = apkbuildDebug.value
           |        debug($debuggable)
           |        debug
           |      }
         """.stripMargin),
-      rsOptimLevel in Android /:= buildType.getRenderscriptOptimLevel,
+      rsOptimLevel /:= buildType.getRenderscriptOptimLevel,
       if (debuggable)
-        useProguardInDebug in Android /:= minify
+        useProguardInDebug /:= minify
       else
-        useProguard in Android /:= minify
+        useProguard /:= minify
     ) ++ Option(buildType.getApplicationIdSuffix).toList.map { suf =>
-      applicationId in Android /:= Literal("(applicationId in Android).value + " + suf)
+      applicationId /:= Literal("applicationId.value + " + suf)
     } ++ Option(buildType.getVersionNameSuffix).toList.map { suf =>
-      versionName in Android /:= Literal(s"(versionName in Android).value map (_ + $suf)")
+      versionName /:= Literal(s"versionName.value map (_ + $suf)")
     } ++ Option(buildType.getSigningConfig).toList.flatMap { sc =>
       val store = Option(sc.getStoreFile)
       val storePass = Option(sc.getStorePassword)
@@ -178,7 +178,7 @@ trait GradleBuild extends Build {
         else
           PlainSigningConfig(store.get, storePass.get, alias.get, keyPass, storeType getOrElse "jks")
         List(
-          apkSigningConfig in Android /:= Option(cfg)
+          apkSigningConfig /:= Option(cfg)
         )
       } else {
         Nil
@@ -188,19 +188,19 @@ trait GradleBuild extends Build {
   def processFlavor(flavor: ProductFlavor): SbtFlavor = {
     SbtFlavor(flavor.getName, processBaseConfig(flavor) ++ List(
     ) ++ Option(flavor.getApplicationId).toList.map {
-      applicationId in Android /:= _
+      applicationId /:= _
     } ++ Option(flavor.getVersionCode).toList.map { i =>
-      versionCode in Android /:= Some(i.toInt)
+      versionCode /:= Some(i.toInt)
     } ++ Option(flavor.getVersionName).toList.map {
-      versionName in Android /:= Some(_)
+      versionName /:= Some(_)
     } ++ Option(flavor.getMinSdkVersion).toList.map {
-      minSdkVersion in Android /:= _.getApiString
+      minSdkVersion /:= _.getApiString
     } ++ Option(flavor.getTargetSdkVersion).toList.map {
-      targetSdkVersion in Android /:= _.getApiString
+      targetSdkVersion /:= _.getApiString
     } ++ Option(flavor.getRenderscriptTargetApi).toList.map {
-      rsTargetApi in Android /:= _.toString
+      rsTargetApi /:= _.toString
     } ++ Option(flavor.getRenderscriptSupportModeEnabled).toList.map { b =>
-      rsSupportMode in Android /:= Literal("(rsSupportMode in Android).value || " + b.toString)
+      rsSupportMode /:= Literal("rsSupportMode.value || " + b.toString)
     })
   }
 
@@ -209,9 +209,9 @@ trait GradleBuild extends Build {
       dirs.asScala.map(d => key /+= d).toList
 
     extraDirectories(provider.getJavaDirectories, sourceDirectories in Compile) ++
-      extraDirectories(provider.getResDirectories, extraResDirectories in Android) ++
+      extraDirectories(provider.getResDirectories, extraResDirectories) ++
       extraDirectories(provider.getResourcesDirectories, resourceDirectories in Compile) ++
-      extraDirectories(provider.getAssetsDirectories, extraAssetDirectories in Android)
+      extraDirectories(provider.getAssetsDirectories, extraAssetDirectories)
   }
   def processDirectoryAt(base: File, initscript: File,
                          connector: GradleConnector,
@@ -264,7 +264,7 @@ trait GradleBuild extends Build {
         val sourceProvider = default.getSourceProvider
         val defaultConfig = processFlavor(default.getProductFlavor)
         val optional: List[SbtSetting] = Option(model.getPackagingOptions).toList.map {
-          p => packagingOptions in Android /:= PackagingOptions(
+          p => packagingOptions /:= PackagingOptions(
             p.getExcludes.asScala.toList, p.getPickFirsts.asScala.toList, p.getMerges.asScala.toList
           )
         }
@@ -281,7 +281,7 @@ trait GradleBuild extends Build {
         val (aars,projects) = androidLibraries.partition(_.getProject == null)
         val (resolved,localAars) = aars.partition(a => Option(a.getResolvedCoordinates.getGroupId).exists(_.nonEmpty))
         val localAar = localAars.toList map {
-          android.Keys.localAars in Android /+= _.getBundle
+          android.Keys.localAars /+= _.getBundle
         }
         def dependenciesOf[A](l: A, seen: Set[File] = Set.empty)(children: A => List[A])(fileOf: A => File): List[A] = {
           val deps = children(l) filterNot(l => seen(fileOf(l)))
@@ -317,11 +317,11 @@ trait GradleBuild extends Build {
 
         val standard = List(
           resolvers /++= repos,
-          platformTarget in Android /:= ap.getCompileTarget,
+          platformTarget /:= ap.getCompileTarget,
           name /:= ap.getName,
           javacOptions in Compile /++= "-source" :: sourceVersion :: "-target" :: targetVersion :: Nil,
-          debugIncludesTests in Android /:= false, // default because can't express it easily otherwise
-          projectLayout in Android /:= new ProjectLayout.Wrapped(ProjectLayout(base)) {
+          debugIncludesTests /:= false, // default because can't express it easily otherwise
+          projectLayout /:= new ProjectLayout.Wrapped(ProjectLayout(base)) {
             override def manifest = sourceProvider.getManifestFile
             override def javaSource = sourceProvider.getJavaDirectories.asScala.head
             override def resources = sourceProvider.getResourcesDirectories.asScala.head
@@ -332,9 +332,9 @@ trait GradleBuild extends Build {
             override def jniLibs = sourceProvider.getJniLibsDirectories.asScala.head
           }
         ) ++ extraDirectories(sourceProvider.getJavaDirectories, sourceDirectories in Compile) ++
-          extraDirectories(sourceProvider.getResDirectories, extraResDirectories in Android) ++
+          extraDirectories(sourceProvider.getResDirectories, extraResDirectories) ++
           extraDirectories(sourceProvider.getResourcesDirectories, resourceDirectories in Compile) ++
-          extraDirectories(sourceProvider.getAssetsDirectories, extraAssetDirectories in Android)
+          extraDirectories(sourceProvider.getAssetsDirectories, extraAssetDirectories)
         val sp = SbtProject(
           path.fold("")(_.replace("/","").replace("\\","")) + ap.getName,
           base, discovery.isApplication,
@@ -511,7 +511,7 @@ object GradleBuildSerializer {
 
     def serialized =
       s"""
-        |  flavors in Android += ((${enc(name)}, List(
+        |  flavors += ((${enc(name)}, List(
         |    $serializedSettings)))
       """.stripMargin
   }
@@ -520,7 +520,7 @@ object GradleBuildSerializer {
 
     def serialized =
       s"""
-         |  buildTypes in Android += ((${enc(name)}, List(
+         |  buildTypes += ((${enc(name)}, List(
          |    $serializedSettings)))
       """.stripMargin
   }
@@ -551,11 +551,11 @@ object GradleBuildSerializer {
           s"""
            |  TaskKey[Seq[android.Dependencies.LibraryDependency]]("transitive-aars") in Android <++=
            |    TaskKey[Seq[android.Dependencies.LibraryDependency]]("aars") in Android in ${escaped(d)},
-           |  collectResources in Android <<=
-           |    collectResources in Android dependsOn (compile in Compile in ${escaped(d)}),
+           |  collectResources <<=
+           |    collectResources dependsOn (compile in Compile in ${escaped(d)}),
            |  compile in Compile <<= compile in Compile dependsOn(
            |    sbt.Keys.`package` in Compile in ${escaped(d)}),
-           |  localProjects in Android += LibraryProject(${escaped(d)}.base)
+           |  localProjects += LibraryProject(${escaped(d)}.base)
            |""".
             stripMargin
           } mkString ",\n"

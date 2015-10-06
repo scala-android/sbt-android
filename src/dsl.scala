@@ -15,43 +15,43 @@ package object dsl {
   def javacOptions(config: Configuration)(opts: String*) =
     sbt.Keys.javacOptions in config ++= opts
 
-  def sdkPath(path: String) = Keys.sdkPath in Android := path
-  def ndkPath(path: String) = Keys.ndkPath in Android := Option(path)
+  def sdkPath(path: String) = Keys.sdkPath := path
+  def ndkPath(path: String) = Keys.ndkPath := Option(path)
 
   def libraryRequest(library: String) =
-    Keys.libraryRequests in Android += ((library, true))
+    Keys.libraryRequests += ((library, true))
 
   def platformTarget(target: String) =
-    Keys.platformTarget in Android := target
+    Keys.platformTarget := target
   def buildTools(version: String) =
-    Keys.buildToolsVersion in Android := Option(version)
+    Keys.buildToolsVersion := Option(version)
 
   def flavor(name: String)(ss: Setting[_]*): Setting[_] =
-    Keys.flavors in Android += ((name, ss))
+    Keys.flavors += ((name, ss))
   def buildType(name: String)(ss: Setting[_]*) =
-    Keys.buildTypes in Android += ((name, ss))
+    Keys.buildTypes += ((name, ss))
 
-  def enableTR(enable: Boolean) = Keys.typedResources in Android := enable
+  def enableTR(enable: Boolean) = Keys.typedResources := enable
   def trIgnore(pkg: String) =
-    Keys.typedResourcesIgnores in Android += pkg
+    Keys.typedResourcesIgnores += pkg
   def buildConfigField(`type`: String, name: String, value: Def.Initialize[Task[String]]) =
-    Keys.buildConfigOptions in Android <+= value map { v => (`type`, name, v) }
+    Keys.buildConfigOptions <+= value map { v => (`type`, name, v) }
   def buildConfigField(`type`: String, name: String, value: String) =
-    Keys.buildConfigOptions in Android += ((`type`, name, value))
+    Keys.buildConfigOptions += ((`type`, name, value))
 
-  def shrinkResources(enable: Boolean) = Keys.shrinkResources in Android := enable
+  def shrinkResources(enable: Boolean) = Keys.shrinkResources := enable
 
   def resValue(`type`: String, name: String, value: String) =
-    Keys.resValues in Android += ((`type`, name, value))
+    Keys.resValues += ((`type`, name, value))
   def resValue(`type`: String, name: String, value: Def.Initialize[Task[String]]) =
-    Keys.resValues in Android <+= value map { v =>
+    Keys.resValues <+= value map { v =>
       (`type`, name, v)
     }
 
   def extraRes(folder: Def.Initialize[File]) = Keys.extraResDirectories <+= folder
-  def extraRes(folder: File) = Keys.extraResDirectories in Android += folder
-  def extraAssets(folder: Def.Initialize[File]) = Keys.extraAssetDirectories in Android <+= folder
-  def extraAssets(folder: File) = Keys.extraAssetDirectories in Android += folder
+  def extraRes(folder: File) = Keys.extraResDirectories += folder
+  def extraAssets(folder: Def.Initialize[File]) = Keys.extraAssetDirectories <+= folder
+  def extraAssets(folder: File) = Keys.extraAssetDirectories += folder
 
   def signingConfig(keystore: File,
                     alias: String,
@@ -71,29 +71,26 @@ package object dsl {
     Keys.apkSigningConfig := Some(config)
   }
 
-  def packagingExclude(name: String) = Keys.packagingOptions in Android := {
-    val opts = (Keys.packagingOptions in Android).value
+  def packagingExclude(name: String) = Keys.packagingOptions := {
+    val opts = Keys.packagingOptions.value
     opts.copy(excludes = opts.excludes :+ name)
   }
-  def packagingPickFirst(name: String) = Keys.packagingOptions in Android := {
-    val opts = (Keys.packagingOptions in Android).value
+  def packagingPickFirst(name: String) = Keys.packagingOptions := {
+    val opts = Keys.packagingOptions.value
     opts.copy(pickFirsts = opts.pickFirsts :+ name)
   }
-  def packagingMerge(name: String) = Keys.packagingOptions in Android := {
-    val opts = (Keys.packagingOptions in Android).value
+  def packagingMerge(name: String) = Keys.packagingOptions := {
+    val opts = Keys.packagingOptions.value
     opts.copy(merges = opts.merges :+ name)
   }
 
-  def applicationId: sbt.TaskKey[String]  = Keys.applicationId in Android
-  def applicationId(pkg: String): Setting[_] = applicationId := pkg
+  def applicationId(pkg: String) = Keys.applicationId := pkg
   def manifestPlaceholder(key: String, value: String) =
-    Keys.manifestPlaceholders in Android += ((key,value))
+    Keys.manifestPlaceholders += ((key,value))
   def manifestPlaceholder(key: String, value: Def.Initialize[Task[String]]) =
-    Keys.manifestPlaceholders in Android <+= value map { v => (key,v) }
-  def versionName = Keys.versionName in Android
-  def versionCode = Keys.versionCode in Android
-  def versionName(name: String) = Keys.versionName in Android := Option(name)
-  def versionCode(code: Int) = Keys.versionCode in Android := Option(code)
+    Keys.manifestPlaceholders <+= value map { v => (key,v) }
+  def versionName(name: String) = Keys.versionName := Option(name)
+  def versionCode(code: Int) = Keys.versionCode := Option(code)
 
   private[this] def checkVersion(version: String): Unit = {
     Try(version.toInt) match {
@@ -104,45 +101,45 @@ package object dsl {
   }
   def targetSdkVersion(version: String) = {
     checkVersion(version)
-    Keys.targetSdkVersion in Android := version
+    Keys.targetSdkVersion := version
   }
   def minSdkVersion(version: String) = {
     checkVersion(version)
-    Keys.minSdkVersion in Android := version
+    Keys.minSdkVersion := version
   }
-  def mergeManifests(enable: Boolean) = Keys.mergeManifests in Android := enable
+  def mergeManifests(enable: Boolean) = Keys.mergeManifests := enable
 
   def rsTargetApi(version: String) = {
     checkVersion(version)
-    Keys.rsTargetApi in Android := version
+    Keys.rsTargetApi := version
   }
-  def rsSupportMode(enable: Boolean) = Keys.rsSupportMode in Android := enable
-  def rsOptimLevel(level: Int) = Keys.rsOptimLevel in Android := level
+  def rsSupportMode(enable: Boolean) = Keys.rsSupportMode := enable
+  def rsOptimLevel(level: Int) = Keys.rsOptimLevel := level
 
-  def shardDex(enable: Boolean) = Keys.dexShards in Android := enable
-  def skipPredex(jar: File) = Keys.predexSkip in Android += jar
-  def dexMaxHeap(xmx: String) = Keys.dexMaxHeap in Android := xmx
-  def multidex(enable: Boolean) = Keys.dexMulti in Android := enable
-  def dexMainClasses(classes: Seq[String]) = Keys.dexMainClassesConfig in Android := {
-    val layout = (Keys.projectLayout in Android).value
-    implicit val out = (Keys.outputLayout in Android).value
+  def shardDex(enable: Boolean) = Keys.dexShards := enable
+  def skipPredex(jar: File) = Keys.predexSkip += jar
+  def dexMaxHeap(xmx: String) = Keys.dexMaxHeap := xmx
+  def multidex(enable: Boolean) = Keys.dexMulti := enable
+  def dexMainClasses(classes: Seq[String]) = Keys.dexMainClassesConfig := {
+    val layout = Keys.projectLayout.value
+    implicit val out = Keys.outputLayout.value
     sbt.IO.writeLines(layout.maindexlistTxt, classes)
     layout.maindexlistTxt
   }
-  def dexParam(param: String) = Keys.dexAdditionalParams in Android += param
+  def dexParam(param: String) = Keys.dexAdditionalParams += param
 
-  def proguardScala(enable: Boolean) = Keys.proguardScala in Android := enable
-  def proguardLibrary(jar: Def.Initialize[Task[File]]) = Keys.proguardLibraries in Android <+= jar
-  def proguardLibrary(jar: File) = Keys.proguardLibraries in Android += jar
-  def proguardOption(option: String) = Keys.proguardOptions in Android += option
-  def proguardCache(pkg: String) = Keys.proguardCache in Android += pkg
-  def proguardEnable(enable: Boolean) = Keys.useProguard in Android := enable
-  def proguardDebugEnable(enable: Boolean) = Keys.useProguardInDebug in Android := enable
+  def proguardScala(enable: Boolean) = Keys.proguardScala := enable
+  def proguardLibrary(jar: Def.Initialize[Task[File]]) = Keys.proguardLibraries <+= jar
+  def proguardLibrary(jar: File) = Keys.proguardLibraries += jar
+  def proguardOption(option: String) = Keys.proguardOptions += option
+  def proguardCache(pkg: String) = Keys.proguardCache += pkg
+  def proguardEnable(enable: Boolean) = Keys.useProguard := enable
+  def proguardDebugEnable(enable: Boolean) = Keys.useProguardInDebug := enable
 
-  def retrolambdaEnable(enable: Boolean) = Keys.retrolambdaEnabled in Android := enable
+  def retrolambdaEnable(enable: Boolean) = Keys.retrolambdaEnabled := enable
 
-  def enableLint(enable: Boolean) = Keys.lintEnabled in Android := enable
-  def lintDetector(issue: Issue) = Keys.lintDetectors in Android += issue
+  def enableLint(enable: Boolean) = Keys.lintEnabled := enable
+  def lintDetector(issue: Issue) = Keys.lintDetectors += issue
 }
 package dsl {
 object Macros {

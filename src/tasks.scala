@@ -1061,7 +1061,7 @@ object Tasks {
                     , streams) map {
     (layout, o, bldr, classes, sdk, all, ta, ma, ra, libs, s) =>
     if (ta.libraryProject)
-      Plugin.fail("This project cannot `android:test`, it has set 'libraryProject in Android := true")
+      Plugin.fail("This project cannot `android:test`, it has set 'libraryProject := true")
     implicit val output = o
     val xmx = ta.dexMaxHeap
     val pkg = ma.applicationId
@@ -1282,7 +1282,7 @@ object Tasks {
     val isLib = libraryProject.value
     implicit val output = outputLayout.value
     if (isLib)
-      Plugin.fail("This project is not runnable, it has set 'libraryProject in Android := true")
+      Plugin.fail("This project is not runnable, it has set 'libraryProject := true")
 
     val r = Def.spaceDelimited().parsed
     val manifestXml = l.processedManifest
@@ -1414,9 +1414,9 @@ object Tasks {
 
   val unmanagedJarsTaskDef = ( unmanagedJars
                              , baseDirectory
-                             , buildTools in Android
-                             , rsSupportMode in Android
-                             , libraryProjects in Android, streams) map {
+                             , buildTools
+                             , rsSupportMode
+                             , libraryProjects, streams) map {
     (u, b, t, rs, l, s) =>
 
     val rsJars =

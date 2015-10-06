@@ -58,7 +58,7 @@ object Plugin extends sbt.Plugin {
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
     val base = p.base / id
     p.copy(id = id, base = base).settings(Seq(
-      (projectLayout in Android) := ProjectLayout(p.base.getCanonicalFile, Some(base.getCanonicalFile)),
+      projectLayout := ProjectLayout(p.base.getCanonicalFile, Some(base.getCanonicalFile)),
       sbt.Keys.target := base) ++ settings:_*)
   }
   def withVariant(project: String,
@@ -99,13 +99,13 @@ object Plugin extends sbt.Plugin {
   def buildWith(projects: ProjectReference*): Seq[Setting[_]] = {
     projects flatMap { p =>
       Seq(
-        transitiveAars in Android <++= aars in Android in p,
-        collectResources in Android <<=
-          collectResources in Android dependsOn (compile in Compile in p),
+        transitiveAars <++= aars in p,
+        collectResources <<=
+          collectResources dependsOn (compile in Compile in p),
         compile in Compile <<= compile in Compile dependsOn(
           packageT in Compile in p),
-        localProjects in Android += LibraryProject((projectLayout in Android in p).value),
-        localProjects in Android <++= localProjects in Android in p
+        localProjects += LibraryProject((projectLayout in p).value),
+        localProjects <++= localProjects in p
       )
     }
   }
@@ -124,20 +124,20 @@ object Plugin extends sbt.Plugin {
   }
 
   def buildJar = Seq(
-    manifest in Android := <manifest package="com.hanhuy.sbt.placeholder">
+    manifest := <manifest package="com.hanhuy.sbt.placeholder">
       <application/>
     </manifest>,
-    buildConfigGenerator in Android := Nil,
-    rGenerator in Android := Nil,
-    debugIncludesTests in Android := false,
-    libraryProject in Android := true,
+    buildConfigGenerator := Nil,
+    rGenerator := Nil,
+    debugIncludesTests := false,
+    libraryProject := true,
     publishArtifact in (Compile,packageBin) := true,
     publishArtifact in (Compile,packageSrc) := true,
     mappings in (Compile,packageSrc) := (managedSources in Compile).value map (s => (s,s.getName)),
-    lintFlags in Android := {
-      val flags = (lintFlags in Android).value
-      implicit val output = (outputLayout in Android).value
-      val layout = (projectLayout in Android).value
+    lintFlags := {
+      val flags = lintFlags.value
+      implicit val output = outputLayout.value
+      val layout = projectLayout.value
       layout.bin.mkdirs()
       val config = layout.libraryLintConfig
       config.getParentFile.mkdirs()
@@ -153,38 +153,38 @@ object Plugin extends sbt.Plugin {
       flags
     }
   )
-  def buildAar = Seq(libraryProject in Android := true) ++
-      addArtifact(aarArtifact in Android, packageAar in Android)
+  def buildAar = Seq(libraryProject := true) ++
+      addArtifact(aarArtifact , packageAar)
 
-  def buildApklib = Seq(libraryProject in Android := true) ++
-    addArtifact(apklibArtifact in Android, packageApklib in Android)
+  def buildApklib = Seq(libraryProject := true) ++
+    addArtifact(apklibArtifact, packageApklib)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
     compile <<= ( compile
-                , lintDetectors in Android
-                , lintFlags in Android
-                , lintEnabled in Android
-                , lintStrict in Android
-                , projectLayout in Android
-                , outputLayout in Android
-                , minSdkVersion in Android
-                , targetSdkVersion in Android
+                , lintDetectors
+                , lintFlags
+                , lintEnabled
+                , lintStrict
+                , projectLayout
+                , outputLayout
+                , minSdkVersion
+                , targetSdkVersion
                 , streams) map { (c, ld, f, en, strict, layout, o, minSdk, tgtSdk, s) =>
       implicit val output = o
       if (en)
         AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)
       c
     },
-    sourceManaged              <<= (projectLayout in Android) (_.gen),
-    unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
+    sourceManaged               := projectLayout.value.gen,
+    unmanagedSourceDirectories <<= projectLayout (l =>
       Set(l.sources, l.javaSource, l.scalaSource).toSeq),
     // was necessary prior to 0.13.8 to squelch "No main class detected" warning
     //packageOptions in packageBin := Package.JarManifest(new java.util.jar.Manifest) :: Nil,
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
                                            , baseDirectory
-                                           , libraryProject in Android
-                                           , projectLayout in Android
-                                           , outputLayout in Android
+                                           , libraryProject
+                                           , projectLayout
+                                           , outputLayout
                                            ) map {
         (c, b, l, p, o) =>
         // remove R.java generated code from library projects
@@ -199,38 +199,38 @@ object Plugin extends sbt.Plugin {
         new Package.Configuration(sources, p.classesJar, c.options)
     },
     publishArtifact in packageBin := false,
-    resourceDirectory <<= (projectLayout in Android) (_.resources),
-    scalaSource       <<= (projectLayout in Android) (_.scalaSource),
-    javaSource        <<= (projectLayout in Android) (_.javaSource),
+    resourceDirectory  := projectLayout.value.resources,
+    scalaSource        := projectLayout.value.scalaSource,
+    javaSource         := projectLayout.value.javaSource,
     unmanagedJars     <<= unmanagedJarsTaskDef,
     // doesn't work properly yet, not for intellij integration
     //managedClasspath  <<= managedClasspathTaskDef,
     unmanagedClasspath <+= classDirectory map Attributed.blank,
     classDirectory     := {
-      implicit val output = (outputLayout in Android).value
-      (projectLayout in Android).value.classes
+      implicit val output = outputLayout.value
+      projectLayout.value.classes
     },
     sourceGenerators   := sourceGenerators.value ++ List(
-      (rGenerator in Android).taskValue,
-      (typedResourcesGenerator in Android).taskValue,
-      (aidl in Android).taskValue,
-      (buildConfigGenerator in Android).taskValue,
-      (renderscript in Android).taskValue,
-      (debugTestsGenerator in Android).taskValue,
-      (cleanForR in Android).taskValue,
+      rGenerator.taskValue,
+      typedResourcesGenerator.taskValue,
+      aidl.taskValue,
+      buildConfigGenerator.taskValue,
+      renderscript.taskValue,
+      debugTestsGenerator.taskValue,
+      cleanForR.taskValue,
       Def.task {
-        ((apklibs in Android).value ++ (autolibs in Android).value) flatMap { l =>
+        (apklibs.value ++ autolibs.value flatMap { l =>
           (l.layout.javaSource ** "*.java" get) ++
             (l.layout.scalaSource ** "*.scala" get)
-        } map (_.getAbsoluteFile)
+        }) map (_.getAbsoluteFile)
       }.taskValue
     ),
     copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn compile,
     javacOptions      <<= ( javacOptions
-                          , builder in Android
-                          , apkbuildDebug in Android
-                          , retrolambdaEnabled in Android) map {
+                          , builder
+                          , apkbuildDebug
+                          , retrolambdaEnabled) map {
       (o,bldr, debug, re) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (debug()) Seq("-g") else Seq.empty
@@ -251,14 +251,14 @@ object Plugin extends sbt.Plugin {
         (x, a) => if (x != "-target") x :: a else a.drop(1)
       }
     },
-    scalacOptions     <<= (scalacOptions, builder in Android) map { (o,bldr) =>
+    scalacOptions     <<= (scalacOptions, builder) map { (o,bldr) =>
       // scalac has -g:vars by default
       val bcp = bldr.getBootClasspath.asScala mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
     exportJars         := false,
-    managedClasspath <++= (platform in Android) map { t =>
+    managedClasspath <++= platform map { t =>
       t.getOptionalLibraries.asScala map { l =>
         Attributed.blank(l.getJar)
       }
@@ -283,9 +283,9 @@ object Plugin extends sbt.Plugin {
     lintDetectors               := AndroidLint.lintDetectorList,
     // support for android:test
     classDirectory              := (classDirectory in Test).value,
-    sourceDirectory            <<= (projectLayout in Android) (_.testSources),
+    sourceDirectory             := projectLayout.value.testSources,
     managedSources              := Nil,
-    unmanagedSourceDirectories <<= (projectLayout in Android) (l =>
+    unmanagedSourceDirectories <<= projectLayout (l =>
       Set(l.testSources, l.testJavaSource, l.testScalaSource).toSeq),
     unmanagedSources           <<= Defaults.collectFiles(
       unmanagedSourceDirectories,
@@ -503,7 +503,7 @@ object Plugin extends sbt.Plugin {
     applicationId            := {
       packageName.?.value.fold(manifest.value.attribute("package").head.text) { p =>
         streams.value.log.warn(
-          "'packageName in Android' is deprecated, use 'applicationId in Android'")
+          "'packageName in Android' is deprecated, use 'applicationId'")
         p
       }
     },
@@ -686,7 +686,7 @@ object Plugin extends sbt.Plugin {
     },
     platformTarget          <<= properties { p =>
       Option(p.getProperty("target")) getOrElse fail(
-        "configure project.properties or set 'platformTarget in Android'")
+        "configure project.properties or set 'platformTarget'")
     },
     platform                <<= (sdkManager, platformTarget, thisProject) map {
       (m, p, prj) =>
@@ -700,18 +700,18 @@ object Plugin extends sbt.Plugin {
           (d ** "*.scala").get.nonEmpty)
     },
     crossPaths        <<= autoScalaLibrary,
-    resolvers        <++= (sdkPath in Android) { p =>
+    resolvers        <++= sdkPath { p =>
       Seq(SdkLayout.googleRepository(p), SdkLayout.androidRepository(p))
     },
-    cleanFiles         += (projectLayout in Android).value.bin,
+    cleanFiles         += projectLayout.value.bin,
     exportJars         := true,
-    unmanagedBase     <<= (projectLayout in Android) (_.libs),
+    unmanagedBase      := projectLayout.value.libs,
     watchSources     <++= Def.task {
       val filter = new SimpleFileFilter({ f =>
         f.isFile && Character.isJavaIdentifierStart(f.getName.charAt(0))
       })
-      val layout = (projectLayout in Android).value
-      val extras = (extraResDirectories in Android).value
+      val layout = projectLayout.value
+      val extras = extraResDirectories.value
       (layout.testSources +: layout.jni +: layout.res +: extras) flatMap { path =>
         (path ** filter) get }
     }
@@ -888,8 +888,8 @@ trait AutoBuild extends Build {
       val layout = ProjectLayout(b/p(k))
       val pkg = pkgFor(layout.manifest)
       (Project(id=pkg, base=b/p(k)) settings(Plugin.androidBuild ++
-        Seq(platformTarget in Android := target(b/p(k)),
-          libraryProject in Android := true): _*) enablePlugins
+        Seq(platformTarget := target(b/p(k)),
+          libraryProject := true): _*) enablePlugins
             AndroidPlugin) +:
         loadLibraryProjects(b/p(k), loadProperties(b/p(k)))
     }) distinct
@@ -935,7 +935,7 @@ trait AutoBuild extends Build {
 
         val project = Project(id=pkgFor(layout.manifest),
           base=basedir).androidBuildWith(libProjects map(a ⇒ a: ProjectReference): _*).settings(
-              platformTarget in Android := target(basedir)) enablePlugins
+              platformTarget := target(basedir)) enablePlugins
                 AndroidPlugin
         project +: libProjects
       } else Nil
@@ -950,7 +950,7 @@ trait AutoBuild extends Build {
             _.key.scope.config.toOption exists (_.name != Android.name))
           val tail = settings.dropWhile(
             _.key.scope.config.toOption exists (_.name != Android.name))
-          val platform = platformTarget in Android := target(p.base)
+          val platform = platformTarget := target(p.base)
           p.settings(prefix ++ Plugin.androidBuild ++ (platform +: tail): _*)
             .enablePlugins(AndroidPlugin)
         } else p

@@ -56,8 +56,8 @@ object VariantSettings {
                  flavor: Option[String]): State = withVariant(s) { variants =>
     if (buildType.nonEmpty || flavor.nonEmpty) {
       val extracted = Project.extract(s)
-      val buildTypes = extracted.get(Keys.buildTypes in Keys.Android in project)
-      val flavors = extracted.get(Keys.flavors in Keys.Android in project)
+      val buildTypes = extracted.get(Keys.buildTypes in project)
+      val flavors = extracted.get(Keys.flavors in project)
       val ss: Seq[Setting[_]] =
         flavor.toSeq.flatMap(f => flavors.getOrElse(f, Nil)) ++
           buildType.toSeq.flatMap(t => buildTypes.getOrElse(t, Nil))
@@ -73,8 +73,8 @@ object VariantSettings {
   def showVariantStatus(s: State, project: ProjectRef): State = withVariant(s) { variants =>
       val extracted = Project.extract(s)
       val (bt,f) = variants.status.getOrElse(project, (None,None))
-      val buildTypes = extracted.get(Keys.buildTypes in Keys.Android in project)
-      val flavors = extracted.get(Keys.flavors in Keys.Android in project)
+      val buildTypes = extracted.get(Keys.buildTypes in project)
+      val flavors = extracted.get(Keys.flavors in project)
       val bts = bt.getOrElse("(none)")
       val fs = f.getOrElse("(none)")
       s.log.info(s"${project.project}: buildType=$bts flavor=$fs")
