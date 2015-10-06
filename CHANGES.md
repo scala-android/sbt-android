@@ -1,5 +1,11 @@
 ## New features in 1.5.x ##
 
+* `1.5.5`: WIP
+  * changed all `android.Keys._` to automatically be `in Android`. It is no
+    longer necessary to specify `in Android` when configuring android settings
+    * If re-using these keys from another configuration using
+      `inConfig(CONFIG)`, then they will need to be explicitly set as
+      `androidKey in CONFIG`. Should not affect normal usage.
 * `1.5.4`: update checker fix
 * `1.5.3`:
   * Fix bug when there are 2 android sub-projects and using a command that
