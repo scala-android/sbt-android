@@ -39,7 +39,7 @@ trait GradleBuild extends Build {
           log.debug("current version: " + android.gradle.BuildInfo.version)
           log.debug("latest version: " + current)
           if (versions(android.gradle.BuildInfo.version)) {
-            if (BuildInfo.version != current) {
+            if (android.gradle.BuildInfo.version != current) {
               log.warn(
                 s"UPDATE: A newer android-gradle-build is available:" +
                   s" $current, currently running: ${android.gradle.BuildInfo.version}")
