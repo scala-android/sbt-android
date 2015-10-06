@@ -1,5 +1,9 @@
 ## New features in 1.5.x ##
 
+* `1.5.3`:
+  * Fix bug when there are 2 android sub-projects and using a command that
+    accepts the `/PROJECT` option (would select the incorrect project)
+  * Start work on an experimental `android.dsl` API
 * `1.5.2`:
   * Add an entirely new, alternative, `flavors` and `buildTypes` system.
     * Configure by adding `buildTypes in Android += (("name", List(settings)))`
