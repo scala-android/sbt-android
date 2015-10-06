@@ -5,6 +5,7 @@ import java.util.jar.{JarOutputStream, JarInputStream}
 
 import com.android.SdkConstants
 import com.android.builder.core.{DexOptions, AndroidBuilder}
+import com.android.prefs.AndroidLocation
 import com.android.sdklib.BuildToolInfo
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 import sbt._
@@ -257,14 +258,13 @@ object Dex {
     val dexInUnpacked = bin / "shard-jars"
     dexInUnpacked.mkdirs()
     val unpackedClasses = dexIn flatMap { in =>
-      val loc = predexFileOutput(dexInUnpacked, in)
-      loc.mkdirs()
+      val loc = dexInUnpacked / predexFileName(in)
       val outs = FileFunction.cached(s.cacheDirectory / s"unpack-${loc.getName}", FilesInfo.hash) { jar =>
         IO.unzip(jar.head, loc)
       }(Set(in))
       outs filter (_.getName.endsWith(".class")) map ((loc,_))
     } map { case ((loc,f)) =>
-      val name = f.relativeTo(loc).get.getPath
+      val name = f.relativeTo(loc).fold(Plugin.fail(s"$f is not relative to $loc"))(_.getPath)
       // shard by top-level classname hashcode
       val i = name.indexOf("$")
       val shardTarget = 1 + math.abs((if (i != -1) name.substring(0, i) else name.dropRight(SUFFIX_LEN)).hashCode % shards)
@@ -360,7 +360,7 @@ object Dex {
     bin
   }
 
-  def predexFileOutput(binPath: File, inFile: File) = {
+  def predexFileName(inFile: File) = {
     val n = inFile.getName
     val pos = n.lastIndexOf('.')
 
@@ -370,14 +370,19 @@ object Dex {
     val input = inFile.getAbsolutePath
     val hashCode = Hash.toHex(Hash(input))
 
-    val f = new File(binPath, name + "-" + hashCode.toString + SdkConstants.DOT_JAR)
+    name + "-" + hashCode.toString + SdkConstants.DOT_JAR
+  }
+  def predexFileOutput(base: File, binPath: File, inFile: File) = {
+    val rpath = inFile relativeTo base
+    val f = rpath.fold(file(AndroidLocation.getFolder) / "predex")(_ => binPath) / predexFileName(inFile)
     f.mkdirs()
     f
   }
 
   def predex(opts: Aggregate.Dex, inputs: Seq[File], multiDex: Boolean,
              legacy: Boolean, classes: File, pg: Option[File],
-             bldr: AndroidBuilder, bin: File, s: sbt.Keys.TaskStreams) = {
+             bldr: AndroidBuilder, base: File, bin: File,
+             s: sbt.Keys.TaskStreams) = {
     bin.mkdirs()
     val options = new DexOptions {
       override def getIncremental = false
@@ -388,7 +393,7 @@ object Dex {
     }
     if (!legacy && multiDex) {
       ((inputs filterNot (i => i == classes || pg.exists(_ == i))) map { i =>
-        val out = predexFileOutput(bin, i)
+        val out = predexFileOutput(base, bin, i)
         val predexed = out * "*.dex" get
 
         if (predexed.isEmpty || predexed.exists (_.lastModified < i.lastModified)) {

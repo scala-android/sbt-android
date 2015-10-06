@@ -896,34 +896,33 @@ object Tasks {
                    , dexAggregate
                    , dexShards
                    , predex
-                   , proguard
                    , dexLegacyMode
                    , libraryProject
                    , projectLayout
                    , outputLayout
                    , apkbuildDebug
                    , streams) map {
-    case (bldr, dexOpts, shards, pd, pg, legacy, lib, bin, o, debug, s) =>
+    case (bldr, dexOpts, shards, pd, legacy, lib, bin, o, debug, s) =>
       implicit val output = o
-      Dex.dex(bldr, dexOpts, pd, pg, legacy, lib, bin.dex, shards, debug(), s)
+      Dex.dex(bldr, dexOpts, pd, None /* unused, left for compat */, legacy, lib, bin.dex, shards, debug(), s)
   }
 
   val predexTaskDef = Def.task {
     implicit val output = outputLayout.value
+    val layout = projectLayout.value
     val opts = dexAggregate.value
     val inputs = opts.inputs._2
     val multiDex = opts.multi
     val shards = dexShards.value
     val legacy = dexLegacyMode.value
-    val skip = predexSkip.value.map(_.getCanonicalFile).toSet
-    val classes = projectLayout.value.classesJar
+    val skip = (proguardInputs.value.proguardCache.toList ++ predexSkip.value).map(_.getCanonicalFile).toSet
+    val classes = layout.classesJar
     val pg = proguard.value
     val bldr = builder.value
     val s = streams.value
-    val bin = projectLayout.value.predex
     Dex.predex(opts,
       inputs.map(_.getCanonicalFile) filterNot skip,
-      multiDex || shards, legacy, classes, pg, bldr, bin, s)
+      multiDex || shards, legacy, classes, pg, bldr, baseDirectory.value, layout.predex, s)
   }
 
   val proguardInputsTaskDef = ( proguardAggregate
