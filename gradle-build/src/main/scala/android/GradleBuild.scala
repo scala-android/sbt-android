@@ -164,7 +164,25 @@ trait GradleBuild extends Build {
     ) ++ Option(buildType.getApplicationIdSuffix).toList.map { suf =>
       applicationId in Android /:= Literal("(applicationId in Android).value + " + suf)
     } ++ Option(buildType.getVersionNameSuffix).toList.map { suf =>
-      versionName in Android /:= Literal("(versionName in Android).value map (_ + $suf)")
+      versionName in Android /:= Literal(s"(versionName in Android).value map (_ + $suf)")
+    } ++ Option(buildType.getSigningConfig).toList.flatMap { sc =>
+      val store = Option(sc.getStoreFile)
+      val storePass = Option(sc.getStorePassword)
+      val alias = Option(sc.getKeyAlias)
+      val storeType = Option(sc.getStoreType)
+      val keyPass = Option(sc.getKeyPassword)
+      if (store.nonEmpty && alias.nonEmpty) {
+        val sp = storePass orElse keyPass
+        val cfg = if (sp.isEmpty)
+          PromptPasswordsSigningConfig(store.get, alias.get, storeType getOrElse "jks")
+        else
+          PlainSigningConfig(store.get, storePass.get, alias.get, keyPass, storeType getOrElse "jks")
+        List(
+          apkSigningConfig in Android /:= Option(cfg)
+        )
+      } else {
+        Nil
+      }
     })
   }
   def processFlavor(flavor: ProductFlavor): SbtFlavor = {
@@ -367,6 +385,12 @@ object Serializer {
   implicit def mutableSettingEncoder[T] = new Encoder[MutableSetting[T]] {
     def encode(m: MutableSetting[T]) = "NO OP THIS SHOULD NOT HAPPEN"
   }
+  implicit def optionEncoder[T : Encoder] = new Encoder[Option[T]] {
+    def encode(l: Option[T]) = if (l.isEmpty) "None" else "Some(" + enc(l.get) + ")"
+  }
+  implicit def someEncoder[T : Encoder] = new Encoder[Some[T]] {
+    def encode(l: Some[T]) = "Some(" + enc(l.get) + ")"
+  }
   implicit val antProjectLayoutEncoding = new Encoder[ProjectLayout.Ant] {
     def encode(p: ProjectLayout.Ant) =
       s"ProjectLayout.Ant(${enc(p.base)})"
@@ -407,6 +431,14 @@ object Serializer {
            |      }""".stripMargin
     }
   }
+  implicit val signingConfigEncoding = new Encoder[ApkSigningConfig] {
+    override def encode(t: ApkSigningConfig) = t match {
+      case PlainSigningConfig(ks, sp, al, kp, st) =>
+        s"PlainSigningConfig(${enc(ks)}, ${enc(sp)}, ${enc(al)}, ${enc(kp)}, ${enc(st)})"
+      case PromptPasswordsSigningConfig(ks, al, st) =>
+        s"PromptPasswords(${enc(ks)}, ${enc(al)}, ${enc(st)})"
+    }
+  }
   implicit val wrappedProjectLayoutEncoding = new Encoder[ProjectLayout.Wrapped] {
     def encode(p: ProjectLayout.Wrapped) =
       s"new ProjectLayout.Wrapped(${enc(p.wrapped)})"
@@ -419,16 +451,10 @@ object Serializer {
   }
 
   implicit val literalEncoder = new Encoder[Literal] {
-    def encode(literal: Literal) = " " + literal.value
+    def encode(literal: Literal) = literal.value
   }
   implicit def listEncoder[T : Encoder] = new Encoder[List[T]] {
     def encode(l: List[T]) = if (l.isEmpty) "Nil" else "List(" + l.map(i => enc(i)).mkString(",\n      ") + ")"
-  }
-  implicit def optionEncoder[T : Encoder] = new Encoder[Option[T]] {
-    def encode(l: Option[T]) = if (l.isEmpty) "None" else "Some(" + enc(l.get) + ")"
-  }
-  implicit def someEncoder[T : Encoder] = new Encoder[Some[T]] {
-    def encode(l: Some[T]) = "Some(" + enc(l.get) + ")"
   }
   implicit val resolverEncoder = new Encoder[Resolver] {
     def encode(r: Resolver) = r match {

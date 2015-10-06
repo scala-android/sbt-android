@@ -439,10 +439,9 @@ object Commands {
     import extracted._
     val prjs = structure.allProjects.map(rp =>
       (rp.id, ProjectRef(structure.root, rp.id))).filter { case (k, ref) =>
-      getOpt(Keys.projectLayout in Keys.Android in ref).isDefined &&
-        k != currentRef.project
+      getOpt(Keys.projectLayout in Keys.Android in ref).isDefined
     }.toMap
-    val ids = prjs.keys.map(Parser.literal).toList
+    val ids = prjs.keys.filterNot(_ == currentRef.project).map(Parser.literal).toList
 
     if (ids.isEmpty) Parser.success(None)
     else if (prjs.size == 1) Parser.success(Some(prjs.values.head))

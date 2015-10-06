@@ -1,7 +1,6 @@
 package android
 
 import com.android.builder.internal.ClassFieldImpl
-import com.android.ide.common.signing.KeystoreHelper
 import com.android.manifmerger.ManifestMerger2
 import sbt._
 import sbt.Keys._
