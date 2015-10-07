@@ -503,10 +503,8 @@ object Commands {
                 val colored =
                   f"${colorLevel(level)} (${colorPid(pid)}) ${colorTag(tag)}%8s: $msg"
                 if (tags.isEmpty)
-//                  state.log.info(colored)
                   scala.Console.out.println(colored)
                 else if (tags exists tag.contains)
-//                  state.log.info(colored)
                   scala.Console.out.println(colored)
               }
             case _ => state.log.debug(l.trim)
@@ -514,7 +512,7 @@ object Commands {
         }
       }
       val receiver = new ShellLogging(logLine)
-      d.executeShellCommand("logcat -d", receiver)
+      d.executeShellCommand("logcat -v brief -d", receiver)
       receiver.flush()
 
       state
@@ -627,10 +625,23 @@ object Commands {
   }
 
   val logcatAction: (State, String) => State = (state, args) => {
+    val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
     val sdk = sdkpath(state)
     targetDevice(sdk, state.log) map { d =>
-
-      executeShellCommand(d, "logcat -d " + args, state)
+      def logLine(l: String): Unit = {
+        if (l.trim.length > 0) {
+          l.trim match {
+            case LOG_LINE(level, tag, pid, msg) =>
+              val colored =
+                f"${colorLevel(level)} (${colorPid(pid)}) ${colorTag(tag)}%8s: $msg"
+              scala.Console.out.println(colored)
+            case _ => state.log.debug(l.trim)
+          }
+        }
+      }
+      val receiver = new ShellLogging(logLine)
+      d.executeShellCommand("logcat -v brief -d", receiver)
+      receiver.flush()
       state
     } getOrElse Plugin.fail("no device selected")
   }
