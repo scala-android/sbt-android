@@ -164,7 +164,7 @@ trait GradleBuild extends Build {
     ) ++ Option(buildType.getApplicationIdSuffix).toList.map { suf =>
       applicationId /:= Literal("applicationId.value + " + suf)
     } ++ Option(buildType.getVersionNameSuffix).toList.map { suf =>
-      versionName /:= Literal(s"versionName.value map (_ + $suf)")
+      versionName /:= Literal(s"versionName.value map (_ + ${enc(suf)})")
     } ++ Option(buildType.getSigningConfig).toList.flatMap { sc =>
       val store = Option(sc.getStoreFile)
       val storePass = Option(sc.getStorePassword)
