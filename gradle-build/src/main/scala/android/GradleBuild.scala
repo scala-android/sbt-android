@@ -162,7 +162,7 @@ trait GradleBuild extends Build {
       else
         useProguard /:= minify
     ) ++ Option(buildType.getApplicationIdSuffix).toList.map { suf =>
-      applicationId /:= Literal("applicationId.value + " + suf)
+      applicationId /:= Literal("applicationId.value + " + enc(suf))
     } ++ Option(buildType.getVersionNameSuffix).toList.map { suf =>
       versionName /:= Literal(s"versionName.value map (_ + ${enc(suf)})")
     } ++ Option(buildType.getSigningConfig).toList.flatMap { sc =>
