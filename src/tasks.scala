@@ -260,6 +260,64 @@ object Tasks {
     }
   }
 
+  implicit class OrgArtRepOps(report: OrganizationArtifactReport)
+  {
+    def ids = report.modules map(_.module)
+
+    def latest = ids.max.revision
+  }
+
+  implicit val revOrdering = new Ordering[ModuleID] {
+    def comparePart(part: (String, String)) = {
+      val (a, b) = part
+      Try((a.toInt, b.toInt)) match {
+        case util.Success((l, r)) ⇒
+          l compareTo r
+        case util.Failure(_) ⇒
+          a compareTo b
+      }
+    }
+
+    def compare(a: ModuleID, b: ModuleID) = {
+      val aParts = a.revision.split('.')
+      val bParts = b.revision.split('.')
+      aParts.zip(bParts)
+        .map(comparePart)
+        .find(_ != 0)
+        .getOrElse(aParts.length compareTo bParts.length)
+    }
+  }
+
+  val resolvedAars = Def.task {
+    (update in Compile).value.configuration("compile")
+      .map(_.details)
+      .getOrElse(Nil)
+      .filter(_.modules.exists(_.artifacts.exists(_._1.`type` == "aar")))
+  }
+
+  val checkAarsTaskDef = Def.task {
+    implicit val log = streams.value.log
+    implicit val struct = buildStructure.value
+    implicit val projects = thisProjectRef.value.deepDeps
+    val resolved = resolvedAars.value
+    transitiveAars.value
+      .collect { case a: AarLibrary ⇒ a → resolved.find(_.name == a.moduleID.name) }
+      .collect { case (a, Some(r)) if r.latest > a.moduleID.revision ⇒ r }
+      .foreach(reportIncompatibleAars)
+  }
+
+  def reportIncompatibleAars(aar: OrganizationArtifactReport)
+  (implicit log: Logger, struct: BuildStructure, projects: Seq[ProjectRef]) = {
+    log.warn(s"aar ${aar.name} older than latest version ${aar.latest}")
+    aar.ids foreach { id ⇒
+      val dpds = projects filter(_.dependsOn(id)) map(_.project)
+      val sourceDesc =
+        if (dpds.isEmpty) "as transitive dep"
+        else s"specified in ${dpds.mkString(", ")}"
+      log.warn(s" * ${id.revision} $sourceDesc")
+    }
+  }
+
   val typedResourcesGeneratorTaskDef = ( typedResources
                                        , rGenerator
                                        , packageForR
