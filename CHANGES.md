@@ -1,6 +1,12 @@
 ## New features in 1.5.x ##
 
-* `1.5.5`: WIP
+* `1.5.5`:
+  * warn when aar dependency versions are improperly configured (thanks @tek)
+  * colorize `logcat`, force `-v brief` for marshmallow compatibility (fixes
+    pidcat for marshmallow as well)
+  * cache all common library predexing into `$HOME/.android/predex`;
+    project-specific libraries, including all aars, remain in
+    `target/intermediates/predex`
   * changed all `android.Keys._` to automatically be `in Android`. It is no
     longer necessary to specify `in Android` when configuring android settings
     * If re-using these keys from another configuration using

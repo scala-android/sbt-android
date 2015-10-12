@@ -1,6 +1,6 @@
 # Android Gradle Auto-Import Plugin for SBT #
 
-Current version is 1.1.3
+Current version is 1.1.4
 
 ## Description ##
 
@@ -16,7 +16,7 @@ whenever changes occur.
 2. From your Android project root, wherever the base `build.gradle` is located,
    load `android-gradle-build`:
    * `mkdir project`
-   * `echo 'addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.1.3")' > project/plugins.sbt`
+   * `echo 'addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.1.4")' > project/plugins.sbt`
    * `echo "object Build extends android.GradleBuild" > project/build.scala"`
 3. Run `sbt`
    * The initial load will be slow as gradle will run to extract all

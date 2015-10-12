@@ -2,7 +2,7 @@
 
 [![Join the chat at https://gitter.im/pfn/android-sdk-plugin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/pfn/android-sdk-plugin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.5.4 ([Change log](CHANGES.md))
+Current version is 1.5.5 ([Change log](CHANGES.md))
 
 Auto-import from gradle using [android-gradle-build](GRADLE.md)
 
@@ -59,7 +59,7 @@ found on the #sbt-android IRC channel on Freenode
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.5.4")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.5.5")
    ```
    
 2 Set the environment variable `ANDROID_HOME` pointing to the path where the
@@ -78,7 +78,7 @@ found on the #sbt-android IRC channel on Freenode
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.5.4")
+   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.5.5")
    ```
 
 5. Create a file named `project/build.scala` and add the

@@ -1,1 +1,1 @@
-addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.1.4-SNAPSHOT")
+addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.1.4")
