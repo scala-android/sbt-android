@@ -640,7 +640,7 @@ object Commands {
         }
       }
       val receiver = new ShellLogging(logLine)
-      d.executeShellCommand("logcat -v brief -d", receiver)
+      d.executeShellCommand("logcat -v brief -d " + args, receiver)
       receiver.flush()
       state
     } getOrElse Plugin.fail("no device selected")
