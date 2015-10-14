@@ -434,7 +434,21 @@ object Plugin extends sbt.Plugin {
       Seq.empty[File]
     },
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
-    buildConfigOptions       := Nil,
+    buildConfigOptions       := {
+      val s = state.value
+      val prj = thisProjectRef.value
+      val pkg = applicationId.value
+      val (buildType,flavor) = VariantSettings.variant(s).status.getOrElse(
+        prj, (None,None))
+      List(
+        ("String", "BUILD_TYPE", s""""${buildType getOrElse ""}""""),
+        ("String", "FLAVOR", s""""${flavor getOrElse ""}""""),
+        ("String", "APPLICATION_ID", s""""$pkg"""")
+      ) ++ versionName.value.toList.map(
+        n => ("String", "VERSION_NAME", s""""$n"""")) ++ versionCode.value.toList.map (c =>
+        ("int", "VERSION_CODE", c.toString)
+      )
+    },
     resValues                := Nil,
     resValuesGenerator      <<= resValuesGeneratorTaskDef,
     rGenerator              <<= rGeneratorTaskDef,
@@ -500,8 +514,13 @@ object Plugin extends sbt.Plugin {
         fail("cannot find AndroidManifest.xml: " + m)
       XML.loadFile(m)
     },
-    versionCode              := None,
-    versionName              := None,
+    versionCode              := {
+      manifest.value.attribute(ANDROID_NS, "versionCode").map(_.head.text.toInt)
+    },
+    versionName              := {
+      manifest.value.attribute(
+        ANDROID_NS, "versionName").map(_.head.text) orElse Some(version.value)
+    },
     packageForR             <<= manifest map { m =>
       m.attribute("package") get 0 text
     },
