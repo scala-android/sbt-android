@@ -444,9 +444,9 @@ object Plugin extends sbt.Plugin {
         ("String", "BUILD_TYPE", s""""${buildType getOrElse ""}""""),
         ("String", "FLAVOR", s""""${flavor getOrElse ""}""""),
         ("String", "APPLICATION_ID", s""""$pkg"""")
-      ) ++ versionName.value.toList.map(
-        n => ("String", "VERSION_NAME", s""""$n"""")) ++ versionCode.value.toList.map (c =>
-        ("int", "VERSION_CODE", c.toString)
+      ) ++
+        versionName.value.toList.map(n => ("String", "VERSION_NAME", s""""$n"""")) ++
+        versionCode.value.toList.map (c => ("int", "VERSION_CODE", c.toString)
       )
     },
     resValues                := Nil,
