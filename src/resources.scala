@@ -206,9 +206,6 @@ object Resources {
     val genPath = gen.getAbsolutePath
     val all = collectdeps(libs)
     logger.debug("All libs: " + all)
-    logger.debug("All packages: " + (all map { l =>
-      XML.loadFile(l.getManifest).attribute("package").head.text
-    }))
     logger.debug("packageForR: " + pkg)
     logger.debug("proguard.txt: " + proguardTxt)
     val aaptCommand = new AaptPackageProcessBuilder(manifest, options)

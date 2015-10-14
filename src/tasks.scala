@@ -339,8 +339,7 @@ object Tasks {
     if (!t)
       Seq.empty[File]
     else
-      FileFunction.cached(s.cacheDirectory / "typed-resources-generator",
-          FilesInfo.hash, FilesInfo.hash) { in =>
+      FileFunction.cached(s.cacheDirectory / "typed-resources-generator", FilesInfo.hash) { in =>
         if (in.nonEmpty) {
           s.log.info("Regenerating TR.scala because R.java has changed")
           val androidjar = ClasspathUtilities.toLoader(file(j))
@@ -588,25 +587,16 @@ object Tasks {
                                 , apkbuildDebug
                                 , streams
                                 ) map {
-    case (bldr, layout, output, manif, (assets, res), pkg, lib, libs, debug, s) =>
-    val cache = s.cacheDirectory
-    implicit val o = output
-    val proguardTxt = layout.proguardTxt.getAbsolutePath
-    layout.proguardTxt.getParentFile.mkdirs()
+    case (bldr, layout, output, manif, (assets, res), pkg, lib, libs, d, s) =>
+      implicit val o = output
+      val proguardTxt = layout.proguardTxt.getAbsolutePath
+      layout.proguardTxt.getParentFile.mkdirs()
 
-    val p = layout.resApk(debug())
-
-    val inputs = (res ***).get ++ (assets ***).get ++
-      Seq(manif)filter (
-        n => !n.getName.startsWith(".") && !n.getName.startsWith("_"))
-
-    FileFunction.cached(cache / p.getName, FilesInfo.hash) { _ =>
+      val p = layout.resApk(d())
       s.log.info("Packaging resources: " + p.getName)
-      Resources.aapt(bldr, manif, pkg, libs, lib, debug(), res, assets,
+      Resources.aapt(bldr, manif, pkg, libs, lib, d(), res, assets,
         p.getAbsolutePath, layout.gen, proguardTxt, s.log)
-      Set(p)
-    }(inputs.toSet)
-    p
+      p
   }
 
   val apkbuildAggregateTaskDef = Def.task {
@@ -855,27 +845,18 @@ object Tasks {
                           , streams
                           ) map {
     case (bldr, layout, o, manif, (assets, res), pkg, lib, libs, debug, s) =>
-    implicit val output = o
-    val cache = s.cacheDirectory
-    val proguardTxt = layout.proguardTxt.getAbsolutePath
-    layout.proguardTxt.getParentFile.mkdirs()
+      implicit val output = o
+      val proguardTxt = layout.proguardTxt.getAbsolutePath
+      layout.proguardTxt.getParentFile.mkdirs()
 
-    val inputs = (res ***).get ++ (assets ***).get ++ Seq(manif) filter (
-        n => !n.getName.startsWith(".") && !n.getName.startsWith("_"))
-
-    // need to check output changes, otherwise compile fails after gen-idea
-    FileFunction.cached(cache / "r-generator")(
-        FilesInfo.lastModified, FilesInfo.hash) { (in,out) =>
+      // not covered under FileFunction.cached because FilesInfo.hash is too
+      // slow. Just let aapt do its thing every time...
       s.log.info("Processing resources")
       if (!res.exists)
         s.log.warn("No resources found at " + res.getAbsolutePath)
       Resources.aapt(bldr, manif, pkg, libs, lib, debug(), res, assets, null,
         layout.gen, proguardTxt, s.log)
-      s.log.debug(
-        "In modified: %s\nInRemoved: %s\nOut checked: %s\nOut modified: %s"
-          format (in.modified, in.removed, out.checked, out.modified))
-      (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
-    }(inputs.toSet).toSeq
+      (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get)
   }
 
   val proguardConfigTaskDef = ( projectLayout

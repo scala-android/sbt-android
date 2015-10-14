@@ -247,19 +247,19 @@ object Dex {
     import collection.JavaConverters._
     val dexIn = (inputs filter (_.isFile)) filterNot (pd map (_._1) contains _)
     // double actual number, because "dex methods" include references to other methods
-    val totalMethods = (dexIn map MethodCounter.apply).sum * 2
+    lazy val totalMethods = (dexIn map MethodCounter.apply).sum * 2
     // try to aim for an average of 3000 methods per shard
     val SHARD_GOAL = 3000
     val MAX_SHARDS = 50
     val SUFFIX_LEN = ".class".length
-    val shards = math.min(math.max(1, totalMethods / SHARD_GOAL), math.max(10, MAX_SHARDS - pd.size))
-    s.log.debug("Dex shards to generate: " + shards)
+    lazy val shards = math.min(math.max(1, totalMethods / SHARD_GOAL), math.max(10, MAX_SHARDS - pd.size))
     val shardClasses = bin / "shard-classes"
     val dexInUnpacked = bin / "shard-jars"
     dexInUnpacked.mkdirs()
     val unpackedClasses = dexIn flatMap { in =>
       val loc = dexInUnpacked / predexFileName(in)
       val outs = FileFunction.cached(s.cacheDirectory / s"unpack-${loc.getName}", FilesInfo.hash) { jar =>
+        s.log.debug(s"Unpacking ${jar.head}")
         IO.unzip(jar.head, loc)
       }(Set(in))
       outs filter (_.getName.endsWith(".class")) map ((loc,_))
@@ -275,6 +275,8 @@ object Dex {
     IO.copy(unpackedClasses)
 
     val dexShards = shardClasses * "*" get
+
+    s.log.debug("Shard classes to process " + dexShards)
 
     (bin * "*.dex" get) foreach (_.delete())
 
