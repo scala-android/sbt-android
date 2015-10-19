@@ -1,5 +1,12 @@
 ## New features in 1.5.x ##
 
+* `1.5.6`:
+  * Fix `logcat`, allow passing arguments
+  * Load flavor, buildType, applicationId, versionName and code into
+    BuildConfig automatically
+  * No longer de-duplicate JNI libraries automatically, this must be managed
+    using packagingOptions
+  * Warn when using `dependsOn(androidSubProject)` incorrectly
 * `1.5.5`:
   * warn when aar dependency versions are improperly configured (thanks @tek)
   * colorize `logcat`, force `-v brief` for marshmallow compatibility (fixes
