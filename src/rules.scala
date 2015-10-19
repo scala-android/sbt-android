@@ -107,7 +107,7 @@ object Plugin extends sbt.Plugin {
           packageT in Compile in p),
         localProjects += LibraryProject((projectLayout in p).value),
         localProjects := {
-          ((localProjects).value ++
+          (localProjects.value ++
             (localProjects in p).value).distinctLibs
         }
       )

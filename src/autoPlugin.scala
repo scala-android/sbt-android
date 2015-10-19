@@ -21,6 +21,16 @@ object AndroidPlugin extends AutoPlugin {
     }
     val androidIds = androids.map(_.project).toSet
 
+    def checkAndroidDependencies(p: ProjectRef): (ProjectRef,Seq[ProjectRef]) = {
+      (p,Project.getProject(p, e.structure).toSeq flatMap { prj =>
+        val deps = prj.dependencies map (_.project)
+        val locals = Project.extract(s).get(localProjects in p).map(
+          _.path.getCanonicalPath).toSet
+        val depandroids = deps filter (prj => androidIds(prj.project))
+        depandroids filterNot (a => Project.getProject(a, e.structure).exists (d =>
+          locals(d.base.getCanonicalPath)))
+      })
+    }
     def checkForExport(p: ProjectRef): Seq[ProjectRef] = {
       Project.getProject(p, e.structure).toSeq flatMap { prj =>
         val deps = prj.dependencies map (_.project)
@@ -29,9 +39,12 @@ object AndroidPlugin extends AutoPlugin {
         (deps flatMap checkForExport) ++ (nonAndroid filterNot (d => e.getOpt(sbt.Keys.exportJars in d) exists (_ == true)))
       }
     }
-    androids flatMap { p =>
-      checkForExport(p)
-    } foreach { unexported =>
+    androids map checkAndroidDependencies foreach { case (p, dep) =>
+      dep foreach { d =>
+        s.log.warn(s"android: '${p.project}' dependsOn '${d.project}' but does not `buildWith(${d.project})`")
+      }
+    }
+    androids flatMap checkForExport foreach { unexported =>
       s.log.warn(s"${unexported.project} is an Android dependency but does not specify `exportJars := true`")
     }
 
