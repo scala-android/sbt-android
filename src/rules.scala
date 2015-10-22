@@ -229,7 +229,6 @@ object Plugin extends sbt.Plugin {
         }) map (_.getAbsoluteFile)
       }.taskValue
     ),
-    copyResources      := { Seq.empty },
     packageT          <<= packageT dependsOn compile,
     javacOptions      <<= ( javacOptions
                           , builder
