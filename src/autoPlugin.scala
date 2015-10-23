@@ -19,14 +19,14 @@ object AndroidPlugin extends AutoPlugin {
     val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter {
       ref => e.getOpt(projectLayout in ref).isDefined
     }
-    val androidIds = androids.map(_.project).toSet
+    val androidSet = androids.toSet
 
     def checkAndroidDependencies(p: ProjectRef): (ProjectRef,Seq[ProjectRef]) = {
       (p,Project.getProject(p, e.structure).toSeq flatMap { prj =>
         val deps = prj.dependencies map (_.project)
         val locals = Project.extract(s).get(localProjects in p).map(
           _.path.getCanonicalPath).toSet
-        val depandroids = deps filter (prj => androidIds(prj.project))
+        val depandroids = deps filter (prj => androidSet(prj))
         depandroids filterNot (a => Project.getProject(a, e.structure).exists (d =>
           locals(d.base.getCanonicalPath)))
       })
@@ -34,7 +34,7 @@ object AndroidPlugin extends AutoPlugin {
     def checkForExport(p: ProjectRef): Seq[ProjectRef] = {
       Project.getProject(p, e.structure).toSeq flatMap { prj =>
         val deps = prj.dependencies map (_.project)
-        val nonAndroid = deps filterNot (prj => androidIds(prj.project))
+        val nonAndroid = deps filterNot (prj => androidSet(prj))
 
         (deps flatMap checkForExport) ++ (nonAndroid filterNot (d => e.getOpt(sbt.Keys.exportJars in d) exists (_ == true)))
       }
