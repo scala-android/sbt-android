@@ -70,7 +70,7 @@ object Dependencies {
   }
 
   case class ApkLibrary(base: File) extends LibraryDependency with Pkg {
-    implicit val output = (p: ProjectLayout) => new AndroidOutput(p)
+    implicit val output: BuildOutput.Converter = new AndroidOutput(_)
     def target = path
     import com.android.SdkConstants._
 
@@ -95,9 +95,7 @@ object Dependencies {
     override def getJniFolder = path / "jni"
   }
 
-  case class LibraryProject(layout: ProjectLayout) extends LibraryDependency {
-    implicit val output = (p: ProjectLayout) => new AndroidOutput(p)
-    import com.android.SdkConstants._
+  case class LibraryProject(layout: ProjectLayout)(implicit output: BuildOutput.Converter) extends LibraryDependency {
 
     override def getSymbolFile = layout.rTxt
     override def getJarFile = layout.classesJar
@@ -145,16 +143,16 @@ object Dependencies {
   }
 
   object LibraryProject {
-    def apply(base: File): LibraryProject = LibraryProject(ProjectLayout(base))
+    def apply(base: File)(implicit m: BuildOutput.Converter): LibraryProject = LibraryProject(ProjectLayout(base))
   }
 
   trait Pkg {
     def pkg: String
   }
   object AutoLibraryProject {
-    def apply(path: File) = new AutoLibraryProject(path)
+    def apply(path: File)(implicit m: BuildOutput.Converter) = new AutoLibraryProject(path)
   }
-  class AutoLibraryProject(path: File)
+  class AutoLibraryProject(path: File)(implicit m: BuildOutput.Converter)
   extends LibraryProject(ProjectLayout(path)) with Pkg {
     lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
 

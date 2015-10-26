@@ -3,7 +3,6 @@ import java.io.File
 
 import com.android.tools.lint.detector.api.Issue
 import sbt.{Configuration, Task, Def, Setting}
-import Keys.Android
 
 import scala.language.experimental.macros
 import scala.util.{Failure, Success, Try}
@@ -12,17 +11,13 @@ package object dsl {
   def list[A](body: Seq[A]): List[A] = macro dsl.Macros.listImplN[A]
   def list[A](body: A): List[A]      = macro dsl.Macros.listImpl1[A]
 
+  def javacOptions(opts: String*) = sbt.Keys.javacOptions ++= opts
   def javacOptions(config: Configuration)(opts: String*) =
     sbt.Keys.javacOptions in config ++= opts
 
-  def sdkPath(path: String) = Keys.sdkPath := path
-  def ndkPath(path: String) = Keys.ndkPath := Option(path)
-
-  def libraryRequest(library: String) =
+  def useLibrary(library: String) =
     Keys.libraryRequests += ((library, true))
 
-  def platformTarget(target: String) =
-    Keys.platformTarget := target
   def buildTools(version: String) =
     Keys.buildToolsVersion := Option(version)
 
@@ -34,12 +29,10 @@ package object dsl {
   def enableTR(enable: Boolean) = Keys.typedResources := enable
   def trIgnore(pkg: String) =
     Keys.typedResourcesIgnores += pkg
-  def buildConfigField(`type`: String, name: String, value: Def.Initialize[Task[String]]) =
+  def buildConfig(`type`: String, name: String, value: Def.Initialize[Task[String]]) =
     Keys.buildConfigOptions <+= value map { v => (`type`, name, v) }
-  def buildConfigField(`type`: String, name: String, value: String) =
+  def buildConfig(`type`: String, name: String, value: String) =
     Keys.buildConfigOptions += ((`type`, name, value))
-
-  def shrinkResources(enable: Boolean) = Keys.shrinkResources := enable
 
   def resValue(`type`: String, name: String, value: String) =
     Keys.resValues += ((`type`, name, value))
@@ -71,20 +64,19 @@ package object dsl {
     Keys.apkSigningConfig := Some(config)
   }
 
-  def packagingExclude(name: String) = Keys.packagingOptions := {
+  def apkExclude(name: String) = Keys.packagingOptions := {
     val opts = Keys.packagingOptions.value
     opts.copy(excludes = opts.excludes :+ name)
   }
-  def packagingPickFirst(name: String) = Keys.packagingOptions := {
+  def apkPickFirst(name: String) = Keys.packagingOptions := {
     val opts = Keys.packagingOptions.value
     opts.copy(pickFirsts = opts.pickFirsts :+ name)
   }
-  def packagingMerge(name: String) = Keys.packagingOptions := {
+  def apkMerge(name: String) = Keys.packagingOptions := {
     val opts = Keys.packagingOptions.value
     opts.copy(merges = opts.merges :+ name)
   }
 
-  def applicationId(pkg: String) = Keys.applicationId := pkg
   def manifestPlaceholder(key: String, value: String) =
     Keys.manifestPlaceholders += ((key,value))
   def manifestPlaceholder(key: String, value: Def.Initialize[Task[String]]) =
@@ -117,10 +109,11 @@ package object dsl {
   def rsOptimLevel(level: Int) = Keys.rsOptimLevel := level
 
   def shardDex(enable: Boolean) = Keys.dexShards := enable
+  def skipPredex(jar: Def.Initialize[Task[File]]) = Keys.predexSkip <+= jar
   def skipPredex(jar: File) = Keys.predexSkip += jar
   def dexMaxHeap(xmx: String) = Keys.dexMaxHeap := xmx
   def multidex(enable: Boolean) = Keys.dexMulti := enable
-  def dexMainClasses(classes: Seq[String]) = Keys.dexMainClassesConfig := {
+  def dexMainClasses(classes: String*) = Keys.dexMainClassesConfig := {
     val layout = Keys.projectLayout.value
     implicit val out = Keys.outputLayout.value
     sbt.IO.writeLines(layout.maindexlistTxt, classes)

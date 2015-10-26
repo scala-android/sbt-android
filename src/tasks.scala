@@ -30,8 +30,6 @@ import Dependencies.{LibraryProject => _, AutoLibraryProject => _, _}
 import com.android.builder.compiling.{ResValueGenerator, BuildConfigGenerator}
 import java.net.URLEncoder
 
-import BuildOutput._
-
 object Tasks {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
   val TOOLS_NS = "http://schemas.android.com/tools"
@@ -416,7 +414,7 @@ object Tasks {
   }
 
   def ndkbuild(layout: ProjectLayout, ndkHome: Option[String],
-               srcs: File, log: Logger, debug: Boolean)(implicit m: ProjectLayout => BuildOutput) = {
+               srcs: File, log: Logger, debug: Boolean)(implicit m: BuildOutput.Converter) = {
     val hasJni = (layout.jni ** "Android.mk" get).nonEmpty
     if (hasJni) {
       if (ndkHome.isEmpty) {
@@ -520,7 +518,15 @@ object Tasks {
                                 ) map {
     (bldr, noTestApk, isLib, libs, er, ea, layout, o, logger, s) =>
       implicit val output = o
-      Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, ea, layout.generatedRes +: er, logger, s.cacheDirectory, s)
+      // hack because cached can only return Set[File]
+      val out = (layout.mergedAssets, layout.mergedRes)
+      val assets = layout.assets +: ea flatMap (_ ** FileOnlyFilter get)
+      withCachedRes(s, "collect-resources", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
+        val res = Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, ea, layout.generatedRes +: er, logger, s.cacheDirectory, s)
+        if (out != res) sys.error(s"Unexpected directories $out != $res")
+        Set(res._1, res._2)
+      }
+      out
   }
 
 
@@ -579,6 +585,7 @@ object Tasks {
   val packageResourcesTaskDef = ( builder
                                 , projectLayout
                                 , outputLayout
+                                , extraResDirectories
                                 , processManifest
                                 , collectResources
                                 , packageForR
@@ -587,17 +594,37 @@ object Tasks {
                                 , apkbuildDebug
                                 , streams
                                 ) map {
-    case (bldr, layout, output, manif, (assets, res), pkg, lib, libs, d, s) =>
+    case (bldr, layout, output, extrares, manif, (assets, res), pkg, lib, libs, d, s) =>
       implicit val o = output
-      val proguardTxt = layout.proguardTxt.getAbsolutePath
-      layout.proguardTxt.getParentFile.mkdirs()
 
       val p = layout.resApk(d())
-      s.log.info("Packaging resources: " + p.getName)
-      Resources.aapt(bldr, manif, pkg, libs, lib, d(), res, assets,
-        p.getAbsolutePath, layout.gen, proguardTxt, s.log)
+      withCachedRes(s, "res.apk", normalres(layout, extrares, libs), genres(layout, libs)) {
+        val proguardTxt = layout.proguardTxt.getAbsolutePath
+        layout.proguardTxt.getParentFile.mkdirs()
+
+        s.log.info("Packaging resources: " + p.getName)
+        Resources.aapt(bldr, manif, pkg, libs, lib, d(), res, assets,
+          p.getAbsolutePath, layout.gen, proguardTxt, s.log)
+        Set(p)
+      }
       p
   }
+
+  // collect un-merged resources for cached(),
+  // post-collectResources has modified timestamps
+  // this breaks for `extraResDirectories` in sub projects
+  def normalres(layout: ProjectLayout, extrares: Seq[File], libs: Seq[LibraryDependency]) =
+    (libs flatMap { _.getResFolder ** FileOnlyFilter get }) ++
+      (layout.res ** FileOnlyFilter get) ++
+      (extrares flatMap (_ ** FileOnlyFilter get))
+
+  def genres(layout: ProjectLayout, libs: Seq[LibraryDependency])
+            (implicit out: BuildOutput.Converter) =
+    (libs flatMap {
+      case lp: LibraryProject =>
+        out(lp.layout).generatedRes ** FileOnlyFilter get
+      case _ => Nil
+    }) ++ (layout.generatedRes ** FileOnlyFilter get)
 
   val apkbuildAggregateTaskDef = Def.task {
     Aggregate.Apkbuild(packagingOptions.value,
@@ -836,6 +863,7 @@ object Tasks {
   val rGeneratorTaskDef = ( builder
                           , projectLayout
                           , outputLayout
+                          , extraResDirectories
                           , processManifest
                           , collectResources
                           , packageForR
@@ -844,19 +872,38 @@ object Tasks {
                           , apkbuildDebug
                           , streams
                           ) map {
-    case (bldr, layout, o, manif, (assets, res), pkg, lib, libs, debug, s) =>
+    case (bldr, layout, o, extrares, manif, (assets, res), pkg, lib, libs, debug, s) =>
       implicit val output = o
       val proguardTxt = layout.proguardTxt.getAbsolutePath
       layout.proguardTxt.getParentFile.mkdirs()
 
       // not covered under FileFunction.cached because FilesInfo.hash is too
       // slow. Just let aapt do its thing every time...
-      s.log.info("Processing resources")
-      if (!res.exists)
-        s.log.warn("No resources found at " + res.getAbsolutePath)
-      Resources.aapt(bldr, manif, pkg, libs, lib, debug(), res, assets, null,
-        layout.gen, proguardTxt, s.log)
-      (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get)
+      withCachedRes(s, "R.java",
+        normalres(layout, extrares, libs), genres(layout, libs)) {
+        s.log.info("Processing resources")
+        if (!res.exists)
+          s.log.warn("No resources found at " + res.getAbsolutePath)
+        Resources.aapt(bldr, manif, pkg, libs, lib, debug(), res, assets, null,
+          layout.gen, proguardTxt, s.log)
+        (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
+      }
+  }
+
+  def withCachedRes(s: sbt.Keys.TaskStreams, tag: String, inStamp: Seq[File], inHash: Seq[File])(body: => Set[File]) = {
+    if (inStamp.nonEmpty) {
+      FileFunction.cached(s.cacheDirectory / tag, FilesInfo.lastModified) { _ =>
+        if (inHash.isEmpty) body
+        else
+          FileFunction.cached(s.cacheDirectory / (tag + "-hash"), FilesInfo.hash) { _ =>
+            body
+          }(inHash.toSet)
+      }(inStamp.toSet).toSeq
+    } else if (inHash.nonEmpty) {
+      FileFunction.cached(s.cacheDirectory / (tag + "-hash"), FilesInfo.hash) { _ =>
+        body
+      }(inHash.toSet).toSeq
+    } else body.toSeq
   }
 
   val proguardConfigTaskDef = ( projectLayout
@@ -1431,7 +1478,7 @@ object Tasks {
       Commands.targetDevice(k, s.log) foreach uninstall
   }
 
-  def loadLibraryReferences(b: File, props: Properties, prefix: String = ""):
+  def loadLibraryReferences(b: File, props: Properties, prefix: String = "")(implicit m: BuildOutput.Converter):
   Seq[AutoLibraryProject] = {
     val p = props.asScala
     (p.keys.collect {
@@ -1483,4 +1530,8 @@ object Tasks {
       !c.data.getName.startsWith("scala-library") && c.data.isFile
     }
   }
+}
+
+object FileOnlyFilter extends FileFilter {
+  override def accept(pathname: sbt.File) = pathname.isFile
 }

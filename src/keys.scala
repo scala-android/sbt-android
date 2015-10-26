@@ -63,7 +63,7 @@ object Keys {
   // layout-related keys
   val projectLayout = SettingKey[ProjectLayout]("project-layout",
     "setting to determine whether the project is laid out ant or gradle-style") in Android
-  val outputLayout = SettingKey[ProjectLayout => BuildOutput]("output-layout",
+  val outputLayout = SettingKey[BuildOutput.Converter]("output-layout",
     "setting for defining project build output layout") in Android
   val antLayoutDetector = TaskKey[Unit]("ant-layout-detector",
     "detects and warns if an android project is using an ant-style layout") in Android
