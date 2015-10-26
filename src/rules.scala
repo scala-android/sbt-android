@@ -175,6 +175,8 @@ object Plugin extends sbt.Plugin {
                 , minSdkVersion
                 , targetSdkVersion
                 , streams) map { (c, ld, f, en, strict, layout, o, minSdk, tgtSdk, s) =>
+      dsl.checkVersion("minSdkVersion", minSdk)
+      dsl.checkVersion("targetSdkVersion", tgtSdk)
       implicit val output = o
       if (en)
         AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)

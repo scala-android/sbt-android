@@ -622,7 +622,7 @@ object Tasks {
             (implicit out: BuildOutput.Converter) =
     (libs flatMap {
       case lp: LibraryProject =>
-        out(lp.layout).generatedRes ** FileOnlyFilter get
+        lp.layout.generatedRes ** FileOnlyFilter get
       case _ => Nil
     }) ++ (layout.generatedRes ** FileOnlyFilter get)
 
@@ -891,19 +891,17 @@ object Tasks {
   }
 
   def withCachedRes(s: sbt.Keys.TaskStreams, tag: String, inStamp: Seq[File], inHash: Seq[File])(body: => Set[File]) = {
-    if (inStamp.nonEmpty) {
-      FileFunction.cached(s.cacheDirectory / tag, FilesInfo.lastModified) { _ =>
-        if (inHash.isEmpty) body
-        else
-          FileFunction.cached(s.cacheDirectory / (tag + "-hash"), FilesInfo.hash) { _ =>
-            body
-          }(inHash.toSet)
-      }(inStamp.toSet).toSeq
-    } else if (inHash.nonEmpty) {
-      FileFunction.cached(s.cacheDirectory / (tag + "-hash"), FilesInfo.hash) { _ =>
+    var dirty = false
+    if (inStamp.isEmpty && inHash.isEmpty) body.toSeq else {
+      (FileFunction.cached(s.cacheDirectory / tag, FilesInfo.lastModified) { _ =>
+        dirty = true
         body
-      }(inHash.toSet).toSeq
-    } else body.toSeq
+      }(inStamp.toSet) ++
+        FileFunction.cached(s.cacheDirectory / (tag + "-hash"), FilesInfo.hash) { _ =>
+          if (!dirty) body
+          else Set.empty
+        }(inHash.toSet)).toSeq
+    }
   }
 
   val proguardConfigTaskDef = ( projectLayout

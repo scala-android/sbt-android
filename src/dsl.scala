@@ -84,31 +84,30 @@ package object dsl {
   def versionName(name: String) = Keys.versionName := Option(name)
   def versionCode(code: Int) = Keys.versionCode := Option(code)
 
-  private[this] def checkVersion(version: String): Unit = {
+  def checkVersion(tag: String, version: String): Unit = {
     Try(version.toInt) match {
       case Success(_) =>
       case Failure(_) => if (version.length > 1)
-        Plugin.fail("SDK version must be an integer value or a single letter")
+        Plugin.fail(tag + " must be an integer value or a single letter")
     }
   }
   def targetSdkVersion(version: String) = {
-    checkVersion(version)
+    checkVersion("targetSdkVersion", version)
     Keys.targetSdkVersion := version
   }
   def minSdkVersion(version: String) = {
-    checkVersion(version)
+    checkVersion("minSdkVersion", version)
     Keys.minSdkVersion := version
   }
   def mergeManifests(enable: Boolean) = Keys.mergeManifests := enable
 
   def rsTargetApi(version: String) = {
-    checkVersion(version)
+    checkVersion("rsTargetApi", version)
     Keys.rsTargetApi := version
   }
   def rsSupportMode(enable: Boolean) = Keys.rsSupportMode := enable
   def rsOptimLevel(level: Int) = Keys.rsOptimLevel := level
 
-  def shardDex(enable: Boolean) = Keys.dexShards := enable
   def skipPredex(jar: Def.Initialize[Task[File]]) = Keys.predexSkip <+= jar
   def skipPredex(jar: File) = Keys.predexSkip += jar
   def dexMaxHeap(xmx: String) = Keys.dexMaxHeap := xmx

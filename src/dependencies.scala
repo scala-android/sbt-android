@@ -95,7 +95,8 @@ object Dependencies {
     override def getJniFolder = path / "jni"
   }
 
-  case class LibraryProject(layout: ProjectLayout)(implicit output: BuildOutput.Converter) extends LibraryDependency {
+  case class LibraryProject(layout: ProjectLayout)
+                           (implicit output: BuildOutput.Converter) extends LibraryDependency {
 
     override def getSymbolFile = layout.rTxt
     override def getJarFile = layout.classesJar
@@ -143,7 +144,7 @@ object Dependencies {
   }
 
   object LibraryProject {
-    def apply(base: File)(implicit m: BuildOutput.Converter): LibraryProject = LibraryProject(ProjectLayout(base))
+    def apply(base: File)(implicit m: BuildOutput.Converter = new BuildOutput.AndroidOutput(_)): LibraryProject = LibraryProject(ProjectLayout(base))
   }
 
   trait Pkg {
