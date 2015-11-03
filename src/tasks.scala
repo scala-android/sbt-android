@@ -521,7 +521,7 @@ object Tasks {
       // hack because cached can only return Set[File]
       val out = (layout.mergedAssets, layout.mergedRes)
       val assets = layout.assets +: ea flatMap (_ ** FileOnlyFilter get)
-      withCachedRes(s, "collect-resources", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
+      withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
         val res = Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, ea, layout.generatedRes +: er, logger, s.cacheDirectory, s)
         if (out != res) sys.error(s"Unexpected directories $out != $res")
         Set(res._1, res._2)
