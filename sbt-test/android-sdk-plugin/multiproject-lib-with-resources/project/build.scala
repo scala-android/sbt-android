@@ -15,15 +15,12 @@ object MyProjectBuild extends Build {
 
 
   // android application project
-  lazy val guidemate = Project(id = "app", base = file("app")).settings(
-   appSettings:_*).dependsOn(guidemate_lib)
+  lazy val guidemate = Project(id = "app", base = file("app")).androidBuildWith(guidemate_lib).settings(appSettings:_*)
+  lazy val geophon = Project(id = "app2", base = file("app2")).androidBuildWith(guidemate_lib).settings(appSettings :_*)
 
-  lazy val geophon = Project(id = "app2", base = file("app2")).settings(
-    appSettings:_*).dependsOn(guidemate_lib)
-
-  val guidemate_lib = Project(id = "lib", 
+  val guidemate_lib = Project(id = "lib",
     base = file("lib-with-resources")).settings(
-    android.Plugin.androidBuildApklib: _*)
+    android.Plugin.androidBuildAar: _*)
     .settings(libraryDependencies ++= Seq(
                         "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",
                         "com.pivotallabs" % "robolectric" % "1.1" % "test",
@@ -36,8 +33,7 @@ object MyProjectBuild extends Build {
                         "org.osmdroid" % "osmdroid-android" % "3.0.10",
                         "org.slf4j" % "slf4j-simple" % "1.7.5"))
 
-  lazy val appSettings = android.Plugin.androidBuild(guidemate_lib) ++
-    List(localProjects in Android += LibraryProject(guidemate_lib.base),
+  lazy val appSettings = List(localProjects in Android += LibraryProject(guidemate_lib.base),
         platformTarget in Android := "android-17",
         useProguard in Android := true,
         useProguardInDebug in Android := true,
