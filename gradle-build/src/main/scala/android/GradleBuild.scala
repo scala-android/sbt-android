@@ -555,7 +555,7 @@ object GradleBuildSerializer {
            |    collectResources dependsOn (compile in Compile in ${escaped(d)}),
            |  compile in Compile <<= compile in Compile dependsOn(
            |    sbt.Keys.`package` in Compile in ${escaped(d)}),
-           |  localProjects += LibraryProject(${escaped(d)}.base)
+           |  localProjects += LibraryProject(${escaped(d)}.base)((outputLayout in ${escaped(d)}).value)
            |""".
             stripMargin
           } mkString ",\n"

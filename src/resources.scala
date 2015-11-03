@@ -12,11 +12,8 @@ import sbt.Keys.TaskStreams
 import sbt._
 
 import collection.JavaConverters._
-import scala.xml.XML
 
 import language.postfixOps
-
-import BuildOutput._
 
 import Dependencies.LibrarySeqOps
 
@@ -32,7 +29,7 @@ object Resources {
                           , logger: Logger => ILogger
                           , cache: File
                           , s: TaskStreams
-                          )(implicit m: ProjectLayout => BuildOutput): (File,File) = {
+                          )(implicit m: BuildOutput.Converter): (File,File) = {
 
     val assetBin = layout.mergedAssets
     val assets = layout.assets
@@ -102,7 +99,7 @@ object Resources {
                         libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
                         bldr: AndroidBuilder, resources: Seq[ResourceSet],
                         changes: ChangeReport[File],
-                        slog: Logger)(implicit m: ProjectLayout => BuildOutput) {
+                        slog: Logger)(implicit m: BuildOutput.Converter) {
 
     def merge() = fullResourceMerge(layout, resTarget, isLib, libs, blobDir,
       logger, bldr, resources, slog)
@@ -175,7 +172,7 @@ object Resources {
   }
   def fullResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
                         libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
-                        bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger)(implicit m: ProjectLayout => BuildOutput) {
+                        bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger)(implicit m: BuildOutput.Converter) {
 
     slog.info("Performing full resource merge")
     val merger = new ResourceMerger

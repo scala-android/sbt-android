@@ -33,7 +33,7 @@ object MyProjectBuild extends Build {
                         "org.osmdroid" % "osmdroid-android" % "3.0.10",
                         "org.slf4j" % "slf4j-simple" % "1.7.5"))
 
-  lazy val appSettings = List(localProjects in Android += LibraryProject(guidemate_lib.base),
+  lazy val appSettings = List(
         platformTarget in Android := "android-17",
         useProguard in Android := true,
         useProguardInDebug in Android := true,

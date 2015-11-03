@@ -105,7 +105,8 @@ object Plugin extends sbt.Plugin {
           collectResources dependsOn (compile in Compile in p),
         compile in Compile <<= compile in Compile dependsOn(
           packageT in Compile in p),
-        localProjects += LibraryProject((projectLayout in p).value),
+        localProjects +=
+          LibraryProject((projectLayout in p).value)((outputLayout in p).value),
         localProjects := {
           (localProjects.value ++
             (localProjects in p).value).distinctLibs
@@ -174,6 +175,8 @@ object Plugin extends sbt.Plugin {
                 , minSdkVersion
                 , targetSdkVersion
                 , streams) map { (c, ld, f, en, strict, layout, o, minSdk, tgtSdk, s) =>
+      dsl.checkVersion("minSdkVersion", minSdk)
+      dsl.checkVersion("targetSdkVersion", tgtSdk)
       implicit val output = o
       if (en)
         AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)
@@ -463,8 +466,8 @@ object Plugin extends sbt.Plugin {
     },
     rsOptimLevel            := 3,
     renderscript            <<= renderscriptTaskDef,
-    localProjects           <<= (baseDirectory, properties) { (b,p) =>
-      loadLibraryReferences(b, p)
+    localProjects           <<= (baseDirectory, properties, outputLayout) { (b,p,o) =>
+      loadLibraryReferences(b, p)(o)
     },
     libraryProjects          := localProjects.value ++ apklibs.value ++ aars.value,
     libraryProject          <<= properties { p =>
@@ -559,7 +562,7 @@ object Plugin extends sbt.Plugin {
     typedResources          <<= autoScalaLibrary,
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
-    useProguard             <<= useProguardInDebug,
+    useProguard             <<= proguardScala,
     useSdkProguard          <<= proguardScala (!_),
     useProguardInDebug      <<= proguardScala,
     extraResDirectories         := Nil,

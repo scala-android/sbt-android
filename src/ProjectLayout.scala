@@ -57,6 +57,8 @@ trait BuildOutput extends Any {
   def integrationApkFile(name: String): File
 }
 object BuildOutput {
+  type Converter = ProjectLayout => BuildOutput
+
   // TODO figure out how to make this user-configurable
   class AndroidOutput(val layout: ProjectLayout) extends AnyVal with BuildOutput {
     def intermediates = layout.bin / "intermediates"
@@ -183,7 +185,7 @@ object BuildOutput {
     def outputApklibFile(name: String) = base.outputApklibFile(name)
     def integrationApkFile(name: String) = base.integrationApkFile(name)
   }
-  implicit class LayoutOutputExtension(val layout: ProjectLayout)(implicit val base: ProjectLayout => BuildOutput) extends BuildOutput {
+  implicit class LayoutOutputExtension(val layout: ProjectLayout)(implicit val base: BuildOutput.Converter) extends BuildOutput {
     def intermediates = base(layout).intermediates
     def generated = base(layout).generated
     def packaging = base(layout).packaging

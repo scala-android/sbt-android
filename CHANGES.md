@@ -1,5 +1,14 @@
 ## New features in 1.5.x ##
 
+* `1.5.8`: minor bugfix release
+* `1.5.7`:
+  * fix `retrolambda-enable` to `retrolambda-enabled` in repl
+  * re-enable `copyResources`
+  * Fix issue with `RootProject`s and `dependsOn(androidSubProject)` checking
+  * Honor `android:outputLayout` in more places (everywhere?)
+  * bring back `FileFunction.cached` for android res on a best-effort basis
+  * `android:use-proguard` and `android:use-proguard-in-debug` no longer depend
+    on each other
 * `1.5.6`:
   * Fix `logcat`, allow passing arguments
   * Load flavor, buildType, applicationId, versionName and code into
