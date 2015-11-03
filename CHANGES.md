@@ -1,5 +1,6 @@
 ## New features in 1.5.x ##
 
+* `1.5.8`: minor bugfix release
 * `1.5.7`:
   * fix `retrolambda-enable` to `retrolambda-enabled` in repl
   * re-enable `copyResources`

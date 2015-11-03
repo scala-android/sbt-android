@@ -1,6 +1,6 @@
 # Android Gradle Auto-Import Plugin for SBT #
 
-Current version is 1.1.6
+Current version is 1.1.7
 
 ## Description ##
 
