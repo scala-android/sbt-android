@@ -545,6 +545,9 @@ object GradleBuildSerializer {
     lazy val dependsOnProjects = {
       if (dependencies.nonEmpty) ".dependsOn(" + dependencies.map(escaped).mkString(",") + ")" else ""
     }
+    lazy val buildTypeSelection = {
+      if (buildTypes.nonEmpty) s"""\nandroid.Plugin.withVariant(${enc(id)}, Some(${enc(buildTypes.head.name)}), None)""" else ""
+    }
     lazy val dependsOnSettings = {
       if (dependencies.nonEmpty) {
         val depSettings = dependencies map { d =>
@@ -568,7 +571,7 @@ object GradleBuildSerializer {
          |  ${if (isApplication) "android.Plugin.androidBuild" else "android.Plugin.androidBuildAar"}:_*).settings(
          |    ${settings.map(_.serialized).mkString(",\n    ")}
          |)$serializedBuildTypes$serializedFlavors
-         |$dependsOnProjects$dependsOnSettings
+         |$dependsOnProjects$dependsOnSettings$buildTypeSelection
        """.stripMargin
   }
 
