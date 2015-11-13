@@ -4,6 +4,7 @@ import java.util.Properties
 
 import android.Dependencies.LibraryProject
 import com.android.builder.model.SyncIssue
+import com.android.builder.signing.DefaultSigningConfig
 import com.android.ide.common.process.BaseProcessOutputHandler.BaseProcessOutput
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
@@ -13,6 +14,7 @@ import sbt.Keys._
 
 import com.android.builder.core.{LibraryRequest, EvaluationErrorReporter, AndroidBuilder}
 import com.android.builder.sdk.DefaultSdkLoader
+import com.android.ide.common.signing.KeystoreHelper
 import com.android.sdklib.{SdkVersionInfo, AndroidTargetHash, IAndroidTarget, SdkManager}
 import com.android.sdklib.repository.FullRevision
 import com.android.SdkConstants
@@ -585,6 +587,7 @@ object Plugin extends sbt.Plugin {
     apkbuildDebug            := MutableSetting(true),
     apkbuild                <<= apkbuildTaskDef,
     apkbuild                <<= apkbuild dependsOn (managedResources in Compile),
+    apkDebugSigningConfig    := DebugSigningConfig(),
     apkSigningConfig        <<= properties { p =>
       def makeSigningConfig(alias: String, store: String, passwd: String) = {
         val c = PlainSigningConfig(file(store), passwd, alias)

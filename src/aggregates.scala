@@ -15,6 +15,7 @@ object Aggregate {
                                           instrumentTestRunner: String,
                                           instrumentTestTimeout: Int,
                                           apkbuildDebug: Boolean,
+                                          debugSigningConfig: ApkSigningConfig,
                                           dexMaxHeap: String,
                                           externalDependencyClassPathInTest: Seq[File],
                                           externalDependencyClasspathInCompile: Seq[File],
@@ -23,6 +24,7 @@ object Aggregate {
 
   private[android] case class Apkbuild(packagingOptions: PackagingOptions,
                                        apkbuildDebug: Boolean,
+                                       debugSigningConfig: ApkSigningConfig,
                                        dex: File,
                                        predex: Seq[(File,File)],
                                        collectJni: Seq[File],

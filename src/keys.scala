@@ -108,6 +108,8 @@ object Keys {
     "consistent file name for apk output, used for IDE integration") in Android
   val apkSigningConfig = SettingKey[Option[ApkSigningConfig]]("apk-signing-config",
     "signing configuration for release builds") in Android
+  val apkDebugSigningConfig = SettingKey[ApkSigningConfig]("apk-debug-signing-config",
+    "signing configuration for debug builds") in Android
   val signRelease = TaskKey[File]("sign-release", "sign the release build") in Android
   val zipalign = TaskKey[File]("zipalign", "zipalign the final package") in Android
   val packagingOptions = SettingKey[PackagingOptions]("packaging-options",

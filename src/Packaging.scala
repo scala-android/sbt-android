@@ -4,8 +4,6 @@ import java.io.File
 
 import android.Keys.PackagingOptions
 import com.android.builder.core.AndroidBuilder
-import com.android.builder.signing.DefaultSigningConfig
-import com.android.ide.common.signing.KeystoreHelper
 import com.android.utils.ILogger
 import sbt.Def.Classpath
 import sbt.Keys.moduleID
@@ -21,7 +19,7 @@ object Packaging {
                isLib: Boolean, options: PackagingOptions, shrinker: File,
                dexFolder: File, predex: Seq[(File,File)], jniFolders: Seq[File],
                _unused_collectJniOut: File, resFolder: File,
-               debug: Boolean, output: File,
+               debug: Boolean, debugSigningConfig: ApkSigningConfig, output: File,
                logger: ILogger, s: sbt.Keys.TaskStreams): File = {
 
     import language.postfixOps
@@ -41,26 +39,18 @@ object Packaging {
 
     s.log.debug("jars to process for resources: " + jars)
 
-    val debugConfig = new DefaultSigningConfig("debug")
-    debugConfig.initDebug()
-    if (!debugConfig.getStoreFile.exists) {
-      KeystoreHelper.createDebugStore(null, debugConfig.getStoreFile,
-        debugConfig.getStorePassword, debugConfig.getKeyPassword,
-        debugConfig.getKeyAlias, logger)
-    }
-
     // filtering out org.scala-lang above should not cause an issue
     // they should not be changing on us anyway
       s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s, %s)" format (
         shrinker.getAbsolutePath, dexFolder.getAbsolutePath, jars,
         jniFolders.asJava, debug,
-        if (debug) debugConfig else null, output.getAbsolutePath,
-        options
-        ))
+        if (debug) debugSigningConfig else null,
+        output.getAbsolutePath, options))
+    
       bldr.packageApk(shrinker.getAbsolutePath, dexFolder, predexed.asJava, jars.asJava,
         resFolder.getAbsolutePath, jniFolders.asJava,
         s.cacheDirectory / "apkbuild-merging", null, debug,
-        if (debug) debugConfig else null, options.asAndroid, output.getAbsolutePath)
+        if (debug) debugSigningConfig.toSigningConfig("debug") else null, options.asAndroid, output.getAbsolutePath)
       s.log.debug("Including predexed: " + predexed)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))

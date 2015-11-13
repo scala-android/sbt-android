@@ -15,7 +15,6 @@ import java.util.Properties
 import java.io.File
 
 import com.android.SdkConstants
-import com.android.builder.signing.DefaultSigningConfig
 import com.android.builder.core._
 import com.android.ddmlib.{IDevice, DdmPreferences}
 import com.android.ddmlib.testrunner.ITestRunListener
@@ -628,8 +627,9 @@ object Tasks {
 
   val apkbuildAggregateTaskDef = Def.task {
     Aggregate.Apkbuild(packagingOptions.value,
-      apkbuildDebug.value(), dex.value, predex.value,
-      collectJni.value, resourceShrinker.value)
+      apkbuildDebug.value(), apkDebugSigningConfig.value,
+      dex.value, predex.value, collectJni.value,
+      resourceShrinker.value)
   }
 
   val apkbuildTaskDef = Def.task {
@@ -644,7 +644,7 @@ object Tasks {
     val logger = ilogger.value(s.log)
     Packaging.apkbuild(builder.value, m, u, dcp, libraryProject.value,
       a.packagingOptions, a.resourceShrinker, a.dex, a.predex, a.collectJni,
-      layout.collectJni, layout.resources, a.apkbuildDebug,
+      layout.collectJni, layout.resources, a.apkbuildDebug, a.debugSigningConfig,
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)
   }
 
@@ -1126,7 +1126,8 @@ object Tasks {
 
   val testAggregateTaskDef = Def.task {
     Aggregate.AndroidTest(debugIncludesTests.value, instrumentTestRunner.value,
-      instrumentTestTimeout.value, apkbuildDebug.value(), dexMaxHeap.value,
+      instrumentTestTimeout.value, apkbuildDebug.value(),
+      apkDebugSigningConfig.value, dexMaxHeap.value,
       (externalDependencyClasspath in Test).value map (_.data),
       (externalDependencyClasspath in Compile).value map (_.data),
       packagingOptions.value, libraryProject.value)
@@ -1214,13 +1215,10 @@ object Tasks {
       bldr.convertByteCode(inputs.asJava, List.empty.asJava,
         dex, false, null, options, List.empty.asJava, tmp, false, !debug)
 
-      val debugConfig = new DefaultSigningConfig("debug")
-      debugConfig.initDebug()
-
       val opts = ta.packagingOptions
       bldr.packageApk(res.getAbsolutePath, dex,
         List.empty.asJava, List.empty.asJava, null, null, s.cacheDirectory / "test-apkbuild-merge", null,
-        debug, debugConfig, opts.asAndroid, apk.getAbsolutePath)
+        debug, ta.debugSigningConfig.toSigningConfig("debug"), opts.asAndroid, apk.getAbsolutePath)
       s.log.debug("Installing test apk: " + apk)
 
       def install(device: IDevice) {
