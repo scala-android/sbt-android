@@ -25,6 +25,9 @@ trait GradleBuild extends Build {
 
   val Gradle = sbt.config("gradle")
 
+  // yuck
+  private[this] var idToResolved = Map.empty[String,String]
+
   override def settings = super.settings ++ List(
     onLoad in Global := (onLoad in Global).value andThen { s =>
       Project.runTask(updateCheck in Gradle, s).fold(s)(_._1)
@@ -71,7 +74,7 @@ trait GradleBuild extends Build {
     gconnection.setVerboseLogging(false)
 
     try {
-      val discovered = GradleBuildSerializer.toposort(processDirectoryAt(file("."), f, gconnection)._2)
+      val discovered = GradleBuildSerializer.toposort(processDirectoryAt(file("."), f, gconnection)._2, idToResolved)
       f.delete()
 
       val end = System.currentTimeMillis
@@ -80,7 +83,7 @@ trait GradleBuild extends Build {
       println(discovered.map(p => f"${p.id}%20s at ${p.base}").mkString("\n"))
       IO.write(generatedScript,
         "// AUTO-GENERATED SBT FILE, DO NOT MODIFY" ::
-          (discovered map (_.serialized)) mkString "\n" replace ("\r", ""))
+          (discovered map (_.serialized(idToResolved))) mkString "\n" replace ("\r", ""))
     } catch {
       case ex: Exception =>
         @tailrec
@@ -230,7 +233,7 @@ trait GradleBuild extends Build {
       // gradle 2.4 added getProjectDirectory
       val childDir = Try(child.getProjectDirectory).getOrElse(file(child.getPath.replace(":", ""))).getCanonicalFile
       if (!saw(childDir)) {
-        println("Processing gradle sub-project at: " + childDir.getName)
+        println("Processing gradle sub-project at: " + childDir.getCanonicalPath)
         val (visited, subs) = processDirectoryAt(childDir,
           initscript, connector, repos, saw + childDir,
           origin orElse Some(base),
@@ -335,8 +338,11 @@ trait GradleBuild extends Build {
           extraDirectories(sourceProvider.getResDirectories, extraResDirectories) ++
           extraDirectories(sourceProvider.getResourcesDirectories, resourceDirectories in Compile) ++
           extraDirectories(sourceProvider.getAssetsDirectories, extraAssetDirectories)
+        val resolvedId = path.fold("")(_.replace("/","").replace("\\","")) + ap.getName
+        idToResolved += ((ap.getName, resolvedId))
+
         val sp = SbtProject(
-          path.fold("")(_.replace("/","").replace("\\","")) + ap.getName,
+          resolvedId,
           base, discovery.isApplication,
           projects.map(_.getProject.replace(":","")).toSet, buildTypes, flavors,
           optional ++ libs ++ localAar ++ standard ++ unmanaged ++ defaultConfig.settings)
@@ -542,15 +548,16 @@ object GradleBuildSerializer {
     lazy val serializedFlavors = {
       flavors.map(".settings(" + _.serialized + ")").mkString("")
     }
-    lazy val dependsOnProjects = {
-      if (dependencies.nonEmpty) ".dependsOn(" + dependencies.map(escaped).mkString(",") + ")" else ""
+    def dependsOnProjects(idToResolved: Map[String,String]) = {
+      if (dependencies.nonEmpty) ".dependsOn(" + dependencies.map(idToResolved andThen escaped).mkString(",") + ")" else ""
     }
     lazy val buildTypeSelection = {
       if (buildTypes.nonEmpty) s"""\nandroid.Plugin.withVariant(${enc(id)}, Some(${enc(buildTypes.head.name)}), None)""" else ""
     }
-    lazy val dependsOnSettings = {
+    def dependsOnSettings(idToResolved: Map[String,String]) = {
       if (dependencies.nonEmpty) {
-        val depSettings = dependencies map { d =>
+        val depSettings = dependencies map { d1 =>
+          val d = idToResolved(d1)
           s"""
            |  TaskKey[Seq[android.Dependencies.LibraryDependency]]("transitive-aars") in Android <++=
            |    TaskKey[Seq[android.Dependencies.LibraryDependency]]("aars") in Android in ${escaped(d)},
@@ -565,19 +572,19 @@ object GradleBuildSerializer {
         s".settings($depSettings)"
       } else ""
     }
-    lazy val serialized =
+    def serialized(idToResolved: Map[String,String]) =
       s"""
          |val ${escaped(id)} = Project(id = ${enc(id)}, base = ${enc(base)}).settings(
          |  ${if (isApplication) "android.Plugin.androidBuild" else "android.Plugin.androidBuildAar"}:_*).settings(
          |    ${settings.map(_.serialized).mkString(",\n    ")}
          |)$serializedBuildTypes$serializedFlavors
-         |$dependsOnProjects$dependsOnSettings$buildTypeSelection
+         |${dependsOnProjects(idToResolved)}${dependsOnSettings(idToResolved)}$buildTypeSelection
        """.stripMargin
   }
 
-  def toposort(ps: List[SbtProject]): List[SbtProject] = {
+  def toposort(ps: List[SbtProject], idToResolved: Map[String,String]): List[SbtProject] = {
     val projectMap = ps.map(p => (p.id.replace(":", ""), p)).toMap
-    Dag.topologicalSort(ps)(_.dependencies flatMap projectMap.get)
+    Dag.topologicalSort(ps)(_.dependencies map idToResolved flatMap projectMap.get)
   }
 
   import language.existentials
