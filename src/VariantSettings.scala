@@ -62,7 +62,31 @@ object VariantSettings {
         flavor.toSeq.flatMap(f => flavors.getOrElse(f, Nil)) ++
           buildType.toSeq.flatMap(t => buildTypes.getOrElse(t, Nil))
 
-      val ss2 = ss map fixProjectScope(project)
+      val ss3 = (for {
+        f <- flavor
+        t <- buildType
+      } yield {
+        val variant = f + t.capitalize
+        val sourceDirectory = sbt.Keys.sourceDirectory in Global in project
+        Seq(
+          sbt.Keys.unmanagedSourceDirectories in Compile in project ++= {
+            val srcbase = sourceDirectory.value
+            srcbase / variant / "java" ::
+              srcbase / variant / "scala" ::
+              Nil
+          },
+          sbt.Keys.resourceDirectories in Compile in project += {
+            sourceDirectory.value / variant / "resources"
+          },
+          Keys.extraResDirectories in Keys.Android in project += {
+            sourceDirectory.value / variant / "res"
+          },
+          Keys.extraAssetDirectories in Keys.Android in project += {
+            sourceDirectory.value / variant / "assets"
+          })
+      }) getOrElse Nil
+
+      val ss2 = (ss ++ ss3) map fixProjectScope(project)
       val newVariant = variants.copy(append = variants.append + ((project, ss2)), status = variants.status + ((project, (buildType,flavor))))
       val bt = buildType.getOrElse("(none)")
       val fl = flavor.getOrElse("(none)")

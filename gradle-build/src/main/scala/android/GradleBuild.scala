@@ -211,7 +211,7 @@ trait GradleBuild extends Build {
     def extraDirectories(dirs: java.util.Collection[File], key: SettingKey[Seq[File]]): List[SbtSetting] =
       dirs.asScala.map(d => key /+= d).toList
 
-    extraDirectories(provider.getJavaDirectories, sourceDirectories in Compile) ++
+    extraDirectories(provider.getJavaDirectories, unmanagedSourceDirectories in Compile) ++
       extraDirectories(provider.getResDirectories, extraResDirectories) ++
       extraDirectories(provider.getResourcesDirectories, resourceDirectories in Compile) ++
       extraDirectories(provider.getAssetsDirectories, extraAssetDirectories)
@@ -334,7 +334,7 @@ trait GradleBuild extends Build {
             override def assets = sourceProvider.getAssetsDirectories.asScala.head
             override def jniLibs = sourceProvider.getJniLibsDirectories.asScala.head
           }
-        ) ++ extraDirectories(sourceProvider.getJavaDirectories, sourceDirectories in Compile) ++
+        ) ++ extraDirectories(sourceProvider.getJavaDirectories, unmanagedSourceDirectories in Compile) ++
           extraDirectories(sourceProvider.getResDirectories, extraResDirectories) ++
           extraDirectories(sourceProvider.getResourcesDirectories, resourceDirectories in Compile) ++
           extraDirectories(sourceProvider.getAssetsDirectories, extraAssetDirectories)
@@ -364,7 +364,19 @@ object Serializer {
   }
 
   implicit val stringEncoder = new Encoder[String] {
-    def encode(s: String) = "raw\"\"\"" + s + "\"\"\""
+    // broke ass """ won't handle \ u properly, SI-4706
+//    def encode(s: String) = "raw\"\"\"" + s + "\"\"\""
+    def quote(s: String) = s.map {
+      case '"' => "\\\""
+      case '\\' => "\\\\"
+      case '\b' => "\\b"
+      case '\f' => "\\f"
+      case '\n' => "\\n"
+      case '\r' => "\\r"
+      case '\t' => "\\t"
+      case c => c
+    }.mkString("\"", "", "\"")
+    def encode(s: String) = quote(s)
   }
   implicit val moduleEncoder = new Encoder[ModuleID] {
     def encode(m: ModuleID) = {
@@ -386,7 +398,7 @@ object Serializer {
       s"android.Keys.PackagingOptions(${enc(p.excludes)}, ${enc(p.pickFirsts)}, ${enc(p.merges)})"
   }
   implicit val fileEncoder = new Encoder[File] {
-    def encode(f: File) = s"file(${enc(f.getAbsolutePath)})"
+    def encode(f: File) = s"file(${enc(f.getCanonicalPath)})"
   }
   implicit def mutableSettingEncoder[T] = new Encoder[MutableSetting[T]] {
     def encode(m: MutableSetting[T]) = "NO OP THIS SHOULD NOT HAPPEN"
@@ -552,7 +564,8 @@ object GradleBuildSerializer {
       if (dependencies.nonEmpty) ".dependsOn(" + dependencies.map(idToResolved andThen escaped).mkString(",") + ")" else ""
     }
     lazy val buildTypeSelection = {
-      if (buildTypes.nonEmpty) s"""\nandroid.Plugin.withVariant(${enc(id)}, Some(${enc(buildTypes.head.name)}), None)""" else ""
+      if (buildTypes.nonEmpty || flavors.nonEmpty)
+        s"""\nandroid.Plugin.withVariant(${enc(id)}, ${enc(buildTypes.headOption map (_.name))}, ${enc(flavors.headOption map (_.name))})""" else ""
     }
     def dependsOnSettings(idToResolved: Map[String,String]) = {
       if (dependencies.nonEmpty) {
