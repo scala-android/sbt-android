@@ -33,7 +33,8 @@ object Aggregate {
                                        versionCode: Option[Int],
                                        minSdkVersion: String,
                                        targetSdkVersion: String,
-                                       placeholders: Map[String,String])
+                                       placeholders: Map[String,String],
+                                       overlays: Seq[File])
 
   private[android] case class Dex(inputs: (Boolean,Seq[File]),
                                   maxHeap: String,

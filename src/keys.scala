@@ -152,6 +152,8 @@ object Keys {
     "android manifest xml object, read-only, do not modify") in Android
   val processManifest = TaskKey[File]("process-manifest",
     "manifest munging task, if desired, the resulting file can be modified") in Android
+  val manifestOverlays = TaskKey[Seq[File]]("manifest-overlays",
+    "overlay manifest files to merge (from build variants)") in Android
   val manifestPlaceholders = TaskKey[Map[String,String]](
     "manifest-placeholders", "${variable} expansion for AndroidManifest.xml") in Android
   val packageForR = TaskKey[String]("packageForR",

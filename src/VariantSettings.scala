@@ -62,12 +62,26 @@ object VariantSettings {
         flavor.toSeq.flatMap(f => flavors.getOrElse(f, Nil)) ++
           buildType.toSeq.flatMap(t => buildTypes.getOrElse(t, Nil))
 
+      val sourceDirectory = sbt.Keys.sourceDirectory in Global in project
+      val e = Project.extract(s)
+      val srcbase = e.get(sourceDirectory)
+
+      def overlayManifest(v: Option[String]): Seq[Setting[_]] = v.fold(Seq.empty[Setting[_]]) { t =>
+        val variantManifest = srcbase / t / "AndroidManifest.xml"
+        if (variantManifest.isFile)
+          List(
+            Keys.manifestOverlays += sourceDirectory.value / t / "AndroidManifest.xml"
+          ) else Nil
+      }
+      val bto = overlayManifest(buildType)
+      val fo = overlayManifest(flavor)
+
       val ss3 = (for {
         f <- flavor
         t <- buildType
       } yield {
         val variant = f + t.capitalize
-        val sourceDirectory = sbt.Keys.sourceDirectory in Global in project
+        val variantManifest = overlayManifest(Option(variant))
         Seq(
           sbt.Keys.unmanagedSourceDirectories in Compile in project ++= {
             val srcbase = sourceDirectory.value
@@ -83,7 +97,7 @@ object VariantSettings {
           },
           Keys.extraAssetDirectories in Keys.Android in project += {
             sourceDirectory.value / variant / "assets"
-          })
+          }) ++ variantManifest
       }) getOrElse Nil
 
       val ss2 = (ss ++ ss3) map fixProjectScope(project)

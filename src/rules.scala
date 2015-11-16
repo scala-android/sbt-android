@@ -510,6 +510,7 @@ object Plugin extends sbt.Plugin {
     properties              <<= projectLayout (l => loadProperties(l.base)),
     mergeManifests           := true,
     manifestPlaceholders     := Map.empty,
+    manifestOverlays         := Seq.empty,
     processManifest         <<= processManifestTaskDef,
     manifest                <<= manifestPath map { m =>
       if (!m.exists)

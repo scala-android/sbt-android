@@ -810,7 +810,7 @@ object Tasks {
     else {
       val output = layout.processedManifest
       output.getParentFile.mkdirs()
-      bldr.mergeManifests(layout.manifest, Seq.empty.asJava,
+      bldr.mergeManifests(layout.manifest, a.overlays.asJava,
         if (merge) libs.asJava else Seq.empty.asJava,
         pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
         output.getAbsolutePath, null,
@@ -968,7 +968,7 @@ object Tasks {
     Aggregate.Manifest(applicationId.value,
       versionName.value, versionCode.value,
       minSdkVersion.value, targetSdkVersion.value,
-      manifestPlaceholders.value)
+      manifestPlaceholders.value, manifestOverlays.value)
   }
   val dexAggregateTaskDef = Def.task {
     Aggregate.Dex(dexInputs.value, dexMaxHeap.value, dexMulti.value,

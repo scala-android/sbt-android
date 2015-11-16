@@ -41,5 +41,3 @@ whenever changes occur.
 * Inline function calls to populate android settings in gradle will be detected
   and loaded, but will not be updated in SBT until `build.gradle` itself is
   modified
-* `AndroidManifest.xml` in variant source directories are unsupported. Use
-  `manifestPlaceholders` if possible
