@@ -12,7 +12,7 @@ trait ApkSigningConfig {
   def keystore: File
   def alias: String
   def storePass: String
-  
+
   private[android] def toSigningConfig(name: String) = new SigningConfig {
     override def getName = name
     override def getKeyAlias = alias

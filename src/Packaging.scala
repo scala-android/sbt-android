@@ -46,7 +46,7 @@ object Packaging {
         jniFolders.asJava, debug,
         if (debug) debugSigningConfig else null,
         output.getAbsolutePath, options))
-    
+
       bldr.packageApk(shrinker.getAbsolutePath, dexFolder, predexed.asJava, jars.asJava,
         resFolder.getAbsolutePath, jniFolders.asJava,
         s.cacheDirectory / "apkbuild-merging", null, debug,
