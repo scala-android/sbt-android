@@ -565,7 +565,7 @@ object GradleBuildSerializer {
     }
     lazy val buildTypeSelection = {
       if (buildTypes.nonEmpty || flavors.nonEmpty)
-        s"""\nandroid.Plugin.withVariant(${enc(id)}, ${enc(buildTypes.headOption map (_.name))}, ${enc(flavors.headOption map (_.name))})""" else ""
+        s"""\n\nandroid.Plugin.withVariant(${enc(id)}, ${enc(buildTypes.headOption map (_.name))}, ${enc(flavors.headOption map (_.name))})""" else ""
     }
     def dependsOnSettings(idToResolved: Map[String,String]) = {
       if (dependencies.nonEmpty) {
