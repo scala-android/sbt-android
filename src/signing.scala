@@ -1,5 +1,8 @@
 package android
 
+import com.android.builder.model.SigningConfig
+import com.android.builder.signing.DefaultSigningConfig
+import com.android.ide.common.signing.KeystoreHelper
 import sbt._
 import language.postfixOps
 
@@ -9,7 +12,18 @@ trait ApkSigningConfig {
   def keystore: File
   def alias: String
   def storePass: String
+  
+  private[android] def toSigningConfig(name: String) = new SigningConfig {
+    override def getName = name
+    override def getKeyAlias = alias
+    override def isSigningReady = true
+    override def getStoreType = storeType
+    override def getStorePassword = storePass
+    override def getKeyPassword = keyPass getOrElse storePass
+    override def getStoreFile = keystore
+  }
 }
+
 case class PlainSigningConfig(override val keystore: File,
                               override val storePass: String,
                               override val alias: String,
@@ -31,4 +45,15 @@ case class PromptPasswordsSigningConfig(override val keystore: File,
     console.readPassword("Enter keystore password: ") mkString
   override lazy val keyPass =
     Option(console.readPassword("Enter password for key '%s': " format alias) mkString)
+}
+
+case class DebugSigningConfig(override val keystore: File = file(KeystoreHelper.defaultDebugKeystoreLocation),
+                              override val storePass: String = DefaultSigningConfig.DEFAULT_PASSWORD,
+                              override val alias: String = DefaultSigningConfig.DEFAULT_ALIAS,
+                              override val keyPass: Option[String] = None,
+                              override val storeType: String = "jks") extends ApkSigningConfig {
+  if(!keystore.exists) {
+    KeystoreHelper.createDebugStore(storeType, keystore, storePass,
+      keyPass getOrElse storePass, alias, NullLogger)
+  }
 }
