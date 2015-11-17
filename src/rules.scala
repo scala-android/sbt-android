@@ -4,6 +4,8 @@ import java.util.Properties
 
 import android.Dependencies.LibraryProject
 import com.android.builder.model.SyncIssue
+import com.android.ide.common.blame.Message
+import com.android.ide.common.blame.Message.Kind
 import com.android.ide.common.process.BaseProcessOutputHandler.BaseProcessOutput
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
@@ -11,7 +13,7 @@ import com.hanhuy.sbt.bintray.UpdateChecker
 import sbt._
 import sbt.Keys._
 
-import com.android.builder.core.{LibraryRequest, EvaluationErrorReporter, AndroidBuilder}
+import com.android.builder.core.{ErrorReporter, LibraryRequest, AndroidBuilder}
 import com.android.builder.sdk.DefaultSdkLoader
 import com.android.sdklib.{SdkVersionInfo, AndroidTargetHash, IAndroidTarget, SdkManager}
 import com.android.sdklib.repository.FullRevision
@@ -240,7 +242,7 @@ object Plugin extends sbt.Plugin {
       (o,bldr, debug, re) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (debug()) Seq("-g") else Seq.empty
-      val bcp = bldr.getBootClasspath.asScala mkString File.pathSeparator
+      val bcp = bldr.getBootClasspath(false).asScala mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
       o ++ (if (!re) Seq("-bootclasspath" , bcp) else
@@ -259,7 +261,7 @@ object Plugin extends sbt.Plugin {
     },
     scalacOptions     <<= (scalacOptions, builder) map { (o,bldr) =>
       // scalac has -g:vars by default
-      val bcp = bldr.getBootClasspath.asScala mkString File.pathSeparator
+      val bcp = bldr.getBootClasspath(false).asScala mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(
@@ -681,8 +683,42 @@ object Plugin extends sbt.Plugin {
 
       val bldr = new AndroidBuilder(n, "android-sdk-plugin",
         new DefaultProcessExecutor(l(s.log)),
-        SbtJavaProcessExecutor, SbtProcessOutputHandler(s.log),
-        new EvaluationErrorReporter(EvaluationErrorReporter.EvaluationMode.STANDARD) {
+        SbtJavaProcessExecutor,
+        new ErrorReporter(ErrorReporter.EvaluationMode.STANDARD) {
+
+          override def receiveMessage(message: Message) = {
+
+            val errorStringBuilder = new StringBuilder
+            message.getSourceFilePositions.asScala.foreach { pos =>
+              errorStringBuilder.append(pos.toString)
+              errorStringBuilder.append(' ')
+            }
+            if (errorStringBuilder.nonEmpty)
+              errorStringBuilder.append(": ")
+            if (message.getToolName.isPresent) {
+              errorStringBuilder.append(message.getToolName.get).append(": ")
+            }
+            errorStringBuilder.append(message.getText).append("\n")
+
+
+            val messageString = errorStringBuilder.toString
+
+            message.getKind match {
+              case Kind.ERROR =>
+                s.log.error(messageString)
+              case Kind.WARNING =>
+                s.log.warn(messageString)
+              case Kind.INFO =>
+                s.log.info(messageString)
+              case Kind.STATISTICS =>
+                s.log.debug(messageString)
+              case Kind.UNKNOWN =>
+                s.log.debug(messageString)
+              case Kind.SIMPLE =>
+                s.log.info(messageString)
+            }
+          }
+
           override def handleSyncError(data: String, `type`: Int, msg: String) = {
             s.log.error(s"android sync error: data=$data, type=${`type`}, msg=$msg")
             new SyncIssue {
@@ -699,7 +735,7 @@ object Plugin extends sbt.Plugin {
       bldr.setTargetInfo(sdkInfo, targetInfo, reqs map { case ((nm, required)) => new LibraryRequest(nm, required) } asJava)
       bldr
     },
-    bootClasspath            := builder.value.getBootClasspath.asScala map Attributed.blank,
+    bootClasspath            := builder.value.getBootClasspath(false).asScala map Attributed.blank,
     sdkManager              <<= (sdkPath,ilogger, streams) map { (p, l, s) =>
       SdkManager.createManager(p, l(s.log))
     },

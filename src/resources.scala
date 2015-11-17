@@ -6,7 +6,9 @@ import android.Dependencies.{AarLibrary, ApkLibrary, LibraryDependency, LibraryP
 import com.android.builder.core.{VariantType, AaptPackageProcessBuilder, AndroidBuilder}
 import com.android.builder.model.AaptOptions
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
+import com.android.builder.png.VectorDrawableRenderer
 import com.android.ide.common.res2._
+import com.android.resources.Density
 import com.android.utils.ILogger
 import sbt.Keys.TaskStreams
 import sbt._
@@ -20,6 +22,7 @@ import Dependencies.LibrarySeqOps
 object Resources {
 
   def doCollectResources( bldr: AndroidBuilder
+                          , minSdk: Int
                           , noTestApk: Boolean
                           , isLib: Boolean
                           , libs: Seq[LibraryDependency]
@@ -88,20 +91,20 @@ object Resources {
     FileFunction.cached(cache / "collect-resources")(
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
-      incrResourceMerge(layout, resTarget, isLib, libs,
+      incrResourceMerge(layout, minSdk, resTarget, isLib, libs,
         cache / "collect-resources", logger(s.log), bldr, sets, inChanges, s.log)
       (resTarget ***).get.toSet
     }(inputs.toSet)
 
     (assetBin, resTarget)
   }
-  def incrResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
+  def incrResourceMerge(layout: ProjectLayout, minSdk: Int, resTarget: File, isLib: Boolean,
                         libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
                         bldr: AndroidBuilder, resources: Seq[ResourceSet],
                         changes: ChangeReport[File],
                         slog: Logger)(implicit m: BuildOutput.Converter) {
 
-    def merge() = fullResourceMerge(layout, resTarget, isLib, libs, blobDir,
+    def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, libs, blobDir,
       logger, bldr, resources, slog)
     val merger = new ResourceMerger
     if (!merger.loadFromBlob(blobDir, true)) {
@@ -164,13 +167,13 @@ object Resources {
       }
       if (!exists) {
         slog.info("Performing incremental resource merge")
-        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.publicTxt)
+        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher(SbtProcessOutputHandler(slog)), true, true, layout.publicTxt, layout.mergeBlame, new VectorDrawableRenderer(minSdk, layout.mergedRes, Set(Density.MEDIUM, Density.HIGH, Density.XHIGH, Density.XXHIGH).asJava, SbtLogger(slog)))
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
     }
   }
-  def fullResourceMerge(layout: ProjectLayout, resTarget: File, isLib: Boolean,
+  def fullResourceMerge(layout: ProjectLayout, minSdk: Int, resTarget: File, isLib: Boolean,
                         libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
                         bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger)(implicit m: BuildOutput.Converter) {
 
@@ -183,7 +186,7 @@ object Resources {
       r.loadFromFiles(logger)
       merger.addDataSet(r)
     }
-    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher, true, true, layout.publicTxt)
+    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher(SbtProcessOutputHandler(slog)), true, true, layout.publicTxt, layout.mergeBlame, new VectorDrawableRenderer(minSdk, layout.mergedRes, Set(Density.MEDIUM, Density.HIGH, Density.XHIGH, Density.XXHIGH).asJava, SbtLogger(slog)))
     merger.mergeData(writer, false)
     merger.writeBlobTo(blobDir, writer)
   }
@@ -218,7 +221,7 @@ object Resources {
     aaptCommand.setProguardOutput(proguardTxt)
     aaptCommand.setType(if (lib) VariantType.LIBRARY else VariantType.DEFAULT)
     aaptCommand.setDebuggable(debug)
-    bldr.processResources(aaptCommand, true)
+    bldr.processResources(aaptCommand, true, SbtProcessOutputHandler(logger))
   }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {

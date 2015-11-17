@@ -25,7 +25,7 @@ object Packaging {
     import language.postfixOps
     if (isLib)
       Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true'")
-    val predexed = predex flatMap (_._2 * "*.dex" get)
+    val predexed = predex flatMap (_._2 * "*.dex" get) map (_.getParentFile)
 
     val jars = (m ++ u ++ dcp).filter {
       a => (a.get(moduleID.key) map { mid =>
@@ -41,16 +41,11 @@ object Packaging {
 
     // filtering out org.scala-lang above should not cause an issue
     // they should not be changing on us anyway
-      s.log.debug("bldr.packageApk(%s, %s, %s, null, %s, %s, %s, %s, %s)" format (
-        shrinker.getAbsolutePath, dexFolder.getAbsolutePath, jars,
-        jniFolders.asJava, debug,
-        if (debug) debugSigningConfig else null,
-        output.getAbsolutePath, options))
 
-      bldr.packageApk(shrinker.getAbsolutePath, dexFolder, predexed.asJava, jars.asJava,
-        resFolder.getAbsolutePath, jniFolders.asJava,
-        s.cacheDirectory / "apkbuild-merging", null, debug,
-        if (debug) debugSigningConfig.toSigningConfig("debug") else null, options.asAndroid, output.getAbsolutePath)
+      bldr.packageApk(shrinker.getAbsolutePath, (dexFolder +: predexed).toSet.asJava, List(resFolder).asJava,
+        jniFolders.asJava,
+        Set.empty.asJava, debug,
+        if (debug) debugSigningConfig.toSigningConfig("debug") else null, output.getAbsolutePath)
       s.log.debug("Including predexed: " + predexed)
       s.log.info("Packaged: %s (%s)" format (
         output.getName, sizeString(output.length)))

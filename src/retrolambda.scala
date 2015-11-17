@@ -17,7 +17,7 @@ object RetrolambdaSupport {
   def apply(target: File, classpath: Seq[File], forkClasspath: Seq[File], bldr: AndroidBuilder,
               s: sbt.Keys.TaskStreams): Seq[File] = synchronized {
     import collection.JavaConverters._
-    val cp = (bldr.getBootClasspath.asScala map (f => f: sbt.File)) ++ classpath
+    val cp = (bldr.getBootClasspath(false).asScala map (f => f: sbt.File)) ++ classpath
     val dest = target / "retrolambda"
     val finalJar = target / "retrolambda-processed.jar"
     dest.mkdirs()

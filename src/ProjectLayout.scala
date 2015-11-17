@@ -29,6 +29,7 @@ trait BuildOutput extends Any {
   def classesJar: File
   def mergedRes: File
   def mergedAssets: File
+  def mergeBlame: File
   def proguardOut: File
   def rTxt: File
   def testRTxt: File
@@ -85,6 +86,7 @@ object BuildOutput {
     def classesJar = intermediates / "classes.jar"
     def mergedRes = intermediates / "res"
     def mergedAssets = intermediates / "assets"
+    def mergeBlame = intermediates / "blame"
     def proguardOut = intermediates / "proguard"
     def rTxt = generatedSrc / "R.txt"
     def testRTxt = testOut / "R.txt"
@@ -158,6 +160,7 @@ object BuildOutput {
     def classesJar = base.classesJar
     def mergedRes = base.mergedRes
     def mergedAssets = base.mergedAssets
+    def mergeBlame = base.mergeBlame
     def proguardOut = base.proguardOut
     def rTxt = base.rTxt
     def testRTxt = base.testRTxt
@@ -210,6 +213,7 @@ object BuildOutput {
     def classesJar = base(layout).classesJar
     def mergedRes = base(layout).mergedRes
     def mergedAssets = base(layout).mergedAssets
+    def mergeBlame = base(layout).mergeBlame
     def proguardOut = base(layout).proguardOut
     def rTxt = base(layout).rTxt
     def testRTxt = base(layout).testRTxt

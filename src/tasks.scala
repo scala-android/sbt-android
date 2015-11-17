@@ -18,7 +18,7 @@ import com.android.SdkConstants
 import com.android.builder.core._
 import com.android.ddmlib.{IDevice, DdmPreferences}
 import com.android.ddmlib.testrunner.ITestRunListener
-import com.android.sdklib.IAndroidTarget
+import com.android.sdklib.{SdkVersionInfo, IAndroidTarget}
 import com.android.sdklib.BuildToolInfo.PathId
 import com.android.sdklib.build.RenderScriptProcessor
 import com.android.sdklib.build.RenderScriptProcessor.CommandLineLauncher
@@ -459,7 +459,7 @@ object Tasks {
       val javah = Seq("javah",
         "-d", src.getAbsolutePath,
         "-classpath", cp map (_.data.getAbsolutePath) mkString File.pathSeparator,
-        "-bootclasspath", bldr.getBootClasspath.asScala mkString File.pathSeparator) ++ natives
+        "-bootclasspath", bldr.getBootClasspath(false).asScala mkString File.pathSeparator) ++ natives
 
       s.log.debug(javah mkString " ")
 
@@ -506,6 +506,7 @@ object Tasks {
 
   val collectResourcesTaskDef = ( builder
                                 , debugIncludesTests
+                                , minSdkVersion
                                 , libraryProject
                                 , libraryProjects
                                 , extraResDirectories
@@ -515,13 +516,16 @@ object Tasks {
                                 , ilogger
                                 , streams
                                 ) map {
-    (bldr, noTestApk, isLib, libs, er, ea, layout, o, logger, s) =>
+    (bldr, noTestApk, minSdk, isLib, libs, er, ea, layout, o, logger, s) =>
       implicit val output = o
+      val minLevel = Try(minSdk.toInt).toOption getOrElse
+        SdkVersionInfo.getApiByBuildCode(minSdk, true)
       // hack because cached can only return Set[File]
       val out = (layout.mergedAssets, layout.mergedRes)
       val assets = layout.assets +: ea flatMap (_ ** FileOnlyFilter get)
       withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
-        val res = Resources.doCollectResources(bldr, noTestApk, isLib, libs, layout, ea, layout.generatedRes +: er, logger, s.cacheDirectory, s)
+        val res = Resources.doCollectResources(bldr, minLevel, noTestApk, isLib, libs,
+          layout, ea, layout.generatedRes +: er, logger, s.cacheDirectory, s)
         if (out != res) sys.error(s"Unexpected directories $out != $res")
         Set(res._1, res._2)
       }
@@ -798,7 +802,7 @@ object Tasks {
     (bldr, isLib, libs, a, merge, trunner, layout, out, noTestApk) =>
     implicit val o = out
     val pkg = a.applicationId
-    val ph = a.placeholders
+    val ph = a.placeholders: Map[String,Object]
     val vc = a.versionCode
     val vn = a.versionName
     val sdk = a.targetSdkVersion
@@ -1212,13 +1216,13 @@ object Tasks {
       } else {
         Seq(classes) ++ deps
       }
-      bldr.convertByteCode(inputs.asJava, List.empty.asJava,
-        dex, false, null, options, List.empty.asJava, tmp, false, !debug)
+      bldr.convertByteCode(inputs.asJava,
+        dex, false, null, options, List.empty.asJava, false, !debug, SbtProcessOutputHandler(s.log))
 
       val opts = ta.packagingOptions
-      bldr.packageApk(res.getAbsolutePath, dex,
-        List.empty.asJava, List.empty.asJava, null, null, s.cacheDirectory / "test-apkbuild-merge", null,
-        debug, ta.debugSigningConfig.toSigningConfig("debug"), opts.asAndroid, apk.getAbsolutePath)
+      bldr.packageApk(res.getAbsolutePath, Set(dex).asJava,
+        List.empty.asJava, List.empty.asJava, Set.empty.asJava,
+        debug, ta.debugSigningConfig.toSigningConfig("debug"),apk.getAbsolutePath)
       s.log.debug("Installing test apk: " + apk)
 
       def install(device: IDevice) {

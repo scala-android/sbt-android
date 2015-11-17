@@ -4,6 +4,8 @@ import bintray.Keys._
 val pluginVersion = "1.5.9-SNAPSHOT"
 val gradleBuildVersion = "1.1.9-SNAPSHOT"
 
+val androidToolsVersion = "1.5.0"
+
 // gradle-plugin and gradle-model projects
 val model = project.in(file("gradle-model")).settings(
   name := "gradle-discovery-model",
@@ -13,7 +15,7 @@ val model = project.in(file("gradle-model")).settings(
   autoScalaLibrary := false,
   crossPaths := false,
   libraryDependencies ++=
-    "com.android.tools.build" % "builder-model" % "1.3.1" ::
+    "com.android.tools.build" % "builder-model" % androidToolsVersion ::
     "org.gradle" % "gradle-tooling-api" % "2.6" % "provided" :: Nil
 )
 
@@ -38,8 +40,8 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
   },
   libraryDependencies ++=
     "org.codehaus.groovy" % "groovy" % "2.4.4" % "provided" ::
-    "com.android.tools.build" % "gradle" % "1.3.1" ::
-    "com.android.tools.build" % "builder-model" % "1.3.1" ::
+    "com.android.tools.build" % "gradle" % androidToolsVersion ::
+    "com.android.tools.build" % "builder-model" % androidToolsVersion ::
     "org.gradle" % "gradle-tooling-api" % "2.6" % "provided" ::
     "javax.inject" % "javax.inject" % "1" % "provided" ::
     Nil
@@ -107,10 +109,10 @@ libraryDependencies ++= Seq(
   "org.javassist" % "javassist" % "3.20.0-GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
   "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
-  "com.android.tools.build" % "builder" % "1.3.1",
-  "com.android.tools.build" % "gradle-core" % "1.3.1" excludeAll
+  "com.android.tools.build" % "builder" % androidToolsVersion,
+  "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
-  "com.android.tools.lint" % "lint" % "24.3.1",
+  "com.android.tools.lint" % "lint" % "24.5.0",
   "net.orfjackal.retrolambda" % "retrolambda" % "2.0.5"
 )
 
