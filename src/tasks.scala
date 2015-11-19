@@ -648,7 +648,8 @@ object Tasks {
     val logger = ilogger.value(s.log)
     Packaging.apkbuild(builder.value, m, u, dcp, libraryProject.value,
       a.packagingOptions, a.resourceShrinker, a.dex, a.predex, a.collectJni,
-      layout.collectJni, layout.resources, a.apkbuildDebug, a.debugSigningConfig,
+      layout.collectJni, layout.resources, layout.collectResource,
+      a.apkbuildDebug, a.debugSigningConfig,
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)
   }
 
@@ -1432,10 +1433,11 @@ object Tasks {
   }
 
   def installPackage(apk: File, sdkPath: String, device: IDevice, log: Logger) {
-    val start = System.currentTimeMillis
     logRate(log, "[%s] Install finished:" format apk.getName, apk.length) {
-      Option(device.installPackage(apk.getAbsolutePath, true)) map { err =>
-        Plugin.fail("Install failed: " + err)
+      Try(device.installPackage(apk.getAbsolutePath, true)) match {
+        case util.Failure(err) =>
+          Plugin.fail("Install failed: " + err)
+        case util.Success(_) =>
       }
     }
   }

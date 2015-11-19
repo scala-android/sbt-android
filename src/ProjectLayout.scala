@@ -40,6 +40,7 @@ trait BuildOutput extends Any {
   def ndkObj: File
   def ndkBin: File
   def collectJni: File
+  def collectResource: File
   def manifestProcessing: File
   def processedManifest: File
   def processedTestManifest: File
@@ -97,6 +98,7 @@ object BuildOutput {
     def ndkObj = ndk / "obj"
     def ndkBin = ndk / "jni"
     def collectJni = ndk / "collect-jni"
+    def collectResource = intermediates / "resources"
     def manifestProcessing = intermediates / "manifest"
     def processedManifest = manifestProcessing / "AndroidManifest.xml"
     def processedTestManifest = testOut / "TestAndroidManifest.xml"
@@ -171,6 +173,7 @@ object BuildOutput {
     def ndkObj = base.ndkObj
     def ndkBin = base.ndkBin
     def collectJni = base.collectJni
+    def collectResource = base.collectResource
     def manifestProcessing = base.manifestProcessing
     def processedManifest = base.processedManifest
     def processedTestManifest = base.processedTestManifest
@@ -224,6 +227,7 @@ object BuildOutput {
     def ndkObj = base(layout).ndkObj
     def ndkBin = base(layout).ndkBin
     def collectJni = base(layout).collectJni
+    def collectResource = base(layout).collectResource
     def manifestProcessing = base(layout).manifestProcessing
     def processedManifest = base(layout).processedManifest
     def processedTestManifest = base(layout).processedTestManifest
