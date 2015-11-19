@@ -1,0 +1,2 @@
+> app/android:package
+$ exists app/target/android/output/app-debug.apk

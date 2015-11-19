@@ -1,0 +1,2 @@
+> android:package
+$ exists target/android/output/u2020-debug.apk
