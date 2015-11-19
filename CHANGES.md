@@ -5,8 +5,11 @@
   * Fix TypedLayoutInflater when inflating into a container
   * Add flavor+buildType source directories/manifest overlays automatically
   * Add `apkDebugSigningConfig`, allows custom debug signing configuration
-  * Experimental support for rendering `VectorDrawable` to `png` for
-    pre-lollipop devices
+  * support for rendering `VectorDrawable` to `png` for pre-lollipop, place
+    `VectorDrawable`s into `res/drawable` and they will be converted to
+    `mdpi`, `hdpi`, `xhdpi` and `xxhdpi` rasters automatically when
+    `minSdkVersion` is below 21. Do not put vectors into `drawable-anydpi-v21`,
+    those will not get rasterized automatically.
   * Can now properly build [u2020](https://github.com/JakeWharton/u2020)
     automatically using `android-gradle-build` and a few settings in `build.sbt`:
     * `retrolambdaEnabled := true`
