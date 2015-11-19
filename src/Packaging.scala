@@ -49,12 +49,19 @@ object Packaging {
     val jarAbiPattern = "lib/([^/]+)/[^/]+".r
     val folderAbiPattern = "([^/]+)/[^/]+".r
     val filenamePattern = ".*\\.so".r
+
+    // filter out libraries that include a signature for no good reason
+    // here's looking at you crashlytics
+    val nonSignaturePattern = "META-INF/[^/]*\\.(RSA|SF)".r.pattern
+    // consider rejecting other files under META-INF?
+    val isResourceFile: String => Boolean = s =>
+      !s.endsWith(SdkConstants.DOT_CLASS) &&
+        !s.endsWith(SdkConstants.DOT_NATIVE_LIBS) &&
+        !nonSignaturePattern.matcher(s).matches
+
     FileFunction.cached(s.cacheDirectory / "apkbuild-collect-resources", FilesInfo.lastModified) { _ =>
-      collectNonAndroidResources(resFolder :: jars, collectResourceFolder, options, s.log, ResourceCollector(
-        s => !s.endsWith(SdkConstants.DOT_CLASS) && !s.endsWith(SdkConstants.DOT_NATIVE_LIBS),
-        s => !s.endsWith(SdkConstants.DOT_CLASS) && !s.endsWith(SdkConstants.DOT_NATIVE_LIBS),
-        identity, identity
-      ))
+      collectNonAndroidResources(resFolder :: jars, collectResourceFolder, options, s.log,
+        ResourceCollector(isResourceFile, isResourceFile, identity, identity))
       (collectResourceFolder ** FileOnlyFilter).get.toSet
     }(((resFolder ** FileOnlyFilter).get ++ jars).toSet)
     FileFunction.cached(s.cacheDirectory / "apkbuild-collect-jni", FilesInfo.lastModified) { _ =>
