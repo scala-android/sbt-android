@@ -133,7 +133,7 @@ object Packaging {
           // Folders like CVS, .svn, etc.. should already have been excluded from the
           // jar file, but we need to exclude some other folder (like /META-INF) so
           // we check anyway.
-          !segments.exists(PackagingUtils.checkFolderForPackaging) &&
+          !segments.exists(PackagingUtils.checkFolderForPackaging) ||
             !PackagingUtils.checkFileForPackaging(segments.last, false /*allowClassFiles*/ )
         }
       }
