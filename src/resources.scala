@@ -74,11 +74,22 @@ object Resources {
       (if (layout.res.isDirectory) Seq(layout.res) else Seq.empty) ++
       (if (noTestApk && layout.testRes.isDirectory)
         Seq(layout.res) else Seq.empty)
-    val sets = respaths.distinct map { r =>
+    val vectorprocessor = new VectorDrawableRenderer(
+      minSdk, layout.generatedVectors, Set(Density.MEDIUM,
+        Density.HIGH,
+        Density.XHIGH,
+        Density.XXHIGH).asJava,
+      SbtLogger(s.log))
+    val sets = respaths.distinct flatMap { r =>
       val set = new ResourceSet(r.getAbsolutePath)
       set.addSource(r)
+
+      set.setPreprocessor(vectorprocessor)
+      val generated = new GeneratedResourceSet(set)
+      set.setGeneratedSet(generated)
+
       s.log.debug("Adding resource path: " + r)
-      set
+      List(generated, set)
     }
 
     val inputs = (respaths flatMap { r => (r ***) get }) filter (n =>
@@ -92,7 +103,7 @@ object Resources {
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
       incrResourceMerge(layout, minSdk, resTarget, isLib, libs,
-        cache / "collect-resources", logger(s.log), bldr, sets, inChanges, s.log)
+        cache / "collect-resources", logger(s.log), bldr, sets, vectorprocessor, inChanges, s.log)
       (resTarget ***).get.toSet
     }(inputs.toSet)
 
@@ -101,11 +112,12 @@ object Resources {
   def incrResourceMerge(layout: ProjectLayout, minSdk: Int, resTarget: File, isLib: Boolean,
                         libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
                         bldr: AndroidBuilder, resources: Seq[ResourceSet],
+                        preprocessor: ResourcePreprocessor,
                         changes: ChangeReport[File],
                         slog: Logger)(implicit m: BuildOutput.Converter) {
 
     def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, libs, blobDir,
-      logger, bldr, resources, slog)
+      logger, bldr, resources, preprocessor, slog)
     val merger = new ResourceMerger
     if (!merger.loadFromBlob(blobDir, true)) {
       slog.debug("Could not load merge blob (no full merge yet?)")
@@ -170,11 +182,7 @@ object Resources {
         val writer = new MergedResourceWriter(resTarget,
           bldr.getAaptCruncher(SbtProcessOutputHandler(slog)),
           true, true, layout.publicTxt, layout.mergeBlame,
-          new VectorDrawableRenderer(minSdk, layout.mergedRes, Set(
-            Density.MEDIUM,
-            Density.HIGH,
-            Density.XHIGH,
-            Density.XXHIGH).asJava, SbtLogger(slog)))
+          preprocessor)
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
@@ -182,7 +190,8 @@ object Resources {
   }
   def fullResourceMerge(layout: ProjectLayout, minSdk: Int, resTarget: File, isLib: Boolean,
                         libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
-                        bldr: AndroidBuilder, resources: Seq[ResourceSet], slog: Logger)(implicit m: BuildOutput.Converter) {
+                        bldr: AndroidBuilder, resources: Seq[ResourceSet],
+                        preprocessor: ResourcePreprocessor, slog: Logger)(implicit m: BuildOutput.Converter) {
 
     slog.info("Performing full resource merge")
     val merger = new ResourceMerger
@@ -193,7 +202,9 @@ object Resources {
       r.loadFromFiles(logger)
       merger.addDataSet(r)
     }
-    val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher(SbtProcessOutputHandler(slog)), true, true, layout.publicTxt, layout.mergeBlame, new VectorDrawableRenderer(minSdk, layout.mergedRes, Set(Density.MEDIUM, Density.HIGH, Density.XHIGH, Density.XXHIGH).asJava, SbtLogger(slog)))
+    val writer = new MergedResourceWriter(resTarget,
+      bldr.getAaptCruncher(SbtProcessOutputHandler(slog)),
+      true, true, layout.publicTxt, layout.mergeBlame, preprocessor)
     merger.mergeData(writer, false)
     merger.writeBlobTo(blobDir, writer)
   }

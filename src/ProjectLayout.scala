@@ -12,6 +12,7 @@ trait BuildOutput extends Any {
   def testOut: File
   def generatedSrc: File
   def generatedRes: File
+  def generatedVectors: File
   def rsBin: File
   def rsRes: File
   def rsLib: File
@@ -70,6 +71,7 @@ object BuildOutput {
     def testOut = intermediates / "test"
     def generatedSrc = generated / "source"
     def generatedRes = generated / "res"
+    def generatedVectors = generated / "vector-drawables"
     def rsBin = intermediates / "renderscript"
     def rsRes = rsBin / "res"
     def rsLib = rsBin / "lib"
@@ -145,6 +147,7 @@ object BuildOutput {
     def testOut = base.testOut
     def generatedSrc = base.generatedSrc
     def generatedRes = base.generatedRes
+    def generatedVectors = base.generatedVectors
     def rsBin = base.rsBin
     def rsRes = base.rsRes
     def rsLib = base.rsLib
@@ -199,6 +202,7 @@ object BuildOutput {
     def testOut = base(layout).testOut
     def generatedSrc = base(layout).generatedSrc
     def generatedRes = base(layout).generatedRes
+    def generatedVectors = base(layout).generatedVectors
     def rsBin = base(layout).rsBin
     def rsRes = base(layout).rsRes
     def rsLib = base(layout).rsLib
