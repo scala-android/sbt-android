@@ -1436,7 +1436,7 @@ object Tasks {
     logRate(log, "[%s] Install finished:" format apk.getName, apk.length) {
       Try(device.installPackage(apk.getAbsolutePath, true)) match {
         case util.Failure(err) =>
-          Plugin.fail("Install failed: " + err)
+          Plugin.fail("Install failed: " + err.getMessage)
         case util.Success(_) =>
       }
     }

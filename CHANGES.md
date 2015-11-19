@@ -1,5 +1,17 @@
-## New features in 1.5.x ##
+## Changes in 1.5.x ##
 
+* `1.5.9`:
+  * Update to android builder `1.5.0`
+  * Fix TypedLayoutInflater when inflating into a container
+  * Add flavor+buildType source directories/manifest overlays automatically
+  * Add `apkDebugSigningConfig`, allows custom debug signing configuration
+  * Experimental support for rendering `VectorDrawable` to `png` for
+    pre-lollipop devices
+  * Can now properly build [u2020](https://github.com/JakeWharton/u2020)
+    automatically using `android-gradle-build` and a few settings in `build.sbt`:
+    * `retrolambdaEnabled := true`
+    * `libraryDependencies += "com.squareup.dagger" % "dagger-compiler" % "1.2.2" % "provided"`
+    * `android.dsl.apkExclude("META-INF/services/javax.annotation.processing.Processor")`
 * `1.5.8`: minor bugfix release
 * `1.5.7`:
   * fix `retrolambda-enable` to `retrolambda-enabled` in repl
@@ -415,13 +427,4 @@
     main application manifest
 * Increase test timeout to 3 minutes, from 5 seconds, configurable by using the
   `instrumentTestTimeout` setting key, in milliseconds
-* Add `apkbuildExcludes` setting to skip/ignore duplicate files, an error like
-  this:
-  ```
-  [info] com.android.builder.packaging.DuplicateFileException: Duplicate files copied in APK META-INF/LICENSE.txt
-  [info]  File 1: /path1/some.jar
-  [info]  File 2: /path2/some.jar
-  ```
-  Can be rectified by setting
-  `apkbuildExcludes in Android += "META-INF/LICENSE.txt"`
 * `1.2.18`: `zipalignPath` has changed from a Setting into a Task

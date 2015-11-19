@@ -99,10 +99,10 @@ object Packaging {
     new mutable.HashMap[K,mutable.Set[V]] with mutable.MultiMap[K,V] {
       override protected def makeSet = new mutable.LinkedHashSet[V]
     }
-  case class ResourceCollector(validateJarPath: String => Boolean,
+  case class ResourceCollector(validateJarPath:    String => Boolean,
                                validateFolderPath: String => Boolean,
-                               folderPathToKey: String => String,
-                               keyToFolderPath: String => String)
+                               folderPathToKey:    String => String,
+                               keyToFolderPath:    String => String)
   /** ported from com.android.build.gradle.internal.transforms.MergeJavaResourcesTransform */
   // TODO implement incremental collection (check sources for up-to-date-ness)
   def collectNonAndroidResources(sources: Seq[File],
@@ -155,9 +155,6 @@ object Packaging {
 
     val merged = newMultiMap[String,File]
     val fromjars = newMultiMap[File,String]
-    log.info("CHECKING JARS: " + jars)
-    log.info("CHECKING DIRS: " + (dirs ***).get)
-    log.info("SRCDATA: " + srcdata)
     srcdata.keys.filterNot(excludes).foreach { k =>
       val srcs = srcdata(k)
       val src = if (srcs.size == 1) {
