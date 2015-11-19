@@ -1,6 +1,6 @@
 package android
 
-import java.io.{FileOutputStream, File}
+import java.io.{InputStream, OutputStream, FileOutputStream, File}
 import java.util.jar.JarFile
 import java.util.zip.{ZipEntry, ZipFile}
 
@@ -41,44 +41,49 @@ object Packaging {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) if xs.head.data.isFile => xs.head :: Nil
     }.flatten.map (_.data).toList
-
-    s.log.debug("jars to process for resources: " + jars)
-
     // filtering out org.scala-lang above should not cause an issue
     // they should not be changing on us anyway
+
+    s.log.debug("jars to process for resources: " + jars)
 
     val jarAbiPattern = "lib/([^/]+)/[^/]+".r
     val folderAbiPattern = "([^/]+)/[^/]+".r
     val filenamePattern = ".*\\.so".r
-    collectNonAndroidResources(resFolder :: jars, collectResourceFolder, options, s.log, ResourceCollector(
-      s => !s.endsWith(SdkConstants.DOT_CLASS) && !s.endsWith(SdkConstants.DOT_NATIVE_LIBS),
-      s => !s.endsWith(SdkConstants.DOT_CLASS) && !s.endsWith(SdkConstants.DOT_NATIVE_LIBS),
-      identity, identity
-    ))
-    collectNonAndroidResources(jniFolders, collectJniOut, options, s.log, ResourceCollector(
-      s => {
-        val m = jarAbiPattern.pattern.matcher(s)
-        m.matches && {
-          val filename = s.substring(5 + m.group(1).length)
-          filenamePattern.pattern.matcher(filename).matches ||
-            filename == SdkConstants.FN_GDBSERVER ||
-            filename == SdkConstants.FN_GDB_SETUP
-        }
-      }, s => {
-        val m = folderAbiPattern.pattern.matcher(s)
-        m.matches &&{
-          val filename = s.substring(1 + m.group(1).length)
-          filenamePattern.pattern.matcher(filename).matches ||
-            filename == SdkConstants.FN_GDBSERVER ||
-            filename == SdkConstants.FN_GDB_SETUP
-        }
-      },
-      s => SdkConstants.FD_APK_NATIVE_LIBS  + "/" + s,
-      s => s.substring(SdkConstants.FD_APK_NATIVE_LIBS.length + 1)
-    ))
+    FileFunction.cached(s.cacheDirectory / "apkbuild-collect-resources", FilesInfo.lastModified) { _ =>
+      collectNonAndroidResources(resFolder :: jars, collectResourceFolder, options, s.log, ResourceCollector(
+        s => !s.endsWith(SdkConstants.DOT_CLASS) && !s.endsWith(SdkConstants.DOT_NATIVE_LIBS),
+        s => !s.endsWith(SdkConstants.DOT_CLASS) && !s.endsWith(SdkConstants.DOT_NATIVE_LIBS),
+        identity, identity
+      ))
+      (collectResourceFolder ** FileOnlyFilter).get.toSet
+    }(((resFolder ** FileOnlyFilter).get ++ jars).toSet)
+    FileFunction.cached(s.cacheDirectory / "apkbuild-collect-jni", FilesInfo.lastModified) { _ =>
+      collectNonAndroidResources(jniFolders, collectJniOut, options, s.log, ResourceCollector(
+        s => {
+          val m = jarAbiPattern.pattern.matcher(s)
+          m.matches && {
+            val filename = s.substring(5 + m.group(1).length)
+            filenamePattern.pattern.matcher(filename).matches ||
+              filename == SdkConstants.FN_GDBSERVER ||
+              filename == SdkConstants.FN_GDB_SETUP
+          }
+        }, s => {
+          val m = folderAbiPattern.pattern.matcher(s)
+          m.matches && {
+            val filename = s.substring(1 + m.group(1).length)
+            filenamePattern.pattern.matcher(filename).matches ||
+              filename == SdkConstants.FN_GDBSERVER ||
+              filename == SdkConstants.FN_GDB_SETUP
+          }
+        },
+        s => SdkConstants.FD_APK_NATIVE_LIBS + "/" + s,
+        s => s.substring(SdkConstants.FD_APK_NATIVE_LIBS.length + 1)
+      ))
+      (collectJniOut ** FileOnlyFilter).get.toSet
+    }(jniFolders.flatMap(_ ** FileOnlyFilter get).toSet)
     bldr.packageApk(shrinker.getAbsolutePath, (dexFolder +: predexed).toSet.asJava,
-      List(collectResourceFolder).asJava,
-      List(collectJniOut).asJava,
+      List(collectResourceFolder).filter(_.exists).asJava,
+      List(collectJniOut).filter(_.exists).asJava,
       Set.empty.asJava, debug,
       if (debug) debugSigningConfig.toSigningConfig("debug") else null, output.getAbsolutePath)
     s.log.debug("Including predexed: " + predexed)
@@ -99,12 +104,17 @@ object Packaging {
     new mutable.HashMap[K,mutable.Set[V]] with mutable.MultiMap[K,V] {
       override protected def makeSet = new mutable.LinkedHashSet[V]
     }
+  def copyStream(in: InputStream, out: OutputStream, buf: Array[Byte]): Unit = {
+    Iterator.continually(in.read(buf, 0, buf.length)).takeWhile(_ != -1).foreach { r =>
+      out.write(buf, 0, r)
+    }
+  }
   case class ResourceCollector(validateJarPath:    String => Boolean,
                                validateFolderPath: String => Boolean,
                                folderPathToKey:    String => String,
                                keyToFolderPath:    String => String)
   /** ported from com.android.build.gradle.internal.transforms.MergeJavaResourcesTransform */
-  // TODO implement incremental collection (check sources for up-to-date-ness)
+  // TODO implement incremental collection
   def collectNonAndroidResources(sources: Seq[File],
                                  dest: File,
                                  options: PackagingOptions,
@@ -193,22 +203,31 @@ object Packaging {
             val d = dest / f
             d.getParentFile.mkdirs()
             Using.fileOutputStream(false)(d) { fout =>
-              Iterator.continually(in.read(buf, 0, buf.length)).takeWhile(_ != -1).foreach { r =>
-                fout.write(buf, 0, r)
-              }
+              copyStream(in, fout, buf)
             }
           }
         }
       }
     }
 
-    // TODO handle merge requests
     merged.keys.foreach { k =>
       val files = merged(k)
       val d = dest / k
       d.getParentFile.mkdirs()
-      d.delete()
-      files foreach { f =>
+      Using.fileOutputStream(false)(d) { out =>
+        files.foreach { f =>
+          if (f.isDirectory) {
+            Using.fileInputStream(f / validator.keyToFolderPath(k)) { in =>
+              copyStream(in, out, buf)
+            }
+          } else {
+            Using.zipFile(f) { zip =>
+              Using.zipEntry(zip)(zip.getEntry(k)) { in =>
+                copyStream(in, out, buf)
+              }
+            }
+          }
+        }
       }
     }
   }

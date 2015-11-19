@@ -167,7 +167,14 @@ object Resources {
       }
       if (!exists) {
         slog.info("Performing incremental resource merge")
-        val writer = new MergedResourceWriter(resTarget, bldr.getAaptCruncher(SbtProcessOutputHandler(slog)), true, true, layout.publicTxt, layout.mergeBlame, new VectorDrawableRenderer(minSdk, layout.mergedRes, Set(Density.MEDIUM, Density.HIGH, Density.XHIGH, Density.XXHIGH).asJava, SbtLogger(slog)))
+        val writer = new MergedResourceWriter(resTarget,
+          bldr.getAaptCruncher(SbtProcessOutputHandler(slog)),
+          true, true, layout.publicTxt, layout.mergeBlame,
+          new VectorDrawableRenderer(minSdk, layout.mergedRes, Set(
+            Density.MEDIUM,
+            Density.HIGH,
+            Density.XHIGH,
+            Density.XXHIGH).asJava, SbtLogger(slog)))
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
