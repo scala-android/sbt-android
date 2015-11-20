@@ -10,6 +10,9 @@
     `mdpi`, `hdpi`, `xhdpi` and `xxhdpi` rasters automatically when
     `minSdkVersion` is below 21. Do not put vectors into `drawable-anydpi-v21`,
     those will not get rasterized automatically.
+    * To clear the lint errors from using `<vector>` images, add this line into
+      lint.xml:
+      `<issue id="NewApi"><ignore path="src/main/res/drawable"/></issue>`
   * Can now properly build [u2020](https://github.com/JakeWharton/u2020)
     automatically using `android-gradle-build` and a few settings in `build.sbt`:
     * `retrolambdaEnabled := true`
