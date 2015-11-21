@@ -625,13 +625,16 @@ object Commands {
   }
 
   val logcatAction: (State, String) => State = (state, args) => {
+    val (logcatargs, fpid) = args.split(" ").foldRight((List.empty[String],Option.empty[String])) { case (a, (as,pid)) =>
+      if (a != "-p") (a :: as,pid) else (as.drop(1), as.headOption)
+    }
     val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
     val sdk = sdkpath(state)
     targetDevice(sdk, state.log) map { d =>
       def logLine(l: String): Unit = {
         if (l.trim.length > 0) {
           l.trim match {
-            case LOG_LINE(level, tag, pid, msg) =>
+            case LOG_LINE(level, tag, pid, msg) if fpid.fold(true)(_ == pid) =>
               val colored =
                 f"${colorLevel(level)} (${colorPid(pid)}) ${colorTag(tag)}%8s: $msg"
               scala.Console.out.println(colored)
@@ -640,7 +643,8 @@ object Commands {
         }
       }
       val receiver = new ShellLogging(logLine)
-      d.executeShellCommand("logcat -v brief -d " + args, receiver)
+      d.executeShellCommand(
+        "logcat -v brief -d " + logcatargs.mkString(" "), receiver)
       receiver.flush()
       state
     } getOrElse Plugin.fail("no device selected")
