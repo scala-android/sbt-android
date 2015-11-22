@@ -104,7 +104,7 @@ object Resources {
       s.log.info("Collecting resources")
       incrResourceMerge(layout, minSdk, resTarget, isLib, libs,
         cache / "collect-resources", logger(s.log), bldr, sets, vectorprocessor, inChanges, s.log)
-      (resTarget ***).get.toSet
+      ((resTarget ** FileOnlyFilter).get ++ (layout.generatedVectors ** FileOnlyFilter).get).toSet
     }(inputs.toSet)
 
     (assetBin, resTarget)
