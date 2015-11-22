@@ -601,7 +601,7 @@ object Tasks {
       implicit val o = output
 
       val p = layout.resApk(d())
-      withCachedRes(s, "res.apk", normalres(layout, extrares, libs), genres(layout, libs)) {
+      withCachedRes(s, p.getName, normalres(layout, extrares, libs), genres(layout, libs)) {
         val proguardTxt = layout.proguardTxt.getAbsolutePath
         layout.proguardTxt.getParentFile.mkdirs()
 
