@@ -65,9 +65,10 @@ object Packaging {
       (collectResourceFolder ** FileOnlyFilter).get.toSet
     }(((resFolder ** FileOnlyFilter).get ++ jars).toSet)
     FileFunction.cached(s.cacheDirectory / "apkbuild-collect-jni", FilesInfo.lastModified) { _ =>
-      collectNonAndroidResources(jniFolders, collectJniOut, options, s.log, ResourceCollector(
+      collectNonAndroidResources(jniFolders ++ jars, collectJniOut, options, s.log, ResourceCollector(
         s => {
           val m = jarAbiPattern.pattern.matcher(s)
+          println(s">>>>> checking $s ${m.matches}")
           m.matches && {
             val filename = s.substring(5 + m.group(1).length)
             filenamePattern.pattern.matcher(filename).matches ||
@@ -87,7 +88,7 @@ object Packaging {
         s => s.substring(SdkConstants.FD_APK_NATIVE_LIBS.length + 1)
       ))
       (collectJniOut ** FileOnlyFilter).get.toSet
-    }(jniFolders.flatMap(_ ** FileOnlyFilter get).toSet)
+    }((jniFolders.flatMap(_ ** FileOnlyFilter get) ++ jars).toSet)
     bldr.packageApk(shrinker.getAbsolutePath, (dexFolder +: predexed).toSet.asJava,
       List(collectResourceFolder).filter(_.exists).asJava,
       List(collectJniOut).filter(_.exists).asJava,
