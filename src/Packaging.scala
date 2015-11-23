@@ -68,7 +68,6 @@ object Packaging {
       collectNonAndroidResources(jniFolders ++ jars, collectJniOut, options, s.log, ResourceCollector(
         s => {
           val m = jarAbiPattern.pattern.matcher(s)
-          println(s">>>>> checking $s ${m.matches}")
           m.matches && {
             val filename = s.substring(5 + m.group(1).length)
             filenamePattern.pattern.matcher(filename).matches ||
