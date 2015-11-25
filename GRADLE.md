@@ -1,6 +1,6 @@
 # Android Gradle Auto-Import Plugin for SBT #
 
-Current version is 1.1.9
+Current version is 1.1.10
 
 ## Description ##
 
@@ -16,7 +16,7 @@ whenever changes occur.
 2. From your Android project root, wherever the base `build.gradle` is located,
    load `android-gradle-build`:
    * `mkdir project`
-   * `echo 'addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.1.9")' > project/plugins.sbt`
+   * `echo 'addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.1.10")' > project/plugins.sbt`
    * `echo "object Build extends android.GradleBuild" > project/build.scala"`
 3. Run `sbt`
    * The initial load will be slow as gradle will run to extract all
@@ -30,6 +30,9 @@ whenever changes occur.
      * Build variants can be auto-loaded by adding a line into `build.sbt` such
        as `android.Plugin.withVariant("PROJECT-NAME (e.g. app)", Some("BUILD-TYPE"), Some("FLAVOR"))`
        replace `Some(...)` with `None` if only a build-type or flavor is desired.
+     * By default, the first found build type and flavor will be loaded.
+     * To select an alternative flavor/buildType at sbt file generation,
+       override the `flavor` or `buildType` methods on `android.GradleBuild`
 4. Load other SBT plugins such as [protify](https://github.com/pfn/protify) to
    further enhance the Android build experience
 
