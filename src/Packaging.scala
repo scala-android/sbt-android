@@ -206,11 +206,13 @@ object Packaging {
       val files = fromjars(j)
       Using.zipFile(j) { zipfile =>
         files foreach { f =>
-          Using.zipEntry(zipfile)(zipfile.getEntry(f)) { in =>
-            val d = dest / f
+          val d = dest / f
+          if (!d.isDirectory) {
             d.getParentFile.mkdirs()
-            Using.fileOutputStream(false)(d) { fout =>
-              copyStream(in, fout, buf)
+            Using.zipEntry(zipfile)(zipfile.getEntry(f)) { in =>
+              Using.fileOutputStream(false)(d) { fout =>
+                copyStream(in, fout, buf)
+              }
             }
           }
         }
