@@ -440,7 +440,7 @@ object Dex {
             Plugin.fail("failed to determine mainDexClasses")
           }
           s.log.warn("Set mainDexClasses to improve build times:")
-          s.log.warn("""  dexMainFileClassesConfig in Android := baseDirectory.value / "copy-of-maindexlist.txt"""")
+          s.log.warn("""  dexMainClassesConfig := baseDirectory.value / "copy-of-maindexlist.txt"""")
           Set(mainDexListTxt)
         }(inputs.toSet)
 
