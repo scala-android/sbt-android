@@ -80,7 +80,7 @@ trait GradleBuild extends Build {
       println(discovered.map(p => f"${p.id}%20s at ${p.base}").mkString("\n"))
       IO.write(generatedScript,
         "// AUTO-GENERATED SBT FILE, DO NOT MODIFY" ::
-          (discovered map (_.serialized)) mkString "\n" replace ("\r", ""))
+          (discovered map (_.serialized(buildType, flavor))) mkString "\n" replace ("\r", ""))
     } catch {
       case ex: Exception =>
         @tailrec
@@ -114,14 +114,24 @@ trait GradleBuild extends Build {
     override def write(b: Int) = ()
   }
 
+  /** override to provide additional options to pass to gradle */
+  def gradleOptions: List[String] = Nil
+
+  /** override to select a default flavor if available */
+  def flavor: Option[String] = None
+
+  /** override to select a default build type if available */
+  def buildType: Option[String] = None
+
   def modelBuilder[A](c: ProjectConnection, model: Class[A]) = {
     c.model(model)
       .setStandardOutput(nullsink)
       .setStandardError(nullsink)
   }
-  def initScriptModelBuilder[A](c: ProjectConnection, model: Class[A], initscript: File) =
-    modelBuilder(c, model).withArguments(
-      "--init-script", initscript.getAbsolutePath)
+  def initScriptModelBuilder[A](c: ProjectConnection, model: Class[A], initscript: File) = {
+    val options = "--init-script" :: initscript.getAbsolutePath :: gradleOptions
+    modelBuilder(c, model).withArguments(options: _*)
+  }
 
   def gradleBuildModel(c: ProjectConnection, initscript: File) =
     initScriptModelBuilder(c, classOf[GradleBuildModel], initscript).get()
@@ -557,9 +567,15 @@ object GradleBuildSerializer {
     def dependsOnProjects = {
       if (dependencies.nonEmpty) ".dependsOn(" + dependencies.map(escaped).mkString(",") + ")" else ""
     }
-    lazy val buildTypeSelection = {
-      if (buildTypes.nonEmpty || flavors.nonEmpty)
-        s"""\n\nandroid.Plugin.withVariant(${enc(id)}, ${enc(buildTypes.headOption map (_.name))}, ${enc(flavors.headOption map (_.name))})""" else ""
+    def buildTypeSelection(buildType: Option[String], flavor: Option[String]) = {
+      if (buildTypes.nonEmpty || flavors.nonEmpty) {
+        val bt = if (buildType.exists(t => buildTypes.exists(_.name == t)))
+          buildType else buildTypes.headOption map (_.name)
+        val f = if (flavor.exists(f => flavors.exists(_.name == f)))
+          flavor else flavors.headOption map (_.name)
+        s"""\n\nandroid.Plugin.withVariant(${enc(id)}, ${enc(bt)}, ${enc(f)})"""
+      }
+      else ""
     }
     def dependsOnSettings = {
       if (dependencies.nonEmpty) {
@@ -578,13 +594,13 @@ object GradleBuildSerializer {
         s".settings($depSettings)"
       } else ""
     }
-    def serialized =
+    def serialized(buildType: Option[String], flavor: Option[String]) =
       s"""
          |val ${escaped(id)} = Project(id = ${enc(id)}, base = ${enc(base)}).settings(
          |  ${if (isApplication) "android.Plugin.androidBuild" else "android.Plugin.androidBuildAar"}:_*).settings(
          |    ${settings.map(_.serialized).mkString(",\n    ")}
          |)$serializedBuildTypes$serializedFlavors
-         |$dependsOnProjects$dependsOnSettings$buildTypeSelection
+         |$dependsOnProjects$dependsOnSettings${buildTypeSelection(buildType, flavor)}
        """.stripMargin
   }
 
