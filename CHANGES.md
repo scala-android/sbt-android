@@ -1,5 +1,9 @@
 ## Changes in 1.5.x ##
 
+* `1.5.10`:
+  * add `-p` option to `logcat` command to filter by pid
+  * also include jars when searching for jni libraries to import (regression fix)
+  * fix missing res apk when toggling debug/release builds (regression fix)
 * `1.5.9`:
   * Update to android builder `1.5.0`
   * Fix TypedLayoutInflater when inflating into a container
