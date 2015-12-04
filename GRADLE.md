@@ -17,7 +17,7 @@ whenever changes occur.
    load `android-gradle-build`:
    * `mkdir project`
    * `echo 'addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.1.10")' > project/plugins.sbt`
-   * `echo "object Build extends android.GradleBuild" > project/build.scala"`
+   * `echo "object Build extends android.GradleBuild" > project/build.scala`
 3. Run `sbt`
    * The initial load will be slow as gradle will run to extract all
      project settings and export them into sbt
