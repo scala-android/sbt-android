@@ -214,7 +214,6 @@ object Plugin extends sbt.Plugin {
     unmanagedJars     <<= unmanagedJarsTaskDef,
     // doesn't work properly yet, not for intellij integration
     //managedClasspath  <<= managedClasspathTaskDef,
-    unmanagedClasspath <+= classDirectory map Attributed.blank,
     classDirectory     := {
       implicit val output = outputLayout.value
       projectLayout.value.classes
