@@ -930,10 +930,9 @@ case class SbtLogger(lg: Logger) extends ILogger {
     lg.warn(String.format(fmt, args:_*))
   }
   override def error(t: Throwable, fmt: java.lang.String, args: Object*) {
-    // they don't end the build, so log as a warning
-    lg.warn(String.format(fmt, args:_*))
+    lg.error(String.format(fmt, args:_*))
     if (t != null)
-      t.printStackTrace()
+      lg.trace(t)
   }
 }
 object NullLogger extends ILogger {
