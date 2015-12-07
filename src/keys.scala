@@ -83,7 +83,7 @@ object Keys {
   val rGenerator = TaskKey[Seq[File]]("r-generator",
     "android aapt source-gen task; generate R.java") in Android
   val collectResources = TaskKey[(File,File)]("collect-resources",
-    "copy all resources and assets to a single location for packaging") in Android
+    "copy all (assets, res) to a single location for packaging") in Android
   val packageResources = TaskKey[File]("package-resources",
     "package android resources") in Android
   val shrinkResources = SettingKey[Boolean]("shrink-resources",
