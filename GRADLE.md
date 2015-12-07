@@ -44,3 +44,9 @@ whenever changes occur.
 * Inline function calls to populate android settings in gradle will be detected
   and loaded, but will not be updated in SBT until `build.gradle` itself is
   modified
+* Only settings defined by the gradle android plugin proper will be imported.
+  Certain settings, such as `dexOptions` are not exported to tooling and will
+  be unavailable. `proguardFiles` is similarly unavailable due to
+  [bug 195881](https://code.google.com/p/android/issues/detail?id=195881).
+  Settings from plugins such as `retrolambda`, `android-apt`, etc. will not be
+  imported.
