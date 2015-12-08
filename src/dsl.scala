@@ -21,8 +21,19 @@ package object dsl {
   def buildTools(version: String) =
     Keys.buildToolsVersion := Option(version)
 
+  private def extendVariant(key: sbt.SettingKey[Map[String,Seq[Setting[_]]]], name: String, ss: Seq[Setting[_]]) =
+    key <<= key { vs =>
+      val ss2 = vs(name)
+      vs + ((name, ss2 ++ ss))
+    }
+  def extendFlavor(name: String)(ss: Setting[_]*): Setting[_] =
+    extendVariant(Keys.flavors, name, ss)
+
   def flavor(name: String)(ss: Setting[_]*): Setting[_] =
     Keys.flavors += ((name, ss))
+
+  def extendBuildType(name: String)(ss: Setting[_]*): Setting[_] =
+    extendVariant(Keys.buildTypes, name, ss)
   def buildType(name: String)(ss: Setting[_]*) =
     Keys.buildTypes += ((name, ss))
 
