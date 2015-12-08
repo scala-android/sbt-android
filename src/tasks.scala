@@ -522,7 +522,7 @@ object Tasks {
         SdkVersionInfo.getApiByBuildCode(minSdk, true)
       // hack because cached can only return Set[File]
       val out = (layout.mergedAssets, layout.mergedRes)
-      val assets = layout.assets +: ea flatMap (_ ** FileOnlyFilter get)
+      val assets = layout.assets +: ea.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get)
       withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
         val res = Resources.doCollectResources(bldr, minLevel, noTestApk, isLib, libs,
           layout, ea, layout.generatedRes +: er, logger, s.cacheDirectory, s)
@@ -619,7 +619,7 @@ object Tasks {
   def normalres(layout: ProjectLayout, extrares: Seq[File], libs: Seq[LibraryDependency]) =
     (libs flatMap { _.getResFolder ** FileOnlyFilter get }) ++
       (layout.res ** FileOnlyFilter get) ++
-      (extrares flatMap (_ ** FileOnlyFilter get))
+      (extrares.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get))
 
   def genres(layout: ProjectLayout, libs: Seq[LibraryDependency])
             (implicit out: BuildOutput.Converter) =
@@ -815,7 +815,7 @@ object Tasks {
     else {
       val output = layout.processedManifest
       output.getParentFile.mkdirs()
-      bldr.mergeManifests(layout.manifest, a.overlays.asJava,
+      bldr.mergeManifests(layout.manifest, a.overlays.filter(_.isFile).asJava,
         if (merge) libs.asJava else Seq.empty.asJava,
         pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
         output.getAbsolutePath, null,

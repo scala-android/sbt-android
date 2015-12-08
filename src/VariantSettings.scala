@@ -45,7 +45,8 @@ object VariantSettings {
           a.scope.copy(project = Select(prj)) else a.scope
         val scope1 = if (scope0.task == This) scope0.copy(task = Global) else scope0
         val scope2 = if (scope1.extra == This) scope1.copy(extra = Global) else scope1
-        a.copy(scope = scope2)
+        val scope3 = if (scope2.config == This) scope2.copy(config = Global) else scope2
+        a.copy(scope = scope3)
       }
     }
     s.mapKey(mapper).mapReferenced(mapper)
@@ -62,43 +63,10 @@ object VariantSettings {
         flavor.toSeq.flatMap(f => flavors.getOrElse(f, Nil)) ++
           buildType.toSeq.flatMap(t => buildTypes.getOrElse(t, Nil))
 
-      val sourceDirectory = sbt.Keys.sourceDirectory in Global in project
-      val e = Project.extract(s)
-      val srcbase = e.get(sourceDirectory)
-
-      def overlayManifest(v: Option[String]): Seq[Setting[_]] = v.fold(Seq.empty[Setting[_]]) { t =>
-        val variantManifest = srcbase / t / "AndroidManifest.xml"
-        if (variantManifest.isFile)
-          List(
-            Keys.manifestOverlays += sourceDirectory.value / t / "AndroidManifest.xml"
-          ) else Nil
-      }
-      val bto = overlayManifest(buildType)
-      val fo = overlayManifest(flavor)
-
-      val ss3 = (for {
+      val ss3 = variantOptions(buildType, project, s) ++ variantOptions(flavor, project, s) ++ variantOptions(for {
         f <- flavor
         t <- buildType
-      } yield {
-        val variant = f + t.capitalize
-        val variantManifest = overlayManifest(Option(variant))
-        Seq(
-          sbt.Keys.unmanagedSourceDirectories in Compile in project ++= {
-            val srcbase = sourceDirectory.value
-            srcbase / variant / "java" ::
-              srcbase / variant / "scala" ::
-              Nil
-          },
-          sbt.Keys.resourceDirectories in Compile in project += {
-            sourceDirectory.value / variant / "resources"
-          },
-          Keys.extraResDirectories in Keys.Android in project += {
-            sourceDirectory.value / variant / "res"
-          },
-          Keys.extraAssetDirectories in Keys.Android in project += {
-            sourceDirectory.value / variant / "assets"
-          }) ++ variantManifest
-      }) getOrElse Nil
+      } yield f + t.capitalize, project, s)
 
       val ss2 = (ss ++ ss3) map fixProjectScope(project)
       val newVariant = variants.copy(append = variants.append + ((project, ss2)), status = variants.status + ((project, (buildType,flavor))))
@@ -107,6 +75,37 @@ object VariantSettings {
       s.log.info(s"Applying variant settings buildType=$bt flavor=$fl to ${project.project}...")
       reapply(extracted.session, newVariant, extracted.structure, s)
     } else s
+  }
+
+  def variantOptions(variant: Option[String], project: ProjectRef, s: State): Seq[Setting[_]] = {
+    val sourceDirectory = sbt.Keys.sourceDirectory in Global in project
+    val e = Project.extract(s)
+    val srcbase = e.get(sourceDirectory)
+    def overlayManifest(v: Option[String]): Seq[Setting[_]] = v.fold(Seq.empty[Setting[_]]) { t =>
+      val variantManifest = srcbase / t / "AndroidManifest.xml"
+      if (variantManifest.isFile)
+        List(Keys.manifestOverlays += sourceDirectory.value / t / "AndroidManifest.xml")
+      else Nil
+    }
+    variant.fold(Seq.empty[Setting[_]]) { name =>
+      val variantManifest = overlayManifest(variant)
+      Seq(
+        sbt.Keys.unmanagedSourceDirectories in Compile in project ++= {
+          val srcbase = sourceDirectory.value
+          srcbase / name / "java" ::
+            srcbase / name / "scala" ::
+            Nil
+        },
+        sbt.Keys.resourceDirectories in Compile in project += {
+          sourceDirectory.value / name / "resources"
+        },
+        Keys.extraResDirectories in Keys.Android in project += {
+          sourceDirectory.value / name / "res"
+        },
+        Keys.extraAssetDirectories in Keys.Android in project += {
+          sourceDirectory.value / name / "assets"
+        }) ++ variantManifest
+    }
   }
   def showVariantStatus(s: State, project: ProjectRef): State = withVariant(s) { variants =>
       val extracted = Project.extract(s)

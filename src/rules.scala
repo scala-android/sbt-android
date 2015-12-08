@@ -775,7 +775,7 @@ object Plugin extends sbt.Plugin {
         f.isFile && Character.isJavaIdentifierStart(f.getName.charAt(0))
       })
       val layout = projectLayout.value
-      val extras = extraResDirectories.value
+      val extras = extraResDirectories.value.map(_.getCanonicalFile).distinct
       (layout.testSources +: layout.jni +: layout.res +: extras) flatMap { path =>
         (path ** filter) get }
     }
