@@ -282,9 +282,9 @@ trait GradleBuild extends Build {
         val art = v.getMainArtifact
         def libraryDependency(m: MavenCoordinates) = {
           val module = m.getGroupId % m.getArtifactId % m.getVersion intransitive()
-          val mID = if (m.getPackaging != "aar") module else Dependencies.aar(module)
-          val classifier = Option(m.getClassifier)
-          libraryDependencies /+= classifier.fold(mID)(mID.classifier)
+          val mID = if (m.getPackaging == "jar") module else module.artifacts(
+            Artifact(m.getArtifactId, m.getPackaging, m.getPackaging, Option(m.getClassifier), Nil, None))
+          libraryDependencies /+= mID
         }
 
         val androidLibraries = art.getDependencies.getLibraries.asScala.toList
@@ -388,7 +388,7 @@ object Serializer {
       base + m.configurations.fold("")(c => s""" % "$c"""") + m.explicitArtifacts.map(
         a =>
           if (a.classifier.isDefined) {
-            s" classifier(${enc(a.classifier.get)})"
+            s""" artifacts(Artifact(${enc(a.name)}, ${enc(a.`type`)}, ${enc(a.extension)}, ${enc(a.classifier.get)}))"""
           } else
             s""" artifacts(Artifact(${enc(a.name)}, ${enc(a.`type`)}, ${enc(a.extension)}))"""
       ).mkString("") + (if (m.isTransitive) "" else " intransitive()")
