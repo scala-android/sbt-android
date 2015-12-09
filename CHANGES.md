@@ -1,5 +1,13 @@
 ## Changes in 1.5.x ##
 
+* `1.5.11`:
+  * `classDirectory` is no longer in `unmanagedClasspath`, `sbt-idea` legacy
+  * Android builder error messages are now reported as sbt error messages, not warning
+  * fix `flavors` and `buildTypes` to set `Global` config scope-axis when one
+    is not specified in the setting
+  * automatically add src, resource and manifest overlays for all flavors,
+    buildTypes, and combined variants
+  * update `android.dsl` build script helpers
 * `1.5.10`:
   * add `-p` option to `logcat` command to filter by pid
   * also include jars when searching for jni libraries to import (regression fix)
