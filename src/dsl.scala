@@ -10,6 +10,10 @@ package object dsl {
   def list[A](body: Seq[A]): List[A] = macro dsl.Macros.listImplN[A]
   def list[A](body: A): List[A]      = macro dsl.Macros.listImpl1[A]
 
+  def inProject(project: String)(ss: Setting[_]*): Seq[Setting[_]] =
+    inProject(sbt.ProjectRef(sbt.file(".").getCanonicalFile, project))(ss:_*)
+  def inProject(project: sbt.ProjectRef)(ss: Setting[_]*): Seq[Setting[_]] =
+    ss map VariantSettings.fixProjectScope(project)
   private def stringFlags(key: sbt.TaskKey[Seq[String]], ss: Seq[String]) = key ++= ss
   private def stringFlags(key: sbt.TaskKey[Seq[String]], config: Configuration, ss: Seq[String]) =
     key in config ++= ss
