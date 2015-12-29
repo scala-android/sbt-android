@@ -575,7 +575,7 @@ object Plugin extends sbt.Plugin {
     collectResources        <<= collectResources dependsOn checkAars,
     shrinkResources          := false,
     resourceShrinker        <<= resourceShrinkerTaskDef,
-    packageResources        <<= packageResourcesTaskDef,
+    packageResources        <<= packageResourcesTaskDef dependsOn rGenerator,
     apkFile                  := {
       implicit val output = outputLayout.value
       projectLayout.value.integrationApkFile(name.value)
