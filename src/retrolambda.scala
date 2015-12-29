@@ -7,7 +7,7 @@ import com.android.builder.core.AndroidBuilder
 import sbt._
 import language.postfixOps
 
-import net.orfjackal.retrolambda.{Main => RMain, Config => RConfig, Retrolambda}
+import net.orfjackal.retrolambda.{Main => RMain, SystemPropertiesConfig, Retrolambda}
 
 /**
  * @author pfnguyen
@@ -89,6 +89,6 @@ object RetroMain {
     val in = new FileInputStream(args(0))
     p.load(in)
     in.close()
-    Retrolambda.run(new RConfig(p))
+    Retrolambda.run(new SystemPropertiesConfig(p))
   }
 }
