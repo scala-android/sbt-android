@@ -345,6 +345,7 @@ object Plugin extends sbt.Plugin {
     exportedProducts         := Nil,
     products                 := Nil,
     classpathConfiguration   := config("compile"),
+    // end for Classpaths.configSettings
     // hack since it doesn't take in dependent project's libs
     dependencyClasspath     <<= ( dependencyClasspath in Compile
                                 , libraryDependencies
@@ -356,17 +357,22 @@ object Plugin extends sbt.Plugin {
         s.log.debug("%s => %s: %s" format (a.data.getName,
           a.get(configuration.key), a.get(moduleID.key)))
       }
+      // try to filter out duplicate aar libraries as well
       // it seems internal-dependency-classpath already filters out "provided"
       // from other projects, now, just filter out our own "provided" lib deps
       // do not filter out provided libs for scala, we do that later
-      cp filterNot { _.get(moduleID.key) exists { m =>
+      val (withMID,withoutMID) = cp collect {
+        case x if x.get(moduleID.key).isDefined =>
+          (x,(x.get(moduleID.key),x.data.getName))
+        case x => (x,(None, x.data.getName))
+      } partition (_._2._1.isDefined)
+      (withMID.groupBy(_._2).values.map(_.head._1) ++  withoutMID.map(_._1)) filterNot { _.get(moduleID.key) exists { m =>
           m.organization != "org.scala-lang" &&
             (pvd exists (p => m.organization == p.organization &&
               m.name == p.name))
         }
       } groupBy(_.data) map { case (k,v) => v.head } toList
     },
-    // end for Classpaths.configSettings
     updateCheck              := {
       val log = streams.value.log
       UpdateChecker("pfn", "sbt-plugins", "android-sdk-plugin") {

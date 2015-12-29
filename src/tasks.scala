@@ -1518,17 +1518,24 @@ object Tasks {
 //        case _: AarLibrary         => true
         case _: AutoLibraryProject => true
         case _ => false
-      } map { p => Attributed.blank(p.getJarFile.getCanonicalFile) }) ++ (for {
-        d <- l/* filterNot { // currently unworking
-          case _: AarLibrary => true
-          case _ => false
-        }*/
-        j <- d.getLocalJars.asScala
-      } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
-        d <- Seq(b / "libs", b / "lib")
-        j <- d * "*.jar" get
-      } yield Attributed.blank(j.getCanonicalFile))
-    ) filter { c =>
+    } map {
+      case a@AarLibrary(_) => Attributed.blank(a.getJarFile.getCanonicalFile).put(moduleID.key, a.moduleID)
+      case p => Attributed.blank(p.getJarFile.getCanonicalFile)
+    }) ++ (for {
+      d <- l filterNot {
+        case _: AarLibrary => true
+        case _ => false
+      }
+      j <- d.getLocalJars.asScala
+    } yield Attributed.blank(j.getCanonicalFile)) ++ (for {
+      d <- l collect {
+        case l: AarLibrary => l
+      }
+      j <- d.getLocalJars.asScala
+    } yield Attributed.blank(j.getCanonicalFile).put(moduleID.key, d.moduleID)) ++ (for {
+      d <- Seq(b / "libs", b / "lib")
+      j <- d * "*.jar" get
+    } yield Attributed.blank(j.getCanonicalFile)) ) filter { c =>
       !c.data.getName.startsWith("scala-library") && c.data.isFile
     }
   }

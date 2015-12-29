@@ -120,8 +120,7 @@ object Dependencies {
     }
   }
 
-  case class LibEquals[A <: AndroidLibrary](lib: A)
-  {
+  case class LibEquals[A <: AndroidLibrary](lib: A) {
     override def equals(other: Any) = {
       (lib, other) match {
         case (l @ AarLibrary(_), LibEquals(r @ AarLibrary(_))) ⇒
@@ -131,6 +130,8 @@ object Dependencies {
         case _ ⇒ false
       }
     }
+
+    override def hashCode() = 0
   }
 
   implicit class LibrarySeqOps[A <: AndroidLibrary](libs: Seq[A])
@@ -179,7 +180,7 @@ object Dependencies {
       def partMatches(p: (String, String)) = p._1 == p._2 || p._1 == "+"
       val parts = id.revision.split('.')
       val otherParts = other.split('.')
-      val partsMatch = parts zip(otherParts) forall(partMatches)
+      val partsMatch = parts zip otherParts forall partMatches
       partsMatch && (
         parts.length == otherParts.length ||
         (parts.length < otherParts.length) && parts.lastOption.exists(_ == "+")
