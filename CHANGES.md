@@ -1,5 +1,9 @@
 ## Changes in 1.5.x ##
 
+* `1.5.12`:
+  * fix missing sources in `buildJar`'s `packageSrc`
+  * try to fix a long-standing bug with `R.java` generation race, make
+    `packageResources` depend on `rGenerator`
 * `1.5.11`:
   * `classDirectory` is no longer in `unmanagedClasspath`, `sbt-idea` legacy
   * Android builder error messages are now reported as sbt error messages, not warning
