@@ -362,8 +362,7 @@ object Plugin extends sbt.Plugin {
       // from other projects, now, just filter out our own "provided" lib deps
       // do not filter out provided libs for scala, we do that later
       val (withMID,withoutMID) = cp collect {
-        case x if x.get(moduleID.key).isDefined =>
-          (x,(x.get(moduleID.key),x.data.getName))
+        case x if x.get(aarModuleID).isDefined => (x,(x.get(aarModuleID),x.data.getName))
         case x => (x,(None, x.data.getName))
       } partition (_._2._1.isDefined)
       (withMID.groupBy(_._2).values.map(_.head._1) ++  withoutMID.map(_._1)) filterNot { _.get(moduleID.key) exists { m =>
