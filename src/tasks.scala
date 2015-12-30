@@ -1519,7 +1519,7 @@ object Tasks {
         case _: AutoLibraryProject => true
         case _ => false
     } map {
-      case a@AarLibrary(_) => Attributed.blank(a.getJarFile.getCanonicalFile).put(aarModuleID, a.moduleID)
+      case a@AarLibrary(_) => Attributed.blank(a.getJarFile.getCanonicalFile).put(moduleID.key, a.moduleID)
       case p => Attributed.blank(p.getJarFile.getCanonicalFile)
     }) ++ (for {
       d <- l filterNot {
@@ -1532,7 +1532,7 @@ object Tasks {
         case l: AarLibrary => l
       }
       j <- d.getLocalJars.asScala
-    } yield Attributed.blank(j.getCanonicalFile).put(aarModuleID, d.moduleID)) ++ (for {
+    } yield Attributed.blank(j.getCanonicalFile).put(moduleID.key, d.moduleID)) ++ (for {
       d <- Seq(b / "libs", b / "lib")
       j <- d * "*.jar" get
     } yield Attributed.blank(j.getCanonicalFile)) ) filter { c =>

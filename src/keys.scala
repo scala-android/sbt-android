@@ -280,7 +280,6 @@ object Keys {
     val builder = TaskKey[AndroidBuilder]("android-builder", "AndroidBuilder object") in Android
     val apklibArtifact = SettingKey[Artifact]("apklib-artifact",
       "artifact object for publishing apklibs") in Android
-    val aarModuleID = AttributeKey[ModuleID]("aar-module-id")
     val aarArtifact = SettingKey[Artifact]("aar-artifact",
       "artifact object for publishing aars") in Android
     val cleanForR = TaskKey[Seq[File]]("clean-for-r",
