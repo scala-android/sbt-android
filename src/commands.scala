@@ -286,7 +286,6 @@ object Commands {
       (s indexOf ":") > 0
     } getOrElse Plugin.fail("no device selected")
 
-    val receiver = new ShellResult()
     val d = targetDevice(sdk, state.log).get
     if (adbWifiOn) {
       state.log.info("turning ADB-over-wifi off")
@@ -296,17 +295,24 @@ object Commands {
     } else {
       state.log.info("turning ADB-over-wifi on")
 
-      d.executeShellCommand("ifconfig wlan0", receiver)
-      val ip = receiver.result.split(" +")(2)
-      state.log.debug("device ip: %s" format ip)
+      val receiver = new ShellResult()
+      d.executeShellCommand("ip addr show dev wlan0", receiver)
+      val ip = receiver.result.linesIterator.dropWhile(
+        _.trim.split(" ")(0) != "inet").toStream.headOption.fold("")(
+        _.trim.split(" ")(1).takeWhile(_ != '/'))
+      if (ip.nonEmpty) {
+        state.log.debug("device ip: %s" format ip)
 
-      Seq(adbPath, "-s", d.getSerialNumber, "tcpip", "5555") !
+        Seq(adbPath, "-s", d.getSerialNumber, "tcpip", "5555") !
 
-      val r = Seq(adbPath, "connect", ip) !
+        val r = Seq(adbPath, "connect", ip) !
 
-      if (r != 0)
-        Plugin.fail("failed to connect ADB-over-wifi")
-      deviceAction(state, ip + ":5555")
+        if (r != 0)
+          Plugin.fail("failed to connect ADB-over-wifi")
+        deviceAction(state, ip + ":5555")
+      } else {
+        Plugin.fail("unable to determine IP of " + d.getSerialNumber)
+      }
     }
 
   }
