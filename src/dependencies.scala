@@ -131,7 +131,10 @@ object Dependencies {
       }
     }
 
-    override def hashCode() = 0
+    override def hashCode() = lib match {
+      case a@AarLibrary(_) => a.moduleID.hashCode
+      case _ => lib.getFolder.hashCode
+    }
   }
 
   implicit class LibrarySeqOps[A <: AndroidLibrary](libs: Seq[A])
