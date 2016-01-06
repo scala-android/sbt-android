@@ -235,13 +235,13 @@ object Plugin extends sbt.Plugin {
     ),
     packageT          <<= packageT dependsOn compile,
     javacOptions      <<= ( javacOptions
-                          , builder
+                          , bootClasspath
                           , apkbuildDebug
                           , retrolambdaEnabled) map {
-      (o,bldr, debug, re) =>
+      (o,boot, debug, re) =>
       // users will want to call clean before compiling if changing debug
       val debugOptions = if (debug()) Seq("-g") else Seq.empty
-      val bcp = bldr.getBootClasspath(false).asScala mkString File.pathSeparator
+      val bcp = boot.map(_.data) mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
       o ++ (if (!re) Seq("-bootclasspath" , bcp) else
@@ -258,9 +258,9 @@ object Plugin extends sbt.Plugin {
         (x, a) => if (x != "-target") x :: a else a.drop(1)
       }
     },
-    scalacOptions     <<= (scalacOptions, builder) map { (o,bldr) =>
+    scalacOptions     <<= (scalacOptions, bootClasspath) map { (o,boot) =>
       // scalac has -g:vars by default
-      val bcp = bldr.getBootClasspath(false).asScala mkString File.pathSeparator
+      val bcp = boot.map(_.data) mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
     }
   )) ++ inConfig(Test) (Seq(

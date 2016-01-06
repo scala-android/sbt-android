@@ -9,6 +9,7 @@ import com.android.sdklib.BuildToolInfo
 object Aggregate {
   private[android] case class Retrolambda(enable: Boolean,
                                           classpath: Seq[File],
+                                          bootClasspath: Seq[File],
                                           builder: AndroidBuilder)
 
   private[android] case class AndroidTest(debugIncludesTests: Boolean,

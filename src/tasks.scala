@@ -450,16 +450,16 @@ object Tasks {
                         , compile in Compile
                         , classDirectory in Compile
                         , fullClasspath in Compile
-                        , builder
+                        , bootClasspath
                         , streams
-                        ) map { (src, c, classes, cp, bldr, s) =>
+                        ) map { (src, c, classes, cp, boot, s) =>
     val natives = NativeFinder(classes)
 
     if (natives.nonEmpty) {
       val javah = Seq("javah",
         "-d", src.getAbsolutePath,
         "-classpath", cp map (_.data.getAbsolutePath) mkString File.pathSeparator,
-        "-bootclasspath", bldr.getBootClasspath(false).asScala mkString File.pathSeparator) ++ natives
+        "-bootclasspath", boot.map(_.data) mkString File.pathSeparator) ++ natives
 
       s.log.debug(javah mkString " ")
 
@@ -952,7 +952,7 @@ object Tasks {
 
   val retrolambdaAggregateTaskDef = Def.task {
     Aggregate.Retrolambda(retrolambdaEnabled.value,
-      Project.extract(state.value).currentUnit.classpath, builder.value)
+      Project.extract(state.value).currentUnit.classpath, bootClasspath.value.map(_.data), builder.value)
   }
   val dexInputsTaskDef = ( proguard
                          , proguardInputs
@@ -1213,7 +1213,7 @@ object Tasks {
       val tmp = cache / "test-dex"
       tmp.mkdirs()
       val inputs = if (re && RetrolambdaSupport.isAvailable) {
-        RetrolambdaSupport(classes, deps, ra.classpath, bldr, s)
+        RetrolambdaSupport(classes, deps, ra.classpath, ra.bootClasspath, s)
       } else {
         Seq(classes) ++ deps
       }

@@ -3,7 +3,6 @@ package android
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-import com.android.builder.core.AndroidBuilder
 import sbt._
 import language.postfixOps
 
@@ -14,10 +13,9 @@ import net.orfjackal.retrolambda.{Main => RMain, SystemPropertiesConfig, Retrola
  */
 object RetrolambdaSupport {
   def isAvailable = RMain.isRunningJava8
-  def apply(target: File, classpath: Seq[File], forkClasspath: Seq[File], bldr: AndroidBuilder,
+  def apply(target: File, classpath: Seq[File], forkClasspath: Seq[File], bootClasspath: Seq[File],
               s: sbt.Keys.TaskStreams): Seq[File] = synchronized {
-    import collection.JavaConverters._
-    val cp = (bldr.getBootClasspath(false).asScala map (f => f: sbt.File)) ++ classpath
+    val cp = bootClasspath ++ classpath
     val dest = target / "retrolambda"
     val finalJar = target / "retrolambda-processed.jar"
     dest.mkdirs()

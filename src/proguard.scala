@@ -140,7 +140,7 @@ object Proguard {
       val libjars = inputs.libraryjars
       val pjars = inputs.injars map (_.data)
       val jars = if (re && RetrolambdaSupport.isAvailable)
-        RetrolambdaSupport(b, pjars, ra.classpath, bldr, s) else pjars
+        RetrolambdaSupport(b, pjars, ra.classpath, ra.bootClasspath, s) else pjars
       val t = b / "classes.proguard.jar"
 
       val libraryjars = for {
@@ -212,7 +212,7 @@ object Dex {
       } ++ in.proguardCache :+ classJar
       // TODO may fail badly in the presence of proguard-cache?
       if (re && RetrolambdaSupport.isAvailable)
-        RetrolambdaSupport(b, inputs, ra.classpath, bldr, s)
+        RetrolambdaSupport(b, inputs, ra.classpath, ra.bootClasspath, s)
       else inputs
     }
 
