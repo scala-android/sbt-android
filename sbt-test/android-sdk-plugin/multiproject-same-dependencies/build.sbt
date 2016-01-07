@@ -14,3 +14,10 @@ libraryDependencies in c += "com.android.support" % "appcompat-v7" % "23.1.1"
 
 libraryDependencies in d += "com.android.support" % "appcompat-v7" % "23.1.1"
 
+minSdkVersion in a := "7"
+
+minSdkVersion in b := "7"
+
+minSdkVersion in c := "7"
+
+minSdkVersion in d := "7"
