@@ -421,26 +421,30 @@ object Tasks {
           "Android.mk found, but neither ndk.dir nor ANDROID_NDK_HOME are set")
       }
       ndkHome flatMap { ndk =>
-        val env = Seq("NDK_PROJECT_PATH" -> (layout.jni / "..").getAbsolutePath,
-          "NDK_OUT" -> layout.ndkObj.getAbsolutePath,
-          "NDK_LIBS_OUT" -> layout.ndkBin.getAbsolutePath,
-          "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath)
+        val inputs = (layout.jni ** FileOnlyFilter).get.toSet
+        FileFunction.cached(layout.ndkObj, FilesInfo.lastModified) { in =>
+          val env = Seq("NDK_PROJECT_PATH" -> (layout.jni / "..").getAbsolutePath,
+            "NDK_OUT" -> layout.ndkObj.getAbsolutePath,
+            "NDK_LIBS_OUT" -> layout.ndkBin.getAbsolutePath,
+            "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath)
 
-        log.info("Executing NDK build")
-        val ndkbuildFile = if (!Commands.isWindows) file(ndk) / "ndk-build" else  {
-          val f = file(ndk) / "ndk-build.cmd"
-          if (f.exists) f else file(ndk) / "ndk-build.bat"
-        }
-        val ndkBuildInvocation = Seq(
-          ndkbuildFile.getAbsolutePath,
-          if (debug) "NDK_DEBUG=1" else "NDK_DEBUG=0"
-        )
+          log.info("Executing NDK build")
+          val ndkbuildFile = if (!Commands.isWindows) file(ndk) / "ndk-build" else  {
+            val f = file(ndk) / "ndk-build.cmd"
+            if (f.exists) f else file(ndk) / "ndk-build.bat"
+          }
+          val ndkBuildInvocation = Seq(
+            ndkbuildFile.getAbsolutePath,
+            if (debug) "NDK_DEBUG=1" else "NDK_DEBUG=0"
+          )
 
-        val rc = Process(ndkBuildInvocation, layout.base, env: _*) !
+          val rc = Process(ndkBuildInvocation, layout.base, env: _*) !
 
-        if (rc != 0)
-          Plugin.fail("ndk-build failed!")
+          if (rc != 0)
+            Plugin.fail("ndk-build failed!")
 
+          (layout.ndkBin ** FileOnlyFilter).get.toSet
+        }(inputs)
         Option(layout.ndkBin)
       }
     } else None
