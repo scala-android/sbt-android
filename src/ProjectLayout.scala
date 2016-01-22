@@ -1,5 +1,6 @@
 package android
 
+import com.android.prefs.AndroidLocation
 import com.android.sdklib.BuildToolInfo
 import sbt._
 
@@ -264,6 +265,9 @@ object SdkLayout {
     t.getLocation / "renderscript" / "lib"
   def renderscriptSupportLibs(t: BuildToolInfo) =
     (renderscriptSupportLibFile(t) * "*.jar").get
+
+  def predex = file(AndroidLocation.getFolder) / "sbt" / "predex"
+  def explodedAars = file(AndroidLocation.getFolder) / "sbt" / "exploded-aars"
 }
 trait ProjectLayout {
   def base: File

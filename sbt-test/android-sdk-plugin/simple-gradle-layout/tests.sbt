@@ -20,3 +20,8 @@ TaskKey[Unit]("verify-res-values") <<= (
   if ("test value" != text) sys.error("wrong value: " + text)
   ()
 }
+
+TaskKey[Unit]("check-global-aar") := Def.task {
+  val path = Path.userHome / ".android/sbt/exploded-aars/com.google.android.gms-play-services-4.3.23/com.google.android.gms-play-services-4.3.23.jar"
+  if (!path.isFile) android.Plugin.fail("path does not exist: " + path)
+}

@@ -5,7 +5,6 @@ import java.util.jar.{JarOutputStream, JarInputStream}
 
 import com.android.SdkConstants
 import com.android.builder.core.{DexOptions, AndroidBuilder}
-import com.android.prefs.AndroidLocation
 import com.android.sdklib.BuildToolInfo
 import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 import sbt._
@@ -376,7 +375,7 @@ object Dex {
   }
   def predexFileOutput(base: File, binPath: File, inFile: File) = {
     val rpath = inFile relativeTo base
-    val f = rpath.fold(file(AndroidLocation.getFolder) / "predex")(_ => binPath) / predexFileName(inFile)
+    val f = rpath.fold(SdkLayout.predex)(_ => binPath) / predexFileName(inFile)
     f.mkdirs()
     f
   }

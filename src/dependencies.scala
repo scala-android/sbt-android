@@ -112,8 +112,9 @@ object Dependencies {
     override def getRenderscriptFolder = layout.renderscript
 
     override def getDependencies = {
-      ((IO.listFiles(layout.aars) filter (_.isDirectory) map { d =>
-        AarLibrary(d): AndroidLibrary
+      ((IO.listFiles(layout.aars) map {
+        case d if d.isDirectory => AarLibrary(d)
+        case f if f.isFile      => AarLibrary(SdkLayout.explodedAars / f.getName)
       }) ++ (IO.listFiles(layout.apklibs) filter (_.isDirectory) map { d =>
         ApkLibrary(d): AndroidLibrary
       })).toList.asJava

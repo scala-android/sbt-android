@@ -132,17 +132,19 @@ object Tasks {
     val subaars = ta.collect { case a: AarLibrary => a }.map { a => moduleString(a.moduleID) }.toSet
     s.log.debug("aars in subprojects: " + subaars)
     val libs = u.matching(artifactFilter(`type` = "aar"))
-    val dest = layout.aars
 
     val deps = d.filterNot(_.configurations.exists(
       _ contains "test")).map(moduleString).toSet
     (libs flatMap { l =>
+      val dest = SdkLayout.explodedAars
       val m = moduleForFile(u, l)
       if (tx || deps(moduleString(m))) {
-        val d = dest / (m.organization + "-" + m.name + "-" + m.revision)
-        if (!subaars(moduleString(m)))
+        val mID = m.organization + "-" + m.name + "-" + m.revision
+        val d = dest / mID
+        if (!subaars(moduleString(m))) {
+          IO.touch(layout.aars / mID)
           Some(unpackAar(l, d, m, s.log): LibraryDependency)
-        else {
+        } else {
           s.log.debug(m + " was already included by a dependent project, skipping")
           None
         }
@@ -152,6 +154,7 @@ object Tasks {
         None
       }
     }) ++ (local map { a =>
+      val dest = layout.aars
       unpackAar(a, dest / ("localAAR-" + a.getName), "localAAR" % a.getName % "LOCAL", s.log)
     })
   }

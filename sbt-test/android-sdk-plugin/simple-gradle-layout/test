@@ -2,7 +2,7 @@
 > android:platform-target
 > verify-package
 > show android:aars
-$ exists target/android/intermediates/aars/com.google.android.gms-play-services-4.3.23/com.google.android.gms-play-services-4.3.23.jar
+> check-global-aar
 > android:resValuesGenerator
 $ exists target/android/generated/res/values/generated.xml
 > verify-res-values
