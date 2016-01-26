@@ -77,64 +77,64 @@ object AndroidLint {
       if (is.isEmpty) {
         s.log.debug("lint found no issues")
       } else {
-        if (errorCount > 0) {
-          val all = is zip (None :: (is map (i => Option(i.issue))))
-          all foreach { case (issue, previous) =>
-            val b = new StringBuilder
-            val log = issue.severity match {
-              case Severity.FATAL         => s.log.error(_: String)
-              case Severity.ERROR         => s.log.error(_: String)
-              case Severity.WARNING       => s.log.warn(_: String)
-              case Severity.INFORMATIONAL => s.log.info(_: String)
-              case Severity.IGNORE        => s.log.debug(_: String)
-            }
-            if (!previous.exists(_ == issue.issue)) {
-              explainIssue(issue.issue, log)
-            }
-            if (issue.issue != null) {
-              b.append('[').append(issue.issue.getId).append("] ")
-            }
-            if (issue.path != null) {
-              b.append(issue.path)
+        val all = is zip (None :: (is map (i => Option(i.issue))))
+        all foreach { case (issue, previous) =>
+          val b = new StringBuilder
+          val log = issue.severity match {
+            case Severity.FATAL         => s.log.error(_: String)
+            case Severity.ERROR         => s.log.error(_: String)
+            case Severity.WARNING       => s.log.warn(_: String)
+            case Severity.INFORMATIONAL => s.log.info(_: String)
+            case Severity.IGNORE        => s.log.debug(_: String)
+          }
+          if (!previous.exists(_ == issue.issue)) {
+            explainIssue(issue.issue, log)
+          }
+          if (issue.issue != null) {
+            b.append('[').append(issue.issue.getId).append("] ")
+          }
+          if (issue.path != null) {
+            b.append(issue.path)
+            b.append(':')
+            if (issue.line >= 0) {
+              b.append(String.valueOf(issue.line + 1))
               b.append(':')
-              if (issue.line >= 0) {
-                b.append(String.valueOf(issue.line + 1))
-                b.append(':')
-              }
             }
-            b.append(TextFormat.RAW.convertTo(issue.message, TextFormat.TEXT))
-            Option(issue.errorLine) filter (_.nonEmpty) foreach b.append("\n").append
-            log(b.mkString)
+          }
+          b.append(TextFormat.RAW.convertTo(issue.message, TextFormat.TEXT))
+          Option(issue.errorLine) filter (_.nonEmpty) foreach b.append("\n").append
+          log(b.mkString)
 
-            for {
-              l1 <- Option(issue.location)
-              location <- Option(issue.location.getSecondary)
-            } {
-              if (!short) {
-                val s = alsoAffects(issue, Some(l1)).mkString
-                if (s.length > 0) {
-                  log("Also affects: " + SdkUtils.wrap(s, 72, "      "))
-                }
+          for {
+            l1 <- Option(issue.location)
+            location <- Option(issue.location.getSecondary)
+          } {
+            if (!short) {
+              val s = alsoAffects(issue, Some(l1)).mkString
+              if (s.length > 0) {
+                log("Also affects: " + SdkUtils.wrap(s, 72, "      "))
               }
-            }
-
-            if (issue.isVariantSpecific) {
-              val (msg, names) = if (issue.includesMoreThanExcludes) {
-                ("Applies to variants: ", issue.getIncludedVariantNames)
-              } else {
-                ("Does not apply to variants: ", issue.getExcludedVariantNames)
-              }
-              log(msg + names.asScala.mkString(", "))
             }
           }
 
-          val errstr = s"lint found ${fmtE(errorCount)}, ${fmtW(warningCount)}"
-          if (strict)
-            Plugin.fail(errstr)
-          else
+          if (issue.isVariantSpecific) {
+            val (msg, names) = if (issue.includesMoreThanExcludes) {
+              ("Applies to variants: ", issue.getIncludedVariantNames)
+            } else {
+              ("Does not apply to variants: ", issue.getExcludedVariantNames)
+            }
+            log(msg + names.asScala.mkString(", "))
+          }
+        }
+
+        val errstr = s"lint found ${fmtE(errorCount)}, ${fmtW(warningCount)}"
+        if (strict && errorCount > 0)
+          Plugin.fail(errstr)
+        else {
+          if (errorCount > 0)
             s.log.error(errstr)
-        } else {
-          s.log.warn(s"lint found ${fmtW(warningCount)}")
+          else
+            s.log.warn(s"lint found ${fmtW(warningCount)}")
         }
       }
     }
