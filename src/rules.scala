@@ -134,6 +134,14 @@ object Plugin extends sbt.Plugin {
     manifest := <manifest package="com.hanhuy.sbt.placeholder">
       <application/>
     </manifest>,
+    processManifest := {
+      implicit val out = outputLayout.value
+      val layout = projectLayout.value
+      val manifestTarget = layout.processedManifest
+      manifestTarget.getParentFile.mkdirs()
+      XML.save(manifestTarget.getAbsolutePath, manifest.value, "utf-8")
+      manifestTarget
+    },
     buildConfigGenerator := Nil,
     rGenerator := Nil,
     debugIncludesTests := false,
