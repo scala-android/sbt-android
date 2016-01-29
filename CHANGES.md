@@ -1,5 +1,8 @@
 ## Changes in 1.5.x ##
 
+* `1.5.15`:
+  * Properly show `lint` warnings when no errors are present
+  * Fix errors when importing `buildJar` into IntelliJ
 * `1.5.14`:
   * check if JNI sources have changed instead of running `ndk-build` blindly
   * move `android-sdk-plugin` generated, global content into `~/.android/sbt`,
