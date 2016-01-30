@@ -205,7 +205,7 @@ found on the #sbt-android IRC channel on Freenode
   * Configurable keys can be discovered by typing `android:<tab>` at the
     sbt shell
 * Configuring proguard, some options are available
-  * `proguardOptions in Android += Seq("-dontobfuscate", "-dontoptimize")` -
+  * `proguardOptions in Android ++= Seq("-dontobfuscate", "-dontoptimize")` -
     will tell proguard not to obfuscute nor optimize code (any valid proguard
     option is usable here)
  * `proguardConfig in Android ...` can be used to replace the entire
