@@ -761,9 +761,9 @@ object Plugin extends sbt.Plugin {
         tools
       }
     },
-    platformTarget          <<= properties { p =>
+    platformTarget          <<= (properties,thisProject) { (p,prj) =>
       Option(p.getProperty("target")) getOrElse fail(
-        "configure project.properties or set 'platformTarget'")
+        prj.id + ": configure project.properties or set 'platformTarget'")
     },
     platform                <<= (sdkManager, platformTarget, thisProject) map {
       (m, p, prj) =>
