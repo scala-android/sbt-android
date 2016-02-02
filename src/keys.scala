@@ -270,6 +270,7 @@ object Keys {
   }
 
   private[android] object Internal {
+    val pluginSettingsLoaded = SettingKey[Boolean]("android-plugin-settings-loaded", "Internal duplicate apply check") in Android
     val buildTools = TaskKey[BuildToolInfo]("build-tools", "Android build tools") in Android
     val ilogger = SettingKey[Logger => ILogger]("ilogger",
       "internal Android SDK logger") in Android

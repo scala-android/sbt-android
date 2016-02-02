@@ -33,7 +33,6 @@ import Keys._
 import Keys.Internal._
 import Tasks._
 import Commands._
-import BuildOutput._
 import Dependencies.LibrarySeqOps
 
 object Plugin extends sbt.Plugin {
@@ -282,6 +281,11 @@ object Plugin extends sbt.Plugin {
   )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
     flavors                     := Map.empty,
     buildTypes                  := Map.empty,
+    pluginSettingsLoaded        := {
+      if (pluginSettingsLoaded.?.value.isDefined)
+        fail(s"androidBuild has been applied to project ${thisProject.value.id} more than once")
+      true
+    },
     lint                        := {
       implicit val output = outputLayout.value
       AndroidLint(projectLayout.value,
