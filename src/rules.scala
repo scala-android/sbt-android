@@ -191,7 +191,7 @@ object Plugin extends sbt.Plugin {
       if (en)
         AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)
       c
-    } dependsOn packageResources,
+    },
     sourceManaged               := projectLayout.value.gen,
     unmanagedSourceDirectories <<= projectLayout (l =>
       Set(l.sources, l.javaSource, l.scalaSource).toSeq),
