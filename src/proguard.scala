@@ -292,7 +292,7 @@ object Dex {
           override def getJumboMode = false
           override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
         }
-        s.log.debug("$sn: Dex inputs: " + shard)
+        s.log.debug(s"$sn: Dex inputs: " + shard)
 
         val tmp = s.cacheDirectory / s"dex-$sn"
         tmp.mkdirs()
