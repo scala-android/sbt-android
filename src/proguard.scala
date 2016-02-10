@@ -102,7 +102,7 @@ object Proguard {
         todep foreach { case (dep,j) =>
           st.log.info("Finding dependency references for: " +
             (j.get(sbt.Keys.moduleID.key) getOrElse j.data.getName))
-          IO.write(dep, ReferenceFinder(j.data, pc) mkString "\n")
+          IO.write(dep, ReferenceFinder(j.data, pc.map(_.replace('.','/'))) mkString "\n")
         }
 
         val alldeps = (indeps flatMap {
