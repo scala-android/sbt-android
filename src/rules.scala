@@ -553,17 +553,17 @@ object Plugin extends sbt.Plugin {
         p
       }
     },
-    targetSdkVersion        <<= (manifest, minSdkVersion) map { (m, min) =>
+    targetSdkVersion         := {
+      val m = manifest.value
       val usesSdk = m \ "uses-sdk"
-      if (usesSdk.isEmpty) min else
-        usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion").fold(min) { _.head.text }
+      val ldr = sdkLoader.value
+      val tgt = ldr.getTargetInfo(platformTarget.value, buildTools.value.getRevision, ilogger.value(streams.value.log))
+      val v = String.valueOf(tgt.getTarget.getVersion.getApiLevel)
+      if (usesSdk.isEmpty) v else
+        usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion").fold(v) { _.head.text }
     },
     minSdkVersion            := {
       val m = manifest.value
-      val t = platformTarget.value
-      val ldr = sdkLoader.value
-      val tgt = ldr.getTargetInfo(t, buildTools.value.getRevision, ilogger.value(streams.value.log))
-
       val usesSdk = m \ "uses-sdk"
       if (usesSdk.isEmpty) "1" else
         usesSdk(0).attribute(ANDROID_NS, "minSdkVersion").fold("1") { _.head.text }
