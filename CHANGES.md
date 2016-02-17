@@ -1,5 +1,10 @@
 ## Changes in 1.5.x ##
 
+* `1.5.17`:
+  * Fix `proguardCache` regression; was requiring both `package.name` and
+    `package/name` to be specified in order to function properly
+  * Default `targetSdkVersion` to the platform level specified in
+    `platformTarget` if not otherwise specified explicitly
 * `1.5.16`:
   * Report the project name when hitting the `platformTarget` missing error
   * Fix another race condition regarding R.java generation
