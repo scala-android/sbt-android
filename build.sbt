@@ -45,7 +45,7 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
     "org.gradle" % "gradle-tooling-api" % "2.6" % "provided" ::
     "javax.inject" % "javax.inject" % "1" % "provided" ::
     Nil
-) dependsOn(model % "provided")
+) dependsOn(model % "compile-internal")
 
 val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++ bintrayPublishSettings:_*).settings(
   version := gradleBuildVersion,
@@ -84,7 +84,7 @@ val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++
   buildInfoKeys := Seq(name, version),
   buildInfoPackage := "android.gradle"
 ).settings(addSbtPlugin(
-  "com.hanhuy.sbt" % "android-sdk-plugin" % pluginVersion)).dependsOn(model % "provided")
+  "com.hanhuy.sbt" % "android-sdk-plugin" % pluginVersion)).dependsOn(model % "compile-internal")
 
 name := "android-sdk-plugin"
 
