@@ -98,6 +98,7 @@ object Keys {
     "list of additional android res folders to include (primarily for flavors") in Android
   val extraAssetDirectories = SettingKey[Seq[File]]("extra-asset-directories",
     "list of additional android asset folders to include (primarily for flavors") in Android
+  val renderVectorDrawables = SettingKey[Boolean]("render-vector-drawables") in Android
 
   // packaging-related keys
   val packageRelease = TaskKey[File]("package-release", "create a release apk") in Android
@@ -306,6 +307,9 @@ object Keys {
     val collectProjectJni = TaskKey[Seq[File]]("collect-project-jni", "collect project JNI folder names for packaging (without libs from dependencies)") in Android
     val aars = TaskKey[Seq[LibraryDependency]]("aars",
       "unpack the set of referenced aars") in Android
+    val collectResourcesAggregate = TaskKey[Aggregate.CollectResources](
+      "collect-resources-aggregate",
+      "Internal android:collect-resources key aggregating task") in Android
     val testAggregate = TaskKey[Aggregate.AndroidTest]("test-aggregate",
       "Internal android:test-related key aggregating task") in Android
     val apkbuildAggregate = TaskKey[Aggregate.Apkbuild]("apkbuild-aggregate",

@@ -2,6 +2,7 @@ package android
 
 import java.io.File
 
+import android.Dependencies.LibraryDependency
 import android.Keys.PackagingOptions
 import com.android.builder.core.AndroidBuilder
 import com.android.sdklib.BuildToolInfo
@@ -22,6 +23,13 @@ object Aggregate {
                                           externalDependencyClasspathInCompile: Seq[File],
                                           packagingOptions: PackagingOptions,
                                           libraryProject: Boolean)
+
+  private[android] case class CollectResources(libraryProject: Boolean,
+                                               libraryProjects: Seq[LibraryDependency],
+                                               extraResDirectories: Seq[File],
+                                               extraAssetDirectories: Seq[File],
+                                               projectLayout: ProjectLayout,
+                                               outputLayout: BuildOutput.Converter)
 
   private[android] case class Apkbuild(packagingOptions: PackagingOptions,
                                        apkbuildDebug: Boolean,

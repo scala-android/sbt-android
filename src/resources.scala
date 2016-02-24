@@ -29,6 +29,7 @@ object Resources {
                           , layout: ProjectLayout
                           , extraAssets: Seq[File]
                           , extraRes: Seq[File]
+                          , renderVectors: Boolean
                           , logger: Logger => ILogger
                           , cache: File
                           , s: TaskStreams
@@ -75,7 +76,8 @@ object Resources {
       (if (noTestApk && layout.testRes.isDirectory)
         Seq(layout.res) else Seq.empty)
     val vectorprocessor = new VectorDrawableRenderer(
-      minSdk, layout.generatedVectors, Set(Density.MEDIUM,
+      if (renderVectors) minSdk else math.max(minSdk,21),
+      layout.generatedVectors, Set(Density.MEDIUM,
         Density.HIGH,
         Density.XHIGH,
         Density.XXHIGH).asJava,

@@ -511,20 +511,26 @@ object Tasks {
   }
 
 
+  val collectResourcesAggregateTaskDef = Def.task {
+    Aggregate.CollectResources(
+      libraryProject.value, libraryProjects.value, extraResDirectories.value,
+      extraAssetDirectories.value, projectLayout.value, outputLayout.value)
+  }
   val collectResourcesTaskDef = ( builder
                                 , debugIncludesTests
                                 , minSdkVersion
-                                , libraryProject
-                                , libraryProjects
-                                , extraResDirectories
-                                , extraAssetDirectories
-                                , projectLayout
-                                , outputLayout
+                                , collectResourcesAggregate
                                 , ilogger
+                                , renderVectorDrawables
                                 , streams
                                 ) map {
-    (bldr, noTestApk, minSdk, isLib, libs, er, ea, layout, o, logger, s) =>
-      implicit val output = o
+    (bldr, noTestApk, minSdk, cra, logger, rv, s) =>
+      implicit val output = cra.outputLayout
+      val layout = cra.projectLayout
+      val er = cra.extraResDirectories
+      val ea = cra.extraAssetDirectories
+      val isLib = cra.libraryProject
+      val libs = cra.libraryProjects
       val minLevel = Try(minSdk.toInt).toOption getOrElse
         SdkVersionInfo.getApiByBuildCode(minSdk, true)
       // hack because cached can only return Set[File]
@@ -532,7 +538,7 @@ object Tasks {
       val assets = layout.assets +: ea.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get)
       withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
         val res = Resources.doCollectResources(bldr, minLevel, noTestApk, isLib, libs,
-          layout, ea, layout.generatedRes +: er, logger, s.cacheDirectory, s)
+          layout, ea, layout.generatedRes +: er, rv, logger, s.cacheDirectory, s)
         if (out != res) sys.error(s"Unexpected directories $out != $res")
         Set(res._1, res._2)
       }
