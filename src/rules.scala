@@ -279,6 +279,8 @@ object Plugin extends sbt.Plugin {
     },
     scalacOptions in console    := Seq.empty
   )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
+    // fix for sbt 0.13.11
+    artifactPath in packageBin  := (artifactPath in (Compile,packageBin)).value,
     flavors                     := Map.empty,
     buildTypes                  := Map.empty,
     pluginSettingsLoaded        := {
