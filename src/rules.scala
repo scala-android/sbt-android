@@ -568,8 +568,8 @@ object Plugin extends sbt.Plugin {
     minSdkVersion            := {
       val m = manifest.value
       val usesSdk = m \ "uses-sdk"
-      if (usesSdk.isEmpty) "1" else
-        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion").fold("1") { _.head.text }
+      if (usesSdk.isEmpty) "7" else
+        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion").fold("7") { _.head.text }
     },
     proguardCache            := "scala" :: Nil,
     proguardLibraries        := Seq.empty,
