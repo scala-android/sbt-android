@@ -1,5 +1,12 @@
 ## Changes in 1.5.x ##
 
+* `1.5.18`:
+  * Fix compatibility with sbt `0.13.11`, see sbt/sbt#2476 and sbt/sbt#2354
+  * Make rasterizing vector drawables optional, set `renderVectorDrawables` to
+    `false` if `minSdkVersion < 21` and using the new `23.2`
+    `support-vector-drawable` and `animated-vector-drawable` libraries
+  * Default `minSdkVersion` to `7` if not set, keeps in line with `appcompat-v7`
+    was previously `1`...
 * `1.5.17`:
   * Fix `proguardCache` regression; was requiring both `package.name` and
     `package/name` to be specified in order to function properly
