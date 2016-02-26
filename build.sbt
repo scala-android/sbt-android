@@ -1,7 +1,7 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
-val pluginVersion = "1.5.18"
+val pluginVersion = "1.5.19-SNAPSHOT"
 val gradleBuildVersion = "1.1.12"
 
 val androidToolsVersion = "1.5.0"
@@ -109,7 +109,9 @@ libraryDependencies ++= Seq(
   "org.javassist" % "javassist" % "3.20.0-GA",
   "net.sf.proguard" % "proguard-base" % "5.0",
   "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
-  "com.android.tools.build" % "builder" % androidToolsVersion,
+  "com.android.tools.build" % "builder" % androidToolsVersion excludeAll
+    ExclusionRule(organization = "org.bouncycastle"),
+  "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
   "com.android.tools.lint" % "lint" % "24.5.0",
