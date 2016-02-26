@@ -658,9 +658,10 @@ object Tasks {
     val m = managedClasspath.value
     val dcp = (dependencyClasspath in Compile).value
     val s = streams.value
+    val filter = ndkAbiFilter.value
     val logger = ilogger.value(s.log)
     Packaging.apkbuild(builder.value, m, u, dcp, libraryProject.value,
-      a.packagingOptions, a.resourceShrinker, a.dex, a.predex, a.collectJni,
+      a.packagingOptions, a.resourceShrinker, a.dex, a.predex, filter.toSet, a.collectJni,
       layout.collectJni, layout.resources, layout.collectResource,
       a.apkbuildDebug, a.debugSigningConfig,
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)

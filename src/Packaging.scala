@@ -22,7 +22,7 @@ object Packaging {
 
   def apkbuild(bldr: AndroidBuilder, m: Classpath, u: Classpath, dcp: Classpath,
                isLib: Boolean, options: PackagingOptions, shrinker: File,
-               dexFolder: File, predex: Seq[(File,File)], jniFolders: Seq[File],
+               dexFolder: File, predex: Seq[(File,File)], abiFilter: Set[String], jniFolders: Seq[File],
                collectJniOut: File, resFolder: File, collectResourceFolder: File,
                debug: Boolean, debugSigningConfig: ApkSigningConfig, output: File,
                logger: ILogger, s: sbt.Keys.TaskStreams): File = {
@@ -91,7 +91,7 @@ object Packaging {
     bldr.packageApk(shrinker.getAbsolutePath, (dexFolder +: predexed).toSet.asJava,
       List(collectResourceFolder).filter(_.exists).asJava,
       List(collectJniOut).filter(_.exists).asJava,
-      Set.empty.asJava, debug,
+      abiFilter.asJava, debug,
       if (debug) debugSigningConfig.toSigningConfig("debug") else null, output.getAbsolutePath)
     s.log.debug("Including predexed: " + predexed)
     s.log.info("Packaged: %s (%s)" format (

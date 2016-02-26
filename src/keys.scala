@@ -177,6 +177,8 @@ object Keys {
     "android javah task, generates javah headers from native classes") in Android
   val ndkBuild = TaskKey[Seq[File]]("ndk-build",
     "android ndk-build task, builds all auto-library project's ndk as well") in Android
+  val ndkAbiFilter = SettingKey[Seq[String]]("ndk-abi-filter",
+    "list of android abi to include, empty to include all, default: all") in Android
 
   // android build task keys; they don't fit in anywhere else
   val aidl = TaskKey[Seq[File]]("aidl", "android aidl source-gen task") in Android
