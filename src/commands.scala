@@ -422,9 +422,17 @@ object Commands {
             val ignores = Seq("target/", "project/project",
               "bin/", "local.properties")
             val files = Seq("gradlew", "gradlew.bat",
-              "build.gradle", "local.properties")
+              "build.gradle", "local.properties", "src/main/res/layout/main.xml")
             files foreach (f => (base / f).delete())
             IO.delete(base / "gradle")
+            IO.delete(base / "src" / "main" / "java")
+            val sampleTemplate = IO.readLinesURL(
+              Tasks.resourceUrl("android-sample.scala.template")) mkString "\n"
+            val layoutSample = IO.readLinesURL(
+              Tasks.resourceUrl("android-main.xml.template")) mkString "\n"
+            IO.write(base / "src/main/res/layout/main.xml", layoutSample)
+            IO.write(base / "src/main/scala" / pkg.replace('.','/') / "sample.scala",
+              sampleTemplate.format(pkg, name))
 
             val projectProperties = base / "project.properties"
             IO.writeLines(gitignore, ignores)
