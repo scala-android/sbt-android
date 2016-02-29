@@ -355,6 +355,13 @@ object Commands {
     IO.writeLines(properties, "sbt.version=" + useVersion :: Nil)
     IO.writeLines(projectBuild,
       "object Build extends android.AutoBuild" :: Nil)
+    if (util.Properties.isJavaAtLeast("1.8")) {
+      val javacOption =
+        """
+          |javacOptions in Compile ++= "-source" :: "1.7" :: "-target" :: "1.7" :: Nil
+        """.stripMargin
+      IO.write(base / "build.sbt", javacOption.trim + "\n")
+    }
     state
   }
 
