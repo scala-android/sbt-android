@@ -129,6 +129,11 @@ object Plugin extends sbt.Plugin {
     androidBuild(projects:_*) ++ buildApklib
   }
 
+  def useSupportVectors = Seq(
+    renderVectorDrawables := false,
+    aaptAdditionalParams += "--no-version-vectors"
+  )
+
   def buildJar = Seq(
     manifest := <manifest package="com.hanhuy.sbt.placeholder">
       <application/>
@@ -438,6 +443,8 @@ object Plugin extends sbt.Plugin {
     testOnly                <<= testOnlyTaskDef,
     debug                   <<= runTaskDef(true) dependsOn install,
     run                     <<= runTaskDef(false) dependsOn install,
+    aaptAggregate           <<= aaptAggregateTaskDef,
+    aaptAdditionalParams     := Nil,
     cleanForR               <<= (rGenerator
                                 , projectLayout
                                 , outputLayout

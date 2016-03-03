@@ -13,6 +13,10 @@ object Aggregate {
                                           bootClasspath: Seq[File],
                                           builder: AndroidBuilder)
 
+  private[android] case class Aapt(builder: AndroidBuilder,
+                                   debug: Boolean,
+                                   additionalParams: Seq[String])
+
   private[android] case class AndroidTest(debugIncludesTests: Boolean,
                                           instrumentTestRunner: String,
                                           instrumentTestTimeout: Int,

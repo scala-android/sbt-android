@@ -1,7 +1,7 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
-val pluginVersion = "1.5.19"
+val pluginVersion = "1.5.20-SNAPSHOT"
 val gradleBuildVersion = "1.1.12"
 
 val androidToolsVersion = "1.5.0"

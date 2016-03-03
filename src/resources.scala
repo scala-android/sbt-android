@@ -212,6 +212,7 @@ object Resources {
   }
 
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: String,
+           extraParams: Seq[String],
            libs: Seq[LibraryDependency], lib: Boolean, debug: Boolean,
            res: File, assets: File, resApk: String, gen: File, proguardTxt: String,
            logger: Logger) = synchronized {
@@ -221,7 +222,7 @@ object Resources {
       override def getIgnoreAssets = null
       override def getNoCompress = null
       override def getFailOnMissingConfigEntry = false
-      override def getAdditionalParameters = List.empty.asJava
+      override def getAdditionalParameters = extraParams.asJava
     }
     val genPath = gen.getAbsolutePath
     val all = collectdeps(libs)

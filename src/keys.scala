@@ -99,6 +99,8 @@ object Keys {
   val extraAssetDirectories = SettingKey[Seq[File]]("extra-asset-directories",
     "list of additional android asset folders to include (primarily for flavors") in Android
   val renderVectorDrawables = SettingKey[Boolean]("render-vector-drawables") in Android
+  val aaptAdditionalParams = SettingKey[Seq[String]]("aapt-additional-params",
+    "additional params to pass to aapt") in Android
 
   // packaging-related keys
   val packageRelease = TaskKey[File]("package-release", "create a release apk") in Android
@@ -324,6 +326,8 @@ object Keys {
       "Internal retrolambda-related key aggregating task") in Android
     val dexAggregate = TaskKey[Aggregate.Dex]("dex-aggregate",
       "Internal dex-related key aggregating task") in Android
+    val aaptAggregate = TaskKey[Aggregate.Aapt]("aapt-aggregate",
+      "Internal aapt-related key aggregating task") in Android
 
     // alias to ease typing
     val packageT = sbt.Keys.`package`

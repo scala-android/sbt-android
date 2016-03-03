@@ -187,8 +187,9 @@ object Tasks {
                         , builder
                         , ilogger
                         , apkbuildDebug
+                        , aaptAdditionalParams
                         , streams ) map {
-   (prjs,layout,o, isLib,bldr,logger,debug,s) =>
+   (prjs,layout,o, isLib,bldr,logger,debug,aparams, s) =>
      implicit val output = o
      prjs collect { case a: AutoLibraryProject => a } flatMap { lib =>
       s.log.info("Processing library project: " + lib.pkg)
@@ -197,7 +198,7 @@ object Tasks {
       // TODO collect resources from apklibs and aars
 //      doCollectResources(bldr, true, true, Seq.empty, lib.layout,
 //        logger, file("/"), s)
-      Resources.aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
+      Resources.aapt(bldr, lib.getManifest, null, aparams, Seq.empty, true, debug(),
           lib.getResFolder, lib.getAssetsFolder, null,
           lib.layout.gen, lib.getProguardRules.getAbsolutePath,
           s.log)
@@ -220,10 +221,9 @@ object Tasks {
                        , transitiveAndroidLibs
                        , transitiveAndroidWarning
                        , streams
-                       , builder
-                       , apkbuildDebug
+                       , aaptAggregate
                        ) map {
-    (u,d,layout,o, isLib,tx,tw, s,bldr,debug) =>
+    (u,d,layout,o, isLib,tx,tw, s,agg) =>
     implicit val output = o
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = layout.apklibs
@@ -239,11 +239,11 @@ object Tasks {
           d.mkdirs()
           IO.unzip(l, d)
 
-          Resources.aapt(bldr, lib.getManifest, null, Seq.empty, true, debug(),
-              lib.getResFolder, lib.getAssetsFolder, null,
-              lib.layout.gen, lib.getProguardRules.getAbsolutePath,
-              s.log)
-
+          Resources.aapt(agg.builder, lib.getManifest, null,
+            agg.additionalParams, Seq.empty, true, agg.debug,
+            lib.getResFolder, lib.getAssetsFolder, null,
+            lib.layout.gen, lib.getProguardRules.getAbsolutePath,
+            s.log)
         }
         def copyDirectory(src: File, dst: File) {
           IO.copy(((src ***) --- (src ** "R.txt")) pair Path.rebase(src, dst),
@@ -598,7 +598,7 @@ object Tasks {
     outfile
   }
 
-  val packageResourcesTaskDef = ( builder
+  val packageResourcesTaskDef = ( aaptAggregate
                                 , projectLayout
                                 , outputLayout
                                 , extraResDirectories
@@ -607,20 +607,19 @@ object Tasks {
                                 , packageForR
                                 , libraryProject
                                 , libraryProjects
-                                , apkbuildDebug
                                 , streams
                                 ) map {
-    case (bldr, layout, output, extrares, manif, (assets, res), pkg, lib, libs, d, s) =>
+    case (agg, layout, output, extrares, manif, (assets, res), pkg, lib, libs, s) =>
       implicit val o = output
 
-      val p = layout.resApk(d())
+      val p = layout.resApk(agg.debug)
       withCachedRes(s, p.getName, normalres(layout, extrares, libs), genres(layout, libs)) {
         val proguardTxt = layout.proguardTxt.getAbsolutePath
         layout.proguardTxt.getParentFile.mkdirs()
 
         s.log.info("Packaging resources: " + p.getName)
-        Resources.aapt(bldr, manif, pkg, libs, lib, d(), res, assets,
-          p.getAbsolutePath, layout.gen, proguardTxt, s.log)
+        Resources.aapt(agg.builder, manif, pkg, agg.additionalParams, libs, lib,
+          agg.debug, res, assets, p.getAbsolutePath, layout.gen, proguardTxt, s.log)
         Set(p)
       }
       p
@@ -879,7 +878,7 @@ object Tasks {
     }
   }
 
-  val rGeneratorTaskDef = ( builder
+  val rGeneratorTaskDef = ( aaptAggregate
                           , projectLayout
                           , outputLayout
                           , extraResDirectories
@@ -888,10 +887,9 @@ object Tasks {
                           , packageForR
                           , libraryProject
                           , libraryProjects
-                          , apkbuildDebug
                           , streams
                           ) map {
-    case (bldr, layout, o, extrares, manif, (assets, res), pkg, lib, libs, debug, s) =>
+    case (agg, layout, o, extrares, manif, (assets, res), pkg, lib, libs, s) =>
       implicit val output = o
       val proguardTxt = layout.proguardTxt.getAbsolutePath
       layout.proguardTxt.getParentFile.mkdirs()
@@ -903,8 +901,8 @@ object Tasks {
         s.log.info("Processing resources")
         if (!res.exists)
           s.log.warn("No resources found at " + res.getAbsolutePath)
-        Resources.aapt(bldr, manif, pkg, libs, lib, debug(), res, assets, null,
-          layout.gen, proguardTxt, s.log)
+        Resources.aapt(agg.builder, manif, pkg, agg.additionalParams, libs,
+          lib, agg.debug, res, assets, null, layout.gen, proguardTxt, s.log)
         (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
       }
   }
@@ -989,6 +987,10 @@ object Tasks {
       minSdkVersion.value, targetSdkVersion.value,
       manifestPlaceholders.value, manifestOverlays.value)
   }
+  val aaptAggregateTaskDef = Def.task {
+    Aggregate.Aapt(builder.value, apkbuildDebug.value(), aaptAdditionalParams.value)
+  }
+
   val dexAggregateTaskDef = Def.task {
     Aggregate.Dex(dexInputs.value, dexMaxHeap.value, dexMulti.value,
       dexMainClassesConfig.value, dexMinimizeMain.value,
@@ -1153,7 +1155,7 @@ object Tasks {
   }
   val testTaskDef = ( projectLayout
                     , outputLayout
-                    , builder
+                    , aaptAggregate
                     , classDirectory
                     , sdkPath
                     , allDevices
@@ -1162,7 +1164,7 @@ object Tasks {
                     , retrolambdaAggregate
                     , libraryProjects
                     , streams) map {
-    (layout, o, bldr, classes, sdk, all, ta, ma, ra, libs, s) =>
+    (layout, o, agg, classes, sdk, all, ta, ma, ra, libs, s) =>
     if (ta.libraryProject)
       Plugin.fail("This project cannot `android:test`, it has set 'libraryProject := true")
     implicit val output = o
@@ -1179,6 +1181,7 @@ object Tasks {
     val cache = s.cacheDirectory
     val re = ra.enable
     val debug = ta.apkbuildDebug
+    val bldr = agg.builder
 
     val testManifest = layout.testManifest
     val manifestFile = if (noTestApk || testManifest.exists) {
@@ -1219,9 +1222,9 @@ object Tasks {
       val apk = layout.testApk
 
       if (!rTxt.exists) rTxt.createNewFile()
-      Resources.aapt(bldr, processedManifest, testPackage, libs, false, debug,
-        layout.testRes, layout.testAssets,
-        res.getAbsolutePath, classes, null, s.log)
+      Resources.aapt(bldr, processedManifest, testPackage,
+        agg.additionalParams, libs, false, debug, layout.testRes,
+        layout.testAssets, res.getAbsolutePath, classes, null, s.log)
 
       val deps = tlib filterNot (clib contains)
       val tmp = cache / "test-dex"
