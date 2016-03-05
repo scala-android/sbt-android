@@ -42,8 +42,12 @@ object NativeFinder {
       case x: ClassVisitor =>
         (classDir ** "*.class" get) foreach { entry =>
           Using.fileInputStream(entry) { in =>
-            val r = new ClassReader(in)
-            r.accept(x, 0)
+              try {
+                val r = new ClassReader(in)
+                r.accept(x, 0)
+              } catch {
+                case e: Exception => throw new IllegalArgumentException(s"Failed to process bytecode for `$entry`", e)
+              }
           }
         }
 
