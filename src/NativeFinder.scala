@@ -7,7 +7,6 @@ import language.postfixOps
 
 import org.objectweb.asm._
 
-import java.io.FileInputStream
 import java.lang.reflect.Method
 
 object NativeFinder {

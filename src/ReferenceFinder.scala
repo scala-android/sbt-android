@@ -8,9 +8,7 @@ import org.objectweb.asm._
 import org.objectweb.asm.signature.SignatureVisitor
 
 import java.io.ByteArrayOutputStream
-import java.io.FileInputStream
 import java.lang.reflect.Method
-import java.util.jar.JarInputStream
 
 object ReferenceFinder {
 
