@@ -300,8 +300,10 @@ object Dex {
         val predex2 = pd flatMap (_._2 * "*.dex" get)
         s.log.debug("PRE-DEXED: " + predex2)
         bin.mkdirs()
+        // dex doesn't support --no-optimize, see
+        // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
         bldr.convertByteCode(Seq(shard).asJava, shardPath,
-          false, null, options, additionalParams.asJava, incremental, !debug, SbtProcessOutputHandler(s.log))
+          false, null, options, additionalParams.asJava, incremental, true, SbtProcessOutputHandler(s.log))
         val result = shardPath * "*.dex" get
 
         s.log.info(s"$sn: Generated dex shard, method count: " + (result map (dexMethodCount(_, s.log))).sum)
@@ -351,9 +353,11 @@ object Dex {
       s.log.debug("DEX IN: " + dexIn)
       s.log.debug("PRE-DEXED: " + predex2)
       bin.mkdirs()
+      // dex doesn't support --no-optimize, see
+      // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(dexIn.asJava, bin,
         multiDex, if (!legacy) null else mainDexListTxt,
-        options, additionalDexParams.asJava, incremental, !debug, SbtProcessOutputHandler(s.log))
+        options, additionalDexParams.asJava, incremental, true, SbtProcessOutputHandler(s.log))
       s.log.info("dex method count: " + ((bin * "*.dex" get) map (dexMethodCount(_, s.log))).sum)
       (bin ** "*.dex").get.toSet
     }(dexIn.toSet)

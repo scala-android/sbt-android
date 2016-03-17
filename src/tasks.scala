@@ -1234,10 +1234,11 @@ object Tasks {
       } else {
         Seq(classes) ++ deps
       }
+      // dex doesn't support --no-optimize, see
+      // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(inputs.asJava,
-        dex, false, null, options, List.empty.asJava, false, !debug, SbtProcessOutputHandler(s.log))
+        dex, false, null, options, List.empty.asJava, false, true, SbtProcessOutputHandler(s.log))
 
-      val opts = ta.packagingOptions
       bldr.packageApk(res.getAbsolutePath, Set(dex).asJava,
         List.empty.asJava, List.empty.asJava, Set.empty.asJava,
         debug, ta.debugSigningConfig.toSigningConfig("debug"),apk.getAbsolutePath)
