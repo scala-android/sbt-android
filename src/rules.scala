@@ -811,7 +811,8 @@ object Plugin extends sbt.Plugin {
   )
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
-    commands ++= Seq(genAndroid, genAndroidSbt, pidcat, logcat, adbLs, adbShell,
+    commands ++= Seq(genAndroid, genAndroidSbt,
+      pidcat, pidcatGrep, logcat, logcatGrep, adbLs, adbShell,
       devices, device, reboot, adbScreenOn, adbRunas, adbKill,
       adbWifi, adbPush, adbPull, adbCat, adbRm, variant, variantClear)
   )
@@ -861,10 +862,20 @@ object Plugin extends sbt.Plugin {
     "Read logcat from device without blocking"
   )(stringParser)(logcatAction)
 
+  private def logcatGrep = Command(
+    "logcat-grep", ("logcat-grep", "grep through device logcat"),
+    "Read logcat from device without blocking, filtered by regex"
+  )(stringParser)(logcatGrepAction)
+
   private def pidcat = Command(
     "pidcat", ("pidcat", "grab device logcat for a package"),
     "Read logcat for a given package, defaults to project package if no arg"
   )(projectAndStringParser)(pidcatAction)
+
+  private def pidcatGrep = Command(
+    "pidcat-grep", ("pidcat-grep", "grep through device logcat for a package"),
+    "Read logcat for a given package, defaults to project package if no arg, filtered by regex"
+  )(projectAndStringParser)(pidcatGrepAction)
 
   private def genAndroid = Command(
     "gen-android", ("gen-android", "Create an android project"),

@@ -16,6 +16,7 @@ import com.android.SdkConstants
 import scala.annotation.tailrec
 import scala.util.Try
 import language.postfixOps
+import scala.util.matching.Regex
 
 object Commands {
 
@@ -473,14 +474,80 @@ object Commands {
   val projectAndStringParser: State => Parser[(Option[ProjectRef],String)] = state =>
     projectParser(state) ~ stringParser(state)
 
-  val pidcatAction: (State, (Option[ProjectRef],String)) => State = {
-    case (state, (prj,args)) =>
-    val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
+  val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
+  def pidcatLogLine(pkgOpt: Option[String], log: Logger)(pred: LogcatLine => Option[LogcatLine]): String => Unit = {
     val PID_START = """^Start proc ([a-zA-Z0-9._:]+) for ([a-z]+ [^:]+): pid=(\d+) uid=(\d+) gids=(.*)$""".r
     val PID_START5_1 = """^Start proc (\d+):([a-zA-Z0-9._:]+)/[a-z0-9]+ for (.*)$""".r
     val PID_KILL = """^Killing (\d+):([a-zA-Z0-9._:]+)/[^:]+: (.*)$""".r
     val PID_LEAVE = """^No longer want ([a-zA-Z0-9._:]+) \(pid (\d+)\): .*$""".r
     val PID_DEATH = """^Process ([a-zA-Z0-9._:]+) \(pid (\d+)\) has died.?$""".r
+    var pids = Set.empty[String]
+    def addPid(pkg: String, pid: String) {
+      pkgOpt foreach { p => if (pkg contains p) pids += pid.trim}
+    }
+
+    def remPid(pkg: String, pid: String) {
+      pkgOpt foreach { p => if (pkg contains p) pids -= pid.trim}
+    }
+    { (l: String) =>
+      if (l.trim.length > 0) {
+        l.trim match {
+          case LOG_LINE(level, tag, pid, msg) =>
+            if (tag == "ActivityManager") {
+              msg match {
+                case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
+                case PID_START5_1(pid2, pkg, _) => addPid(pkg, pid2)
+                case PID_KILL(pid2, pkg, _) => remPid(pkg, pid2)
+                case PID_LEAVE(pkg, pid2) => remPid(pkg, pid2)
+                case PID_DEATH(pkg, pid2) => remPid(pkg, pid2)
+                case _ =>
+              }
+            } else if (pids(pid.trim)) pred(LogcatLine(level, tag, pid, msg)) foreach { case LogcatLine(lvl, t, p, m) =>
+              val colored =
+                f"${colorLevel(lvl)} (${colorPid(p)}) ${colorTag(t)}%8s: $m"
+              scala.Console.out.println(colored)
+            }
+          case _ => log.debug(l.trim)
+        }
+      }
+    }
+  }
+  val pidcatGrepAction: (State, (Option[ProjectRef],String)) => State = {
+    case (state, (prj,args)) =>
+
+      val sdk = sdkpath(state)
+      val packageName = thisPackageName(state, prj)
+
+      val (pkgOpt, regex) = if (args.trim.nonEmpty) {
+        val parts = args.trim.split(" ")
+        if (prj.isDefined) {
+          (packageName, parts.toSeq)
+        } else if (parts.size > 1) {
+          (Some(parts(0)), parts.tail.toSeq)
+        } else {
+          (Some(parts(0)), Seq.empty[String])
+        }
+      } else (packageName, Seq.empty[String])
+      val re = regex.mkString(" ").r
+      if (pkgOpt.isEmpty || (args contains "-h"))
+        Plugin.fail("Usage: pidcat-grep [<partial package-name>] <regex>")
+
+      targetDevice(sdk, state.log) map { d =>
+        val receiver = new ShellLogging(pidcatLogLine(pkgOpt, state.log) { l =>
+          val tagMatch = re.findAllMatchIn(l.tag)
+          val msgMatch = re.findAllMatchIn(l.msg)
+          if (tagMatch.nonEmpty|| msgMatch.nonEmpty)
+            Some(highlightMatch(tagMatch, msgMatch, l)) else None
+        })
+        d.executeShellCommand("logcat -v brief -d", receiver)
+        receiver.flush()
+
+        state
+      } getOrElse Plugin.fail("no device connected")
+  }
+
+  val pidcatAction: (State, (Option[ProjectRef],String)) => State = {
+    case (state, (prj,args)) =>
 
     val sdk = sdkpath(state)
     val packageName = thisPackageName(state, prj)
@@ -499,40 +566,8 @@ object Commands {
       Plugin.fail("Usage: pidcat [<partial package-name>] [TAGs]...")
 
     targetDevice(sdk, state.log) map { d =>
-      var pids = Set.empty[String]
-      def addPid(pkg: String, pid: String) {
-        pkgOpt foreach { p => if (pkg contains p) pids += pid.trim}
-      }
-
-      def remPid(pkg: String, pid: String) {
-        pkgOpt foreach { p => if (pkg contains p) pids -= pid.trim}
-      }
-      def logLine(l: String): Unit = {
-        if (l.trim.length > 0) {
-          l.trim match {
-            case LOG_LINE(level, tag, pid, msg) =>
-              if (tag == "ActivityManager") {
-                msg match {
-                  case PID_START(pkg, _, pid2, _, _) => addPid(pkg, pid2)
-                  case PID_START5_1(pid2, pkg, _) => addPid(pkg, pid2)
-                  case PID_KILL(pid2, pkg, _) => remPid(pkg, pid2)
-                  case PID_LEAVE(pkg, pid2) => remPid(pkg, pid2)
-                  case PID_DEATH(pkg, pid2) => remPid(pkg, pid2)
-                  case _ =>
-                }
-              } else if (pids(pid.trim)) {
-                val colored =
-                  f"${colorLevel(level)} (${colorPid(pid)}) ${colorTag(tag)}%8s: $msg"
-                if (tags.isEmpty)
-                  scala.Console.out.println(colored)
-                else if (tags exists tag.contains)
-                  scala.Console.out.println(colored)
-              }
-            case _ => state.log.debug(l.trim)
-          }
-        }
-      }
-      val receiver = new ShellLogging(logLine)
+      val receiver = new ShellLogging(pidcatLogLine(pkgOpt, state.log)(l =>
+        if (tags.isEmpty || tags.exists(l.tag.contains)) Some(l) else None))
       d.executeShellCommand("logcat -v brief -d", receiver)
       receiver.flush()
 
@@ -548,7 +583,9 @@ object Commands {
   }
   def colorTag(tag: String) = {
     val idx = math.abs(tag.hashCode % TAG_COLORS.length)
-    TAG_COLORS(idx) + tag + scala.Console.RESET
+    val color = TAG_COLORS(idx)
+    color + tag.replaceAllLiterally(scala.Console.RESET, color) +
+      scala.Console.RESET
   }
   def colorPid(p: String) = {
     val pid = p.trim.toInt
@@ -645,25 +682,64 @@ object Commands {
       } getOrElse Plugin.fail("no device selected")
   }
 
+  case class LogcatLine(level: String, tag: String, pid: String, msg: String)
+  def logcatLogLine(log: Logger)(pred: LogcatLine => Option[LogcatLine])(l: String): Unit = {
+    if (l.trim.length > 0) {
+      l.trim match {
+        case LOG_LINE(lv, tg, p, m) => pred(LogcatLine(lv, tg, p, m)) foreach {
+          case LogcatLine(level, tag, pid, msg) =>
+            val colored =
+              f"${colorLevel(level)} (${colorPid(pid)}) ${colorTag(tag)}%8s: $msg"
+            scala.Console.out.println(colored)
+        }
+        case _ => log.debug(l.trim)
+      }
+    }
+  }
+  def highlightMatch(tagMatch: Iterator[Regex.Match], msgMatch: Iterator[Regex.Match], line: LogcatLine): LogcatLine = {
+    val start = scala.Console.RED + scala.Console.BOLD
+    val incr = start.length
+    val incr2 = scala.Console.RESET.length
+    def highlightM(s: String, ms: Iterator[Regex.Match]): String = {
+      ms.foldLeft((s,0)) { case ((str, off), m) =>
+        val (s1, s2) = str.splitAt(m.start + off)
+        val (e1, e2) = (s1 + start + s2).splitAt(m.end + off + incr)
+        (e1 + scala.Console.RESET + e2, off + incr + incr2)
+      }._1
+    }
+    val tagged = line.copy(tag = highlightM(line.tag, tagMatch))
+    tagged.copy(msg = highlightM(line.msg, msgMatch))
+  }
+  val logcatGrepAction: (State, String) => State = (state, args) => {
+    val (regex, fpid) = args.split(" ").foldRight((List.empty[String],Option.empty[String])) { case (a, (as,pid)) =>
+      if (a != "-p") (a :: as,pid) else (as.drop(1), as.headOption)
+    }
+    val sdk = sdkpath(state)
+    val re = regex.mkString(" ").r
+    targetDevice(sdk, state.log) map { d =>
+      val receiver = new ShellLogging(logcatLogLine(state.log) { l =>
+        val pidmatch = fpid.fold(true)(_ == l.pid)
+        val tagMatch = re.findAllMatchIn(l.tag)
+        val msgMatch = re.findAllMatchIn(l.msg)
+        if (pidmatch && (tagMatch.nonEmpty || msgMatch.nonEmpty))
+          Some(highlightMatch(tagMatch, msgMatch, l))
+        else
+          None
+      })
+      d.executeShellCommand("logcat -v brief -d", receiver)
+      receiver.flush()
+      state
+    } getOrElse Plugin.fail("no device selected")
+  }
+
   val logcatAction: (State, String) => State = (state, args) => {
     val (logcatargs, fpid) = args.split(" ").foldRight((List.empty[String],Option.empty[String])) { case (a, (as,pid)) =>
       if (a != "-p") (a :: as,pid) else (as.drop(1), as.headOption)
     }
-    val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
     val sdk = sdkpath(state)
     targetDevice(sdk, state.log) map { d =>
-      def logLine(l: String): Unit = {
-        if (l.trim.length > 0) {
-          l.trim match {
-            case LOG_LINE(level, tag, pid, msg) if fpid.fold(true)(_ == pid) =>
-              val colored =
-                f"${colorLevel(level)} (${colorPid(pid)}) ${colorTag(tag)}%8s: $msg"
-              scala.Console.out.println(colored)
-            case _ => state.log.debug(l.trim)
-          }
-        }
-      }
-      val receiver = new ShellLogging(logLine)
+      val receiver = new ShellLogging(logcatLogLine(state.log)(l =>
+        fpid.fold(Option(l))(p => if (p == l.pid) Some(l) else None)))
       d.executeShellCommand(
         "logcat -v brief -d " + logcatargs.mkString(" "), receiver)
       receiver.flush()
