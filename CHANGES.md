@@ -1,5 +1,12 @@
 ## Changes in 1.5.x ##
 
+* `1.5.20`:
+  * add `aaptAdditialParams` key and `useSupportVectors` setting group.
+    `support-vector-drawable` is now fully usable
+  * fix mis-use of `--no-optimize` while dexing, unsupported option and causes
+    thread locking issues and crashes on N preview
+  * fix `pidcat` for N preview
+  * implement `logcat-grep` and `pidcat-grep` commands
 * `1.5.19`:
   * add `ndkAbiFilter` to exclude unsupported ABI native libraries from the
     final APK. e.g. `ndkAbiFilter := Seq("armeabi")` will include only
