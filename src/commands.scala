@@ -20,6 +20,7 @@ import scala.util.matching.Regex
 
 object Commands {
 
+  val LOGCAT_COMMAND = "logcat -v brief -d"
   var defaultDevice: Option[String] = None
 
   lazy val initAdb = {
@@ -475,13 +476,28 @@ object Commands {
     projectParser(state) ~ stringParser(state)
 
   val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
-  def pidcatLogLine(pkgOpt: Option[String], log: Logger)(pred: LogcatLine => Option[LogcatLine]): String => Unit = {
+  val LOG_LINE_N = """^([A-Z])/(.+?)\( *(\d+): *(\d+)\): (.*?)$""".r
+  def pidcatLogLine(d: IDevice, pkgOpt: Option[String], log: Logger)(pred: LogcatLine => Option[LogcatLine]): String => Unit = {
+    val PKG_PATTERN = """package:(\S+)""".r
     val PID_START = """^Start proc ([a-zA-Z0-9._:]+) for ([a-z]+ [^:]+): pid=(\d+) uid=(\d+) gids=(.*)$""".r
     val PID_START5_1 = """^Start proc (\d+):([a-zA-Z0-9._:]+)/[a-z0-9]+ for (.*)$""".r
     val PID_KILL = """^Killing (\d+):([a-zA-Z0-9._:]+)/[^:]+: (.*)$""".r
     val PID_LEAVE = """^No longer want ([a-zA-Z0-9._:]+) \(pid (\d+)\): .*$""".r
     val PID_DEATH = """^Process ([a-zA-Z0-9._:]+) \(pid (\d+)\) has died.?$""".r
     var pids = Set.empty[String]
+    val v = d.getProperty(IDevice.PROP_BUILD_VERSION)
+    val uidSet: Set[String] = if (v == "N") {
+      val sr1 = new ShellResult
+      val cmd = "cmd package list package " + pkgOpt.get
+      d.executeShellCommand(cmd, sr1)
+      val pkglist = sr1.result.split("\\s+").toList.map(_.trim).collect { case PKG_PATTERN(pkg) => pkg }
+      pkglist.map { pkg =>
+        val srd = new ShellResult
+        d.executeShellCommand(s"stat -c %u /data/data/$pkg", srd)
+        srd.result.trim
+      }.toSet
+    } else Set.empty
+
     def addPid(pkg: String, pid: String) {
       pkgOpt foreach { p => if (pkg contains p) pids += pid.trim}
     }
@@ -492,6 +508,12 @@ object Commands {
     { (l: String) =>
       if (l.trim.length > 0) {
         l.trim match {
+          case LOG_LINE_N(level, tag, uid, pid, msg) =>
+            if (uidSet(uid)) pred(LogcatLine(level, tag, pid, msg)) foreach { case LogcatLine(lvl, t, p, m) =>
+              val colored =
+                f"${colorLevel(lvl)} (${colorPid(p)}) ${colorTag(t)}%8s: $m"
+              scala.Console.out.println(colored)
+            }
           case LOG_LINE(level, tag, pid, msg) =>
             if (tag == "ActivityManager") {
               msg match {
@@ -533,13 +555,15 @@ object Commands {
         Plugin.fail("Usage: pidcat-grep [<partial package-name>] <regex>")
 
       targetDevice(sdk, state.log) map { d =>
-        val receiver = new ShellLogging(pidcatLogLine(pkgOpt, state.log) { l =>
+        val receiver = new ShellLogging(pidcatLogLine(d, pkgOpt, state.log) { l =>
           val tagMatch = re.findAllMatchIn(l.tag)
           val msgMatch = re.findAllMatchIn(l.msg)
           if (tagMatch.nonEmpty|| msgMatch.nonEmpty)
             Some(highlightMatch(tagMatch, msgMatch, l)) else None
         })
-        d.executeShellCommand("logcat -v brief -d", receiver)
+        val v = d.getProperty(IDevice.PROP_BUILD_VERSION)
+        val logcat = LOGCAT_COMMAND + (if (v == "N") " -v uid" else "")
+        d.executeShellCommand(logcat, receiver)
         receiver.flush()
 
         state
@@ -566,9 +590,11 @@ object Commands {
       Plugin.fail("Usage: pidcat [<partial package-name>] [TAGs]...")
 
     targetDevice(sdk, state.log) map { d =>
-      val receiver = new ShellLogging(pidcatLogLine(pkgOpt, state.log)(l =>
+      val receiver = new ShellLogging(pidcatLogLine(d, pkgOpt, state.log)(l =>
         if (tags.isEmpty || tags.exists(l.tag.contains)) Some(l) else None))
-      d.executeShellCommand("logcat -v brief -d", receiver)
+      val v = d.getProperty(IDevice.PROP_BUILD_VERSION)
+      val logcat = LOGCAT_COMMAND + (if (v == "N") " -v uid" else "")
+      d.executeShellCommand(logcat, receiver)
       receiver.flush()
 
       state
@@ -726,7 +752,7 @@ object Commands {
         else
           None
       })
-      d.executeShellCommand("logcat -v brief -d", receiver)
+      d.executeShellCommand(LOGCAT_COMMAND, receiver)
       receiver.flush()
       state
     } getOrElse Plugin.fail("no device selected")
@@ -741,7 +767,7 @@ object Commands {
       val receiver = new ShellLogging(logcatLogLine(state.log)(l =>
         fpid.fold(Option(l))(p => if (p == l.pid) Some(l) else None)))
       d.executeShellCommand(
-        "logcat -v brief -d " + logcatargs.mkString(" "), receiver)
+        (LOGCAT_COMMAND :: logcatargs).mkString(" "), receiver)
       receiver.flush()
       state
     } getOrElse Plugin.fail("no device selected")
