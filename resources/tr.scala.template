@@ -6,20 +6,20 @@ import android.view.{View,ViewGroup,LayoutInflater}
 case class TypedResource[A](id: Int)
 case class TypedLayout[A](id: Int)
 
-object TR {
+final object TR {
 %s
 
-  object layout {
+  final object layout {
 %s
   }
 }
 
 trait TypedFindView extends Any {
   protected def findViewById(id: Int): View
-  def findView[A](tr: TypedResource[A]): A = findViewById(tr.id).asInstanceOf[A]
+  final def findView[A](tr: TypedResource[A]): A = findViewById(tr.id).asInstanceOf[A]
 }
 
-object TypedResource {
+final object TypedResource {
   implicit class TypedView(val v: View) extends AnyVal with TypedFindView {
     def findViewById(id: Int) = v.findViewById(id)
   }

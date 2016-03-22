@@ -405,10 +405,10 @@ object Tasks {
           def wrap(s: String) = if (reservedWords(s)) "`%s`" format s else s
           IO.write(tr, trTemplate format (p,
             resources map { case (k,v) =>
-              "  val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
+              "  final val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n",
             layoutTypes map { case (k,v) =>
-              "    val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
+              "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n"))
           Set(tr)
         } else Set.empty
