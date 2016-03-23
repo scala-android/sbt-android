@@ -3,8 +3,8 @@ package %s
 import android.app.{Activity,Dialog}
 import android.view.{View,ViewGroup,LayoutInflater}
 
-case class TypedResource[A](id: Int)
-case class TypedLayout[A](id: Int)
+case class TypedResource[A](id: Int) extends AnyVal
+case class TypedLayout[A](id: Int) extends AnyVal
 
 final object TR {
 %s
