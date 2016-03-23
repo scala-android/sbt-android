@@ -32,6 +32,7 @@ import language.existentials
 import Keys._
 import Keys.Internal._
 import Tasks._
+import Resources.ANDROID_NS
 import Commands._
 import Dependencies.LibrarySeqOps
 

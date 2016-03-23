@@ -4,7 +4,6 @@ import com.android.builder.internal.ClassFieldImpl
 import com.android.manifmerger.ManifestMerger2
 import sbt._
 import sbt.Keys._
-import sbt.classpath.ClasspathUtilities
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -28,35 +27,15 @@ import Keys.Internal._
 import Dependencies.{LibraryProject => _, AutoLibraryProject => _, _}
 import com.android.builder.compiling.{ResValueGenerator, BuildConfigGenerator}
 import java.net.URLEncoder
+import Resources.{ANDROID_NS, resourceUrl}
 
 object Tasks {
-  val ANDROID_NS = "http://schemas.android.com/apk/res/android"
   val TOOLS_NS = "http://schemas.android.com/tools"
   val INSTRUMENTATION_TAG = "instrumentation"
   val USES_LIBRARY_TAG = "uses-library"
   val APPLICATION_TAG = "application"
   val ANDROID_PREFIX = "android"
   val TEST_RUNNER_LIB = "android.test.runner"
-
-  val reservedWords = Set(
-    "def",
-    "forSome",
-    "implicit",
-    "lazy",
-    "match",
-    "object",
-    "override",
-    "sealed",
-    "trait",
-    "type",
-    "val",
-    "var",
-    "with",
-    "yield"
-  )
-
-  def resourceUrl =
-    Plugin.getClass.getClassLoader.getResource _
 
   val resValuesGeneratorTaskDef = Def.task {
     implicit val output = outputLayout.value
@@ -318,101 +297,11 @@ object Tasks {
     }
   }
 
-  val typedResourcesGeneratorTaskDef = ( typedResources
-                                       , rGenerator
-                                       , packageForR
-                                       , projectLayout
-                                       , platformJars
-                                       , scalaVersion in ThisProject
-                                       , libraryProjects
-                                       , typedResourcesIgnores
-                                       , streams
-                                       ) map {
-    case (t, a, p, layout, (j, x), sv, l, i, s) =>
-
-    val r = layout.res
-    val g = layout.gen
-    val ignores = i.toSet
-
-    val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
-
-    if (!t)
-      Seq.empty[File]
-    else
-      FileFunction.cached(s.cacheDirectory / "typed-resources-generator", FilesInfo.hash) { in =>
-        if (in.nonEmpty) {
-          s.log.info("Regenerating TR.scala because R.java has changed")
-          val androidjar = ClasspathUtilities.toLoader(file(j))
-          val layouts = (r ** "layout*" ** "*.xml" get) ++
-            (for {
-              lib <- l filterNot {
-                case p: Pkg => ignores(p.pkg)
-                case _      => false
-              }
-              xml <- lib.getResFolder ** "layout*" ** "*.xml" get
-            } yield xml)
-
-          s.log.debug("Layouts: " + layouts)
-          // XXX handle package references? @id/android:ID or @id:android/ID
-          val re = "@\\+id/(.*)".r
-
-          def classForLabel(l: String) = {
-            if (l contains ".") Some(l)
-            else {
-              Seq("android.widget."
-                , "android.view."
-                , "android.webkit.").flatMap {
-                pkg => Try(androidjar.loadClass(pkg + l).getName).toOption
-              }.headOption
-            }
-          }
-
-          def warn(res: Seq[(String,String)]) = {
-            // nice to have:
-            //   merge to a common ancestor, this is possible for androidJar
-            //   but to do so is perilous/impossible for project code...
-            // instead:
-            //   reduce to ViewGroup for *Layout, and View for everything else
-            val overrides = res.groupBy(r => r._1) filter (
-              _._2.toSet.size > 1) collect {
-              case (k,v) =>
-                s.log.warn("%s was reassigned: %s" format (k,
-                  v map (_._2) mkString " => "))
-                k -> (if (v endsWith "Layout")
-                  "android.view.ViewGroup" else "android.view.View")
-            }
-
-            (res ++ overrides).toMap
-          }
-          val layoutTypes = warn(for {
-            file   <- layouts
-            layout  = XML loadFile file
-            l      <- classForLabel(layout.label)
-          } yield file.getName.stripSuffix(".xml") -> l)
-
-          val resources = warn(for {
-            b      <- layouts
-            layout  = XML loadFile b
-            n      <- layout.descendant_or_self
-            re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
-            l      <- classForLabel(n.label)
-          } yield id -> l)
-
-          val trTemplate = IO.readLinesURL(
-            resourceUrl("tr.scala.template")) mkString "\n"
-
-          tr.delete()
-          def wrap(s: String) = if (reservedWords(s)) "`%s`" format s else s
-          IO.write(tr, trTemplate format (p,
-            resources map { case (k,v) =>
-              "  final val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
-            } mkString "\n",
-            layoutTypes map { case (k,v) =>
-              "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
-            } mkString "\n"))
-          Set(tr)
-        } else Set.empty
-      }(a.toSet).toSeq
+  val typedResourcesGeneratorTaskDef = Def.task {
+    Resources.generateTR(typedResources.value, rGenerator.value,
+      packageForR.value, projectLayout.value, platformJars.value,
+      (scalaVersion in ThisProject).value, libraryProjects.value,
+      typedResourcesIgnores.value, streams.value)
   }
 
   def ndkbuild(layout: ProjectLayout, ndkHome: Option[String],

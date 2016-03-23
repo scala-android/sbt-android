@@ -3,7 +3,7 @@ package android
 import java.io.File
 
 import android.Dependencies.{AarLibrary, ApkLibrary, LibraryDependency, LibraryProject}
-import com.android.builder.core.{VariantType, AaptPackageProcessBuilder, AndroidBuilder}
+import com.android.builder.core.{AaptPackageProcessBuilder, AndroidBuilder, VariantType}
 import com.android.builder.model.AaptOptions
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
 import com.android.builder.png.VectorDrawableRenderer
@@ -14,12 +14,34 @@ import sbt.Keys.TaskStreams
 import sbt._
 
 import collection.JavaConverters._
-
 import language.postfixOps
-
 import Dependencies.LibrarySeqOps
+import sbt.classpath.ClasspathUtilities
+
+import scala.util.Try
+import scala.xml.XML
 
 object Resources {
+  val ANDROID_NS = "http://schemas.android.com/apk/res/android"
+  def resourceUrl =
+    Plugin.getClass.getClassLoader.getResource _
+
+  val reservedWords = Set(
+    "def",
+    "forSome",
+    "implicit",
+    "lazy",
+    "match",
+    "object",
+    "override",
+    "sealed",
+    "trait",
+    "type",
+    "val",
+    "var",
+    "with",
+    "yield"
+  )
 
   def doCollectResources( bldr: AndroidBuilder
                           , minSdk: Int
@@ -251,5 +273,93 @@ object Resources {
       .flatMap(collectdeps)
       .++(libs)
       .distinctLibs
+  }
+
+  def generateTR(t: Boolean, a: Seq[File], p: String, layout: ProjectLayout, platform: (String,Seq[String]), sv: String, l: Seq[LibraryDependency], i: Seq[String], s: TaskStreams): Seq[File] = {
+
+    val (j,x) = platform
+    val r = layout.res
+    val g = layout.gen
+    val ignores = i.toSet
+
+    val tr = p.split("\\.").foldLeft (g) { _ / _ } / "TR.scala"
+
+    if (!t)
+      Seq.empty[File]
+    else
+      FileFunction.cached(s.cacheDirectory / "typed-resources-generator", FilesInfo.hash) { in =>
+        if (in.nonEmpty) {
+          s.log.info("Regenerating TR.scala because R.java has changed")
+          val androidjar = ClasspathUtilities.toLoader(file(j))
+          val layouts = (r ** "layout*" ** "*.xml" get) ++
+            (for {
+              lib <- l filterNot {
+                case p: Dependencies.Pkg => ignores(p.pkg)
+                case _                   => false
+              }
+              xml <- lib.getResFolder ** "layout*" ** "*.xml" get
+            } yield xml)
+
+          s.log.debug("Layouts: " + layouts)
+          // XXX handle package references? @id/android:ID or @id:android/ID
+          val re = "@\\+id/(.*)".r
+
+          def classForLabel(l: String) = {
+            if (l contains ".") Some(l)
+            else {
+              Seq("android.widget."
+                , "android.view."
+                , "android.webkit.").flatMap {
+                pkg => Try(androidjar.loadClass(pkg + l).getName).toOption
+              }.headOption
+            }
+          }
+
+          def warn(res: Seq[(String,String)]) = {
+            // nice to have:
+            //   merge to a common ancestor, this is possible for androidJar
+            //   but to do so is perilous/impossible for project code...
+            // instead:
+            //   reduce to ViewGroup for *Layout, and View for everything else
+            val overrides = res.groupBy(r => r._1) filter (
+              _._2.toSet.size > 1) collect {
+              case (k,v) =>
+                s.log.warn("%s was reassigned: %s" format (k,
+                  v map (_._2) mkString " => "))
+                k -> (if (v endsWith "Layout")
+                  "android.view.ViewGroup" else "android.view.View")
+            }
+
+            (res ++ overrides).toMap
+          }
+          val layoutTypes = warn(for {
+            file   <- layouts
+            layout  = XML loadFile file
+            l      <- classForLabel(layout.label)
+          } yield file.getName.stripSuffix(".xml") -> l)
+
+          val resources = warn(for {
+            b      <- layouts
+            layout  = XML loadFile b
+            n      <- layout.descendant_or_self
+            re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
+            l      <- classForLabel(n.label)
+          } yield id -> l)
+
+          val trTemplate = IO.readLinesURL(
+            resourceUrl("tr.scala.template")) mkString "\n"
+
+          tr.delete()
+          def wrap(s: String) = if (reservedWords(s)) "`%s`" format s else s
+          IO.write(tr, trTemplate format (p,
+            resources map { case (k,v) =>
+              "  final val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
+            } mkString "\n",
+            layoutTypes map { case (k,v) =>
+              "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
+            } mkString "\n"))
+          Set(tr)
+        } else Set.empty
+      }(a.toSet).toSeq
   }
 }

@@ -436,9 +436,9 @@ object Commands {
             IO.delete(base / "gradle")
             IO.delete(base / "src" / "main" / "java")
             val sampleTemplate = IO.readLinesURL(
-              Tasks.resourceUrl("android-sample.scala.template")) mkString "\n"
+              Resources.resourceUrl("android-sample.scala.template")) mkString "\n"
             val layoutSample = IO.readLinesURL(
-              Tasks.resourceUrl("android-main.xml.template")) mkString "\n"
+              Resources.resourceUrl("android-main.xml.template")) mkString "\n"
             IO.write(base / "src/main/res/layout/main.xml", layoutSample)
             IO.write(base / "src/main/scala" / pkg.replace('.','/') / "sample.scala",
               sampleTemplate.format(pkg, name))
