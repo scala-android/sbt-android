@@ -2,7 +2,7 @@ package android
 
 import java.io.File
 
-import android.Dependencies.{AarLibrary, ApkLibrary, LibraryDependency, LibraryProject}
+import android.Dependencies.{AarLibrary, ApkLibrary, LibraryDependency}
 import com.android.builder.core.{AaptPackageProcessBuilder, AndroidBuilder, VariantType}
 import com.android.builder.model.AaptOptions
 import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
@@ -264,7 +264,12 @@ object Resources {
     aaptCommand.setProguardOutput(proguardTxt)
     aaptCommand.setType(if (lib) VariantType.LIBRARY else VariantType.DEFAULT)
     aaptCommand.setDebuggable(debug)
-    bldr.processResources(aaptCommand, true, SbtProcessOutputHandler(logger))
+    try {
+      bldr.processResources(aaptCommand, true, SbtProcessOutputHandler(logger))
+    } catch {
+      case e: com.android.ide.common.process.ProcessException =>
+        Plugin.fail(e.getMessage)
+    }
   }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
@@ -275,9 +280,11 @@ object Resources {
       .distinctLibs
   }
 
-  def generateTR(t: Boolean, a: Seq[File], p: String, layout: ProjectLayout, platform: (String,Seq[String]), sv: String, l: Seq[LibraryDependency], i: Seq[String], s: TaskStreams): Seq[File] = {
+  def generateTR(t: Boolean, a: Seq[File], p: String, layout: ProjectLayout,
+                 platformApi: Int, platform: (String,Seq[String]), sv: String,
+                 l: Seq[LibraryDependency], i: Seq[String], s: TaskStreams): Seq[File] = {
 
-    val (j,x) = platform
+    val j = platform._1
     val r = layout.res
     val g = layout.gen
     val ignores = i.toSet
@@ -350,16 +357,172 @@ object Resources {
             resourceUrl("tr.scala.template")) mkString "\n"
 
           tr.delete()
-          def wrap(s: String) = if (reservedWords(s)) "`%s`" format s else s
+
+          val resdirs = r +:
+            (for {
+              lib <- l filterNot {
+                case p: Dependencies.Pkg => ignores(p.pkg)
+                case _                   => false
+              }
+            } yield lib.getResFolder)
+          val rms1 = processValuesXml(resdirs, s)
+          val rms2 = processResourceTypeDirs(resdirs, s)
+          val combined = reduceResourceMap(Seq(rms1, rms2)).filter(_._2.nonEmpty)
+          val trs = combined.foldLeft(List.empty[String]) { case (acc, (k, xs)) =>
+            val k2 = if (k endsWith "-array") "array" else k
+            val trt = trTypes(k)
+            val ys = xs.toSet[String].map { x =>
+              val y = x.replace('.', '_')
+              s"    final val ${wrap(y)} = TypedRes[TypedResource.$trt](R.$k2.${wrap(y)})"
+            }
+            s"""
+               |  final object $k2 {
+               |${ys.mkString("\n")}
+               |  }""".stripMargin :: acc
+          }
+
+          val getColor = if (platformApi >= 23) {
+            s"""      if (Build.VERSION.SDK_INT >= 23)
+               |        c.getColor(resid)
+               |      else
+               |        c.getResources.getColor(resid)""".stripMargin
+          } else {
+            "c.getResources.getColor(resid)"
+          }
+          val getDrawable = if (platformApi >= 21) {
+            s"""      if (Build.VERSION.SDK_INT >= 21)
+               |        c.getDrawable(resid)
+               |      else
+               |        c.getResources.getDrawable(resid)
+             """.stripMargin
+          } else {
+            "c.getResources.getDrawable(resid)"
+          }
+
           IO.write(tr, trTemplate format (p,
             resources map { case (k,v) =>
               "  final val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n",
             layoutTypes map { case (k,v) =>
               "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
-            } mkString "\n"))
+            } mkString "\n", trs.mkString, getColor, getDrawable, getDrawable))
           Set(tr)
         } else Set.empty
       }(a.toSet).toSeq
+  }
+  def wrap(s: String) = if (reservedWords(s)) s"`$s`" else s
+
+  val trTypes = Map(
+    "anim"          -> "ResAnim",
+    "animator"      -> "ResAnimator",
+    "array"         -> "ResArray",
+    "string-array"  -> "ResStringArray",
+    "integer-array" -> "ResIntegerArray",
+    "attr"          -> "ResAttr",
+    "bool"          -> "ResBool",
+    "color"         -> "ResColor",
+    "dimen"         -> "ResDimen",
+    "drawable"      -> "ResDrawable",
+    "fraction"      -> "ResFraction",
+    "integer"       -> "ResInteger",
+    "interpolator"  -> "ResInterpolator",
+    "menu"          -> "ResMenu",
+    "mipmap"        -> "ResMipMap",
+    "plurals"       -> "ResPlurals",
+    "raw"           -> "ResRaw",
+    "string"        -> "ResString",
+    "style"         -> "ResStyle",
+    "transition"    -> "ResTransition",
+    "xml"           -> "ResXml"
+  )
+
+  val itemTypes = Set(
+    "anim",
+    "animator",
+    "array",
+    "bool",
+    "color",
+    "dimen",
+    "drawable",
+    "fraction",
+    "integer",
+    "interpolator",
+    "menu",
+    "mipmap",
+    "plurals",
+    "raw",
+    "string",
+    "style",
+    "transition",
+    "xml"
+  )
+
+  val formatTypes = List(
+    "boolean"   -> "bool",
+    "color"     -> "color",
+    "dimension" -> "dimen",
+    "fraction"  -> "fraction",
+    "integer"   -> "integer",
+    "string"    -> "string"
+  ).toMap
+
+  type ResourceMap = Map[String,List[String]]
+  val emptyResourceMap = Map.empty[String,List[String]].withDefaultValue(Nil)
+  def reduceResourceMap(rms: Seq[ResourceMap]): ResourceMap =
+    rms.foldLeft(emptyResourceMap) { (m, n) =>
+      n.keys.foldLeft(m)((m2, k) => m2 + (k -> (m2(k) ++ n(k))))
+    }
+  def attributeText(n: xml.Node, attr: String): Option[String] =
+    n.attribute(attr).flatMap(_.headOption).map(_.text)
+  def processValuesXml(resdirs: Seq[File], s: TaskStreams): ResourceMap = {
+    val valuesxmls = resdirs flatMap { d => d * "values*" * "*.xml" get }
+    val rms = valuesxmls.map { xml =>
+      val values = XML.loadFile(xml)
+
+      val items = values \ "item"
+      val itemEntries = items.flatMap { node =>
+        (for {
+          name <- attributeText(node, "name")
+          typ <- attributeText(node, "type").filter(itemTypes).orElse(
+            attributeText(node, "format").flatMap(formatTypes.get))
+        } yield (typ, name)).toSeq
+      }
+      val itemMap = itemEntries.foldLeft(emptyResourceMap) { case (m, (t,n)) =>
+        m + ((t,n :: m(t)))
+      }
+
+      def foldKey(key: String): (ResourceMap,scala.xml.Node) => ResourceMap = (m,node) => {
+        node.attribute("name").flatMap(_.headOption).fold(m)(n => m + ((key,n.text :: m(key))))
+      }
+      def foldNodes(in: ResourceMap, key: String): ResourceMap = {
+        (values \ key).foldLeft(in)(foldKey(key))
+      }
+
+      List("string", "string-array", "array", "plurals", "integer",
+        "integer-array", "bool", "attr", "color", "dimen", "style"
+      ).foldLeft(itemMap)(foldNodes)
+    }
+    reduceResourceMap(rms)
+  }
+  val resdirTypes = List(
+    "anim",
+    "animator",
+    "color",
+    "drawable",
+    "interpolator",
+    "menu",
+    "mipmap",
+    "raw",
+    "transition",
+    "xml"
+  )
+
+  def processResourceTypeDirs(resdirs: Seq[File], s: TaskStreams): ResourceMap = {
+    val rms2 = for {
+      res <- resdirs
+      restype <- resdirTypes
+    } yield restype ->
+      (res * s"$restype*" * "*").get.map(_.getName.takeWhile(_ != '.')).toList
+    rms2.foldLeft(emptyResourceMap) { case (m, (t, xs)) => m + (t -> (m(t) ++ xs)) }
   }
 }

@@ -49,7 +49,9 @@ object Keys {
   val libraryRequests = SettingKey[Seq[(String,Boolean)]]("library-requests",
     "android library requests, name -> required") in Android
   val platformTarget = SettingKey[String]("platform-target",
-    "target API level as described by 'android list targets' (the ID string)") in Android
+    "compileSdkVersion as described by 'android list targets' (the ID string)") in Android
+  val platformApi = TaskKey[Int]("platform-api",
+    "compileSdkVersion API level derived from 'platformTarget', do not override") in Android
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
     "Version of Android build-tools to utilize, None (default) for latest") in Android
   val bootClasspath = TaskKey[sbt.Keys.Classpath](

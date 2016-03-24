@@ -299,9 +299,9 @@ object Tasks {
 
   val typedResourcesGeneratorTaskDef = Def.task {
     Resources.generateTR(typedResources.value, rGenerator.value,
-      packageForR.value, projectLayout.value, platformJars.value,
-      (scalaVersion in ThisProject).value, libraryProjects.value,
-      typedResourcesIgnores.value, streams.value)
+      packageForR.value, projectLayout.value, platformApi.value,
+      platformJars.value, (scalaVersion in ThisProject).value,
+      libraryProjects.value, typedResourcesIgnores.value, streams.value)
   }
 
   def ndkbuild(layout: ProjectLayout, ndkHome: Option[String],

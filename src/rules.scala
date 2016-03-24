@@ -569,8 +569,7 @@ object Plugin extends sbt.Plugin {
       val m = manifest.value
       val usesSdk = m \ "uses-sdk"
       val ldr = sdkLoader.value
-      val tgt = ldr.getTargetInfo(platformTarget.value, buildTools.value.getRevision, ilogger.value(streams.value.log))
-      val v = String.valueOf(tgt.getTarget.getVersion.getApiLevel)
+      val v = String.valueOf(platformApi.value)
       if (usesSdk.isEmpty) v else
         usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion").fold(v) { _.head.text }
     },
@@ -781,6 +780,11 @@ object Plugin extends sbt.Plugin {
     platformTarget          <<= (properties,thisProject) { (p,prj) =>
       Option(p.getProperty("target")) getOrElse fail(
         prj.id + ": configure project.properties or set 'platformTarget'")
+    },
+    platformApi             := {
+      val tgt = sdkLoader.value.getTargetInfo(platformTarget.value,
+        buildTools.value.getRevision, ilogger.value(streams.value.log))
+      tgt.getTarget.getVersion.getApiLevel
     },
     platform                <<= (sdkManager, platformTarget, thisProject) map {
       (m, p, prj) =>
