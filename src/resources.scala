@@ -368,16 +368,24 @@ object Resources {
           val rms1 = processValuesXml(resdirs, s)
           val rms2 = processResourceTypeDirs(resdirs, s)
           val combined = reduceResourceMap(Seq(rms1, rms2)).filter(_._2.nonEmpty)
-          val trs = combined.foldLeft(List.empty[String]) { case (acc, (k, xs)) =>
+          val combined1 = combined.map { case (k, xs) =>
             val k2 = if (k endsWith "-array") "array" else k
             val trt = trTypes(k)
             val ys = xs.toSet[String].map { x =>
               val y = x.replace('.', '_')
               s"    final val ${wrap(y)} = TypedRes[TypedResource.$trt](R.$k2.${wrap(y)})"
             }
+            k -> ys
+          }
+          val combined2 = combined1.foldLeft(emptyResourceMap) { case (acc, (k, xs)) =>
+            val k2 = if (k endsWith "-array") "array" else k
+            acc + ((k2, acc(k2) ++ xs))
+          }
+          val trs = combined2.foldLeft(List.empty[String]) { case (acc, (k, xs)) =>
+            val k2 = if (k endsWith "-array") "array" else k
             s"""
-               |  final object $k2 {
-               |${ys.mkString("\n")}
+               |  object $k2 {
+               |${xs.mkString("\n")}
                |  }""".stripMargin :: acc
           }
 

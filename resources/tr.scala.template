@@ -18,10 +18,10 @@ case class TypedRes[A](resid: Int) extends AnyVal {
   def value(implicit ev: TypedResource.TypedResValueOp[A], c: Context): ev.T = ev.resourceValue(resid)(c)
 }
 
-final object TR {
+object TR {
 %s
 
-  final object layout {
+  object layout {
 %s
   }
 
@@ -33,7 +33,7 @@ trait TypedFindView extends Any {
   final def findView[A](tr: TypedResource[A]): A = findViewById(tr.id).asInstanceOf[A]
 }
 
-final object TypedResource {
+object TypedResource {
   sealed trait ResAnim
   sealed trait ResAnimator
   sealed trait ResAttr
