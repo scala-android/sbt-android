@@ -31,7 +31,7 @@ trait GradleBuild extends Build {
     },
     updateCheck in Gradle := {
       val log = streams.value.log
-      if (BuildInfo.name == "android-sdk-plugin") {
+      if (BuildInfo.name == "android-gradle-build") {
         log.warn("NOTICE: final version published at `com.hanhuy.sbt % android-gradle-build`")
         log.warn("""MIGRATION: `addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.2.0")`""")
       }
