@@ -395,6 +395,10 @@ object Plugin extends sbt.Plugin {
     },
     updateCheck              := {
       val log = streams.value.log
+      if (BuildInfo.name == "android-sdk-plugin") {
+        log.warn("NOTICE: final version published at `com.hanhuy.sbt % android-sdk-plugin`")
+        log.warn("""MIGRATION: `addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.0")`""")
+      }
       UpdateChecker("pfn", "sbt-plugins", "android-sdk-plugin") {
         case Left(t) =>
           log.debug("Failed to load version info: " + t)
