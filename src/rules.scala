@@ -940,7 +940,12 @@ object SbtJavaProcessExecutor extends JavaProcessExecutor {
 
     new ProcessResult {
       override def assertNormalExitValue() = {
-        if (r != 0) throw new ProcessException("error code: " + r)
+        if (r != 0) {
+          val e = new ProcessException(
+            s"Android SDK command failed ($r); see prior messages for details")
+          e.setStackTrace(Array.empty)
+          throw e
+        }
         this
       }
 
