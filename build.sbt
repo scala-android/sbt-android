@@ -107,7 +107,6 @@ resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "5.0.4",
   "org.javassist" % "javassist" % "3.20.0-GA",
-  "net.sf.proguard" % "proguard-base" % "5.0",
   "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
   "com.android.tools.build" % "builder" % androidToolsVersion excludeAll
     ExclusionRule(organization = "org.bouncycastle"),

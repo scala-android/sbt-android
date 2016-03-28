@@ -39,6 +39,7 @@ object Keys {
   val LibraryProject = Dependencies.LibraryProject
 
   val Android = config("android")
+  val AndroidInternal = config("android-internal").hide
 
   // build-environment keys
   // automatically set from ANDROID_HOME or *.properties ("sdk.dir")
@@ -217,6 +218,8 @@ object Keys {
     "additional params to pass to dex") in Android
 
   // proguard-related keys
+  val proguardVersion = SettingKey[String]("proguard-version",
+    "version of proguard to use") in Android
   val proguardScala = SettingKey[Boolean]("proguard-scala",
     "include scala-library in proguard: true if scala source present") in Android
   val proguardLibraries = TaskKey[Seq[File]]("proguard-libraries",

@@ -6,6 +6,7 @@ import android.Dependencies.LibraryDependency
 import android.Keys.PackagingOptions
 import com.android.builder.core.AndroidBuilder
 import com.android.sdklib.BuildToolInfo
+import sbt.Attributed
 
 object Aggregate {
   private[android] case class Retrolambda(enable: Boolean,
@@ -61,6 +62,7 @@ object Aggregate {
 
   private[android] case class Proguard(useProguard: Boolean,
                                        useProguardInDebug: Boolean,
+                                       managedClasspath: Seq[Attributed[File]],
                                        proguardScala: Boolean,
                                        proguardConfig: Seq[String],
                                        proguardOptions: Seq[String],

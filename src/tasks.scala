@@ -967,7 +967,7 @@ object Tasks {
 
   val proguardAggregateTaskDef = Def.task {
     Aggregate.Proguard(useProguard.value, useProguardInDebug.value,
-      proguardScala.value,
+      (managedClasspath in AndroidInternal).value, proguardScala.value,
       proguardConfig.value, proguardOptions.value, proguardCache.value)
   }
 

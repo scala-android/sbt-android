@@ -13,6 +13,9 @@ object AndroidPlugin extends AutoPlugin {
 
   override def buildSettings = Plugin.androidCommands
 
+
+  override def projectConfigurations = AndroidInternal :: Nil
+
   override def globalSettings = (onLoad := onLoad.value andThen { s =>
     val e = Project.extract(s)
 

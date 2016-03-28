@@ -583,6 +583,7 @@ object Plugin extends sbt.Plugin {
       if (usesSdk.isEmpty) "7" else
         usesSdk(0).attribute(ANDROID_NS, "minSdkVersion").fold("7") { _.head.text }
     },
+    proguardVersion          := "5.0",
     proguardCache            := "scala" :: Nil,
     proguardLibraries        := Seq.empty,
     proguardOptions          := Seq.empty,
@@ -816,7 +817,9 @@ object Plugin extends sbt.Plugin {
       val extras = extraResDirectories.value.map(_.getCanonicalFile).distinct
       (layout.testSources +: layout.jni +: layout.res +: extras) flatMap { path =>
         (path ** filter) get }
-    }
+    },
+    libraryDependencies <+= Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name),
+    managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
   )
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(

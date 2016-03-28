@@ -1,13 +1,13 @@
 package android
 
-import java.io.{File, FileOutputStream, FileInputStream}
-import java.util.jar.{JarOutputStream, JarInputStream}
+import java.io.{File, FileInputStream, FileOutputStream}
+import java.util.jar.{JarInputStream, JarOutputStream}
 
 import com.android.SdkConstants
-import com.android.builder.core.{DexOptions, AndroidBuilder}
+import com.android.builder.core.{AndroidBuilder, DexOptions}
 import com.android.sdklib.BuildToolInfo
-import proguard.{Configuration => PgConfig, ProGuard, ConfigurationParser}
 import sbt._
+import sbt.classpath.ClasspathUtilities
 
 import scala.util.Try
 import language.postfixOps
@@ -126,12 +126,28 @@ object Proguard {
   def proguard(a: Aggregate.Proguard, bldr: AndroidBuilder, l: Boolean,
                inputs: ProguardInputs, debug: Boolean, b: File,
                ra: Aggregate.Retrolambda, s: sbt.Keys.TaskStreams) = {
+    val cp = a.managedClasspath
     val p = a.useProguard
     val d = a.useProguardInDebug
     val c = a.proguardConfig
     val o = a.proguardOptions
     val pc = a.proguardCache
     val re = ra.enable
+    import java.util.Properties
+    import language.reflectiveCalls
+    val cl = ClasspathUtilities.toLoader(cp map (_.data))
+    type ProG = {
+      def execute(): Unit
+    }
+    val cfgClass = cl.loadClass("proguard.Configuration")
+    val pgcfg    = cfgClass.newInstance().asInstanceOf[AnyRef]
+    val pgClass  = cl.loadClass("proguard.ProGuard")
+    val cpClass  = cl.loadClass("proguard.ConfigurationParser")
+    val cpCtor   = cpClass.getConstructor(classOf[Array[String]], classOf[Properties])
+    val cpMethod = cpClass.getDeclaredMethod("parse", cfgClass)
+    cpMethod.setAccessible(true)
+    val pgCtor   = pgClass.getConstructor(cfgClass)
+
     if (inputs.proguardCache exists (_.exists)) {
       s.log.info("[debug] cache hit, skipping proguard!")
       None
@@ -159,13 +175,11 @@ object Proguard {
 
       if (jars.exists( _.lastModified > t.lastModified ) || cacheHash != rulesHash) {
         cfg foreach (l => s.log.debug(l))
-        val config = new PgConfig
-        import java.util.Properties
-        val parser: ConfigurationParser = new ConfigurationParser(
-          cfg.toArray[String], new Properties)
+        val cparser = cpCtor.newInstance(cfg.toArray[String], new Properties)
         IO.write(s.cacheDirectory / "proguard-rules.hash", rulesHash)
-        parser.parse(config)
-        new ProGuard(config).execute()
+        cpMethod.invoke(cparser, pgcfg)
+        val pg = pgCtor.newInstance(pgcfg).asInstanceOf[ProG]
+        pg.execute()
       } else {
         s.log.info(t.getName + " is up-to-date")
       }
