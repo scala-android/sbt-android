@@ -129,7 +129,7 @@ object Plugin extends sbt.Plugin {
   )
 
   def buildJar = Seq(
-    manifest := <manifest package="com.hanhuy.sbt.placeholder">
+    manifest := <manifest package="org.scala-android.placeholder">
       <application/>
     </manifest>,
     processManifest := {
@@ -388,11 +388,7 @@ object Plugin extends sbt.Plugin {
     },
     updateCheck              := {
       val log = streams.value.log
-      if (BuildInfo.name == "android-sdk-plugin") {
-        log.warn("NOTICE: final version published at `com.hanhuy.sbt % android-sdk-plugin`")
-        log.warn("""MIGRATION: `addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.0")`""")
-      }
-      UpdateChecker("pfn", "sbt-plugins", "android-sdk-plugin") {
+      UpdateChecker("pfn", "sbt-plugins", "sbt-android") {
         case Left(t) =>
           log.debug("Failed to load version info: " + t)
         case Right((versions, current)) =>
@@ -402,7 +398,7 @@ object Plugin extends sbt.Plugin {
           if (versions(BuildInfo.version)) {
             if (BuildInfo.version != current) {
               log.warn(
-                s"UPDATE: A newer android-sdk-plugin is available:" +
+                s"UPDATE: A newer sbt-android is available:" +
                   s" $current, currently running: ${BuildInfo.version}")
             }
           }
@@ -721,7 +717,7 @@ object Plugin extends sbt.Plugin {
       (ldr, m, n, l_, b, t, reqs, log) =>
       val l = l_(log)
       val l2 = SbtAndroidErrorReporter()
-      val bldr = new AndroidBuilder(n, "android-sdk-plugin",
+      val bldr = new AndroidBuilder(n, "sbt-android",
         new DefaultProcessExecutor(l), SbtJavaProcessExecutor, l2, l, false)
       val sdkInfo = ldr.getSdkInfo(l)
       bldr.setTargetInfo(sdkInfo, t,

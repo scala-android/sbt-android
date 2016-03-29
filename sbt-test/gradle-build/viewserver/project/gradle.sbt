@@ -1,1 +1,1 @@
-addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.2.0-SNAPSHOT")
+addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.2.0-SNAPSHOT")

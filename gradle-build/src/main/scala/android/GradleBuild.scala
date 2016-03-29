@@ -34,11 +34,7 @@ object AndroidGradlePlugin extends AutoPlugin {
     },
     updateCheck in Gradle := {
       val log = streams.value.log
-      if (BuildInfo.name == "android-gradle-build") {
-        log.warn("NOTICE: final version published at `com.hanhuy.sbt % android-gradle-build`")
-        log.warn("""MIGRATION: `addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.2.0")`""")
-      }
-      UpdateChecker("pfn", "sbt-plugins", "android-gradle-build") {
+      UpdateChecker("pfn", "sbt-plugins", "sbt-android-gradle") {
         case Left(t) =>
           log.debug("Failed to load version info: " + t)
         case Right((versions, current)) =>
@@ -48,7 +44,7 @@ object AndroidGradlePlugin extends AutoPlugin {
           if (versions(android.gradle.BuildInfo.version)) {
             if (android.gradle.BuildInfo.version != current) {
               log.warn(
-                s"UPDATE: A newer android-gradle-build is available:" +
+                s"UPDATE: A newer sbt-android-gradle is available:" +
                   s" $current, currently running: ${android.gradle.BuildInfo.version}")
             }
           }

@@ -111,7 +111,7 @@ found on the #sbt-android IRC channel on Freenode, or the
      by prefixing the command with a `~`. `~ android:package-debug`
      will continuously build a debug build any time one of the project's
      source files is modified.
-7. If you want sbt-android to automatically sign release packages
+7. If you want `sbt-android` to automatically sign release packages
    add the following lines to `local.properties` (or any file.properties of
    your choice that you will not check in to source control):
    * `key.alias: KEY-ALIAS`

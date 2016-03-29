@@ -27,7 +27,7 @@ whenever changes occur.
 3. Run `sbt`
    * The initial load will be slow as gradle will run to extract all
      project settings and export them into sbt
-   * Once fully loaded, the full power of android-sdk-plugin is available
+   * Once fully loaded, the full power of `sbt-android` is available
    * Typical android projects created by Android Studio have an `app` project,
      so in order to run any any build tasks, they must generally be prefixed by
      `app/`, e.g. `app/android:package`

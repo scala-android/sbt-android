@@ -51,8 +51,8 @@ val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++
   version := gradleBuildVersion,
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
-  name := "android-gradle-build",
-  organization := "com.hanhuy.sbt",
+  name := "sbt-android-gradle",
+  organization := "org.scala-android",
   scalacOptions ++= Seq("-deprecation","-Xlint","-feature"),
   libraryDependencies ++= Seq(
     "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
@@ -85,11 +85,11 @@ val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++
   buildInfoKeys := Seq(name, version),
   buildInfoPackage := "android.gradle"
 ).settings(addSbtPlugin(
-  "com.hanhuy.sbt" % "android-sdk-plugin" % pluginVersion)).dependsOn(model % "compile-internal")
+  "org.scala-android" % "sbt-android" % pluginVersion)).dependsOn(model % "compile-internal")
 
-name := "android-sdk-plugin"
+name := "sbt-android"
 
-organization := "com.hanhuy.sbt"
+organization := "org.scala-android"
 
 version := pluginVersion
 
