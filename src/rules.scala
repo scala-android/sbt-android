@@ -490,6 +490,8 @@ object Plugin extends sbt.Plugin {
     rGenerator              <<= rGenerator dependsOn renderscript,
     ndkJavah                <<= ndkJavahTaskDef,
     ndkAbiFilter             := Nil,
+    ndkEnv                   := Nil,
+    ndkArgs                  := Nil,
     ndkBuild                <<= ndkBuildTaskDef,
     aidl                    <<= aidlTaskDef,
     rsTargetApi             <<= (properties, minSdkVersion) map { (p, m) =>

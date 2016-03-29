@@ -304,8 +304,9 @@ object Tasks {
       libraryProjects.value, typedResourcesIgnores.value, streams.value)
   }
 
-  def ndkbuild(layout: ProjectLayout, ndkHome: Option[String],
-               srcs: File, log: Logger, debug: Boolean)(implicit m: BuildOutput.Converter) = {
+  def ndkbuild(layout: ProjectLayout, args: Seq[String],
+               envs: Seq[(String,String)], ndkHome: Option[String], srcs: File,
+               log: Logger, debug: Boolean)(implicit m: BuildOutput.Converter) = {
     val hasJni = (layout.jni ** "Android.mk" get).nonEmpty
     if (hasJni) {
       if (ndkHome.isEmpty) {
@@ -318,7 +319,7 @@ object Tasks {
           val env = Seq("NDK_PROJECT_PATH" -> (layout.jni / "..").getAbsolutePath,
             "NDK_OUT" -> layout.ndkObj.getAbsolutePath,
             "NDK_LIBS_OUT" -> layout.ndkBin.getAbsolutePath,
-            "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath)
+            "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath) ++ envs
 
           log.info("Executing NDK build")
           val ndkbuildFile = if (!Commands.isWindows) file(ndk) / "ndk-build" else  {
@@ -328,7 +329,7 @@ object Tasks {
           val ndkBuildInvocation = Seq(
             ndkbuildFile.getAbsolutePath,
             if (debug) "NDK_DEBUG=1" else "NDK_DEBUG=0"
-          )
+          ) ++ args
 
           val rc = Process(ndkBuildInvocation, layout.base, env: _*) !
 
@@ -373,16 +374,17 @@ object Tasks {
                         , sourceManaged in Compile
                         , ndkJavah
                         , ndkPath
-                        , properties
+                        , ndkEnv
+                        , ndkArgs
                         , streams
                         , apkbuildDebug
-                        ) map { (layout, o, libs, srcs, h, ndkHome, p, s, debug) =>
+                        ) map { (layout, o, libs, srcs, h, ndkHome, env, args, s, debug) =>
     implicit val output = o
     val subndk = libs flatMap { l =>
-      ndkbuild(l.layout, ndkHome, srcs, s.log, debug()).toSeq
+      ndkbuild(l.layout, args, env, ndkHome, srcs, s.log, debug()).toSeq
     }
 
-    ndkbuild(layout, ndkHome, srcs, s.log, debug()).toSeq ++ subndk
+    ndkbuild(layout, args, env, ndkHome, srcs, s.log, debug()).toSeq ++ subndk
   }
 
   val collectProjectJniTaskDef = Def.task {

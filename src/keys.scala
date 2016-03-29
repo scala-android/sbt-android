@@ -182,6 +182,10 @@ object Keys {
     "android javah task, generates javah headers from native classes") in Android
   val ndkBuild = TaskKey[Seq[File]]("ndk-build",
     "android ndk-build task, builds all auto-library project's ndk as well") in Android
+  val ndkArgs = TaskKey[Seq[String]]("ndk-args",
+    "additional arguments to pass to ndk-build") in Android
+  val ndkEnv = TaskKey[Seq[(String,String)]]("ndk-env",
+    "additional environment variables to pass into ndk-build") in Android
   val ndkAbiFilter = SettingKey[Seq[String]]("ndk-abi-filter",
     "list of android abi to include, empty to include all, default: all") in Android
 
