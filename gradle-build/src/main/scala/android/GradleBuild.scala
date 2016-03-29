@@ -60,7 +60,7 @@ trait GradleBuild extends Build {
 
   def importFromGradle(): Unit = {
     val start = System.currentTimeMillis
-    val initgradle = IO.readLinesURL(Tasks.resourceUrl("plugin-init.gradle"))
+    val initgradle = IO.readLinesURL(Resources.resourceUrl("plugin-init.gradle"))
     val f = File.createTempFile("plugin-init", ".gradle")
     IO.writeLines(f, initgradle)
     f.deleteOnExit()
