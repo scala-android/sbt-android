@@ -284,7 +284,6 @@ object Dex {
       (f, shardClasses / f"$shardTarget%02d" / name)
     }
 
-    IO.delete(shardClasses)
     IO.copy(unpackedClasses)
 
     val dexShards = shardClasses * "*" get
