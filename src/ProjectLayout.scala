@@ -1,8 +1,12 @@
 package android
 
+import java.io.File
+
 import com.android.prefs.AndroidLocation
 import com.android.sdklib.BuildToolInfo
 import sbt._
+
+import scala.util.Try
 
 trait BuildOutput extends Any {
   def layout: ProjectLayout
@@ -268,6 +272,13 @@ object SdkLayout {
 
   def predex = file(AndroidLocation.getFolder) / "sbt" / "predex"
   def explodedAars = file(AndroidLocation.getFolder) / "sbt" / "exploded-aars"
+  def androidHomeCache = file(AndroidLocation.getFolder) / "sbt" / "sdk.dir"
+  def androidNdkHomeCache = file(AndroidLocation.getFolder) / "sbt" / "ndk.dir"
+  def sdkFallback(f: File): Option[String] = if (f.isFile) {
+    Try(IO.readLines(f)).toOption.flatMap(_.headOption).map(file).collect {
+      case d if d.isDirectory => d.getAbsolutePath + File.separator
+    }
+  } else None
 }
 trait ProjectLayout {
   def base: File

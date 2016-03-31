@@ -661,25 +661,29 @@ object Plugin extends sbt.Plugin {
     packageRelease          <<= packageT,
     packageRelease          <<= packageRelease dependsOn setRelease,
     sdkPath                 <<= properties { props =>
+      val cached = SdkLayout.androidHomeCache
       (Option(System getenv "ANDROID_HOME") orElse
         Option(props getProperty "sdk.dir")) flatMap { p =>
-            val f = file(p + File.separator)
-            if (f.exists && f.isDirectory)
-              Some(p + File.separator)
-            else
-              None
-          } getOrElse fail(
-            "set the env variable ANDROID_HOME pointing to your Android SDK")
+        val f = file(p + File.separator)
+        if (f.exists && f.isDirectory) {
+          cached.getParentFile.mkdirs()
+          IO.writeLines(cached, p :: Nil)
+          Some(p + File.separator)
+        } else None
+      } orElse SdkLayout.sdkFallback(cached) getOrElse fail(
+        "set the env variable ANDROID_HOME pointing to your Android SDK")
     },
     ndkPath                 <<= (thisProject,properties) { (p,props) =>
+      val cached = SdkLayout.androidNdkHomeCache
       (Option(System getenv "ANDROID_NDK_HOME") orElse
-        Option(props get "ndk.dir")) flatMap { p =>
+        Option(props getProperty "ndk.dir")) flatMap { p =>
         val f = file(p + File.separator)
-        if (f.exists && f.isDirectory)
+        if (f.exists && f.isDirectory) {
+          cached.getParentFile.mkdirs()
+          IO.writeLines(cached, p :: Nil)
           Some(p + File.separator)
-        else
-          None
-      }
+        } else None
+      } orElse SdkLayout.sdkFallback(cached)
     },
     zipalignPath            <<= ( sdkPath
                                 , sdkManager
