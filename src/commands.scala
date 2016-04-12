@@ -11,6 +11,7 @@ import java.io.File
 
 import com.android.ddmlib._
 import com.android.SdkConstants
+import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import com.android.sdklib.repositoryv2.targets.AndroidTargetManager
 
 import scala.annotation.tailrec
@@ -345,26 +346,29 @@ object Commands {
     if (!layout.manifest.exists) {
       Plugin.fail("An android project does not exist at this location")
     }
+
+    if ((base / "*.sbt").get.nonEmpty)
+      Plugin.fail("SBT build files already exist at this location")
     state.log.info("Creating SBT project files")
     val build = base / "project"
     build.mkdirs()
     val properties = build / "build.properties"
-    val projectBuild = build / "build.scala"
+    val projectBuild = base / "build.sbt"
     val pluginSbt = build / "android.sbt"
     val plugin = s"""addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "${BuildInfo.version}")""".stripMargin
     val version = Project.extract(state).get(sbt.Keys.sbtVersion)
     val useVersion = if (compareSbtVersion(version)) version else "0.13.5"
     IO.writeLines(pluginSbt, plugin ::  Nil)
     IO.writeLines(properties, "sbt.version=" + useVersion :: Nil)
-    IO.writeLines(projectBuild,
-      "object Build extends android.AutoBuild" :: Nil)
-    if (util.Properties.isJavaAtLeast("1.8")) {
-      val javacOption =
-        """
-          |javacOptions in Compile ++= "-source" :: "1.7" :: "-target" :: "1.7" :: Nil
-        """.stripMargin
-      IO.write(base / "build.sbt", javacOption.trim + "\n")
-    }
+    val buildSettings = "androidBuild"
+    val javacOption = if (util.Properties.isJavaAtLeast("1.8")) {
+      "" ::
+      """
+        |javacOptions in Compile ++= "-source" :: "1.7" :: "-target" :: "1.7" :: Nil
+      """.stripMargin.trim :: Nil
+    } else Nil
+
+    IO.writeLines(projectBuild, buildSettings :: javacOption)
     state
   }
 
@@ -803,8 +807,8 @@ object Commands {
   }
 
   private def androidTargetManager(state: State): AndroidTargetManager = {
-    Project.extract(state).get(Keys.Internal.sdkManager)
-      .getAndroidTargetManager(SbtAndroidProgressIndicator(state.log))
+    val handler = AndroidSdkHandler.getInstance(file(sdkpath(state)))
+    handler.getAndroidTargetManager(SbtAndroidProgressIndicator(state.log))
   }
   private def sdkpath(state: State): String = {
     Project.extract(state).getOpt(

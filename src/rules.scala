@@ -901,7 +901,7 @@ object Plugin extends sbt.Plugin {
   }
 }
 
-@deprecated("Build.scala files going away in sbt 1.0", "1.6.0")
+@deprecated("Build.scala files are going away in sbt 1.0", "1.6.0")
 trait AutoBuild extends Build {
   private def loadLibraryProjects(b: File, props: Properties): Seq[Project] = {
     val p = props.asScala
