@@ -6,15 +6,15 @@ import android.Dependencies.LibraryDependency
 import android.Keys.PackagingOptions
 import com.android.builder.core.AndroidBuilder
 import com.android.sdklib.BuildToolInfo
-import sbt.Attributed
+import sbt.{Attributed, Logger}
 
 object Aggregate {
   private[android] case class Retrolambda(enable: Boolean,
                                           classpath: Seq[File],
                                           bootClasspath: Seq[File],
-                                          builder: AndroidBuilder)
+                                          builder: Logger => AndroidBuilder)
 
-  private[android] case class Aapt(builder: AndroidBuilder,
+  private[android] case class Aapt(builder: Logger => AndroidBuilder,
                                    debug: Boolean,
                                    additionalParams: Seq[String])
 

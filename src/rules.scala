@@ -696,7 +696,7 @@ object Plugin extends sbt.Plugin {
         zipalign.getAbsolutePath
       }
     },
-    ilogger                  := { l: Logger => SbtLogger(l) },
+    ilogger                  := SbtILogger(),
     buildToolsVersion        := None,
     sdkLoader               <<= sdkManager { m =>
       DefaultSdkLoader.getLoader(m.getLocation)
@@ -712,19 +712,24 @@ object Plugin extends sbt.Plugin {
                                 , state) map {
       (ldr, m, n, l, b, t, reqs, s) =>
 
+      val l2 = SbtAndroidErrorReporter()
       val bldr = new AndroidBuilder(n, "android-sdk-plugin",
-        new DefaultProcessExecutor(l(s.log)),
+        new DefaultProcessExecutor(l),
         SbtJavaProcessExecutor,
-        SbtAndroidErrorReporter(s.log),
-        l(s.log), false)
-      val sdkInfo = ldr.getSdkInfo(l(s.log))
-      val targetInfo = ldr.getTargetInfo(t, b.getRevision, l(s.log))
+        l2, l, false)
+      val sdkInfo = ldr.getSdkInfo(l)
+      val targetInfo = ldr.getTargetInfo(t, b.getRevision, l)
       bldr.setTargetInfo(sdkInfo, targetInfo,
         reqs.map { case ((nm, required)) =>
           new LibraryRequest(nm, required) }.asJava)
-      bldr
+
+      { logger =>
+        l(logger)
+        l2(logger)
+        bldr
+      }
     },
-    bootClasspath            := builder.value.getBootClasspath(false).asScala map Attributed.blank,
+    bootClasspath            := builder.value(streams.value.log).getBootClasspath(false).asScala map Attributed.blank,
     sdkManager              <<= sdkPath { p =>
       AndroidSdkHandler.getInstance(file(p))
     },
@@ -896,6 +901,7 @@ object Plugin extends sbt.Plugin {
   }
 }
 
+@deprecated("Build.scala files going away in sbt 1.0", "1.6.0")
 trait AutoBuild extends Build {
   private def loadLibraryProjects(b: File, props: Properties): Seq[Project] = {
     val p = props.asScala

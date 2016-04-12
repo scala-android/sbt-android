@@ -177,7 +177,7 @@ object Tasks {
       // TODO collect resources from apklibs and aars
 //      doCollectResources(bldr, true, true, Seq.empty, lib.layout,
 //        logger, file("/"), s)
-      Resources.aapt(bldr, lib.getManifest, null, aparams, Seq.empty, true, debug(),
+      Resources.aapt(bldr(s.log), lib.getManifest, null, aparams, Seq.empty, true, debug(),
           lib.getResFolder, lib.getAssetsFolder, null,
           lib.layout.gen, lib.getProguardRules.getAbsolutePath,
           s.log)
@@ -218,7 +218,7 @@ object Tasks {
           d.mkdirs()
           IO.unzip(l, d)
 
-          Resources.aapt(agg.builder, lib.getManifest, null,
+          Resources.aapt(agg.builder(s.log), lib.getManifest, null,
             agg.additionalParams, Seq.empty, true, agg.debug,
             lib.getResFolder, lib.getAssetsFolder, null,
             lib.layout.gen, lib.getProguardRules.getAbsolutePath,
@@ -428,8 +428,9 @@ object Tasks {
       val out = (layout.mergedAssets, layout.mergedRes)
       val assets = layout.assets +: ea.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get)
       withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
-        val res = Resources.doCollectResources(bldr, minLevel, noTestApk, isLib, libs,
-          layout, ea, layout.generatedRes +: er, rv, logger, s.cacheDirectory, s)
+        val res = Resources.doCollectResources(bldr(s.log), minLevel, noTestApk,
+          isLib, libs, layout, ea, layout.generatedRes +: er, rv, logger,
+          s.cacheDirectory, s)
         if (out != res) sys.error(s"Unexpected directories $out != $res")
         Set(res._1, res._2)
       }
@@ -509,7 +510,7 @@ object Tasks {
         layout.proguardTxt.getParentFile.mkdirs()
 
         s.log.info("Packaging resources: " + p.getName)
-        Resources.aapt(agg.builder, manif, pkg, agg.additionalParams, libs, lib,
+        Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams, libs, lib,
           agg.debug, res, assets, p.getAbsolutePath, layout.gen, proguardTxt, s.log)
         Set(p)
       }
@@ -549,8 +550,9 @@ object Tasks {
     val dcp = (dependencyClasspath in Compile).value
     val s = streams.value
     val filter = ndkAbiFilter.value
-    val logger = ilogger.value(s.log)
-    Packaging.apkbuild(builder.value, m, u, dcp, libraryProject.value, a,
+    val logger = ilogger.value
+    logger(s.log)
+    Packaging.apkbuild(builder.value(s.log), m, u, dcp, libraryProject.value, a,
       filter.toSet, layout.collectJni, layout.resources, layout.collectResource,
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)
   }
@@ -701,8 +703,9 @@ object Tasks {
                                , projectLayout
                                , outputLayout
                                , debugIncludesTests
+                               , streams
                                ) map {
-    (bldr, isLib, libs, a, merge, trunner, layout, out, noTestApk) =>
+    (bldr, isLib, libs, a, merge, trunner, layout, out, noTestApk, s) =>
     implicit val o = out
     val pkg = a.applicationId
     val ph = a.placeholders: Map[String,Object]
@@ -717,7 +720,7 @@ object Tasks {
     else {
       val output = layout.processedManifest
       output.getParentFile.mkdirs()
-      bldr.mergeManifests(layout.manifest, a.overlays.filter(_.isFile).asJava,
+      bldr(s.log).mergeManifests(layout.manifest, a.overlays.filter(_.isFile).asJava,
         if (merge) libs.asJava else Seq.empty.asJava,
         pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
         output.getAbsolutePath, null, null,
@@ -790,13 +793,14 @@ object Tasks {
         s.log.info("Processing resources")
         if (!res.exists)
           s.log.warn("No resources found at " + res.getAbsolutePath)
-        Resources.aapt(agg.builder, manif, pkg, agg.additionalParams, libs,
+        Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams, libs,
           lib, agg.debug, res, assets, null, layout.gen, proguardTxt, s.log)
         (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
       }
   }
 
-  def withCachedRes(s: sbt.Keys.TaskStreams, tag: String, inStamp: Seq[File], inHash: Seq[File])(body: => Set[File]) = {
+  def withCachedRes(s: sbt.Keys.TaskStreams, tag: String, inStamp: Seq[File],
+                    inHash: Seq[File])(body: => Set[File]) = {
     var dirty = false
     if (inStamp.isEmpty && inHash.isEmpty) body.toSeq else {
       (FileFunction.cached(s.cacheDirectory / tag, FilesInfo.lastModified) { _ =>
@@ -841,7 +845,7 @@ object Tasks {
       val pc = l.path / "proguard.txt"
       if (pc.isFile) IO.readLines(pc) else Seq.empty
     }
-    (base ++ lines(proguardProject) ++ lines(proguardTxt) ++ aarConfig).toSeq: Seq[String]
+    base ++ lines(proguardProject) ++ lines(proguardTxt) ++ aarConfig: Seq[String]
   }
 
   val dexMainClassesConfigTaskDef = Def.task {
@@ -898,7 +902,7 @@ object Tasks {
                    , streams) map {
     case (bldr, dexOpts, shards, pd, legacy, lib, bin, o, debug, s) =>
       implicit val output = o
-      Dex.dex(bldr, dexOpts, pd, None /* unused, left for compat */, legacy, lib, bin.dex, shards, debug(), s)
+      Dex.dex(bldr(s.log), dexOpts, pd, None /* unused, left for compat */, legacy, lib, bin.dex, shards, debug(), s)
   }
 
   val predexTaskDef = Def.task {
@@ -912,8 +916,8 @@ object Tasks {
     val skip = (proguardInputs.value.proguardCache.toList ++ predexSkip.value).map(_.getCanonicalFile).toSet
     val classes = layout.classesJar
     val pg = proguard.value
-    val bldr = builder.value
     val s = streams.value
+    val bldr = builder.value(s.log)
     Dex.predex(opts,
       inputs.map(_.getCanonicalFile) filterNot skip,
       multiDex || shards, legacy, classes, pg, bldr, baseDirectory.value, layout.predex, s)
@@ -983,7 +987,7 @@ object Tasks {
       , streams
       ) map { case (a, bldr, l, inputs, debug, b, output, ra, s) =>
         implicit val o = output
-        Proguard.proguard(a, bldr, l, inputs, debug(), b.proguardOut, ra, s)
+        Proguard.proguard(a, bldr(s.log), l, inputs, debug(), b.proguardOut, ra, s)
   }
 
   case class TestListener(log: Logger) extends ITestRunListener {
@@ -1071,7 +1075,7 @@ object Tasks {
     val cache = s.cacheDirectory
     val re = ra.enable
     val debug = ta.apkbuildDebug
-    val bldr = agg.builder
+    val bldr = agg.builder(s.log)
 
     val testManifest = layout.testManifest
     val manifestFile = if (noTestApk || testManifest.exists) {

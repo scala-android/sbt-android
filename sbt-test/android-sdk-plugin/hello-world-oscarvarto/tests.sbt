@@ -3,13 +3,14 @@ import java.util.zip._
 import java.io._
 import android.BuildOutput._
 
-TaskKey[Unit]("check-dex") <<= ( TaskKey[com.android.builder.core.AndroidBuilder]("android-builder") in Android
+TaskKey[Unit]("check-dex") <<= ( TaskKey[Logger => com.android.builder.core.AndroidBuilder]("android-builder") in Android
                                , projectLayout in Android
                                , outputLayout in Android
+                               , streams
                                ) map {
-  (p,layout, o) =>
+  (p,layout, o, s) =>
   implicit val output = o
-  val tools = p.getTargetInfo.getBuildTools.getLocation
+  val tools = p(s.log).getTargetInfo.getBuildTools.getLocation
   val dexdump = tools / "dexdump"
   val lines = Seq(
     dexdump.getAbsolutePath,

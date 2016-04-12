@@ -56,20 +56,23 @@ case class SbtDebugLogger(lg: Logger) extends ILogger {
       lg.trace(t)
   }
 }
-case class SbtLogger(lg: Logger) extends ILogger {
+case class SbtILogger() extends ILogger {
+  def apply(log: Logger) = this.log = Some(log)
+  private[this] var log: Option[Logger] = None
   override def verbose(fmt: java.lang.String, args: Object*) {
-    lg.debug(String.format(fmt, args:_*))
+    log.foreach(_.debug(String.format(fmt, args:_*)))
   }
   override def info(fmt: java.lang.String, args: Object*) {
-    lg.debug(String.format(fmt, args:_*))
+    log.foreach(_.debug(String.format(fmt, args:_*)))
   }
   override def warning(fmt: java.lang.String, args: Object*) {
-    lg.warn(String.format(fmt, args:_*))
+    log.foreach(_.warn(String.format(fmt, args:_*)))
   }
   override def error(t: Throwable, fmt: java.lang.String, args: Object*) {
-    lg.error(String.format(fmt, args:_*))
-    if (t != null)
-      lg.trace(t)
+    log.foreach { l => l.error(String.format(fmt, args: _*))
+      if (t != null)
+        l.trace(t)
+    }
   }
 }
 
@@ -113,7 +116,9 @@ object SbtJavaProcessExecutor extends JavaProcessExecutor {
   }
 }
 
-case class SbtAndroidErrorReporter(log: Logger) extends ErrorReporter(ErrorReporter.EvaluationMode.STANDARD) {
+case class SbtAndroidErrorReporter() extends ErrorReporter(ErrorReporter.EvaluationMode.STANDARD) {
+  private[this] var log = Option.empty[Logger]
+  def apply(l: Logger) = log = Some(l)
 
   override def receiveMessage(message: Message) = {
 
@@ -134,25 +139,25 @@ case class SbtAndroidErrorReporter(log: Logger) extends ErrorReporter(ErrorRepor
 
     message.getKind match {
       case Kind.ERROR =>
-        log.error(messageString)
+        log.foreach(_.error(messageString))
       case Kind.WARNING =>
-        log.warn(messageString)
+        log.foreach(_.warn(messageString))
       case Kind.INFO =>
-        log.info(messageString)
+        log.foreach(_.info(messageString))
       case Kind.STATISTICS =>
-        log.debug(messageString)
+        log.foreach(_.debug(messageString))
       case Kind.UNKNOWN =>
-        log.debug(messageString)
+        log.foreach(_.debug(messageString))
       case Kind.SIMPLE =>
-        log.info(messageString)
+        log.foreach(_.info(messageString))
     }
   }
 
   override def handleSyncIssue(data: String, `type`: Int, severity: Int, msg: String) = {
     if (severity == SyncIssue.SEVERITY_WARNING) {
-      log.warn(s"android sync: data=$data, type=${`type`}, msg=$msg")
+      log.foreach(_.warn(s"android sync: data=$data, type=${`type`}, msg=$msg"))
     } else if (severity == SyncIssue.SEVERITY_ERROR) {
-      log.error(s"android sync: data=$data, type=${`type`}, msg=$msg")
+      log.foreach(_.error(s"android sync: data=$data, type=${`type`}, msg=$msg"))
     }
     new SyncIssue {
       override def getType = `type`

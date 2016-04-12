@@ -287,13 +287,12 @@ object Keys {
   private[android] object Internal {
     val pluginSettingsLoaded = SettingKey[Boolean]("android-plugin-settings-loaded", "Internal duplicate apply check") in Android
     val buildTools = SettingKey[BuildToolInfo]("build-tools", "Android build tools") in Android
-    val ilogger = SettingKey[Logger => ILogger]("ilogger",
-      "internal Android SDK logger") in Android
+    val ilogger = SettingKey[SbtILogger]("ilogger", "internal Android SDK logger") in Android
     val debugTestsGenerator = TaskKey[Seq[File]]("debug-tests-generator",
       "includes test sources in debug builds if debug-includes-tests") in Android
     val zipalignPath = TaskKey[String]("zipalign-path",
       "path to the zipalign executable") in Android
-    val builder = TaskKey[AndroidBuilder]("android-builder", "AndroidBuilder object") in Android
+    val builder = TaskKey[Logger => AndroidBuilder]("android-builder", "AndroidBuilder object") in Android
     val apklibArtifact = SettingKey[Artifact]("apklib-artifact",
       "artifact object for publishing apklibs") in Android
     val aarArtifact = SettingKey[Artifact]("aar-artifact",

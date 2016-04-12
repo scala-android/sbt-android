@@ -52,11 +52,11 @@ object Resources {
                           , extraAssets: Seq[File]
                           , extraRes: Seq[File]
                           , renderVectors: Boolean
-                          , logger: Logger => ILogger
+                          , logger: SbtILogger
                           , cache: File
                           , s: TaskStreams
                           )(implicit m: BuildOutput.Converter): (File,File) = {
-
+    logger(s.log)
     val assetBin = layout.mergedAssets
     val assets = layout.assets
     val resTarget = layout.mergedRes
@@ -103,7 +103,7 @@ object Resources {
         Density.HIGH,
         Density.XHIGH,
         Density.XXHIGH).asJava,
-      SbtLogger(s.log))
+      logger)
     val sets = respaths.distinct flatMap { r =>
       val set = new ResourceSet(r.getAbsolutePath)
       set.addSource(r)
@@ -127,7 +127,7 @@ object Resources {
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
       incrResourceMerge(layout, minSdk, resTarget, isLib, libs,
-        cache / "collect-resources", logger(s.log), bldr, sets, vectorprocessor, inChanges, s.log)
+        cache / "collect-resources", logger, bldr, sets, vectorprocessor, inChanges, s.log)
       ((resTarget ** FileOnlyFilter).get ++ (layout.generatedVectors ** FileOnlyFilter).get).toSet
     }(inputs.toSet)
 
