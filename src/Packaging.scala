@@ -21,22 +21,30 @@ import collection.JavaConverters._
 object Packaging {
 
   def apkbuild(bldr: AndroidBuilder, m: Classpath, u: Classpath, dcp: Classpath,
-               isLib: Boolean, options: PackagingOptions, shrinker: File,
-               dexFolder: File, predex: Seq[(File,File)], abiFilter: Set[String], jniFolders: Seq[File],
+               isLib: Boolean, aggregateOptions: Aggregate.Apkbuild,
+               abiFilter: Set[String],
                collectJniOut: File, resFolder: File, collectResourceFolder: File,
-               debug: Boolean, debugSigningConfig: ApkSigningConfig, output: File,
+               output: File,
                logger: ILogger, s: sbt.Keys.TaskStreams): File = {
 
+    val options = aggregateOptions.packagingOptions
+    val shrinker = aggregateOptions.resourceShrinker
+    val dexFolder = aggregateOptions.dex
+    val predex = aggregateOptions.predex
+    val jniFolders = aggregateOptions.collectJni
+    val debug = aggregateOptions.apkbuildDebug
+    val debugSigningConfig = aggregateOptions.debugSigningConfig
+    val minSdk = aggregateOptions.minSdkVersion
     import language.postfixOps
     if (isLib)
       Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true'")
     val predexed = predex flatMap (_._2 * "*.dex" get) map (_.getParentFile)
 
     val jars = (m ++ u ++ dcp).filter {
-      a => (a.get(moduleID.key) map { mid =>
+      a => a.get(moduleID.key).forall { mid =>
         mid.organization != "org.scala-lang" &&
           !(mid.configurations exists (_ contains "provided"))
-      } getOrElse true) && a.data.exists
+      } && a.data.exists
     }.groupBy(_.data.getName).collect {
       case ("classes.jar",xs) => xs.distinct
       case (_,xs) if xs.head.data.isFile => xs.head :: Nil
@@ -92,7 +100,8 @@ object Packaging {
       List(collectResourceFolder).filter(_.exists).asJava,
       List(collectJniOut).filter(_.exists).asJava,
       abiFilter.asJava, debug,
-      if (debug) debugSigningConfig.toSigningConfig("debug") else null, output.getAbsolutePath)
+      if (debug) debugSigningConfig.toSigningConfig("debug") else null,
+      output.getAbsolutePath, minSdk)
     s.log.debug("Including predexed: " + predexed)
     s.log.info("Packaged: %s (%s)" format (
       output.getName, sizeString(output.length)))

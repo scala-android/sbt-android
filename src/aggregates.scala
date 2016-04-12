@@ -24,6 +24,7 @@ object Aggregate {
                                           apkbuildDebug: Boolean,
                                           debugSigningConfig: ApkSigningConfig,
                                           dexMaxHeap: String,
+                                          dexMaxProcessCount: Int,
                                           externalDependencyClassPathInTest: Seq[File],
                                           externalDependencyClasspathInCompile: Seq[File],
                                           packagingOptions: PackagingOptions,
@@ -42,7 +43,8 @@ object Aggregate {
                                        dex: File,
                                        predex: Seq[(File,File)],
                                        collectJni: Seq[File],
-                                       resourceShrinker: File)
+                                       resourceShrinker: File,
+                                       minSdkVersion: Int)
 
   private[android] case class Manifest(applicationId: String,
                                        versionName: Option[String],
@@ -54,6 +56,7 @@ object Aggregate {
 
   private[android] case class Dex(inputs: (Boolean,Seq[File]),
                                   maxHeap: String,
+                                  maxProcessCount: Int,
                                   multi: Boolean,
                                   mainClassesConfig: File,
                                   minimizeMain: Boolean,

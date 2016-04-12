@@ -240,21 +240,24 @@ object Dex {
     val multiDex = dexOpts.multi
     val mainDexListTxt = dexOpts.mainClassesConfig
     val minMainDex = dexOpts.minimizeMain
+    val maxProc = dexOpts.maxProcessCount
     val additionalParams = dexOpts.additionalParams
     val incremental = incr && !multiDex
 //    if (dexes.isEmpty || dexIn.exists(i => dexes exists(_.lastModified <= i.lastModified))) {
 
     if (!legacy && shard && debug) {
-      shardedDex(bldr, inputs, pd, incremental, xmx, additionalParams, bin, debug, s)
+      shardedDex(bldr, inputs, pd, incremental, xmx, maxProc, additionalParams,
+        bin, debug, s)
     } else {
-      singleDex(bldr, inputs, pd, incremental, legacy, multiDex, minMainDex, mainDexListTxt, xmx, additionalParams, bin, debug, s)
+      singleDex(bldr, inputs, pd, incremental, legacy, multiDex, minMainDex,
+        mainDexListTxt, xmx, maxProc, additionalParams, bin, debug, s)
     }
   }
 
   private[this] def shardedDex(bldr: AndroidBuilder,
                                inputs: Seq[File], pd: Seq[(File,File)],
                                incremental: Boolean,
-                               xmx: String,
+                               xmx: String, maxProc: Int,
                                additionalParams: Seq[String], bin: File,
                                debug: Boolean, s: sbt.Keys.TaskStreams) = {
     import collection.JavaConverters._
@@ -304,6 +307,7 @@ object Dex {
           override def getPreDexLibraries = false
           override def getJumboMode = false
           override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+          override def getMaxProcessCount = maxProc
         }
         s.log.debug(s"$sn: Dex inputs: " + shard)
 
@@ -316,7 +320,7 @@ object Dex {
         // dex doesn't support --no-optimize, see
         // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
         bldr.convertByteCode(Seq(shard).asJava, shardPath,
-          false, null, options, additionalParams.asJava, incremental, true, SbtProcessOutputHandler(s.log))
+          false, null, options, additionalParams.asJava, incremental, true, SbtProcessOutputHandler(s.log), false)
         val result = shardPath * "*.dex" get
 
         s.log.info(s"$sn: Generated dex shard, method count: " + (result map (dexMethodCount(_, s.log))).sum)
@@ -334,7 +338,7 @@ object Dex {
                               incremental: Boolean,
                               legacy: Boolean,
                               multiDex: Boolean, minMainDex: Boolean,
-                              mainDexListTxt: File, xmx: String,
+                              mainDexListTxt: File, xmx: String, maxProc: Int,
                               additionalParams: Seq[String], bin: File,
                               debug: Boolean, s: sbt.Keys.TaskStreams) = {
     import collection.JavaConverters._
@@ -352,6 +356,7 @@ object Dex {
         override def getPreDexLibraries = false
         override def getJumboMode = false
         override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+        override def getMaxProcessCount = maxProc
       }
       s.log.info(s"Generating dex, incremental=$incremental, multidex=$multiDex")
       s.log.debug("Dex inputs: " + inputs)
@@ -370,7 +375,7 @@ object Dex {
       // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(dexIn.asJava, bin,
         multiDex, if (!legacy) null else mainDexListTxt,
-        options, additionalDexParams.asJava, incremental, true, SbtProcessOutputHandler(s.log))
+        options, additionalDexParams.asJava, incremental, true, SbtProcessOutputHandler(s.log), false)
       s.log.info("dex method count: " + ((bin * "*.dex" get) map (dexMethodCount(_, s.log))).sum)
       (bin ** "*.dex").get.toSet
     }(dexIn.toSet)
@@ -408,6 +413,7 @@ object Dex {
       override def getPreDexLibraries = false
       override def getJumboMode = false
       override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+      override def getMaxProcessCount = opts.maxProcessCount
     }
     if (!legacy && multiDex) {
       ((inputs filterNot (i => i == classes || pg.exists(_ == i))) map { i =>
@@ -418,8 +424,7 @@ object Dex {
           predexed foreach (_.delete())
           s.log.debug("Pre-dex input: " + i.getAbsolutePath)
           s.log.info("Pre-dexing: " + i.getName)
-          AndroidBuilder.preDexLibrary(i, out, multiDex, options, opts.buildTools,
-            false, SbtJavaProcessExecutor, SbtProcessOutputHandler(s.log))
+          bldr.preDexLibraryNoCache(i, out, multiDex, options, SbtProcessOutputHandler(s.log))
         }
         (i,out)
       }).toList: Seq[(File,File)]

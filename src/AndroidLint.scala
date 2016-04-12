@@ -38,7 +38,7 @@ object AndroidLint {
     override def getIssues = issues.asJava
   }
 
-  case class SbtLintClient(layout: ProjectLayout, flags: LintCliFlags, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter) extends LintCliClient(flags) {
+  case class SbtLintClient(layout: ProjectLayout, flags: LintCliFlags, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter) extends LintCliClient(flags, "sbt-android") {
     override def addProgressPrinter() = {
 //      super.addProgressPrinter()
     }

@@ -536,7 +536,7 @@ object Tasks {
     Aggregate.Apkbuild(packagingOptions.value,
       apkbuildDebug.value(), apkDebugSigningConfig.value,
       dex.value, predex.value, collectJni.value,
-      resourceShrinker.value)
+      resourceShrinker.value, minSdkVersion.value.toInt)
   }
 
   val apkbuildTaskDef = Def.task {
@@ -550,10 +550,8 @@ object Tasks {
     val s = streams.value
     val filter = ndkAbiFilter.value
     val logger = ilogger.value(s.log)
-    Packaging.apkbuild(builder.value, m, u, dcp, libraryProject.value,
-      a.packagingOptions, a.resourceShrinker, a.dex, a.predex, filter.toSet, a.collectJni,
-      layout.collectJni, layout.resources, layout.collectResource,
-      a.apkbuildDebug, a.debugSigningConfig,
+    Packaging.apkbuild(builder.value, m, u, dcp, libraryProject.value, a,
+      filter.toSet, layout.collectJni, layout.resources, layout.collectResource,
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)
   }
 
@@ -666,7 +664,7 @@ object Tasks {
                     , streams
                     ) map { (s, m, layout, p, l) =>
     import SdkConstants._
-    val tools = Option(m.getLatestBuildTool)
+    val tools = Option(m.getLatestBuildTool(SbtAndroidProgressIndicator(l.log)))
     val aidl          = tools map (_.getPath(PathId.AIDL)) getOrElse {
         s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
     }
@@ -722,9 +720,9 @@ object Tasks {
       bldr.mergeManifests(layout.manifest, a.overlays.filter(_.isFile).asJava,
         if (merge) libs.asJava else Seq.empty.asJava,
         pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
-        output.getAbsolutePath, null,
+        output.getAbsolutePath, null, null,
         if (isLib) ManifestMerger2.MergeType.LIBRARY else
-          ManifestMerger2.MergeType.APPLICATION, ph.asJava,
+          ManifestMerger2.MergeType.APPLICATION, ph.asJava, List.empty.asJava,
         layout.processedManifestReport)
       if (noTestApk) {
          val top = XML.loadFile(output)
@@ -883,8 +881,8 @@ object Tasks {
   }
 
   val dexAggregateTaskDef = Def.task {
-    Aggregate.Dex(dexInputs.value, dexMaxHeap.value, dexMulti.value,
-      dexMainClassesConfig.value, dexMinimizeMain.value,
+    Aggregate.Dex(dexInputs.value, dexMaxHeap.value, dexMaxProcessCount.value,
+      dexMulti.value, dexMainClassesConfig.value, dexMinimizeMain.value,
       buildTools.value, dexAdditionalParams.value)
   }
 
@@ -950,7 +948,7 @@ object Tasks {
       val shrunkResApk = resApk.getParentFile / ("shrunk-" + resApk.getName)
       val resTarget = layout.mergedRes
       val analyzer = new ResourceUsageAnalyzer(
-        layout.gen, jar.get, processManifest.value, null, resTarget)
+        layout.gen, jar.get, processManifest.value, null, resTarget, null)
       analyzer.analyze()
       analyzer.rewriteResourceZip(resApk, shrunkResApk)
       val unused = analyzer.getUnusedResourceCount
@@ -1040,6 +1038,7 @@ object Tasks {
     Aggregate.AndroidTest(debugIncludesTests.value, instrumentTestRunner.value,
       instrumentTestTimeout.value, apkbuildDebug.value(),
       apkDebugSigningConfig.value, dexMaxHeap.value,
+      dexMaxProcessCount.value,
       (externalDependencyClasspath in Test).value map (_.data),
       (externalDependencyClasspath in Compile).value map (_.data),
       packagingOptions.value, libraryProject.value)
@@ -1095,7 +1094,7 @@ object Tasks {
       val tpkg = instrData flatMap (_._2) getOrElse pkg
       val processedManifest = layout.processedManifest
       // profiling and functional test? false for now
-      bldr.processTestManifest(testPackage, minSdk.toString, targetSdk.toString,
+      bldr.processTestManifest(testPackage, minSdk, targetSdk,
         tpkg, trunner, false, false, manifestFile, libs.asJava,
         (placeholders: Map[String,Object]).asJava, processedManifest.getAbsoluteFile,
         cache / "processTestManifest")
@@ -1105,6 +1104,7 @@ object Tasks {
         override def getPreDexLibraries = false
         override def getJavaMaxHeapSize = xmx
         override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
+        override def getMaxProcessCount = ta.dexMaxProcessCount
       }
       val rTxt = layout.testRTxt
       val dex = layout.testDex
@@ -1128,11 +1128,11 @@ object Tasks {
       // dex doesn't support --no-optimize, see
       // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(inputs.asJava,
-        dex, false, null, options, List.empty.asJava, false, true, SbtProcessOutputHandler(s.log))
+        dex, false, null, options, List.empty.asJava, false, true, SbtProcessOutputHandler(s.log), false)
 
       bldr.packageApk(res.getAbsolutePath, Set(dex).asJava,
         List.empty.asJava, List.empty.asJava, Set.empty.asJava,
-        debug, ta.debugSigningConfig.toSigningConfig("debug"),apk.getAbsolutePath)
+        debug, ta.debugSigningConfig.toSigningConfig("debug"),apk.getAbsolutePath, minSdk.toInt)
       s.log.debug("Installing test apk: " + apk)
 
       def install(device: IDevice) {

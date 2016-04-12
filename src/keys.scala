@@ -5,16 +5,15 @@ import com.android.tools.lint.detector.api.Issue
 import sbt._
 
 import scala.xml.Elem
-
 import java.io.File
 import java.util.Properties
 
 import com.android.builder.core.AndroidBuilder
-import com.android.sdklib.{BuildToolInfo, IAndroidTarget, SdkManager}
+import com.android.sdklib.{BuildToolInfo, IAndroidTarget}
 import com.android.utils.ILogger
-
 import Dependencies._
 import com.android.builder.sdk.SdkLoader
+import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 import language.implicitConversions
 
@@ -51,7 +50,7 @@ object Keys {
     "android library requests, name -> required") in Android
   val platformTarget = SettingKey[String]("platform-target",
     "compileSdkVersion as described by 'android list targets' (the ID string)") in Android
-  val platformApi = TaskKey[Int]("platform-api",
+  val platformApi = SettingKey[Int]("platform-api",
     "compileSdkVersion API level derived from 'platformTarget', do not override") in Android
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
     "Version of Android build-tools to utilize, None (default) for latest") in Android
@@ -210,6 +209,8 @@ object Keys {
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "incremental dex, input jars to dex") in Android
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
    "Maximum heapsize for dex, default 1024m") in Android
+  val dexMaxProcessCount = SettingKey[Int]("dex-max-process-count",
+    "Maximum process count for dex, default available processor count") in Android
   val dexMulti = SettingKey[Boolean]("dex-multi",
     "multi-dex flag for dex, default false") in Android
   val dexMainClasses = SettingKey[Seq[String]]("dex-main-classes",
@@ -285,7 +286,7 @@ object Keys {
 
   private[android] object Internal {
     val pluginSettingsLoaded = SettingKey[Boolean]("android-plugin-settings-loaded", "Internal duplicate apply check") in Android
-    val buildTools = TaskKey[BuildToolInfo]("build-tools", "Android build tools") in Android
+    val buildTools = SettingKey[BuildToolInfo]("build-tools", "Android build tools") in Android
     val ilogger = SettingKey[Logger => ILogger]("ilogger",
       "internal Android SDK logger") in Android
     val debugTestsGenerator = TaskKey[Seq[File]]("debug-tests-generator",
@@ -299,17 +300,17 @@ object Keys {
       "artifact object for publishing aars") in Android
     val cleanForR = TaskKey[Seq[File]]("clean-for-r",
       "Clean all .class files when R.java changes") in Android
-    val sdkLoader = TaskKey[SdkLoader]("sdk-loader",
+    val sdkLoader = SettingKey[SdkLoader]("sdk-loader",
       "Internal android SDK loader") in Android
     val manifestPath = SettingKey[File]("manifest-path",
       "android manifest file path") in Android
-    val platform = TaskKey[IAndroidTarget]("platform",
+    val platform = SettingKey[IAndroidTarget]("platform",
       "IAndroidTarget object representing a target API level") in Android
     val platformJars = TaskKey[(String,Seq[String])]("platform-jars",
       "Path to android.jar and optional jars (e.g. google apis), if any") in Android
     val proguardInputs = TaskKey[ProguardInputs]("proguard-inputs",
       "a tuple specifying -injars and -libraryjars (in that order)") in Android
-    val sdkManager = TaskKey[SdkManager]("sdk-manager",
+    val sdkManager = SettingKey[AndroidSdkHandler]("sdk-manager",
       "Android SdkManager object") in Android
     val properties = SettingKey[Properties]("properties",
       "Properties loaded from the project's .property files") in Android

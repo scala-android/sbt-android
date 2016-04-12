@@ -142,7 +142,7 @@ object Resources {
 
     def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, libs, blobDir,
       logger, bldr, resources, preprocessor, slog)
-    val merger = new ResourceMerger
+    val merger = new ResourceMerger(minSdk)
     if (!merger.loadFromBlob(blobDir, true)) {
       slog.debug("Could not load merge blob (no full merge yet?)")
       merge()
@@ -218,7 +218,7 @@ object Resources {
                         preprocessor: ResourcePreprocessor, slog: Logger)(implicit m: BuildOutput.Converter) {
 
     slog.info("Performing full resource merge")
-    val merger = new ResourceMerger
+    val merger = new ResourceMerger(minSdk)
 
     resTarget.mkdirs()
 

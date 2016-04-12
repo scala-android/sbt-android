@@ -6,28 +6,23 @@ import android.Dependencies.LibraryProject
 import com.android.builder.model.SyncIssue
 import com.android.ide.common.blame.Message
 import com.android.ide.common.blame.Message.Kind
-import com.android.ide.common.process.BaseProcessOutputHandler.BaseProcessOutput
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
 import com.hanhuy.sbt.bintray.UpdateChecker
 import sbt._
 import sbt.Keys._
-
-import com.android.builder.core.{ErrorReporter, LibraryRequest, AndroidBuilder}
+import com.android.builder.core.{AndroidBuilder, ErrorReporter, LibraryRequest}
 import com.android.builder.sdk.DefaultSdkLoader
-import com.android.sdklib.{SdkVersionInfo, AndroidTargetHash, IAndroidTarget, SdkManager}
-import com.android.sdklib.repository.FullRevision
+import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkVersionInfo}
 import com.android.SdkConstants
-import com.android.utils.ILogger
+import java.io.{File, PrintWriter}
 
-import java.io.{PrintWriter, File}
+import com.android.repository.Revision
+import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.xml.XML
-import language.postfixOps
-// because of JavaProcessExecutor
-import language.existentials
 
 import Keys._
 import Keys.Internal._
@@ -241,8 +236,8 @@ object Plugin extends sbt.Plugin {
       cleanForR.taskValue,
       Def.task {
         (apklibs.value ++ autolibs.value flatMap { l =>
-          (l.layout.javaSource ** "*.java" get) ++
-            (l.layout.scalaSource ** "*.scala" get)
+          ((l.layout.javaSource ** "*.java").get) ++
+            ((l.layout.scalaSource ** "*.scala").get)
         }) map (_.getAbsoluteFile)
       }.taskValue
     ),
@@ -386,12 +381,12 @@ object Plugin extends sbt.Plugin {
           (x,(x.get(moduleID.key),x.data.getName))
         case x => (x,(None, x.data.getName))
       } partition (_._2._1.isDefined)
-      (withMID.groupBy(_._2).values.map(_.head._1) ++  withoutMID.map(_._1)) filterNot { _.get(moduleID.key) exists { m =>
+      (withMID.groupBy(_._2).values.map(_.head._1) ++  withoutMID.map(_._1)).filterNot { _.get(moduleID.key) exists { m =>
           m.organization != "org.scala-lang" &&
             (pvd exists (p => m.organization == p.organization &&
               m.name == p.name))
         }
-      } groupBy(_.data) map { case (k,v) => v.head } toList
+      }.groupBy(_.data).map { case (k,v) => v.head }.toList
     },
     updateCheck              := {
       val log = streams.value.log
@@ -465,7 +460,7 @@ object Plugin extends sbt.Plugin {
           IO.delete(d)
         }
         in
-      }(Set(l.generatedSrc ** "R.java" get: _*))
+      }(Set((l.generatedSrc ** "R.java").get: _*))
       Seq.empty[File]
     },
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
@@ -530,6 +525,7 @@ object Plugin extends sbt.Plugin {
       minLevel < 21
     },
     dexMaxHeap               := "1024m",
+    dexMaxProcessCount       := java.lang.Runtime.getRuntime.availableProcessors,
     dexMulti                 := false,
     dexMainClasses           := Seq.empty,
     dexMinimizeMain          := false,
@@ -562,7 +558,7 @@ object Plugin extends sbt.Plugin {
         ANDROID_NS, "versionName").map(_.head.text) orElse Some(version.value)
     },
     packageForR             <<= manifest map { m =>
-      m.attribute("package") get 0 text
+      m.attribute("package").get.head.text
     },
     applicationId            := {
       packageName.?.value.fold(manifest.value.attribute("package").head.text) { p =>
@@ -649,8 +645,8 @@ object Plugin extends sbt.Plugin {
     debugTestsGenerator     <<= (debugIncludesTests,projectLayout) map {
       (tests,layout) =>
       if (tests)
-        (layout.testScalaSource ** "*.scala" get) ++
-          (layout.testJavaSource ** "*.java" get)
+        ((layout.testScalaSource ** "*.scala").get) ++
+          ((layout.testJavaSource ** "*.java").get)
       else Seq.empty
     },
     setDebug                 := { apkbuildDebug.value(true) },
@@ -706,8 +702,8 @@ object Plugin extends sbt.Plugin {
     },
     ilogger                  := { l: Logger => SbtLogger(l) },
     buildToolsVersion        := None,
-    sdkLoader               <<= sdkManager map { m =>
-      DefaultSdkLoader.getLoader(file(m.getLocation))
+    sdkLoader               <<= sdkManager { m =>
+      DefaultSdkLoader.getLoader(m.getLocation)
     },
     libraryRequests          := Nil,
     builder                 <<= ( sdkLoader
@@ -723,68 +719,27 @@ object Plugin extends sbt.Plugin {
       val bldr = new AndroidBuilder(n, "android-sdk-plugin",
         new DefaultProcessExecutor(l(s.log)),
         SbtJavaProcessExecutor,
-        new ErrorReporter(ErrorReporter.EvaluationMode.STANDARD) {
-
-          override def receiveMessage(message: Message) = {
-
-            val errorStringBuilder = new StringBuilder
-            message.getSourceFilePositions.asScala.foreach { pos =>
-              errorStringBuilder.append(pos.toString)
-              errorStringBuilder.append(' ')
-            }
-            if (errorStringBuilder.nonEmpty)
-              errorStringBuilder.append(": ")
-            if (message.getToolName.isPresent) {
-              errorStringBuilder.append(message.getToolName.get).append(": ")
-            }
-            errorStringBuilder.append(message.getText).append("\n")
-
-
-            val messageString = errorStringBuilder.toString
-
-            message.getKind match {
-              case Kind.ERROR =>
-                s.log.error(messageString)
-              case Kind.WARNING =>
-                s.log.warn(messageString)
-              case Kind.INFO =>
-                s.log.info(messageString)
-              case Kind.STATISTICS =>
-                s.log.debug(messageString)
-              case Kind.UNKNOWN =>
-                s.log.debug(messageString)
-              case Kind.SIMPLE =>
-                s.log.info(messageString)
-            }
-          }
-
-          override def handleSyncError(data: String, `type`: Int, msg: String) = {
-            s.log.error(s"android sync error: data=$data, type=${`type`}, msg=$msg")
-            new SyncIssue {
-              override def getType = `type`
-              override def getData = data
-              override def getMessage = msg
-              override def getSeverity = SyncIssue.SEVERITY_ERROR
-            }
-          }
-        },
+        SbtAndroidErrorReporter(s.log),
         l(s.log), false)
       val sdkInfo = ldr.getSdkInfo(l(s.log))
       val targetInfo = ldr.getTargetInfo(t, b.getRevision, l(s.log))
-      bldr.setTargetInfo(sdkInfo, targetInfo, reqs map { case ((nm, required)) => new LibraryRequest(nm, required) } asJava)
+      bldr.setTargetInfo(sdkInfo, targetInfo,
+        reqs.map { case ((nm, required)) =>
+          new LibraryRequest(nm, required) }.asJava)
       bldr
     },
     bootClasspath            := builder.value.getBootClasspath(false).asScala map Attributed.blank,
-    sdkManager              <<= (sdkPath,ilogger, streams) map { (p, l, s) =>
-      SdkManager.createManager(p, l(s.log))
+    sdkManager              <<= sdkPath { p =>
+      AndroidSdkHandler.getInstance(file(p))
     },
     buildTools              := {
       buildToolsVersion.value flatMap { version =>
-        Option(sdkManager.value.getBuildTool(FullRevision.parseRevision(version)))
+        Option(sdkManager.value.getBuildToolInfo(Revision.parseRevision(version),
+          SbtAndroidProgressIndicator(sLog.value)))
       } getOrElse {
-        val tools = sdkManager.value.getLatestBuildTool
+        val tools = sdkManager.value.getLatestBuildTool(SbtAndroidProgressIndicator(sLog.value))
         if (tools == null) fail("Android SDK build-tools not found")
-        else streams.value.log.debug("Using Android build-tools: " + tools)
+        else sLog.value.debug("Using Android build-tools: " + tools)
         tools
       }
     },
@@ -794,13 +749,14 @@ object Plugin extends sbt.Plugin {
     },
     platformApi             := {
       val tgt = sdkLoader.value.getTargetInfo(platformTarget.value,
-        buildTools.value.getRevision, ilogger.value(streams.value.log))
+        buildTools.value.getRevision, ilogger.value(sLog.value))
       tgt.getTarget.getVersion.getApiLevel
     },
-    platform                <<= (sdkManager, platformTarget, thisProject) map {
-      (m, p, prj) =>
-      val plat = Option(m.getTargetFromHashString(p))
-      plat getOrElse fail("Platform %s unknown in %s" format (p, prj.base))
+    platform                <<= (sdkManager, platformTarget, thisProject, sLog) {
+      (m, p, prj, s) =>
+        val logger = SbtAndroidProgressIndicator(s)
+        val plat = Option(m.getAndroidTargetManager(logger).getTargetFromHashString(p, logger))
+        plat getOrElse fail("Platform %s unknown in %s" format (p, prj.base))
     }
   )) ++ Seq(
     autoScalaLibrary   := {
@@ -822,7 +778,7 @@ object Plugin extends sbt.Plugin {
       val layout = projectLayout.value
       val extras = extraResDirectories.value.map(_.getCanonicalFile).distinct
       (layout.testSources +: layout.jni +: layout.res +: extras) flatMap { path =>
-        (path ** filter) get }
+        (path ** filter).get }
     },
     libraryDependencies <+= Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name),
     managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
@@ -943,68 +899,6 @@ object Plugin extends sbt.Plugin {
   }
 }
 
-object SbtJavaProcessExecutor extends JavaProcessExecutor {
-  override def execute(javaProcessInfo: JavaProcessInfo, processOutputHandler: ProcessOutputHandler) = {
-    val options = ForkOptions(
-      envVars = javaProcessInfo.getEnvironment.asScala map { case ((x, y)) => x -> y.toString } toMap,
-      runJVMOptions = javaProcessInfo.getJvmArgs.asScala ++
-        ("-cp" :: javaProcessInfo.getClasspath :: Nil))
-    val r = Fork.java(options, (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs.asScala)
-
-    new ProcessResult {
-      override def assertNormalExitValue() = {
-        if (r != 0) {
-          val e = new ProcessException(
-            s"Android SDK command failed ($r); see prior messages for details")
-          e.setStackTrace(Array.empty)
-          throw e
-        }
-        this
-      }
-
-      override def rethrowFailure() = this
-
-      override def getExitValue = r
-    }
-  }
-}
-
-case class SbtProcessOutputHandler(lg: Logger) extends BaseProcessOutputHandler {
-  override def handleOutput(processOutput: ProcessOutput) = {
-    processOutput match {
-      case p: BaseProcessOutput =>
-        val stdout = p.getStandardOutputAsString
-        if (!stdout.isEmpty)
-          lg.debug(stdout)
-        val stderr = p.getErrorOutputAsString
-        if (!stderr.isEmpty)
-          lg.warn(stderr)
-    }
-  }
-}
-case class SbtLogger(lg: Logger) extends ILogger {
-  override def verbose(fmt: java.lang.String, args: Object*) {
-    lg.debug(String.format(fmt, args:_*))
-  }
-  override def info(fmt: java.lang.String, args: Object*) {
-    lg.debug(String.format(fmt, args:_*))
-  }
-  override def warning(fmt: java.lang.String, args: Object*) {
-    lg.warn(String.format(fmt, args:_*))
-  }
-  override def error(t: Throwable, fmt: java.lang.String, args: Object*) {
-    lg.error(String.format(fmt, args:_*))
-    if (t != null)
-      lg.trace(t)
-  }
-}
-object NullLogger extends ILogger {
-  override def verbose(fmt: java.lang.String, args: Object*) = ()
-  override def info(fmt: java.lang.String, args: Object*) = ()
-  override def warning(fmt: java.lang.String, args: Object*) = ()
-  override def error(t: Throwable, fmt: java.lang.String, args: Object*) = ()
-}
-
 trait AutoBuild extends Build {
   private def loadLibraryProjects(b: File, props: Properties): Seq[Project] = {
     val p = props.asScala
@@ -1018,7 +912,7 @@ trait AutoBuild extends Build {
           libraryProject := true): _*) enablePlugins
             AndroidPlugin) +:
         loadLibraryProjects(b/p(k), loadProperties(b/p(k)))
-    }) distinct
+    }).distinct
   }
   private def target(basedir: File): String = {
     val props = loadProperties(basedir)
@@ -1034,16 +928,17 @@ trait AutoBuild extends Build {
         format basedir.getCanonicalPath): String
     }
     Option(props getProperty "target") getOrElse {
-      val manager = SdkManager.createManager(path, NullLogger)
-      val versions = (manager.getTargets map {
+      val handler = AndroidSdkHandler.getInstance(file(path))
+      val manager = handler.getAndroidTargetManager(NullProgressIndicator)
+      val versions = (manager.getTargets(NullProgressIndicator).asScala.toList.map {
         _.getVersion
-      } sorted) reverse
+      }.sorted).reverse
 
-      AndroidTargetHash.getPlatformHashString(versions(0))
+      AndroidTargetHash.getPlatformHashString(versions.head)
     }
   }
   private def pkgFor(manifest: File) =
-    (XML.loadFile(manifest).attribute("package") get 0 text).replaceAll(
+    (XML.loadFile(manifest).attribute("package").get.head.text).replaceAll(
       "\\.", "-")
 
   override def projects = {

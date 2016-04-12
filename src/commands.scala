@@ -3,20 +3,21 @@ package android
 import java.util.Locale
 
 import com.android.ddmlib.FileListingService.FileEntry
-import com.android.sdklib.{AndroidTargetHash, SdkManager}
+import com.android.sdklib.AndroidTargetHash
 import sbt._
-import sbt.complete.{Parsers, Parser}
+import sbt.complete.{Parser, Parsers}
 import complete.DefaultParsers._
-
 import java.io.File
 
 import com.android.ddmlib._
 import com.android.SdkConstants
+import com.android.sdklib.repositoryv2.targets.AndroidTargetManager
 
 import scala.annotation.tailrec
 import scala.util.Try
 import language.postfixOps
 import scala.util.matching.Regex
+import collection.JavaConverters._
 
 object Commands {
 
@@ -369,12 +370,12 @@ object Commands {
 
   val createProjectParser: State => Parser[Either[Unit, ((String, String), String)]] = state => {
     val sdk = sdkpath(state)
-    val manager = SdkManager.createManager(sdk, NullLogger)
-    val platforms = manager.getTargets
+    val manager = androidTargetManager(state)
+    val platforms = manager.getTargets(SbtAndroidProgressIndicator(state.log))
     if (platforms.isEmpty) {
       Plugin.fail("No platform targets configured in sdk located at: " + sdk)
     }
-    val targets = Parser.oneOf(platforms map { t =>
+    val targets = Parser.oneOf(platforms.asScala.toSeq map { t =>
       token(AndroidTargetHash.getPlatformHashString(t.getVersion))
     })
 
@@ -801,6 +802,10 @@ object Commands {
     }
   }
 
+  private def androidTargetManager(state: State): AndroidTargetManager = {
+    Project.extract(state).get(Keys.Internal.sdkManager)
+      .getAndroidTargetManager(SbtAndroidProgressIndicator(state.log))
+  }
   private def sdkpath(state: State): String = {
     Project.extract(state).getOpt(
       Keys.sdkPath) orElse (
