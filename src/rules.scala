@@ -3,15 +3,12 @@ package android
 import java.util.Properties
 
 import android.Dependencies.LibraryProject
-import com.android.builder.model.SyncIssue
-import com.android.ide.common.blame.Message
-import com.android.ide.common.blame.Message.Kind
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
 import com.hanhuy.sbt.bintray.UpdateChecker
 import sbt._
 import sbt.Keys._
-import com.android.builder.core.{AndroidBuilder, ErrorReporter, LibraryRequest}
+import com.android.builder.core.{AndroidBuilder, LibraryRequest}
 import com.android.builder.sdk.DefaultSdkLoader
 import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkVersionInfo}
 import com.android.SdkConstants
@@ -236,8 +233,8 @@ object Plugin extends sbt.Plugin {
       cleanForR.taskValue,
       Def.task {
         (apklibs.value ++ autolibs.value flatMap { l =>
-          ((l.layout.javaSource ** "*.java").get) ++
-            ((l.layout.scalaSource ** "*.scala").get)
+          (l.layout.javaSource ** "*.java").get ++
+            (l.layout.scalaSource ** "*.scala").get
         }) map (_.getAbsoluteFile)
       }.taskValue
     ),
@@ -570,7 +567,6 @@ object Plugin extends sbt.Plugin {
     targetSdkVersion         := {
       val m = manifest.value
       val usesSdk = m \ "uses-sdk"
-      val ldr = sdkLoader.value
       val v = String.valueOf(platformApi.value)
       if (usesSdk.isEmpty) v else
         usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion").fold(v) { _.head.text }
@@ -645,8 +641,8 @@ object Plugin extends sbt.Plugin {
     debugTestsGenerator     <<= (debugIncludesTests,projectLayout) map {
       (tests,layout) =>
       if (tests)
-        ((layout.testScalaSource ** "*.scala").get) ++
-          ((layout.testJavaSource ** "*.java").get)
+        (layout.testScalaSource ** "*.scala").get ++
+          (layout.testJavaSource ** "*.java").get
       else Seq.empty
     },
     setDebug                 := { apkbuildDebug.value(true) },
@@ -748,8 +744,9 @@ object Plugin extends sbt.Plugin {
         prj.id + ": configure project.properties or set 'platformTarget'")
     },
     platformApi             := {
+      // SDK makes some spurious warnings here, ignore them with NullLogger
       val tgt = sdkLoader.value.getTargetInfo(platformTarget.value,
-        buildTools.value.getRevision, ilogger.value(sLog.value))
+        buildTools.value.getRevision, SbtDebugLogger(sLog.value))
       tgt.getTarget.getVersion.getApiLevel
     },
     platform                <<= (sdkManager, platformTarget, thisProject, sLog) {
@@ -930,16 +927,15 @@ trait AutoBuild extends Build {
     Option(props getProperty "target") getOrElse {
       val handler = AndroidSdkHandler.getInstance(file(path))
       val manager = handler.getAndroidTargetManager(NullProgressIndicator)
-      val versions = (manager.getTargets(NullProgressIndicator).asScala.toList.map {
+      val versions = manager.getTargets(NullProgressIndicator).asScala.toList.map {
         _.getVersion
-      }.sorted).reverse
+      }.sorted.reverse
 
       AndroidTargetHash.getPlatformHashString(versions.head)
     }
   }
   private def pkgFor(manifest: File) =
-    (XML.loadFile(manifest).attribute("package").get.head.text).replaceAll(
-      "\\.", "-")
+    XML.loadFile(manifest).attribute("package").get.head.text.replace('.', '-')
 
   override def projects = {
 

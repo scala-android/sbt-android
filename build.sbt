@@ -106,6 +106,7 @@ resourceDirectory in Compile <<= baseDirectory(_ / "resources")
 
 libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "5.0.4",
+  "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile-internal",
   "org.javassist" % "javassist" % "3.20.0-GA",
   "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
   "com.android.tools.build" % "builder" % androidToolsVersion excludeAll

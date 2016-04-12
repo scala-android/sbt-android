@@ -24,12 +24,12 @@ case class SbtAndroidProgressIndicator(log: Logger) extends ProgressIndicatorAda
   }
 
   override def logWarning(s: String, e: Throwable) = {
-    log.warn(s)
+    log.debug(s)
     if (e != null)
       log.trace(e)
   }
 
-  override def logInfo(s: String) = log.info(s)
+  override def logInfo(s: String) = log.debug(s)
 }
 object NullProgressIndicator extends ProgressIndicatorAdapter
 
@@ -40,6 +40,22 @@ object NullLogger extends ILogger {
   override def error(t: Throwable, fmt: java.lang.String, args: Object*) = ()
 }
 
+case class SbtDebugLogger(lg: Logger) extends ILogger {
+  override def verbose(fmt: java.lang.String, args: Object*) {
+    lg.debug(String.format(fmt, args:_*))
+  }
+  override def info(fmt: java.lang.String, args: Object*) {
+    lg.debug(String.format(fmt, args:_*))
+  }
+  override def warning(fmt: java.lang.String, args: Object*) {
+    lg.debug(String.format(fmt, args:_*))
+  }
+  override def error(t: Throwable, fmt: java.lang.String, args: Object*) {
+    lg.debug(String.format(fmt, args:_*))
+    if (t != null)
+      lg.trace(t)
+  }
+}
 case class SbtLogger(lg: Logger) extends ILogger {
   override def verbose(fmt: java.lang.String, args: Object*) {
     lg.debug(String.format(fmt, args:_*))
