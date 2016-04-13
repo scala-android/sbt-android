@@ -204,7 +204,7 @@ object Keys {
     "whether to enable dex sharding, requires v21+, debug-only") in Android
   val dex = TaskKey[File]("dex", "run bytecode dexer") in Android
   val predex = TaskKey[Seq[(File,File)]]("predex", "pre-dex input libraries task") in Android
-  val predexSkip = SettingKey[Seq[File]]("predex-skip",
+  val predexSkip = TaskKey[Seq[File]]("predex-skip",
     "files to skip predexing, go straight into main dex") in Android
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "incremental dex, input jars to dex") in Android
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
@@ -229,7 +229,7 @@ object Keys {
     "include scala-library in proguard: true if scala source present") in Android
   val proguardLibraries = TaskKey[Seq[File]]("proguard-libraries",
     "files to pass as proguard -libraryjars") in Android
-  val proguardOptions = TaskKey[Seq[String]]("proguard-options",
+  val proguardOptions = SettingKey[Seq[String]]("proguard-options",
     "additional options to add to proguard-config") in Android
   val proguardConfig = TaskKey[Seq[String]]("proguard-config",
     "base proguard configuration") in Android
