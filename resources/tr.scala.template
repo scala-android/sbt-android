@@ -85,81 +85,81 @@ object TypedResource {
       inflate(tl, null, false)
   }
 
-  implicit val trAnimValueOp: TypedResValueOp[ResAnim] = new TypedResValueOp[ResAnim] {
+  implicit val trAnimValueOp: TypedResValueOp[ResAnim] { type T = Animation } = new TypedResValueOp[ResAnim] {
     type T = Animation
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       AnimationUtils.loadAnimation(c, resid)
   }
-  implicit val trAnimatorValueOp: TypedResValueOp[ResAnimator] = new TypedResValueOp[ResAnimator] {
+  implicit val trAnimatorValueOp: TypedResValueOp[ResAnimator] { type T = Animator } = new TypedResValueOp[ResAnimator] {
     type T = Animator
     @TargetApi(11)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       AnimatorInflater.loadAnimator(c, resid)
   }
-  implicit val trIntegerArrayValueOp: TypedResValueOp[ResIntegerArray] = new TypedResValueOp[ResIntegerArray] {
+  implicit val trIntegerArrayValueOp: TypedResValueOp[ResIntegerArray] { type T = Array[Int] } = new TypedResValueOp[ResIntegerArray] {
     type T = Array[Int]
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getIntArray(resid)
   }
-  implicit val trStringArrayValueOp: TypedResValueOp[ResStringArray] = new TypedResValueOp[ResStringArray] {
+  implicit val trStringArrayValueOp: TypedResValueOp[ResStringArray] { type T = Array[String] } = new TypedResValueOp[ResStringArray] {
     type T = Array[String]
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getStringArray(resid)
   }
-  implicit val trTypedArrayValueOp: TypedResValueOp[ResArray] = new TypedResValueOp[ResArray] {
+  implicit val trTypedArrayValueOp: TypedResValueOp[ResArray] { type T = TypedArray } = new TypedResValueOp[ResArray] {
     type T = TypedArray
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.obtainTypedArray(resid)
   }
-  implicit val trBoolValueOp: TypedResValueOp[ResBool] = new TypedResValueOp[ResBool] {
+  implicit val trBoolValueOp: TypedResValueOp[ResBool] { type T = Boolean } = new TypedResValueOp[ResBool] {
     type T = Boolean
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getBoolean(resid)
   }
-  implicit val trColorValueOp: TypedResValueOp[ResColor] = new TypedResValueOp[ResColor] {
+  implicit val trColorValueOp: TypedResValueOp[ResColor] { type T = Int } = new TypedResValueOp[ResColor] {
     type T = Int
     @TargetApi(23)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
 %s
   }
-  implicit val trDimenValueOp: TypedResValueOp[ResDimen] = new TypedResValueOp[ResDimen] {
+  implicit val trDimenValueOp: TypedResValueOp[ResDimen] { type T = Int } = new TypedResValueOp[ResDimen] {
     type T = Int
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getDimensionPixelSize(resid)
   }
-  implicit val trDrawableValueOp: TypedResValueOp[ResDrawable] = new TypedResValueOp[ResDrawable] {
+  implicit val trDrawableValueOp: TypedResValueOp[ResDrawable] { type T = Drawable } = new TypedResValueOp[ResDrawable] {
     type T = Drawable
     @TargetApi(21)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
 %s
   }
-  implicit val trIntegerValueOp: TypedResValueOp[ResInteger] = new TypedResValueOp[ResInteger] {
+  implicit val trIntegerValueOp: TypedResValueOp[ResInteger] { type T = Int } = new TypedResValueOp[ResInteger] {
     type T = Int
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getInteger(resid)
   }
-  implicit val trInterpolatorValueOp: TypedResValueOp[ResInterpolator] = new TypedResValueOp[ResInterpolator] {
+  implicit val trInterpolatorValueOp: TypedResValueOp[ResInterpolator] { type T = Interpolator } = new TypedResValueOp[ResInterpolator] {
     type T = Interpolator
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       AnimationUtils.loadInterpolator(c, resid)
   }
-  implicit val trMipMapValueOp: TypedResValueOp[ResMipMap] = new TypedResValueOp[ResMipMap] {
+  implicit val trMipMapValueOp: TypedResValueOp[ResMipMap] { type T = Drawable } = new TypedResValueOp[ResMipMap] {
     type T = Drawable
     @TargetApi(21)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
 %s
   }
-  implicit val trRawValueOp: TypedResValueOp[ResRaw] = new TypedResValueOp[ResRaw] {
+  implicit val trRawValueOp: TypedResValueOp[ResRaw] { type T = java.io.InputStream } = new TypedResValueOp[ResRaw] {
     type T = java.io.InputStream
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.openRawResource(resid)
   }
-  implicit val trStringValueOp: TypedResValueOp[ResString] = new TypedResValueOp[ResString] {
+  implicit val trStringValueOp: TypedResValueOp[ResString] { type T = String } = new TypedResValueOp[ResString] {
     type T = String
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getString(resid)
   }
-  implicit val trXmlValueOp: TypedResValueOp[ResXml] = new TypedResValueOp[ResXml] {
+  implicit val trXmlValueOp: TypedResValueOp[ResXml] { type T = XmlResourceParser } = new TypedResValueOp[ResXml] {
     type T = XmlResourceParser
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getXml(resid)
