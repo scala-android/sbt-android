@@ -528,7 +528,7 @@ object Plugin extends sbt.Plugin {
     dexMinimizeMain          := false,
     dexAdditionalParams      := Seq.empty,
     dexMainClassesConfig    <<= dexMainClassesConfigTaskDef dependsOn (packageT in Compile),
-    platformJars            <<= platform map { p =>
+    platformJars            <<= platform { p =>
       (p.getPath(IAndroidTarget.ANDROID_JAR),
       p.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))
     },
@@ -680,11 +680,11 @@ object Plugin extends sbt.Plugin {
     zipalignPath            <<= ( sdkPath
                                 , sdkManager
                                 , buildTools
-                                , streams) map { (p, m, bt, s) =>
+                                , sLog) { (p, m, bt, s) =>
       import SdkConstants._
       val pathInBt = bt.getLocation / FN_ZIPALIGN
 
-      s.log.debug("checking zipalign at: " + pathInBt)
+      s.debug("checking zipalign at: " + pathInBt)
 
       if (pathInBt.exists)
         pathInBt.getAbsolutePath
@@ -708,9 +708,8 @@ object Plugin extends sbt.Plugin {
                                 , ilogger
                                 , buildTools
                                 , platformTarget
-                                , libraryRequests
-                                , state) map {
-      (ldr, m, n, l, b, t, reqs, s) =>
+                                , libraryRequests) {
+      (ldr, m, n, l, b, t, reqs) =>
 
       val l2 = SbtAndroidErrorReporter()
       val bldr = new AndroidBuilder(n, "android-sdk-plugin",
@@ -729,7 +728,7 @@ object Plugin extends sbt.Plugin {
         bldr
       }
     },
-    bootClasspath            := builder.value(streams.value.log).getBootClasspath(false).asScala map Attributed.blank,
+    bootClasspath            := builder.value(sLog.value).getBootClasspath(false).asScala map Attributed.blank,
     sdkManager              <<= sdkPath { p =>
       AndroidSdkHandler.getInstance(file(p))
     },

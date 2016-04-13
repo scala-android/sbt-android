@@ -54,7 +54,7 @@ object Keys {
     "compileSdkVersion API level derived from 'platformTarget', do not override") in Android
   val buildToolsVersion = SettingKey[Option[String]]("build-tools-version",
     "Version of Android build-tools to utilize, None (default) for latest") in Android
-  val bootClasspath = TaskKey[sbt.Keys.Classpath](
+  val bootClasspath = SettingKey[sbt.Keys.Classpath](
     "boot-classpath", "boot classpath for android platform jar") in Android
   val updateCheck = TaskKey[Unit]("update-check", "Check for a new version of the plugin") in Android
   val flavors = SettingKey[Map[String,Seq[Setting[_]]]]("flavors",
@@ -204,7 +204,7 @@ object Keys {
     "whether to enable dex sharding, requires v21+, debug-only") in Android
   val dex = TaskKey[File]("dex", "run bytecode dexer") in Android
   val predex = TaskKey[Seq[(File,File)]]("predex", "pre-dex input libraries task") in Android
-  val predexSkip = TaskKey[Seq[File]]("predex-skip",
+  val predexSkip = SettingKey[Seq[File]]("predex-skip",
     "files to skip predexing, go straight into main dex") in Android
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "incremental dex, input jars to dex") in Android
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
@@ -290,9 +290,9 @@ object Keys {
     val ilogger = SettingKey[SbtILogger]("ilogger", "internal Android SDK logger") in Android
     val debugTestsGenerator = TaskKey[Seq[File]]("debug-tests-generator",
       "includes test sources in debug builds if debug-includes-tests") in Android
-    val zipalignPath = TaskKey[String]("zipalign-path",
+    val zipalignPath = SettingKey[String]("zipalign-path",
       "path to the zipalign executable") in Android
-    val builder = TaskKey[Logger => AndroidBuilder]("android-builder", "AndroidBuilder object") in Android
+    val builder = SettingKey[Logger => AndroidBuilder]("android-builder", "AndroidBuilder object") in Android
     val apklibArtifact = SettingKey[Artifact]("apklib-artifact",
       "artifact object for publishing apklibs") in Android
     val aarArtifact = SettingKey[Artifact]("aar-artifact",
@@ -305,7 +305,7 @@ object Keys {
       "android manifest file path") in Android
     val platform = SettingKey[IAndroidTarget]("platform",
       "IAndroidTarget object representing a target API level") in Android
-    val platformJars = TaskKey[(String,Seq[String])]("platform-jars",
+    val platformJars = SettingKey[(String,Seq[String])]("platform-jars",
       "Path to android.jar and optional jars (e.g. google apis), if any") in Android
     val proguardInputs = TaskKey[ProguardInputs]("proguard-inputs",
       "a tuple specifying -injars and -libraryjars (in that order)") in Android
