@@ -123,7 +123,7 @@ object TypedResource {
 %s
   }
   implicit val trDimenValueOp: TypedResValueOp[ResDimen] = new TypedResValueOp[ResDimen] {
-    type T = Integer
+    type T = Int
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getDimensionPixelSize(resid)
   }
@@ -134,7 +134,7 @@ object TypedResource {
 %s
   }
   implicit val trIntegerValueOp: TypedResValueOp[ResInteger] = new TypedResValueOp[ResInteger] {
-    type T = Integer
+    type T = Int
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getInteger(resid)
   }
