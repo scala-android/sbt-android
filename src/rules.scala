@@ -696,7 +696,15 @@ object Plugin extends sbt.Plugin {
         zipalign.getAbsolutePath
       }
     },
-    ilogger                  := SbtILogger(),
+    ilogger                  := {
+      val logger = SbtILogger()
+
+      {
+        l =>
+          logger(l)
+          logger
+      }
+    },
     buildToolsVersion        := None,
     sdkLoader               <<= sdkManager { m =>
       DefaultSdkLoader.getLoader(m.getLocation)
@@ -708,9 +716,10 @@ object Plugin extends sbt.Plugin {
                                 , ilogger
                                 , buildTools
                                 , platformTarget
-                                , libraryRequests) {
-      (ldr, m, n, l, b, t, reqs) =>
-
+                                , libraryRequests
+                                , sLog) {
+      (ldr, m, n, l_, b, t, reqs, log) =>
+      val l = l_(log)
       val l2 = SbtAndroidErrorReporter()
       val bldr = new AndroidBuilder(n, "android-sdk-plugin",
         new DefaultProcessExecutor(l),
@@ -723,7 +732,7 @@ object Plugin extends sbt.Plugin {
           new LibraryRequest(nm, required) }.asJava)
 
       { logger =>
-        l(logger)
+        l_(logger)
         l2(logger)
         bldr
       }

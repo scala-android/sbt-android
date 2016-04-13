@@ -429,7 +429,7 @@ object Tasks {
       val assets = layout.assets +: ea.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get)
       withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
         val res = Resources.doCollectResources(bldr(s.log), minLevel, noTestApk,
-          isLib, libs, layout, ea, layout.generatedRes +: er, rv, logger,
+          isLib, libs, layout, ea, layout.generatedRes +: er, rv, logger(s.log),
           s.cacheDirectory, s)
         if (out != res) sys.error(s"Unexpected directories $out != $res")
         Set(res._1, res._2)
@@ -550,8 +550,7 @@ object Tasks {
     val dcp = (dependencyClasspath in Compile).value
     val s = streams.value
     val filter = ndkAbiFilter.value
-    val logger = ilogger.value
-    logger(s.log)
+    val logger = ilogger.value(s.log)
     Packaging.apkbuild(builder.value(s.log), m, u, dcp, libraryProject.value, a,
       filter.toSet, layout.collectJni, layout.resources, layout.collectResource,
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)

@@ -52,11 +52,10 @@ object Resources {
                           , extraAssets: Seq[File]
                           , extraRes: Seq[File]
                           , renderVectors: Boolean
-                          , logger: SbtILogger
+                          , logger: ILogger
                           , cache: File
                           , s: TaskStreams
                           )(implicit m: BuildOutput.Converter): (File,File) = {
-    logger(s.log)
     val assetBin = layout.mergedAssets
     val assets = layout.assets
     val resTarget = layout.mergedRes
