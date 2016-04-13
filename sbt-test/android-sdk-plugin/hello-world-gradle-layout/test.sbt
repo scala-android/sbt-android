@@ -1,7 +1,7 @@
 import android.Keys._
 import android.BuildOutput._
 
-TaskKey[Unit]("check-test-dex") <<= ( TaskKey[Logger => com.android.builder.core.AndroidBuilder]("android-builder") in Android
+TaskKey[Unit]("check-test-dex") <<= ( SettingKey[Logger => com.android.builder.core.AndroidBuilder]("android-builder") in Android
                                , projectLayout in Android
                                , outputLayout in Android
                                , streams

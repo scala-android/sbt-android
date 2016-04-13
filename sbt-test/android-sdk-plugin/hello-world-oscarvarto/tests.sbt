@@ -3,7 +3,7 @@ import java.util.zip._
 import java.io._
 import android.BuildOutput._
 
-TaskKey[Unit]("check-dex") <<= ( TaskKey[Logger => com.android.builder.core.AndroidBuilder]("android-builder") in Android
+TaskKey[Unit]("check-dex") <<= ( SettingKey[Logger => com.android.builder.core.AndroidBuilder]("android-builder") in Android
                                , projectLayout in Android
                                , outputLayout in Android
                                , streams
