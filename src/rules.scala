@@ -7,6 +7,7 @@ import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
 import com.hanhuy.sbt.bintray.UpdateChecker
 import sbt._
+import sbt.Cache.StringFormat
 import sbt.Keys._
 import com.android.builder.core.{AndroidBuilder, LibraryRequest}
 import com.android.builder.sdk.DefaultSdkLoader
@@ -20,13 +21,13 @@ import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.xml.XML
-
 import Keys._
 import Keys.Internal._
 import Tasks._
 import Resources.ANDROID_NS
 import Commands._
 import Dependencies.LibrarySeqOps
+import parsers.sbinaryFileFormat
 
 object Plugin extends sbt.Plugin {
 
@@ -541,7 +542,7 @@ object Plugin extends sbt.Plugin {
     mergeManifests           := true,
     manifestPlaceholders     := Map.empty,
     manifestOverlays         := Seq.empty,
-    processManifest         <<= processManifestTaskDef,
+    processManifest         <<= processManifestTaskDef storeAs processManifest,
     manifest                <<= manifestPath map { m =>
       if (!m.exists)
         fail("cannot find AndroidManifest.xml: " + m)
@@ -557,13 +558,13 @@ object Plugin extends sbt.Plugin {
     packageForR             <<= manifest map { m =>
       m.attribute("package").get.head.text
     },
-    applicationId            := {
+    applicationId           <<= Def.task {
       packageName.?.value.fold(manifest.value.attribute("package").head.text) { p =>
         streams.value.log.warn(
           "'packageName in Android' is deprecated, use 'applicationId'")
         p
       }
-    },
+    } storeAs applicationId,
     targetSdkVersion         := {
       val m = manifest.value
       val usesSdk = m \ "uses-sdk"

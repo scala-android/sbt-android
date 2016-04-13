@@ -899,9 +899,9 @@ object Tasks {
                    , outputLayout
                    , apkbuildDebug
                    , streams) map {
-    case (bldr, dexOpts, shards, pd, legacy, lib, bin, o, debug, s) =>
+    case (bldr, dexOpts, shards, pd, legacy, lib, bin, o, d, s) =>
       implicit val output = o
-      Dex.dex(bldr(s.log), dexOpts, pd, None /* unused, left for compat */, legacy, lib, bin.dex, shards, debug(), s)
+      Dex.dex(bldr(s.log), dexOpts, pd, None /* unused, left for compat */, legacy, lib, bin.dex, shards, d(), s)
   }
 
   val predexTaskDef = Def.task {
@@ -931,12 +931,12 @@ object Tasks {
                               , apkbuildDebug
                               , streams
                               ) map {
-    case (pa, l, d, (p, x), c, o, debug, st) =>
+    case (pa, l, d, (p, x), c, o, dbg, st) =>
       implicit val output = o
       Proguard.proguardInputs(
-        (pa.useProguard && !debug()) || (pa.useProguardInDebug && debug()),
+        (pa.useProguard && !dbg()) || (pa.useProguardInDebug && dbg()),
         pa.proguardOptions, pa.proguardConfig,
-        l, d, p, x, c.classesJar, pa.proguardScala, pa.proguardCache, debug(), st)
+        l, d, p, x, c.classesJar, pa.proguardScala, pa.proguardCache, dbg(), st)
   }
 
   val resourceShrinkerTaskDef = Def.task {
@@ -984,9 +984,9 @@ object Tasks {
       , outputLayout
       , retrolambdaAggregate
       , streams
-      ) map { case (a, bldr, l, inputs, debug, b, output, ra, s) =>
+      ) map { case (a, bldr, l, inputs, d, b, output, ra, s) =>
         implicit val o = output
-        Proguard.proguard(a, bldr(s.log), l, inputs, debug(), b.proguardOut, ra, s)
+        Proguard.proguard(a, bldr(s.log), l, inputs, d(), b.proguardOut, ra, s)
   }
 
   case class TestListener(log: Logger) extends ITestRunListener {
@@ -1282,11 +1282,10 @@ object Tasks {
     if (isLib)
       Plugin.fail("This project is not runnable, it has set 'libraryProject := true")
 
-    val r = Def.spaceDelimited().parsed
     val manifestXml = l.processedManifest
     val m = XML.loadFile(manifestXml)
     // if an arg is specified, try to launch that
-    (if (r.isEmpty) None else Some(r mkString " ")) orElse ((m \\ "activity") find {
+    parsers.activityParser.parsed orElse ((m \\ "activity") find {
       // runs the first-found activity
       a => (a \ "intent-filter") exists { filter =>
         val attrpath = "@{%s}name" format ANDROID_NS
