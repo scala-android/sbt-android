@@ -805,12 +805,12 @@ object Plugin extends sbt.Plugin {
   private def adbCat = Command(
     "adb-cat", ("adb-cat", "Cat a file from device"),
     "Cat a file from device to stdout"
-  )(androidFileParser)(adbCatAction)
+  )(androidFileCommandParser)(adbCatAction)
 
   private def adbRm = Command(
     "adb-rm", ("adb-rm", "Remove a file from device"),
     "Remove a file from device"
-  )(androidFileParser)(adbRmAction)
+  )(androidFileCommandParser)(adbRmAction)
 
   private def adbPull = Command(
     "adb-pull", ("adb-pull", "pull a file from device"),
@@ -840,7 +840,7 @@ object Plugin extends sbt.Plugin {
   private def adbLs = Command(
     "adb-ls", ("adb-ls", "list device files"),
     "List files located on the selected android device"
-  )(androidFileParser)(adbLsAction)
+  )(androidFileCommandParser)(adbLsAction)
 
   private def logcat = Command(
     "logcat", ("logcat", "grab device logcat"),

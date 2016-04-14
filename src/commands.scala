@@ -76,31 +76,30 @@ object Commands {
     state
   }
 
-  val fileSep = token(charClass(c => c == '/' || c == '\\'), "/")
+  val fileSep = token(charClass(c => c == '/' || c == '\\')).examples("/")
   def localPathParser(entry: File): Parser[File] = {
-    if (entry.isFile) Parser.success(entry) else {
-      val children = (Option(entry.listFiles) map { c =>
-        entry / ".." +: c map { e =>
-          e.getName -> e
+    if (!entry.isDirectory) Parser.success(entry) else {
+      val children = Option(entry.listFiles).map { c =>
+        val entries = c.map { e =>
+          val suffix = if (e.isDirectory) "/" else ""
+          e.getName + suffix -> e
         }
-      } getOrElse Array.empty) toMap
+        if (entry.getParentFile != null) {
+          ("../" -> entry.getParentFile) +: entries
+        } else
+          entries
+      }.getOrElse(Array.empty).toMap
 
-      if (children.isEmpty) {
-        success(entry)
-      } else {
-        val completions = children.keys map { e =>
-          token(e)
-        } toSeq
-
-        val eof = EOF map { _ => entry}
-        val dot = literal(".") map { _ => entry }
-        dot | eof | (Parser.oneOf(completions) flatMap { e =>
-          val entry = children(e)
-          val eof = EOF map { _ => entry}
-          eof | (fileSep ~> Parser.opt(localPathParser(entry)) map (
-            _ getOrElse entry))
-        })
-      }
+      val eof = EOF map { _ => entry }
+      val dot = literal(".") map { _ => entry }
+      eof | token(StringBasic.examples(children.keys.toSeq.distinct:_*)).flatMap { e =>
+        val entry2 = children.getOrElse(e, new File(entry, e.trim))
+        val eof2 = EOF map { _ => entry2 }
+        if (entry2.isFile) Parser.success(entry2) else {
+          eof2 | (fileSep ~> Parser.opt(localPathParser(entry2)) map (
+            _ getOrElse entry2))
+        }
+      } | dot
     }
   }
 
@@ -108,54 +107,60 @@ object Commands {
     Locale.ENGLISH).contains("windows")
 
   val rootPathParser: Parser[File] = {
-    val drives = Parser.charClass { c =>
-      val c2 = c.toLower
-      c2 > 'a' && c2 < 'z'
+    val rs = Option(File.listRoots).getOrElse(Array.empty).toList
+    val roots = rs.flatMap { r =>
+      val path = r.getAbsolutePath
+      if (path.endsWith("\\")) {
+        token(path, path).map(file) ::
+          token(path.toLowerCase, path).map(file) ::
+          token(path.replace('\\','/'), path).map(file) ::
+          token(path.toLowerCase.replace('\\','/'), path).map(file) ::
+          Nil
+      } else {
+        token(path).map(file) :: Nil
+      }
     }
-
-    val root = fileSep map ( _ => file("/") )
-    (if (isWindows) {
-      root | token((drives ~ ":" ~ fileSep) map {
-        case ((d,_),_) => file(d + ":/") })
-    } else {
-      root
-    }) flatMap localPathParser
+    oneOf(roots).examples(rs.map(_.getAbsolutePath):_*) flatMap localPathParser
   }
   val localFileParser: State => Parser[File] = state => {
+    rootPathParser | localPathParser(file("."))
+  }
 
-    ((EOF map { _ => (file("."), None) }) |
-      (Space ~> (rootPathParser | localPathParser(file("."))) ~
-        Parser.opt(fileSep ~> token(Parsers.StringBasic, "")))) map {
-      case (a, b) =>
-        b map { f => new File(a, f) } getOrElse a
+  def androidPathParser(entry: FileEntry, fs: FileListingService): Parser[(FileEntry,Option[String])] = {
+    if (!entry.isDirectory) Parser.success((entry, None)) else {
+      val children = fs.getChildrenSync(entry).map(e => e.getName -> e).toMap
+      val eof = EOF map (_ => (entry,None))
+      // TODO FIXME this prevents parsing paths that cannot be read by ADB
+      // workaround `adb-shell cp` or `adb-runas cp` to somewhere readable first
+      eof | token(StringBasic.filter(!_.contains("/"), s => "Unknown path: " + s).examples(children.keys.toSeq.distinct:_*)).flatMap { e =>
+        val e2 = children.get(e)
+        e2 match {
+          case Some(entry2) =>
+            val eof2 = EOF.map(_ => entry2 -> None)
+            if (!entry2.isDirectory)
+              Parser.success((entry2, None))
+            else
+              eof2 | (token("/") ~> Parser.opt(androidPathParser(entry2, fs)).map {
+                _.getOrElse((entry2, None))
+              })
+          case None =>
+            Parser.success((entry, Some(e)))
+        }
+      }
     }
   }
 
-  def androidPathParser(entry: FileEntry, fs: FileListingService): Parser[FileEntry] = {
-    val children = fs.getChildrenSync(entry) map { e => e.getName -> e} toMap
+  def withFileService[A](s: State)(f: FileListingService => Parser[A]): Parser[A] =
+    Try (targetDevice(sdkpath(s), s.log)).toOption.flatten.map(d => f(d.getFileListingService)) getOrElse
+      Parser.failure("No devices connected")
 
-    if (children.isEmpty) Parser.success(entry) else {
-      val completions = children.keys map { e =>
-        token(e)
-      } toSeq
-
-      val eof = EOF map {_ => entry}
-      eof | (Parser.oneOf(completions) flatMap { e =>
-        val entry = children(e)
-        val eof = EOF map {_ => entry}
-        eof | (token("/") ~> Parser.opt(androidPathParser(entry, fs)) map (
-          _ getOrElse entry))
-      })
-    }
+  def androidFileParser(fs: FileListingService): State => Parser[(FileEntry,Option[String])] = state => {
+    token("/") ~> androidPathParser(fs.getRoot, fs)
   }
-
-  val androidFileParser: State => Parser[(FileEntry,Option[String])] = state => {
-    Try(targetDevice(sdkpath(state), state.log)).toOption.flatten map { d =>
-      val fs = d.getFileListingService
-      (EOF map { _ => (fs.getRoot,None) }) |
-        ((Space ~> token("/") ~> androidPathParser(fs.getRoot, fs)) ~
-          Parser.opt(token("/") ~> token(Parsers.StringBasic, "")))
-    } getOrElse (Parser.failure("No devices connected") map ( _ => null))
+  val androidFileCommandParser: State => Parser[(FileEntry,Option[String])] = state => {
+    withFileService(state) { fs =>
+      Space ~> androidFileParser(fs)(state)
+    }
   }
 
   private def printEntry(state: State, entry: FileEntry) {
@@ -189,10 +194,14 @@ object Commands {
       state
   }
   val adbPushParser: State => Parser[(File,(FileEntry,Option[String]))] =
-    state => localFileParser(state) ~ androidFileParser(state)
+    state => Space ~> localFileParser(state) ~ withFileService(state) { fs =>
+      EOF.map(_ => (fs.getRoot, None)) | (Space ~> androidFileParser(fs)(state))
+    }
 
   val adbPullParser: State => Parser[((FileEntry,Option[String]),File)] =
-    state => androidFileParser(state) ~ localFileParser(state)
+    state => Space ~> withFileService(state) { fs =>
+      androidFileParser(fs)(state)
+    } ~ (EOF.map(_ => file(".")) | (Space ~> localFileParser(state)))
 
   val adbPullAction: (State, ((FileEntry,Option[String]), File)) => State = {
     case (state, ((entry, name), f)) =>
@@ -210,9 +219,14 @@ object Commands {
             }
             new File(f, n)
           } else f
-          d.pullFile(target, dest.getAbsolutePath)
+          try {
+            d.pullFile(target, dest.getAbsolutePath)
+          } catch {
+            case e: SyncException =>
+              state.log.error("ADB pull failed: " + e.getMessage)
+          }
         case None =>
-          Parser.failure("No devices connected") map (_ => null)
+          Plugin.fail("No devices connected")
       }
       state
   }
@@ -220,13 +234,21 @@ object Commands {
   val adbPushAction: (State, (File,(FileEntry,Option[String]))) => State = {
     case (state, (f, (entry, name))) =>
       val target = name map {
-        entry.getFullPath + "/" + _ } getOrElse entry.getFullPath
+        entry.getFullPath + "/" + _ } getOrElse {
+        if (entry.isDirectory) entry.getFullPath + "/" + f.getName
+        else entry.getFullPath
+      }
       state.log.info("Pushing [%s] to [%s]" format (f, target))
       if (!f.isFile)
         Plugin.fail(f + " is not a file")
       targetDevice(sdkpath(state), state.log) match {
-        case Some(d) => d.pushFile(f.getAbsolutePath, target)
-        case None => Parser.failure("No devices connected") map ( _ => null)
+        case Some(d) => try {
+          d.pushFile(f.getAbsolutePath, target)
+        } catch {
+          case e: SyncException =>
+            state.log.error("ADB push failed: " + e.getMessage)
+        }
+        case None => Plugin.fail("No devices connected")
       }
       state
   }
@@ -254,7 +276,7 @@ object Commands {
         d.pullFile(target, f.getAbsolutePath)
         IO.readLines(f) foreach println
         f.delete()
-      } getOrElse (Parser.failure("No devices connected") map ( _ => null))
+      } getOrElse Plugin.fail("No devices connected")
       state
   }
 
