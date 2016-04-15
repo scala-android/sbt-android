@@ -130,9 +130,12 @@ object Commands {
     if (!entry.isDirectory) Parser.success((entry, None)) else {
       val children = fs.getChildrenSync(entry).map(e => e.getName -> e).toMap
       val eof = EOF map (_ => (entry,None))
-      // TODO FIXME this prevents parsing paths that cannot be read by ADB
-      // workaround `adb-shell cp` or `adb-runas cp` to somewhere readable first
-      eof | token(StringBasic.filter(!_.contains("/"), s => "Unknown path: " + s).examples(children.keys.toSeq.distinct:_*)).flatMap { e =>
+      eof | token(StringBasic.examples(children.keys.toSeq.distinct:_*)).flatMap { e =>
+        val entries = e.split('/')
+        val (entries2, remaining) = entries.toList.foldLeft((entry,List.empty[String])) { case ((f, ss), x) =>
+          val fe = Option(f.findChild(x))
+          (fe.getOrElse(f), fe.fold(ss :+ x)(_=>ss))
+        }
         val e2 = children.get(e)
         e2 match {
           case Some(entry2) =>
@@ -144,7 +147,10 @@ object Commands {
                 _.getOrElse((entry2, None))
               })
           case None =>
-            Parser.success((entry, Some(e)))
+            val path = remaining.mkString("/")
+            if (entries2.isDirectory && entries2.getCachedChildren.isEmpty)
+              fs.getChildrenSync(entries2)
+            Parser.success((entries2, Some(path).filter(_.nonEmpty)))
         }
       }
     }
@@ -174,12 +180,8 @@ object Commands {
 
   val adbLsAction: (State, (FileEntry,Option[String])) => State = {
     case (state, (entry, name)) =>
-      val fixed = name flatMap { n =>
-        val n2 = n.dropWhile(_ == '/')
-        if (n2.trim.isEmpty) Some(n2) else None
-      }
       if (entry.isDirectory) {
-        fixed match {
+        name match {
           case Some(n) =>
             val child = entry.findChild(n)
             if (child != null) {

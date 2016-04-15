@@ -56,6 +56,7 @@ val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++
   scalacOptions ++= Seq("-deprecation","-Xlint","-feature"),
   libraryDependencies ++= Seq(
     "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
+    "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile-internal",
     "org.gradle" % "gradle-tooling-api" % "2.6" % "provided",
     "org.slf4j" % "slf4j-api" % "1.7.10" // required by gradle-tooling-api
   ),
