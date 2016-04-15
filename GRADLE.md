@@ -1,6 +1,13 @@
-# Android Gradle Auto-Import Plugin for SBT #
+# Build Android Gradle Projects Using SBT #
 
-Current version is 1.1.12
+[![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+Current version is 1.2.0
+
+NOTE: 1.2.0 is the last version published using
+`addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.2.0")`,
+all future updates will be used by including
+`addSbtPlugin("org.scala-android" % "sbt-android-gradle" % VERSION)`
 
 ## Description ##
 
@@ -14,10 +21,9 @@ whenever changes occur.
 
 1. Download & install SBT 0.13.6+ (google it)
 2. From your Android project root, wherever the base `build.gradle` is located,
-   load `android-gradle-build`:
+   load `sbt-android-gradle`:
    * `mkdir project`
-   * `echo 'addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.1.12")' > project/plugins.sbt`
-   * `echo "object Build extends android.GradleBuild" > project/build.scala`
+   * `echo 'addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.2.0")' > project/plugins.sbt`
 3. Run `sbt`
    * The initial load will be slow as gradle will run to extract all
      project settings and export them into sbt
@@ -32,9 +38,12 @@ whenever changes occur.
        replace `Some(...)` with `None` if only a build-type or flavor is desired.
      * By default, the first found build type and flavor will be loaded.
      * To select an alternative flavor/buildType at sbt file generation,
-       override the `flavor` or `buildType` methods on `android.GradleBuild`
-4. Load other SBT plugins such as [protify](https://github.com/pfn/protify) to
-   further enhance the Android build experience
+       set `build.flavor` and/or `build.type` properties in a properties file
+       of your choosing.
+     * Gradle command line options can be passed by setting `gradle.options` in
+       any properties file of your choosing
+4. Load other SBT plugins such as [sbt-android-protify](https://github.com/scala-android/sbt-android-protify) to
+   further enhance the build experience
 
 
 ### Limitations ###

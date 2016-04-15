@@ -1,30 +1,33 @@
-# Android SDK Plugin for SBT #
+# Build Android Projects Using SBT #
 
-[![Join the chat at https://gitter.im/pfn/android-sdk-plugin](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/pfn/android-sdk-plugin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.5.20 ([Change log](CHANGES.md))
+Current version is 1.6.0 ([Change log](CHANGES.md))
 
-Auto-import from gradle using [android-gradle-build](GRADLE.md)
+Auto-import from gradle using [sbt-android-gradle](GRADLE.md)
+
+NOTE: 1.6.0 is the last version published using
+`addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.6.0")`,
+all future updates will be used by including
+`addSbtPlugin("org.scala-android" % "sbt-android" % VERSION)`
 
 ## Description ##
 
 This is an easy-to-use plugin for existing and newly created android
 projects.  It is tested and developed against 0.13.6+.
 
-The plugin supports normal android projects and projects that reference
-library projects. 3rd party libraries can be included by placing them in
-`libs` as in regular projects, or they can be added by using sbt's
-`libraryDependencies` feature. This build setup is 100% compatible with
-Google's own `gradle` build system due to the use of the same underlying
+The plugin supports all android projects configurations. 3rd party libraries
+can be included by placing them in `libs`, or they can be added by using sbt's
+`libraryDependencies` feature. This build plugin is 100% compatible with
+the standard Android build system due to the use of the same underlying
 `com.android.tools.build:builder` implementation.
 
 NOTE: proguard 5.1 does not like old versions of scala. Projects that wish
-to use Proguard 5.1 and Scala should use `scalaVersion := "2.11.5"` or newer.
-For compatible scala projects and java-based projects which wish to use
-proguard 5.1 (to fix issues around generic types being removed from
-base-classes) a workaround is to add a local file, `project/proguard.sbt`,
-containing:
-`libraryDependencies += "net.sf.proguard" % "proguard-base" % "5.1"`.
+to use Proguard 5.1 or newer with Scala should use `scalaVersion := "2.11.5"`
+or newer. For compatible scala projects and java-based projects which wish to
+use proguard 5.1 (to fix issues around generic types being removed from
+base-classes) a workaround is to add this setting into your `build.sbt`:
+`proguardVersion := "5.1"`.
 See [proguard bug #549](https://sourceforge.net/p/proguard/bugs/549/) and
 [SI-8931](https://issues.scala-lang.org/browse/SI-8931)
 
@@ -34,20 +37,20 @@ NOTE: support-v4 22.2.x triggers compilation errors, see #173 and
 ## Support and Help ##
 
 The first line of support is reading this README, beyond that, help can be
-found on the #sbt-android IRC channel on Freenode
+found on the #sbt-android IRC channel on Freenode, or the
+[scala-android/sbt-android gitter](https://gitter.im/scala-android/sbt-android)
 
 ## Example projects ##
 
-* A variety of my own projects can be found on github that use this plugin
-* In addition to this, a growing collection of tests can be found under
+* A growing collection of tests can be found under
   [sbt-test/android-sdk-plugin/](sbt-test/android-sdk-plugin).
   These projects are examples of how to use the plugin in various
   configurations.
-* Tests can be run via `sbt scripted`, they require `ANDROID_HOME` and
-  `ANDROID_NDK_HOME` to be set in addition to having platform `android-17`
+* Testing the plugin can be run via `sbt scripted`, they require `ANDROID_HOME`
+  and `ANDROID_NDK_HOME` to be set in addition to having platform `android-17`
   installed.
 * All tests have auto-generated `build.properties` and `auto_plugins.sbt`
-  files that set the current version of sbt and the android-sdk-plugin to use
+  files that set the current version of sbt and the sbt-android to use
   for testing.
 
 ## Usage ##
@@ -59,33 +62,29 @@ found on the #sbt-android IRC channel on Freenode
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.5.20")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.0")
    ```
    
-2 Set the environment variable `ANDROID_HOME` pointing to the path where the
-     Android SDK is unpacked.
+2. Set the environment variable `ANDROID_HOME` pointing to the path where the
+   Android SDK is unpacked.
 3. Create a new android project using `gen-android` if the plugin is installed
    globally
    * Instead of creating a new project, one can also do
      `sbt gen-android-sbt` to make sure everything is properly setup
      in an existing project.
-   * When using `gen-android`, the `platformTarget` is automatically set to
-     the newest version available in your local SDK, override this by setting
-     `target` in a `project.properties` file, or setting
-     `platformTarget in Android`
 4. (N/A if globally configured) Create a directory named `project` within
    your project and add the file `project/plugins.sbt`, in it, add the
    following line:
 
    ```
-   addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.5.20")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.0")
    ```
 
-5. Create a file named `project/build.scala` and add the
+5. Create or edit the file named `build.sbt` and add the
    following line, (automatically performed if using `gen-android`) :
    
    ```
-   object Build extends android.AutoBuild
+   androidBuild
    ```
 
 6. Now you will be able to run SBT, some available commands in sbt are:
@@ -112,7 +111,7 @@ found on the #sbt-android IRC channel on Freenode
      by prefixing the command with a `~`. `~ android:package-debug`
      will continuously build a debug build any time one of the project's
      source files is modified.
-7. If you want android-sdk-plugin to automatically sign release packages
+7. If you want sbt-android to automatically sign release packages
    add the following lines to `local.properties` (or any file.properties of
    your choice that you will not check in to source control):
    * `key.alias: KEY-ALIAS`
@@ -124,40 +123,46 @@ found on the #sbt-android IRC channel on Freenode
 ## Advanced Usage ##
 
 * IDE integration
-  * The primary IDE recommendation is IntelliJ, not Android Studio
-    nor Eclipse.
+  * The recommended IDE is IntelliJ, not Android Studio. However Android Studio
+    can be used with some massaging (i.e install the Scala Plugin).
   * When loading a project into IntelliJ, it is required that the `Android`
     and `Scala` plugins are installed
-  * The best practice is to set the IDE's run task to invoke sbt
-    `android:package` instead of `Make`; this is found under the Run
-    Configurations
+  * To ensure proper building, configure the IDE `Run` command to execute an SBT
+    `android:package` task instead of `Make` (remove the make entry); this is
+    found under `Run Configurations`
   * The SBT plugin for IntelliJ is the one from
     [orfjackal/idea-sbt-plugin](https://github.com/orfjackal/idea-sbt-plugin)
   * The `Scala` plugin is still required for non-Scala projects in order to
     edit sbt build files from inside the IDE.
-  * IntelliJ 14 now includes native support for importing projects from
-    `android-sdk-plugin`. The process generally works well, however there
+  * IntelliJ 14 and newer now includes native support for importing projects
+    from `sbt-android`. The process generally works well, however there
     are still several caveats:
-    * Android configurations will not load properly until
-      `Scala plugin 1.5.4` is released
     * The `idea-sbt-plugin` is still required to actually perform the build
-    * `classDirectory in Compile` is not automatically included as a library,
-      as a result apklib classes will not resolve unless it is added manually
-      (`bin/android/intermediates/classes` or
-      `target/android/intermediates/classes`) as a library.
-      [SCL-7973](https://youtrack.jetbrains.com/issue/SCL-7973)
+    * `aar` resources do not show up in editor or autocomplete automatically
+      * They can be added manually, but must be added everytime the project
+        is refreshed from SBT (SBT toolwindow -> Refresh)
+      * To add:
+        1. `Project Structure` -> `Modules` -> `+` -> `Import Module`
+        2. `$HOME/.android/sbt/exploded-aars/AAR-PACKAGE-FOLDER`
+        3. `Create from existing sources`
+        4. `Next` all the until to the `Finish` button, finish.
+        5. Go to the `Dependencies` tab for the Module you want to be able to
+          access the AAR resources, click `+` -> `Module Dependency`
+        6. Select the newly added AAR module above, and it will now be visible.
+      * Steps 5 and 6 will need to be repeated any time the build description
+        is refreshed (SBT toolwindow -> refresh)
 * Consuming apklib and aar artifacts from other projects
   * Optionally use `apklib()` or `aar()`
-    * using `apklib()` and `aar()` are only necessary if there are multiple
+    * specifying `apklib()` and `aar()` are only necessary if there are multiple
       filetypes for the dependency, such as `jar`, etc.
   * `libraryDependencies += apklib("groupId" % "artifactId" % "version", "optionalArtifactFilename")`
     * Basically, wrap the typical dependency specification with either
       apklib() or aar() to consume the library
     * If aars or apklibs are duplicately included in a multi-project build,
-      specify `transitiveAndroidLibs in Android := false`
+      specify `transitiveAndroidLibs := false`
     * `apklib` and `aar` that transitively depend on `apklib` and `aar` will
       automatically be processed. To disable set
-      `transitiveAndroidLibs in Android := false`
+      `transitiveAndroidLibs := false`
   * Sometimes library projects and apklibs will incorrectly bundle
     android-support-v4.jar, to rectify this, add this setting, repeat for any
     other incorrectly added jars:
@@ -181,7 +186,7 @@ found on the #sbt-android IRC channel on Freenode
     * For `aar` use `android.Plugin.androidBuildAar`
   * Alternatively, use `android.Plugin.buildAar` and/or
     `android.Plugin.buildApklib` in addition to any of the variants above
-    * In build.sbt, add `android.Plugin.buildAar` and/or
+    * In `build.sbt`, add `android.Plugin.buildAar` and/or
       `android.Plugin.buildApklib` on a new line.
     * It could also be specified, for example, like so:
       `android.Plugin.androidBuild ++ android.Plugin.buildAar`
@@ -194,22 +199,20 @@ found on the #sbt-android IRC channel on Freenode
   * When using multi-project builds in Scala, where library projects have
     scala code, but the main project(s) do(es) not, you will need to specify
     that proguard must run. To do this, the following must be set for each
-    main project: `proguardScala in Android := true`
-* Configuring `android-sdk-plugin` by editing build.sbt
-  * `import android.Keys._` at the top to make sure you can use the plugin's
-    configuration options (not required with sbt 0.13.5+ and AutoPlugin)
+    main project: `proguardScala := true`
+* Configuring `sbt-android` by editing `build.sbt`
   * Add configuration options according to the sbt style:
-    * `useProguard in Android := true` to enable proguard. Note: if you
+    * `useProguard := true` to enable proguard. Note: if you
       disable proguard for scala, you *must* specify uses-library on a
       pre-installed scala lib on-device or enable multi-dex.
   * Configurable keys can be discovered by typing `android:<tab>` at the
     sbt shell
 * Configuring proguard, some options are available
-  * `proguardOptions in Android ++= Seq("-dontobfuscate", "-dontoptimize")` -
+  * `proguardOptions ++= Seq("-dontobfuscate", "-dontoptimize")` -
     will tell proguard not to obfuscute nor optimize code (any valid proguard
     option is usable here)
- * `proguardConfig in Android ...` can be used to replace the entire
-   proguard config included with android-sdk-plugin
+ * `proguardConfig ...` can be used to replace the entire
+   proguard config included with sbt-android
 * On-device testing, use `android:test` and see
   [Android Testing Fundamentals](http://developer.android.com/tools/testing/testing_android.html)
 *  Unit testing with robolectric and Junit (use the `test` task), see how
@@ -225,11 +228,33 @@ found on the #sbt-android IRC channel on Freenode
     first device in the list.
   * `android:install`, `android:run` and `android:test` are tasks that can
     be used to install, run and test the built apk on-device, respectively.
-  * Type `help` for a list of all available commands.
+* Full list of `sbt-android` added commands, all commands have full tab
+  completion when possible.
+  * `adb-ls <path>`
+  * `adb-cat <file>`
+  * `adb-rm <file>`
+  * `adb-pull <file> [destination]`
+  * `adb-push <file> <destination>`
+  * `adb-shell <command>`
+  * `adb-runas <command>`
+  * `adb-kill[/project]`
+  * `logcat [-p pid] [-s tags] [options...]`
+  * `logcat-grep [-p pid] [regex]`
+  * `pidcat[/project] [partial pkg] [TAGs...]`
+  * `pidcat-grep[/project] [partial pkg] [regex]`
+  * `gen-android <platform> <package> <name>`
+  * `gen-android-sbt`
+  * `device <serial>`
+  * `devices`
+  * `adb-screenon`
+  * `adb-wifi`
+  * `adb-reboot [recovery|bootloader]`
+  * `variant[/project] [buildType] [flavor]`
+  * `variant-reset[/project]`
 
 ### TODO / Known Issues ###
 
 * `autolibs` do not properly process `apklib` and `aar` resources. If anything
   in an `autolib` uses resources from such a library, the answer is to create
   a standard multi-project build configuration rather than utilize `autolibs`.
-  `autolibs` can be disabled by manually configuring `localProjects in Android`
+  `autolibs` can be disabled by manually configuring `localProjects`
