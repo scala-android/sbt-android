@@ -660,3 +660,6 @@ object GradleBuildSerializer {
     def /++=(u: Literal) = Op ++= (k, u)
   }
 }
+
+@deprecated("No longer necessary to auto-import gradle, remove", "1.2.0")
+trait GradleBuild
