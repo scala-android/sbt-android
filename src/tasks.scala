@@ -669,7 +669,7 @@ object Tasks {
     val aidl          = tools map (_.getPath(PathId.AIDL)) getOrElse {
         s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
     }
-    val frameworkAidl = p.getPath(IAndroidTarget.ANDROID_AIDL)
+    val frameworkAidl = p.getTarget.getPath(IAndroidTarget.ANDROID_AIDL)
     val aidls = layout.aidl ** "*.aidl" get
 
     aidls flatMap { idl =>

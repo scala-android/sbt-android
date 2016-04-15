@@ -9,10 +9,10 @@ import java.io.File
 import java.util.Properties
 
 import com.android.builder.core.AndroidBuilder
-import com.android.sdklib.{BuildToolInfo, IAndroidTarget}
+import com.android.sdklib.BuildToolInfo
 import com.android.utils.ILogger
 import Dependencies._
-import com.android.builder.sdk.SdkLoader
+import com.android.builder.sdk.{SdkLoader, TargetInfo}
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 import language.implicitConversions
@@ -303,8 +303,8 @@ object Keys {
       "Internal android SDK loader") in Android
     val manifestPath = SettingKey[File]("manifest-path",
       "android manifest file path") in Android
-    val platform = SettingKey[IAndroidTarget]("platform",
-      "IAndroidTarget object representing a target API level") in Android
+    val platform = SettingKey[TargetInfo]("platform",
+      "TargetInfo object representing a target API level") in Android
     val platformJars = SettingKey[(String,Seq[String])]("platform-jars",
       "Path to android.jar and optional jars (e.g. google apis), if any") in Android
     val proguardInputs = TaskKey[ProguardInputs]("proguard-inputs",

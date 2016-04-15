@@ -272,7 +272,7 @@ object Plugin extends sbt.Plugin {
   )) ++ inConfig(Test) (Seq(
     exportJars         := false,
     managedClasspath <++= platform map { t =>
-      t.getOptionalLibraries.asScala map { l =>
+      t.getTarget.getOptionalLibraries.asScala map { l =>
         Attributed.blank(l.getJar)
       }
     },
@@ -530,8 +530,9 @@ object Plugin extends sbt.Plugin {
     dexAdditionalParams      := Seq.empty,
     dexMainClassesConfig    <<= dexMainClassesConfigTaskDef dependsOn (packageT in Compile),
     platformJars            <<= platform { p =>
-      (p.getPath(IAndroidTarget.ANDROID_JAR),
-      p.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))
+      val t = p.getTarget
+      (t.getPath(IAndroidTarget.ANDROID_JAR),
+      t.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))
     },
     projectLayout            := ProjectLayout(baseDirectory.value, Some(target.value)),
     outputLayout             := { layout => new BuildOutput.AndroidOutput(layout) },
@@ -707,28 +708,23 @@ object Plugin extends sbt.Plugin {
       }
     },
     buildToolsVersion        := None,
-    sdkLoader               <<= sdkManager { m =>
-      DefaultSdkLoader.getLoader(m.getLocation)
-    },
+    sdkLoader                := DefaultSdkLoader.getLoader(sdkManager.value.getLocation),
     libraryRequests          := Nil,
     builder                 <<= ( sdkLoader
                                 , sdkManager
                                 , name
                                 , ilogger
                                 , buildTools
-                                , platformTarget
+                                , platform
                                 , libraryRequests
                                 , sLog) {
       (ldr, m, n, l_, b, t, reqs, log) =>
       val l = l_(log)
       val l2 = SbtAndroidErrorReporter()
       val bldr = new AndroidBuilder(n, "android-sdk-plugin",
-        new DefaultProcessExecutor(l),
-        SbtJavaProcessExecutor,
-        l2, l, false)
+        new DefaultProcessExecutor(l), SbtJavaProcessExecutor, l2, l, false)
       val sdkInfo = ldr.getSdkInfo(l)
-      val targetInfo = ldr.getTargetInfo(t, b.getRevision, l)
-      bldr.setTargetInfo(sdkInfo, targetInfo,
+      bldr.setTargetInfo(sdkInfo, t,
         reqs.map { case ((nm, required)) =>
           new LibraryRequest(nm, required) }.asJava)
 
@@ -739,9 +735,7 @@ object Plugin extends sbt.Plugin {
       }
     },
     bootClasspath            := builder.value(sLog.value).getBootClasspath(false).asScala map Attributed.blank,
-    sdkManager              <<= sdkPath { p =>
-      AndroidSdkHandler.getInstance(file(p))
-    },
+    sdkManager               := AndroidSdkHandler.getInstance(file(sdkPath.value)),
     buildTools              := {
       buildToolsVersion.value flatMap { version =>
         Option(sdkManager.value.getBuildToolInfo(Revision.parseRevision(version),
@@ -757,18 +751,9 @@ object Plugin extends sbt.Plugin {
       Option(p.getProperty("target")) getOrElse fail(
         prj.id + ": configure project.properties or set 'platformTarget'")
     },
-    platformApi             := {
-      // SDK makes some spurious warnings here, ignore them with NullLogger
-      val tgt = sdkLoader.value.getTargetInfo(platformTarget.value,
-        buildTools.value.getRevision, SbtDebugLogger(sLog.value))
-      tgt.getTarget.getVersion.getApiLevel
-    },
-    platform                <<= (sdkManager, platformTarget, thisProject, sLog) {
-      (m, p, prj, s) =>
-        val logger = SbtAndroidProgressIndicator(s)
-        val plat = Option(m.getAndroidTargetManager(logger).getTargetFromHashString(p, logger))
-        plat getOrElse fail("Platform %s unknown in %s" format (p, prj.base))
-    }
+    platformApi             := platform.value.getTarget.getVersion.getApiLevel,
+    platform                := sdkLoader.value.getTargetInfo(
+      platformTarget.value, buildTools.value.getRevision, ilogger.value(sLog.value))
   )) ++ Seq(
     autoScalaLibrary   := {
       ((scalaSource in Compile).value ** "*.scala").get.nonEmpty ||

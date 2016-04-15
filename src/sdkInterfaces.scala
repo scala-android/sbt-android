@@ -24,7 +24,7 @@ case class SbtAndroidProgressIndicator(log: Logger) extends ProgressIndicatorAda
   }
 
   override def logWarning(s: String, e: Throwable) = {
-    log.debug(s)
+    log.warn(s)
     if (e != null)
       log.trace(e)
   }
