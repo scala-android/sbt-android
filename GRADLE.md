@@ -6,7 +6,7 @@ Current version is 1.2.0
 
 NOTE: 1.2.0 is the last version published using
 `addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.2.0")`,
-all future updates will be used by including
+all future updates can be accessed by using
 `addSbtPlugin("org.scala-android" % "sbt-android-gradle" % VERSION)`
 
 ## Description ##

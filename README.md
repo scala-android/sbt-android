@@ -8,7 +8,7 @@ Auto-import from gradle using [sbt-android-gradle](GRADLE.md)
 
 NOTE: 1.6.0 is the last version published using
 `addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.6.0")`,
-all future updates will be used by including
+all future updates can be accessed by using
 `addSbtPlugin("org.scala-android" % "sbt-android" % VERSION)`
 
 ## Description ##
