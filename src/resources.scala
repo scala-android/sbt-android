@@ -529,7 +529,7 @@ object Resources {
       res <- resdirs
       restype <- resdirTypes
     } yield restype ->
-      (res * s"$restype*" * "*").get.map(_.getName.takeWhile(_ != '.')).toList
+      (res * s"$restype*" * "*").get.map(_.getName.takeWhile(_ != '.')).toList.filter(_.nonEmpty)
     rms2.foldLeft(emptyResourceMap) { case (m, (t, xs)) => m + (t -> (m(t) ++ xs)) }
   }
 }
