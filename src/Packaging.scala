@@ -1,8 +1,8 @@
 package android
 
-import java.io.{InputStream, OutputStream, FileOutputStream, File}
+import java.io.{File, InputStream, OutputStream}
 import java.util.jar.JarFile
-import java.util.zip.{ZipEntry, ZipFile}
+import java.util.zip.ZipEntry
 
 import android.Keys.PackagingOptions
 import com.android.SdkConstants
@@ -13,19 +13,65 @@ import com.android.utils.ILogger
 import sbt.Def.Classpath
 import sbt.Keys.moduleID
 import sbt._
-import collection.JavaConverters._
+
+import scala.collection.JavaConverters._
+
 
 /**
  * @author pfnguyen
  */
 object Packaging {
+  case class Jars( managed: Classpath
+                 , unmanaged: Classpath
+                 , depenendices: Classpath) {
 
-  def apkbuild(bldr: AndroidBuilder, m: Classpath, u: Classpath, dcp: Classpath,
-               isLib: Boolean, aggregateOptions: Aggregate.Apkbuild,
-               abiFilter: Set[String],
-               collectJniOut: File, resFolder: File, collectResourceFolder: File,
-               output: File,
-               logger: ILogger, s: sbt.Keys.TaskStreams): File = {
+    def isScalaLang(module: ModuleID) = module.organization == "org.scala-lang"
+    def isProvidedDependency(module: ModuleID) = module.configurations exists (_ contains "provided")
+
+    // filtering out org.scala-lang should not cause an issue
+    // they should not be changing on us anyway
+    lazy val list = (managed ++ unmanaged ++ depenendices).filter {
+      a => (a.get(moduleID.key) forall { moduleId =>
+        !isScalaLang(moduleId) && !isProvidedDependency(moduleId)
+      }) && a.data.exists
+    }.groupBy(_.data.getName).collect {
+      case ("classes.jar", xs) => xs.distinct
+      case (_,xs) if xs.head.data.isFile => xs.head :: Nil
+    }.flatten.map (_.data).toList
+  }
+
+  @deprecated("Use apkbuild(bldr: AndroidBuilder, jars: Packaging.Jars, ...) instead", "1.6.1")
+  def apkbuild( bldr: AndroidBuilder
+              , managed: Classpath
+              , unmanaged: Classpath
+              , dependenciesCp: Classpath
+              , isLib: Boolean
+              , aggregateOptions: Aggregate.Apkbuild
+              , abiFilter: Set[String]
+              , collectJniOut: File
+              , resFolder: File
+              , collectResourceFolder: File
+              , output: File
+              , logger: ILogger
+              , s: sbt.Keys.TaskStreams): File = {
+    apkbuild(
+      bldr, Jars(managed, unmanaged, dependenciesCp), isLib,
+      aggregateOptions, abiFilter, collectJniOut, resFolder,
+      collectResourceFolder, output, logger, s
+    )
+  }
+
+  def apkbuild( bldr: AndroidBuilder
+              , dependencyJars: Jars
+              , isLib: Boolean
+              , aggregateOptions: Aggregate.Apkbuild
+              , abiFilter: Set[String]
+              , collectJniOut: File
+              , resFolder: File
+              , collectResourceFolder: File
+              , output: File
+              , logger: ILogger
+              , s: sbt.Keys.TaskStreams): File = {
 
     val options = aggregateOptions.packagingOptions
     val shrinker = aggregateOptions.resourceShrinker
@@ -40,18 +86,7 @@ object Packaging {
       Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true'")
     val predexed = predex flatMap (_._2 * "*.dex" get) map (_.getParentFile)
 
-    val jars = (m ++ u ++ dcp).filter {
-      a => a.get(moduleID.key).forall { mid =>
-        mid.organization != "org.scala-lang" &&
-          !(mid.configurations exists (_ contains "provided"))
-      } && a.data.exists
-    }.groupBy(_.data.getName).collect {
-      case ("classes.jar",xs) => xs.distinct
-      case (_,xs) if xs.head.data.isFile => xs.head :: Nil
-    }.flatten.map (_.data).toList
-    // filtering out org.scala-lang above should not cause an issue
-    // they should not be changing on us anyway
-
+    val jars = dependencyJars.list
     s.log.debug("jars to process for resources: " + jars)
 
     val jarAbiPattern = "lib/([^/]+)/[^/]+".r

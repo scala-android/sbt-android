@@ -551,7 +551,7 @@ object Tasks {
     val s = streams.value
     val filter = ndkAbiFilter.value
     val logger = ilogger.value(s.log)
-    Packaging.apkbuild(builder.value(s.log), m, u, dcp, libraryProject.value, a,
+    Packaging.apkbuild(builder.value(s.log), Packaging.Jars(m, u, dcp), libraryProject.value, a,
       filter.toSet, layout.collectJni, layout.resources, layout.collectResource,
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)
   }
