@@ -663,18 +663,26 @@ object Plugin extends sbt.Plugin {
       } orElse SdkLayout.sdkFallback(cached) getOrElse fail(
         "set the env variable ANDROID_HOME pointing to your Android SDK")
     },
-    ndkPath                 <<= (thisProject,properties) { (p,props) =>
-      val cached = SdkLayout.androidNdkHomeCache
-      (Option(System getenv "ANDROID_NDK_HOME") orElse
-        Option(props getProperty "ndk.dir")) flatMap { p =>
-        val f = file(p + File.separator)
-        if (f.exists && f.isDirectory) {
-          cached.getParentFile.mkdirs()
-          IO.writeLines(cached, p :: Nil)
-          Some(p + File.separator)
-        } else None
-      } orElse SdkLayout.sdkFallback(cached)
-    },
+    ndkPath                 <<= (thisProject,properties, sdkPath, sLog) { (p,props,sdkPath, log) => {
+      val cache = SdkLayout.androidNdkHomeCache
+      def storePathInCache(path: String) = {
+        cache.getParentFile.mkdirs()
+        IO.writeLines(cache, path :: Nil)
+      }
+      def propertiesSetting = Option(props getProperty "ndk.dir").map("'ndk.dir' property" -> _)
+      def envVarSetting = Option(System getenv "ANDROID_NDK_HOME").map("'ANDROID_NDK_HOME' env var" -> _)
+      def sdkBundleFallback = Some(SdkLayout.ndkBundle(sdkPath)).filter(_.isDirectory).map("ndk-bundle" -> _.absolutePath)
+
+      val alternatives = propertiesSetting ++ envVarSetting ++ sdkBundleFallback
+      val foundNdk = alternatives.view.map {
+        case (desc, f) if file(f + File.separator).isDirectory => Some(f)
+        case (desc, _) =>
+          log.warn(s"$desc does not point to a valid ndk installation")
+          None
+      }.find(_.isDefined).flatten
+      foundNdk.foreach(storePathInCache)
+      foundNdk orElse SdkLayout.sdkFallback(cache)
+    }},
     zipalignPath            <<= ( sdkPath
                                 , sdkManager
                                 , buildTools
