@@ -269,6 +269,7 @@ object SdkLayout {
     t.getLocation / "renderscript" / "lib"
   def renderscriptSupportLibs(t: BuildToolInfo) =
     (renderscriptSupportLibFile(t) * "*.jar").get
+  def ndkBundle(sdkPath: String) = file(sdkPath) / "ndk-bundle"
 
   def predex = file(AndroidLocation.getFolder) / "sbt" / "predex"
   def explodedAars = file(AndroidLocation.getFolder) / "sbt" / "exploded-aars"
