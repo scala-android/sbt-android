@@ -4,7 +4,7 @@ import java.io.File
 
 import android.Dependencies.LibraryDependency
 import android.Keys.PackagingOptions
-import com.android.builder.core.AndroidBuilder
+import com.android.builder.core.{AndroidBuilder, DexOptions}
 import com.android.sdklib.BuildToolInfo
 import sbt.{Attributed, Logger}
 
@@ -61,7 +61,18 @@ object Aggregate {
                                   mainClassesConfig: File,
                                   minimizeMain: Boolean,
                                   buildTools: BuildToolInfo,
-                                  additionalParams: Seq[String])
+                                  additionalParams: Seq[String]) {
+    lazy val incremental = inputs._1 && !multi
+
+    def toDexOptions(incremental: Boolean = incremental) = new DexOptions {
+      override def getIncremental: Boolean = incremental
+      override def getJavaMaxHeapSize: String = maxHeap
+      override def getJumboMode: Boolean = false
+      override def getMaxProcessCount: Integer = maxProcessCount
+      override def getThreadCount: Integer = Runtime.getRuntime.availableProcessors()
+      override def getPreDexLibraries: Boolean = false
+    }
+  }
 
   private[android] case class Proguard(useProguard: Boolean,
                                        useProguardInDebug: Boolean,

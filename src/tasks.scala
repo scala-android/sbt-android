@@ -1061,7 +1061,6 @@ object Tasks {
     if (ta.libraryProject)
       Plugin.fail("This project cannot `android:test`, it has set 'libraryProject := true")
     implicit val output = o
-    val xmx = ta.dexMaxHeap
     val pkg = ma.applicationId
     val minSdk = ma.minSdkVersion
     val targetSdk = ma.targetSdkVersion
@@ -1105,7 +1104,7 @@ object Tasks {
         override def getIncremental = true
         override def getJumboMode = false
         override def getPreDexLibraries = false
-        override def getJavaMaxHeapSize = xmx
+        override def getJavaMaxHeapSize = ta.dexMaxHeap
         override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
         override def getMaxProcessCount = ta.dexMaxProcessCount
       }
