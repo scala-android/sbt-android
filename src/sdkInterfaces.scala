@@ -31,6 +31,57 @@ case class SbtAndroidProgressIndicator(log: Logger) extends ProgressIndicatorAda
 
   override def logInfo(s: String) = log.debug(s)
 }
+
+case class PrintingProgressIndicator() extends ProgressIndicatorAdapter {
+  val SPINNER =
+    "|"  ::
+    "/"  ::
+    "-"  ::
+    "\\" ::
+    Nil
+  var counter = 0
+  var text = Option.empty[String]
+  var secondary = Option.empty[String]
+  var indeterminate = false
+  var progress = Option.empty[String]
+  var fraction = 0.0
+
+  override def getFraction = fraction
+  override def setFraction(v: Double) = {
+    progress = Some(f"${v*100}%3.0f%%")
+    indeterminate = false
+    if (v != fraction) {
+      printProgress()
+      if (v == 1.0)
+        println()
+    }
+    fraction = v
+  }
+  override def setIndeterminate(b: Boolean) = {
+    indeterminate = b
+    printProgress()
+  }
+  override def setText(s: String) = {
+    text = Option(s).filter(_.trim.nonEmpty)
+    printProgress()
+  }
+  override def setSecondaryText(s: String) = {
+    secondary = Option(s).filter(_.trim.nonEmpty)
+    printProgress()
+  }
+  def printProgress(): Unit = {
+    val prog = if (indeterminate) {
+      counter = counter + 1
+      val a = SPINNER(counter % 4)
+      val b = SPINNER((counter + 2) % 4)
+      s"$a$b%"
+    } else {
+      progress.getOrElse(f"${0}%3d%%")
+    }
+    val indicator = secondary.fold(text.getOrElse(""))(s => text.getOrElse("") + " / " + s)
+    print(f"${indicator.take(72)}%-72s $prog%6s\r")
+  }
+}
 object NullProgressIndicator extends ProgressIndicatorAdapter
 
 object NullLogger extends ILogger {

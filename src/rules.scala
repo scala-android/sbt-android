@@ -763,20 +763,17 @@ object Plugin extends sbt.Plugin {
       val targetHash = platformTarget.value
       val slog = sLog.value
       // TODO create an actual progress bar
-      val indicator = SbtAndroidProgressIndicator(slog)
       val sdkHandler = sdkManager.value
-      val dumbprog = SbtAndroidProgressIndicator(slog)
-      val manager = sdkHandler.getAndroidTargetManager(dumbprog)
-      val ptarget = manager.getTargetFromHashString(targetHash, dumbprog)
+      val manager = sdkHandler.getAndroidTargetManager(PrintingProgressIndicator())
+      val ptarget = manager.getTargetFromHashString(targetHash, PrintingProgressIndicator())
 
       if (ptarget == null) {
         slog.warn(s"platformTarget $targetHash not found, searching for installable package...")
         import concurrent.duration._
-        import com.android.sdklib.repositoryv2.LegacyDownloader
-        val downloader = new LegacyDownloader(sdkHandler.getFileOp)
-        val repomanager = sdkHandler.getSdkManager(dumbprog)
+        val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
+        val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator())
         repomanager.loadSynchronously(60.minutes.toMillis,
-          SbtAndroidProgressIndicator(slog), downloader, null)
+          PrintingProgressIndicator(), downloader, null)
         val pkgs = repomanager.getPackages.getRemotePackages.asScala
         val remotepkg = pkgs.get("platforms;" + targetHash)
         remotepkg match {
@@ -785,7 +782,10 @@ object Plugin extends sbt.Plugin {
           case Some(r) =>
             slog.info(s"Found package for $targetHash, installing...")
             val installer = AndroidSdkHandler.findBestInstaller(r)
-            installer.install(r, downloader, null, indicator, repomanager, sdkHandler.getFileOp)
+            val ind = PrintingProgressIndicator()
+            installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
+            if (ind.getFraction != 1.0)
+              ind.setFraction(1.0) // workaround for installer stopping at 99%
         }
       }
 

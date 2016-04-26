@@ -1,15 +1,20 @@
 package android
 
+import java.io.{File, InputStream, OutputStream}
 import java.net.URL
 
 import com.android.repository.Revision
 import com.android.repository.api._
 import com.android.repository.impl.generated.generic.v1.GenericDetailsType
 import com.android.repository.impl.generated.v1._
+import com.android.repository.io.FileOp
+import com.android.sdklib.internal.repository.{CanceledByUserException, DownloadCache, ITaskMonitor}
+import com.android.sdklib.repositoryv2.{LegacyDownloader, LegacyTaskMonitor}
 import com.android.sdklib.repositoryv2.generated.addon.v1.{AddonDetailsType, ExtraDetailsType, LibrariesType}
 import com.android.sdklib.repositoryv2.generated.common.v1.IdDisplayType
 import com.android.sdklib.repositoryv2.generated.repository.v1.{LayoutlibType, PlatformDetailsType}
 import com.android.sdklib.repositoryv2.generated.sysimg.v1.SysImgDetailsType
+import org.apache.http.Header
 import sbt.{IO, Using}
 
 import collection.JavaConverters._
@@ -202,5 +207,41 @@ case class ArchiveFile(getChecksum: String, getSize: Long, getUrl: String) {
     a.setSize(getSize)
     a.setUrl(getUrl)
     a
+  }
+}
+
+case class SbtAndroidDownloader(fop: FileOp) extends LegacyDownloader(fop) {
+  val mDownloadCache = new DownloadCache(fop, DownloadCache.Strategy.FRESH_CACHE)
+  override def downloadFully(url: URL, settings: SettingsController, indicator: ProgressIndicator) = {
+    val result = File
+      .createTempFile("LegacyDownloader", System.currentTimeMillis.toString)
+    val out = fop.newFileOutputStream(result)
+    try {
+      val downloadedResult =  mDownloadCache.openDirectUrl(url.toString, null, new LegacyTaskMonitor(indicator))
+      val httpresult = downloadedResult.getSecond
+      if (httpresult.getStatusLine.getStatusCode == 200) {
+        val length = Option(httpresult.getFirstHeader("Content-Length")).map(_.getValue.toLong)
+        val len = 65536
+        val buf = Array.ofDim[Byte](len)
+        indicator.setIndeterminate(length.isEmpty)
+        indicator.setText("Downloading " + url.getFile)
+        var read = 0
+        Iterator.continually(downloadedResult.getFirst.read(buf, 0, len)).takeWhile(_ != -1).foreach { r =>
+          read = read + r
+          length foreach { l =>
+            indicator.setFraction(read.toDouble / l)
+          }
+          out.write(buf, 0, r)
+        }
+        downloadedResult.getFirst.close()
+        indicator.setFraction(1.0)
+        out.close()
+        result
+      } else null
+    } catch {
+      case e: CanceledByUserException =>
+        indicator.logInfo("The download was cancelled.");
+        null
+    }
   }
 }
