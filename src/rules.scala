@@ -739,7 +739,10 @@ object Plugin extends sbt.Plugin {
       }
     },
     bootClasspath            := builder.value(sLog.value).getBootClasspath(false).asScala map Attributed.blank,
-    sdkManager               := AndroidSdkHandler.getInstance(file(sdkPath.value)),
+    sdkManager               := {
+      AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
+      AndroidSdkHandler.getInstance(file(sdkPath.value))
+    },
     buildTools              := {
       buildToolsVersion.value flatMap { version =>
         Option(sdkManager.value.getBuildToolInfo(Revision.parseRevision(version),
@@ -756,8 +759,40 @@ object Plugin extends sbt.Plugin {
         prj.id + ": configure project.properties or set 'platformTarget'")
     },
     platformApi             := platform.value.getTarget.getVersion.getApiLevel,
-    platform                := sdkLoader.value.getTargetInfo(
-      platformTarget.value, buildTools.value.getRevision, ilogger.value(sLog.value))
+    platform                := {
+      val targetHash = platformTarget.value
+      val slog = sLog.value
+      // TODO create an actual progress bar
+      val indicator = SbtAndroidProgressIndicator(slog)
+      val sdkHandler = sdkManager.value
+      val dumbprog = SbtAndroidProgressIndicator(slog)
+      val manager = sdkHandler.getAndroidTargetManager(dumbprog)
+      val ptarget = manager.getTargetFromHashString(targetHash, dumbprog)
+
+      if (ptarget == null) {
+        slog.warn(s"platformTarget $targetHash not found, searching for installable package...")
+        import concurrent.duration._
+        import com.android.sdklib.repositoryv2.LegacyDownloader
+        val downloader = new LegacyDownloader(sdkHandler.getFileOp)
+        val repomanager = sdkHandler.getSdkManager(dumbprog)
+        repomanager.loadSynchronously(60.minutes.toMillis,
+          SbtAndroidProgressIndicator(slog), downloader, null)
+        val pkgs = repomanager.getPackages.getRemotePackages.asScala
+        val remotepkg = pkgs.get("platforms;" + targetHash)
+        remotepkg match {
+          case None =>
+            Plugin.fail(s"No installable package found for $targetHash")
+          case Some(r) =>
+            slog.info(s"Found package for $targetHash, installing...")
+            val installer = AndroidSdkHandler.findBestInstaller(r)
+            installer.install(r, downloader, null, indicator, repomanager, sdkHandler.getFileOp)
+        }
+      }
+
+      val logger = ilogger.value(slog)
+      sdkLoader.value.getTargetInfo(
+        targetHash, buildTools.value.getRevision, logger)
+    }
   )) ++ Seq(
     autoScalaLibrary   := {
       ((scalaSource in Compile).value ** "*.scala").get.nonEmpty ||
