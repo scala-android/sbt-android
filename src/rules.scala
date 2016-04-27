@@ -744,14 +744,37 @@ object Plugin extends sbt.Plugin {
       AndroidSdkHandler.getInstance(file(sdkPath.value))
     },
     buildTools              := {
-      buildToolsVersion.value flatMap { version =>
-        Option(sdkManager.value.getBuildToolInfo(Revision.parseRevision(version),
-          SbtAndroidProgressIndicator(sLog.value)))
+      val slog = sLog.value
+      val ind = SbtAndroidProgressIndicator(slog)
+      val sdkHandler = sdkManager.value
+      buildToolsVersion.value map { version =>
+        val bti = sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
+        if (bti == null) {
+          slog.warn(s"build-tools $version not found, searching for installable package...")
+          SdkInstaller.installPackage(sdkHandler, "build-tools;" + version, "build-tools " + version, slog)
+          sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
+          sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
+        } else bti
       } getOrElse {
-        val tools = sdkManager.value.getLatestBuildTool(SbtAndroidProgressIndicator(sLog.value))
-        if (tools == null) fail("Android SDK build-tools not found")
-        else sLog.value.debug("Using Android build-tools: " + tools)
-        tools
+        val tools = sdkHandler.getLatestBuildTool(ind)
+        if (tools == null) {
+          slog.warn(s"build-tools not found, searching for installable package...")
+          val btpkg = SdkInstaller.install(sdkHandler, "latest build-tools", slog) { pkgs =>
+            val buildTools = pkgs.keys.toList.collect {
+              case k if k.startsWith("build-tools;") => pkgs(k)
+            }
+            implicit val packageOrder: Ordering[com.android.repository.api.RemotePackage] = new Ordering[com.android.repository.api.RemotePackage] {
+              override def compare(x: com.android.repository.api.RemotePackage, y: com.android.repository.api.RemotePackage) = y.compareTo(x)
+            }
+            buildTools.sorted.headOption
+          }
+          // force RepoManager to clear itself
+          sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
+          sdkHandler.getLatestBuildTool(ind)
+        } else {
+          sLog.value.debug("Using Android build-tools: " + tools)
+          tools
+        }
       }
     },
     platformTarget          <<= (properties,thisProject) { (p,prj) =>
@@ -762,31 +785,13 @@ object Plugin extends sbt.Plugin {
     platform                := {
       val targetHash = platformTarget.value
       val slog = sLog.value
-      // TODO create an actual progress bar
       val sdkHandler = sdkManager.value
-      val manager = sdkHandler.getAndroidTargetManager(PrintingProgressIndicator())
-      val ptarget = manager.getTargetFromHashString(targetHash, PrintingProgressIndicator())
+      val manager = sdkHandler.getAndroidTargetManager(SbtAndroidProgressIndicator(slog))
+      val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
 
       if (ptarget == null) {
         slog.warn(s"platformTarget $targetHash not found, searching for installable package...")
-        import concurrent.duration._
-        val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
-        val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator())
-        repomanager.loadSynchronously(60.minutes.toMillis,
-          PrintingProgressIndicator(), downloader, null)
-        val pkgs = repomanager.getPackages.getRemotePackages.asScala
-        val remotepkg = pkgs.get("platforms;" + targetHash)
-        remotepkg match {
-          case None =>
-            Plugin.fail(s"No installable package found for $targetHash")
-          case Some(r) =>
-            slog.info(s"Found package for $targetHash, installing...")
-            val installer = AndroidSdkHandler.findBestInstaller(r)
-            val ind = PrintingProgressIndicator()
-            installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
-            if (ind.getFraction != 1.0)
-              ind.setFraction(1.0) // workaround for installer stopping at 99%
-        }
+        SdkInstaller.installPackage(sdkHandler, "platforms;" + targetHash, targetHash, slog)
       }
 
       val logger = ilogger.value(slog)

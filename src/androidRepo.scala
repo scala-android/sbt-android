@@ -1,6 +1,6 @@
 package android
 
-import java.io.{File, InputStream, OutputStream}
+import java.io.File
 import java.net.URL
 
 import com.android.repository.Revision
@@ -9,17 +9,48 @@ import com.android.repository.impl.generated.generic.v1.GenericDetailsType
 import com.android.repository.impl.generated.v1._
 import com.android.repository.io.FileOp
 import com.android.sdklib.internal.repository.{CanceledByUserException, DownloadCache, ITaskMonitor}
-import com.android.sdklib.repositoryv2.{LegacyDownloader, LegacyTaskMonitor}
+import com.android.sdklib.repositoryv2.{AndroidSdkHandler, LegacyDownloader, LegacyTaskMonitor}
+import com.android.repository.api.{RemotePackage => RepoRemotePackage}
 import com.android.sdklib.repositoryv2.generated.addon.v1.{AddonDetailsType, ExtraDetailsType, LibrariesType}
 import com.android.sdklib.repositoryv2.generated.common.v1.IdDisplayType
 import com.android.sdklib.repositoryv2.generated.repository.v1.{LayoutlibType, PlatformDetailsType}
 import com.android.sdklib.repositoryv2.generated.sysimg.v1.SysImgDetailsType
-import org.apache.http.Header
-import sbt.{IO, Using}
+import sbt.{IO, Using, Logger}
 
 import collection.JavaConverters._
 import scala.xml.{Elem, Node, XML}
 
+object SdkInstaller {
+  def installPackage(sdkHandler: AndroidSdkHandler,
+                     pkg: String,
+                     name: String,
+                     slog: Logger): RepoRemotePackage = {
+    install(sdkHandler, name, slog)(_.get(pkg))
+  }
+  def install(sdkHandler: AndroidSdkHandler,
+              name: String,
+              slog: Logger)(pkgfilter: Map[String,RepoRemotePackage] => Option[RepoRemotePackage]): RepoRemotePackage = {
+    import concurrent.duration._
+    val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
+    val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator())
+    repomanager.loadSynchronously(60.minutes.toMillis,
+      PrintingProgressIndicator(), downloader, null)
+    val pkgs = repomanager.getPackages.getRemotePackages.asScala.toMap
+    val remotepkg = pkgfilter(pkgs)
+    remotepkg match {
+      case None =>
+        Plugin.fail(s"No installable package found for $name")
+      case Some(r) =>
+        slog.info(s"Installing package '${r.getDisplayName}' ...")
+        val installer = AndroidSdkHandler.findBestInstaller(r)
+        val ind = PrintingProgressIndicator()
+        installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
+        if (ind.getFraction != 1.0)
+          ind.setFraction(1.0) // workaround for installer stopping at 99%
+        r
+    }
+  }
+}
 object FallbackSdkLoader extends FallbackRemoteRepoLoader {
   override def parseLegacyXml(xml: RepositorySource, progress: ProgressIndicator) = {
     val repo = Using.urlReader(IO.utf8)(new URL(xml.getUrl))(XML.load)
