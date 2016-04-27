@@ -633,7 +633,7 @@ object Tasks {
     processor.build(new CommandLineLauncher {
       override def launch(executable: sbt.File, arguments: java.util.List[String],
                           envVariableMap: java.util.Map[String, String]): Unit = {
-        
+
         val cmd = executable.getAbsolutePath +: arguments.asScala
         streams.value.log.debug(s"renderscript command: $cmd, env: ${envVariableMap.asScala.toSeq}")
 
@@ -1284,17 +1284,10 @@ object Tasks {
     val manifestXml = l.processedManifest
     val m = XML.loadFile(manifestXml)
     // if an arg is specified, try to launch that
-    parsers.activityParser.parsed orElse ((m \\ "activity") find {
-      // runs the first-found activity
-      a => (a \ "intent-filter") exists { filter =>
-        val attrpath = "@{%s}name" format ANDROID_NS
-        (filter \\ attrpath) exists (_.text == "android.intent.action.MAIN")
-      }
-    } map { activity =>
-      val name = activity.attribute(ANDROID_NS, "name") get 0 text
-
+    parsers.activityParser.parsed orElse (parsers.findMainActivitySeq(m).headOption.map(activity => {
+      val name = activity.attribute(ANDROID_NS, "name").get.head.text
       "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
-    }) match {
+    })) match {
       case Some(intent) =>
         val receiver = new Commands.ShellLogging(l => s.log.info(l))
         val command = "am start %s -n %s" format (if (debug) "-D" else "", intent)

@@ -9,7 +9,7 @@ import sbt.{Def, State, TaskKey}
 import sbt.Defaults.loadFromContext
 import Def.Initialize
 
-import scala.xml.{Node, XML}
+import scala.xml.{Elem, Node, NodeSeq, XML}
 import sbt.Cache.StringFormat
 import sbinary.{Format, Input, Output}
 
@@ -19,13 +19,13 @@ import sbinary.{Format, Input, Output}
 private[android] object parsers {
   val ACTION_MAIN = "android.intent.action.MAIN"
   def activityName(n: Node) = n.attribute(Resources.ANDROID_NS, "name").head.text
-  def actionMainExists(n: Node) = {
-    val x = for {
-      a <- n \ "intent-filter" \ "action"
-      nm <- a.attribute(Resources.ANDROID_NS, "name").toSeq.flatten
+  def findMainActivitySeq(element: Elem): NodeSeq = {
+    for {
+      a <- (element \\ "activity" ++ element \\ "activity-alias")
+      i <- a \ "intent-filter" \ "action"
+      nm <- i.attribute(Resources.ANDROID_NS, "name").toSeq.flatten
       m <- nm if m.text == ACTION_MAIN
     } yield a
-    x.nonEmpty
   }
   def activityParser: Initialize[State => Parser[Option[String]]] =
     loadForParser2(Keys.processManifest, Keys.applicationId) { (state, mfile, appid) =>
@@ -34,10 +34,7 @@ private[android] object parsers {
         pkg <- appid
       } yield {
         val manifest = XML.loadFile(f)
-        val activities = manifest \\ "activity"
-        val names = activities collect {
-          case e if actionMainExists(e) => activityName(e)
-        }
+        val names = findMainActivitySeq(manifest) map activityName
         EOF.map(_ => None) | (Space ~> opt(
           (token(StringBasic.examples(pkg + "/")) ~ token(StringBasic.examples(names:_*)))
             .map { case (a,b) => a + b }
