@@ -50,7 +50,7 @@ case class PrintingProgressIndicator() extends ProgressIndicatorAdapter {
   override def setFraction(v: Double) = {
     progress = Some(f"${v*100}%3.0f%%")
     indeterminate = false
-    if (v != fraction) {
+    if ((v*100).toInt != (fraction*100).toInt) {
       printProgress()
       if (v == 1.0)
         println()
@@ -62,12 +62,18 @@ case class PrintingProgressIndicator() extends ProgressIndicatorAdapter {
     printProgress()
   }
   override def setText(s: String) = {
-    text = Option(s).filter(_.trim.nonEmpty)
-    printProgress()
+    val newtext =  Option(s).filter(_.trim.nonEmpty)
+    if (newtext != text) {
+      text = newtext
+      printProgress()
+    }
   }
   override def setSecondaryText(s: String) = {
-    secondary = Option(s).filter(_.trim.nonEmpty)
-    printProgress()
+    val newtext =  Option(s).filter(_.trim.nonEmpty)
+    if (secondary != newtext) {
+      secondary = newtext
+      printProgress()
+    }
   }
   def printProgress(): Unit = {
     val prog = if (indeterminate) {
