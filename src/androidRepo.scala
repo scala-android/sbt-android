@@ -21,30 +21,52 @@ import collection.JavaConverters._
 import scala.xml.{Elem, Node, XML}
 
 object SdkInstaller {
+  implicit val packageOrder: Ordering[com.android.repository.api.RemotePackage] =
+    new Ordering[com.android.repository.api.RemotePackage] {
+      override def compare(x: com.android.repository.api.RemotePackage,
+                           y: com.android.repository.api.RemotePackage) = y.compareTo(x)
+    }
+  val platformOrder: Ordering[com.android.repository.api.RemotePackage] =
+    new Ordering[com.android.repository.api.RemotePackage] {
+      override def compare(x: RepoRemotePackage, y: RepoRemotePackage) = (x.getTypeDetails,y.getTypeDetails) match {
+        case (a: PlatformDetailsType, b: PlatformDetailsType) =>
+          b.getApiLevel - a.getApiLevel
+        case _ => y.compareTo(x)
+      }
+    }
   def installPackage(sdkHandler: AndroidSdkHandler,
+                     prefix: String,
                      pkg: String,
                      name: String,
-                     slog: Logger): RepoRemotePackage = {
-    install(sdkHandler, name, slog)(_.get(pkg))
-  }
+                     slog: Logger): RepoRemotePackage =
+    install(sdkHandler, name, prefix, slog)(_.get(prefix + pkg))
+
   def install(sdkHandler: AndroidSdkHandler,
               name: String,
+              prefix: String,
               slog: Logger)(pkgfilter: Map[String,RepoRemotePackage] => Option[RepoRemotePackage]): RepoRemotePackage = {
     import concurrent.duration._
     val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
     val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator())
-    repomanager.loadSynchronously(60.minutes.toMillis,
+    repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), downloader, null)
     val pkgs = repomanager.getPackages.getRemotePackages.asScala.toMap
     val remotepkg = pkgfilter(pkgs)
     remotepkg match {
       case None =>
-        Plugin.fail(s"No installable package found for $name")
+        Plugin.fail(
+          s"""No installable package found for $name
+              |
+              |Available packages:
+              |${pkgs.keys.toList.filter(_.startsWith(prefix)).map(pkgs).sorted(platformOrder).map(
+                 "  " + _.getPath.substring(prefix.length)).mkString("\n")}
+           """.stripMargin)
       case Some(r) =>
         slog.info(s"Installing package '${r.getDisplayName}' ...")
         val installer = AndroidSdkHandler.findBestInstaller(r)
         val ind = PrintingProgressIndicator()
-        installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
+        val succ = installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
+        if (!succ) Plugin.fail("SDK installation failed")
         if (ind.getFraction != 1.0)
           ind.setFraction(1.0) // workaround for installer stopping at 99%
         r
@@ -68,7 +90,7 @@ object FallbackSdkLoader extends FallbackRemoteRepoLoader {
   }
 
   def processPackage(src: RepositorySource, ls: Map[String,License], e: Node): Option[com.android.repository.api.RemotePackage] = {
-    val archive = (e \ "archives").headOption.flatMap(a => processArchive(a, e.label == "platform"))
+    val archive = (e \ "archives").headOption.toList.flatMap(a => processArchive(a, e.label == "platform"))
     val obsolete = (e \ "obsolete").nonEmpty
     for {
       d <- (e \ "description").headOption.map(_.text)
@@ -144,7 +166,7 @@ object FallbackSdkLoader extends FallbackRemoteRepoLoader {
           (None,tpe,s"add-ons;addon-$nId-$vId-$api")
       }
       val licref = (e \ "uses-license").headOption.flatMap(_.attribute("ref")).fold("")(_.text)
-      RemotePackage(path, d, rev, ls(licref), obsolete, archive.orNull, dep, tpe, src).asV1
+      RemotePackage(path, d, rev, ls(licref), obsolete, archive, dep, tpe, src).asV1
     }
   }
 
@@ -158,8 +180,8 @@ object FallbackSdkLoader extends FallbackRemoteRepoLoader {
     }
   }
 
-  def processArchive(e: Node, ignoreHost: Boolean): Option[Archive] = {
-    e.child.collect {
+  def processArchive(e: Node, ignoreHost: Boolean): List[Archive] = {
+    val archives = e.child.collect {
       case c@Elem(prefix, "archive", meta, ns, children @ _*) =>
         val size     = c \ "size"
         val checksum = c \ "checksum"
@@ -170,15 +192,16 @@ object FallbackSdkLoader extends FallbackRemoteRepoLoader {
           u  <- url.headOption.map(_.text)
         } yield ArchiveFile(ck, s.toLong, u)).map { f =>
           val a = Archive(f)
-          if (!ignoreHost) {
-            val hostOs = (c \ "host-os").headOption.map(_.text)
-            val hostBits = (c \ "host-bits").headOption.map(_.text.toInt)
-            val a1 = hostOs.fold(a)(o => a.copy(hostOs = Some(o)))
-            val a2 = hostBits.fold(a1)(b => a1.copy(hostBits = Some(b)))
-            a2
-          } else a
+          val hostOs = (c \ "host-os").headOption.map(_.text)
+          val hostBits = (c \ "host-bits").headOption.map(_.text.toInt)
+          val a1 = hostOs.fold(a)(o => a.copy(hostOs = Some(o)))
+          val a2 = hostBits.fold(a1)(b => a1.copy(hostBits = Some(b)))
+          a2
         }
-    }.flatten.find(_.asV1.isCompatible)
+    }.flatten.toList
+    if (ignoreHost && archives.forall(!_.asV1.isCompatible)) {
+      archives.map(_.copy(hostOs = None, hostBits = None))
+    } else archives
   }
 }
 case class RemotePackage(getPath: String,
@@ -186,7 +209,7 @@ case class RemotePackage(getPath: String,
                          getVersion: Revision,
                          getLicense: License,
                          obsolete: Boolean,
-                         getArchive: Archive,
+                         archives: List[Archive],
                          dependency: Option[Dependency],
                          getTypeDetails: TypeDetails,
                          getSource: RepositorySource
@@ -199,11 +222,19 @@ case class RemotePackage(getPath: String,
     r.setVersion(getVersion)
     r.setLicense(getLicense.asV1)
     r.setObsolete(obsolete)
+    if (getVersion.getPreview > 0) {
+      val channel = new ChannelType
+      val channelRef = new ChannelRefType
+      channel.setId("2")
+      channel.setValue("Dev")
+      channelRef.setRef(channel)
+      r.setChannelRef(channelRef)
+    }
     val dt = new DependenciesType
     dt.getDependency.addAll(dependency.toList.asJava)
     r.setDependencies(dt)
     val as = new com.android.repository.impl.generated.v1.ArchivesType
-    as.getArchive.add(getArchive.asV1)
+    as.getArchive.addAll(archives.map(_.asV1).asJava)
     r.setArchives(as)
     r.setSource(getSource)
     r

@@ -572,7 +572,7 @@ object Plugin extends sbt.Plugin {
     minSdkVersion            := {
       val m = manifest.value
       val usesSdk = m \ "uses-sdk"
-      if (usesSdk.isEmpty) "7" else
+      if (usesSdk.isEmpty) "9" else
         usesSdk(0).attribute(ANDROID_NS, "minSdkVersion").fold("7") { _.head.text }
     },
     proguardVersion          := "5.0",
@@ -650,9 +650,9 @@ object Plugin extends sbt.Plugin {
     packageDebug            <<= packageDebug dependsOn setDebug,
     packageRelease          <<= packageT,
     packageRelease          <<= packageRelease dependsOn setRelease,
-    sdkPath                 <<= properties { props =>
+    sdkPath                 <<= (sLog,properties) { (slog,props) =>
       val cached = SdkLayout.androidHomeCache
-      (Option(System getenv "ANDROID_HOME") orElse
+      val path = (Option(System getenv "ANDROID_HOME") orElse
         Option(props getProperty "sdk.dir")) flatMap { p =>
         val f = file(p + File.separator)
         if (f.exists && f.isDirectory) {
@@ -660,8 +660,15 @@ object Plugin extends sbt.Plugin {
           IO.writeLines(cached, p :: Nil)
           Some(p + File.separator)
         } else None
-      } orElse SdkLayout.sdkFallback(cached) getOrElse fail(
-        "set the env variable ANDROID_HOME pointing to your Android SDK")
+      } orElse SdkLayout.sdkFallback(cached) getOrElse {
+        val home = SdkLayout.fallbackAndroidHome
+        slog.info("ANDROID_HOME not set, using " + home.getCanonicalPath)
+        home.mkdirs()
+        home.getCanonicalPath
+      }
+      sys.props("com.android.tools.lint.bindir") =
+        path + File.separator + SdkConstants.FD_TOOLS
+      path
     },
     ndkPath                 <<= (thisProject,properties, sdkPath, sLog) { (p,props,sdkPath, log) => {
       val cache = SdkLayout.androidNdkHomeCache
@@ -741,7 +748,20 @@ object Plugin extends sbt.Plugin {
     bootClasspath            := builder.value(sLog.value).getBootClasspath(false).asScala map Attributed.blank,
     sdkManager               := {
       AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
-      AndroidSdkHandler.getInstance(file(sdkPath.value))
+      val manager = AndroidSdkHandler.getInstance(file(sdkPath.value))
+      val slog = sLog.value
+      val ind = SbtAndroidProgressIndicator(slog)
+      val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
+      if (!pkgs.containsKey("tools")) {
+        slog.warn("android sdk tools not found, searching for package...")
+        SdkInstaller.installPackage(manager, "", "tools", "android sdk tools", slog)
+      }
+      if (!pkgs.containsKey("platform-tools")) {
+        slog.warn("android platform-tools not found, searching for package...")
+        SdkInstaller.installPackage(manager,
+          "", "platform-tools", "android platform-tools", slog)
+      }
+      manager
     },
     buildTools              := {
       val slog = sLog.value
@@ -750,23 +770,20 @@ object Plugin extends sbt.Plugin {
       buildToolsVersion.value map { version =>
         val bti = sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         if (bti == null) {
-          slog.warn(s"build-tools $version not found, searching for installable package...")
-          SdkInstaller.installPackage(sdkHandler, "build-tools;" + version, "build-tools " + version, slog)
+          slog.warn(s"build-tools $version not found, searching for package...")
+          SdkInstaller.installPackage(sdkHandler, "build-tools;", version, "build-tools " + version, slog)
           sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
           sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         } else bti
       } getOrElse {
         val tools = sdkHandler.getLatestBuildTool(ind)
         if (tools == null) {
-          slog.warn(s"build-tools not found, searching for installable package...")
-          val btpkg = SdkInstaller.install(sdkHandler, "latest build-tools", slog) { pkgs =>
+          slog.warn(s"build-tools not found, searching for package...")
+          SdkInstaller.install(sdkHandler, "latest build-tools", "build-tools;", slog) { pkgs =>
             val buildTools = pkgs.keys.toList.collect {
               case k if k.startsWith("build-tools;") => pkgs(k)
             }
-            implicit val packageOrder: Ordering[com.android.repository.api.RemotePackage] = new Ordering[com.android.repository.api.RemotePackage] {
-              override def compare(x: com.android.repository.api.RemotePackage, y: com.android.repository.api.RemotePackage) = y.compareTo(x)
-            }
-            buildTools.sorted.headOption
+            buildTools.sorted(SdkInstaller.packageOrder).dropWhile(_.getVersion.getPreview > 0).headOption
           }
           // force RepoManager to clear itself
           sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
@@ -790,13 +807,41 @@ object Plugin extends sbt.Plugin {
       val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
 
       if (ptarget == null) {
-        slog.warn(s"platformTarget $targetHash not found, searching for installable package...")
-        SdkInstaller.installPackage(sdkHandler, "platforms;" + targetHash, targetHash, slog)
+        slog.warn(s"platformTarget $targetHash not found, searching for package...")
+        SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, slog)
       }
 
       val logger = ilogger.value(slog)
       sdkLoader.value.getTargetInfo(
         targetHash, buildTools.value.getRevision, logger)
+    },
+    m2repoCheck        := {
+      val manager = sdkManager.value
+      val libs = libraryDependencies.value
+      val slog = sLog.value
+      val gmsOrgs = Set("com.google.android.gms",
+        "com.google.android.support.wearable",
+        "com.google.android.wearable")
+      val supportOrgs = Set("com.android.support", "com.android.databinding")
+      val (needSupp, needGms) = libs.foldLeft((false,false)) { case ((supp, gms), mid) =>
+        (supp || supportOrgs(mid.organization), gms || gmsOrgs(mid.organization))
+      }
+      if (needSupp || needGms) { // TODO handle updating as well
+        val ind = SbtAndroidProgressIndicator(slog)
+        val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
+
+        if (needSupp && !pkgs.containsKey("extras;android;m2repository")) {
+          slog.warn("android support repository not found, searching for package...")
+          SdkInstaller.installPackage(manager, "extras;android;",
+            "m2repository", "android support repository", slog)
+        }
+        if (needGms && !pkgs.containsKey("extras;google;m2repository")) {
+          slog.warn("google play services repository not found, searching for package...")
+          SdkInstaller.installPackage(manager,
+            "extras;google;", "m2repository", "google play services repository", slog)
+        }
+      }
+
     }
   )) ++ Seq(
     autoScalaLibrary   := {
@@ -804,6 +849,8 @@ object Plugin extends sbt.Plugin {
         (managedSourceDirectories in Compile).value.exists(d =>
           (d ** "*.scala").get.nonEmpty)
     },
+    // make streams dependOn because coursier replaces `update`
+    streams in update <<= (streams in update) dependsOn m2repoCheck,
     crossPaths        <<= autoScalaLibrary,
     resolvers        <++= sdkPath { p =>
       Seq(SdkLayout.googleRepository(p), SdkLayout.androidRepository(p))

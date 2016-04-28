@@ -81,6 +81,10 @@ case class PrintingProgressIndicator() extends ProgressIndicatorAdapter {
     val indicator = secondary.fold(text.getOrElse(""))(s => text.getOrElse("") + " / " + s)
     print(f"${indicator.take(72)}%-72s $prog%6s\r")
   }
+
+  override def logWarning(s: String, e: Throwable) = {
+    println("[warn] " + s)
+  }
 }
 object NullProgressIndicator extends ProgressIndicatorAdapter
 

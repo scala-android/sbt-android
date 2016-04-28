@@ -275,6 +275,7 @@ object SdkLayout {
   def explodedAars = file(AndroidLocation.getFolder) / "sbt" / "exploded-aars"
   def androidHomeCache = file(AndroidLocation.getFolder) / "sbt" / "sdk.dir"
   def androidNdkHomeCache = file(AndroidLocation.getFolder) / "sbt" / "ndk.dir"
+  def fallbackAndroidHome = file(AndroidLocation.getFolder) / "sbt" / "sdk"
   def sdkFallback(f: File): Option[String] = if (f.isFile) {
     Try(IO.readLines(f)).toOption.flatMap(_.headOption).map(file).collect {
       case d if d.isDirectory => d.getAbsolutePath + File.separator
