@@ -34,6 +34,27 @@ trait TypedFindView extends Any {
 }
 
 object TypedResource {
+  // Helper object to suppress deprecation warnings as discussed in
+  // https://issues.scala-lang.org/browse/SI-7934
+  @deprecated("", "")
+  private trait compat {
+    def getColor(c: Context, resid: Int): Int = {
+      if (Build.VERSION.SDK_INT >= 23)
+        c.getColor(resid)
+      else
+        c.getResources.getColor(resid)
+    }
+
+    def getDrawable(c: Context, resid: Int): Drawable = {
+      if (Build.VERSION.SDK_INT >= 21)
+        c.getDrawable(resid)
+      else
+        c.getResources.getDrawable(resid)
+    }
+  }
+
+  private object compat extends compat
+
   sealed trait ResAnim
   sealed trait ResAnimator
   sealed trait ResAttr

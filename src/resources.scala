@@ -406,19 +406,12 @@ object Resources {
           }
 
           val getColor = if (platformApi >= 23) {
-            s"""      if (Build.VERSION.SDK_INT >= 23)
-               |        c.getColor(resid)
-               |      else
-               |        c.getResources.getColor(resid)""".stripMargin
+            "compat.getColor(c,resid)"
           } else {
             "c.getResources.getColor(resid)"
           }
           val getDrawable = if (platformApi >= 21) {
-            s"""      if (Build.VERSION.SDK_INT >= 21)
-               |        c.getDrawable(resid)
-               |      else
-               |        c.getResources.getDrawable(resid)
-             """.stripMargin
+            "compat.getDrawable(c,resid)"
           } else {
             "c.getResources.getDrawable(resid)"
           }
