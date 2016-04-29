@@ -8,7 +8,7 @@ import com.android.repository.api._
 import com.android.repository.impl.generated.generic.v1.GenericDetailsType
 import com.android.repository.impl.generated.v1._
 import com.android.repository.io.FileOp
-import com.android.sdklib.internal.repository.{CanceledByUserException, DownloadCache, ITaskMonitor}
+import com.android.sdklib.internal.repository.{CanceledByUserException, DownloadCache}
 import com.android.sdklib.repositoryv2.{AndroidSdkHandler, LegacyDownloader, LegacyTaskMonitor}
 import com.android.repository.api.{RemotePackage => RepoRemotePackage}
 import com.android.sdklib.repositoryv2.generated.addon.v1.{AddonDetailsType, ExtraDetailsType, LibrariesType}
@@ -18,6 +18,7 @@ import com.android.sdklib.repositoryv2.generated.sysimg.v1.SysImgDetailsType
 import sbt.{IO, Using, Logger}
 
 import collection.JavaConverters._
+import concurrent.duration._
 import scala.xml.{Elem, Node, XML}
 
 object SdkInstaller {
@@ -45,7 +46,6 @@ object SdkInstaller {
               name: String,
               prefix: String,
               slog: Logger)(pkgfilter: Map[String,RepoRemotePackage] => Option[RepoRemotePackage]): RepoRemotePackage = {
-    import concurrent.duration._
     val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
     val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator())
     repomanager.loadSynchronously(1.day.toMillis,
@@ -72,6 +72,98 @@ object SdkInstaller {
         r
     }
   }
+
+  def installSdkTaskDef = sbt.Def.inputTask {
+    val toInstall = parsers.installSdkParser.parsed
+    val log = sbt.Keys.streams.value.log
+    val ind = SbtAndroidProgressIndicator(log)
+    val sdkHandler = Keys.Internal.sdkManager.value
+    val repomanager = sdkHandler.getSdkManager(ind)
+    repomanager.loadSynchronously(1.day.toMillis,
+      PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
+    val newpkgs = repomanager.getPackages.getNewPkgs.asScala.filterNot(_.obsolete).toList.sorted(platformOrder)
+    toInstall match {
+      case Some(p) =>
+        install(sdkHandler, p, "", log)(_.get(p))
+        repomanager.loadSynchronously(0, ind, null, null)
+      case None =>
+        val packages = newpkgs.map { p =>
+            val path = p.getPath
+            val name = p.getDisplayName
+            s"  $path\n  - $name"
+          }
+        log.error("Available packages:\n" + packages.mkString("\n"))
+        Plugin.fail("A package to install must be specified")
+    }
+    ()
+  }
+  //noinspection MutatorLikeMethodIsParameterless
+  def updateSdkTaskDef = sbt.Def.inputTask {
+    val toUpdate = parsers.updateSdkParser.parsed
+    val log = sbt.Keys.streams.value.log
+    val ind = SbtAndroidProgressIndicator(log)
+    val sdkHandler = Keys.Internal.sdkManager.value
+    val repomanager = sdkHandler.getSdkManager(ind)
+    repomanager.loadSynchronously(1.day.toMillis,
+      PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
+    val updates = repomanager.getPackages.getUpdatedPkgs.asScala.collect {
+      case u if u.hasRemote => u.getRemote }.toList.sorted(platformOrder)
+    def updatesHelp(): Unit = {
+      val packages = "  all\n  - apply all updates" ::
+        updates.map { u =>
+          val path = u.getPath
+          val name = u.getDisplayName
+          s"  $path\n  - $name"
+        }
+      if (packages.size == 1) {
+        log.error("No updates available")
+      } else {
+        log.error("Available updates:\n" + packages.mkString("\n"))
+      }
+    }
+    toUpdate.left.foreach {
+      case Some(_) =>
+        updates.foreach { u =>
+          install(sdkHandler, u.getDisplayName, "", log)(_.get(u.getPath))
+          repomanager.loadSynchronously(0, ind, null, null)
+        }
+      case None =>
+        updatesHelp()
+        Plugin.fail("A package or 'all' must be specified")
+    }
+    toUpdate.right.foreach { p =>
+      updates.find(_.getPath == p) match {
+        case Some(pkg) =>
+          install(sdkHandler, pkg.getDisplayName, "", log)(_.get(pkg.getPath))
+          repomanager.loadSynchronously(0, ind, null, null)
+        case None =>
+          updatesHelp()
+          Plugin.fail(s"Update '$p' not found")
+      }
+    }
+    ()
+  }
+  //noinspection MutatorLikeMethodIsParameterless
+  def updateCheckSdkTaskDef = sbt.Def.task {
+    import concurrent.ExecutionContext.Implicits.global
+    concurrent.Future {
+      val sdkHandler = Keys.Internal.sdkManager.value
+      val log = sbt.Keys.streams.value.log
+      val ind = SbtAndroidProgressIndicator(log)
+      val repomanager = sdkHandler.getSdkManager(ind)
+      repomanager.loadSynchronously(1.day.toMillis, ind, SbtAndroidDownloader(sdkHandler.getFileOp), null)
+      val updates = repomanager.getPackages.getUpdatedPkgs.asScala.filter(_.hasRemote)
+      if (updates.nonEmpty) {
+        log.warn("Android SDK updates available, run 'android:update-sdk' to update:")
+        updates.foreach { u =>
+          val p = u.getRemote
+          log.warn("    " + p.getDisplayName)
+        }
+      }
+    }
+    ()
+  }
+
 }
 object FallbackSdkLoader extends FallbackRemoteRepoLoader {
   override def parseLegacyXml(xml: RepositorySource, progress: ProgressIndicator) = {

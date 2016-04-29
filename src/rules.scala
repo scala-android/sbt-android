@@ -404,6 +404,9 @@ object Plugin extends sbt.Plugin {
           }
       }
     },
+    updateCheckSdk          <<= SdkInstaller.updateCheckSdkTaskDef,
+    updateSdk               <<= SdkInstaller.updateSdkTaskDef,
+    installSdk              <<= SdkInstaller.installSdkTaskDef,
     antLayoutDetector        := {
       val log = streams.value.log
       val prj = thisProjectRef.value.project
@@ -981,6 +984,7 @@ object Plugin extends sbt.Plugin {
     ("variant-reset", "Clear loaded variant configuration from the project"),
     "Usage: variant-reset[/project]")(projectParser)(variantClearAction)
 
+  // TODO refactor to fix circular dependencies (mixin, etc.)
   def fail[A](msg: => String): A = {
     throw new MessageOnlyException(msg)
   }

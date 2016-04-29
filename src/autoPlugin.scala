@@ -51,9 +51,10 @@ object AndroidPlugin extends AutoPlugin {
       s.log.warn(s"${unexported.project} is an Android dependency but does not specify `exportJars := true`")
     }
 
-    val s2 = androids.headOption.fold(s)(a =>
-      e.runTask(updateCheck in a, s)._1
-    )
+    val s2 = androids.headOption.fold(s) { a =>
+      val s3 = e.runTask(updateCheck in a, s)._1
+      e.runTask(updateCheckSdk in a, s3)._1
+    }
 
     androids.foldLeft(s2) { (s, ref) =>
       e.runTask(antLayoutDetector in ref, s)._1
