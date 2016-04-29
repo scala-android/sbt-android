@@ -25,8 +25,6 @@ import com.android.builder.compiling.{BuildConfigGenerator, ResValueGenerator}
 import java.net.URLEncoder
 
 import Resources.{ANDROID_NS, resourceUrl}
-import com.android.builder.internal.compiler.RenderScriptProcessor
-import com.android.sdklib.build.RenderScriptProcessor.CommandLineLauncher
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 object Tasks {
