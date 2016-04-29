@@ -4,7 +4,7 @@ import bintray.Keys._
 val pluginVersion = "1.6.1-SNAPSHOT"
 val gradleBuildVersion = "1.2.0"
 
-val androidToolsVersion = "2.0.0"
+val androidToolsVersion = "2.1.0"
 
 // gradle-plugin and gradle-model projects
 val model = project.in(file("gradle-model")).settings(
@@ -115,7 +115,7 @@ libraryDependencies ++= Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
-  "com.android.tools.lint" % "lint" % "25.0.0",
+  "com.android.tools.lint" % "lint" % "25.1.0",
   "net.orfjackal.retrolambda" % "retrolambda" % "2.1.0"
 )
 
