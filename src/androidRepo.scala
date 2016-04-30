@@ -69,6 +69,8 @@ object SdkInstaller {
         if (!succ) Plugin.fail("SDK installation failed")
         if (ind.getFraction != 1.0)
           ind.setFraction(1.0) // workaround for installer stopping at 99%
+        // force RepoManager to clear itself
+        sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
         r
     }
   }
@@ -85,7 +87,6 @@ object SdkInstaller {
     toInstall match {
       case Some(p) =>
         install(sdkHandler, p, "", log)(_.get(p))
-        repomanager.loadSynchronously(0, ind, null, null)
       case None =>
         val packages = newpkgs.map { p =>
             val path = p.getPath
@@ -125,7 +126,6 @@ object SdkInstaller {
       case Some(_) =>
         updates.foreach { u =>
           install(sdkHandler, u.getDisplayName, "", log)(_.get(u.getPath))
-          repomanager.loadSynchronously(0, ind, null, null)
         }
       case None =>
         updatesHelp()
@@ -135,7 +135,6 @@ object SdkInstaller {
       updates.find(_.getPath == p) match {
         case Some(pkg) =>
           install(sdkHandler, pkg.getDisplayName, "", log)(_.get(pkg.getPath))
-          repomanager.loadSynchronously(0, ind, null, null)
         case None =>
           updatesHelp()
           Plugin.fail(s"Update '$p' not found")

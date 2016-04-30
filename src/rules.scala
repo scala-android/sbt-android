@@ -775,7 +775,6 @@ object Plugin extends sbt.Plugin {
         if (bti == null) {
           slog.warn(s"build-tools $version not found, searching for package...")
           SdkInstaller.installPackage(sdkHandler, "build-tools;", version, "build-tools " + version, slog)
-          sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
           sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         } else bti
       } getOrElse {
@@ -788,8 +787,6 @@ object Plugin extends sbt.Plugin {
             }
             buildTools.sorted(SdkInstaller.packageOrder).dropWhile(_.getVersion.getPreview > 0).headOption
           }
-          // force RepoManager to clear itself
-          sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
           sdkHandler.getLatestBuildTool(ind, false)
         } else {
           sLog.value.debug("Using Android build-tools: " + tools)
