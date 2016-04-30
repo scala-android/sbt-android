@@ -21,7 +21,7 @@ import collection.JavaConverters._
 private[android] object parsers {
   val ACTION_MAIN = "android.intent.action.MAIN"
   def activityName(n: Node) = n.attribute(Resources.ANDROID_NS, "name").head.text
-  def findMainActivitySeq(element: Elem): NodeSeq = {
+  def findMainActivities(element: Elem): NodeSeq = {
     for {
       a <- (element \\ "activity" ++ element \\ "activity-alias")
       i <- a \ "intent-filter" \ "action"
@@ -36,7 +36,7 @@ private[android] object parsers {
         pkg <- appid
       } yield {
         val manifest = XML.loadFile(f)
-        val names = findMainActivitySeq(manifest) map activityName
+        val names = findMainActivities(manifest) map activityName
         EOF.map(_ => None) | (Space ~> opt(
           (token(StringBasic.examples(pkg + "/")) ~ token(StringBasic.examples(names:_*)))
             .map { case (a,b) => a + b }

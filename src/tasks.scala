@@ -1274,7 +1274,7 @@ object Tasks {
     val manifestXml = l.processedManifest
     val m = XML.loadFile(manifestXml)
     // if an arg is specified, try to launch that
-    parsers.activityParser.parsed orElse (parsers.findMainActivitySeq(m).headOption.map(activity => {
+    parsers.activityParser.parsed orElse (parsers.findMainActivities(m).headOption.map(activity => {
       val name = activity.attribute(ANDROID_NS, "name").get.head.text
       "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
     })) match {
