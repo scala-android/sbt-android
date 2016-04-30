@@ -57,6 +57,12 @@ object Keys {
   val bootClasspath = SettingKey[sbt.Keys.Classpath](
     "boot-classpath", "boot classpath for android platform jar") in Android
   val updateCheck = TaskKey[Unit]("update-check", "Check for a new version of the plugin") in Android
+  val updateCheckSdk = TaskKey[Unit](
+    "update-check-sdk", "Check for new versions of the Android SDK") in Android
+  val updateSdk = InputKey[Unit](
+    "update-sdk", "Update the Android SDK") in Android
+  val installSdk = InputKey[Unit](
+    "install-sdk", "Install Android SDK packages") in Android
   val flavors = SettingKey[Map[String,Seq[Setting[_]]]]("flavors",
     "build flavor definitions, map of flavor names to settings") in Android
   val buildTypes = SettingKey[Map[String,Seq[Setting[_]]]]("build-types",
@@ -285,6 +291,7 @@ object Keys {
   }
 
   private[android] object Internal {
+    val m2repoCheck = TaskKey[Unit]("android-m2repo-check", "Internal task to see if google/android repos are installed") in Android
     val pluginSettingsLoaded = SettingKey[Boolean]("android-plugin-settings-loaded", "Internal duplicate apply check") in Android
     val buildTools = SettingKey[BuildToolInfo]("build-tools", "Android build tools") in Android
     val ilogger = SettingKey[Logger => ILogger]("ilogger", "internal Android SDK logger") in Android

@@ -13,6 +13,8 @@ import scala.xml.{Elem, Node, NodeSeq, XML}
 import sbt.Cache.StringFormat
 import sbinary.{Format, Input, Output}
 
+import collection.JavaConverters._
+
 /**
   * @author pfnguyen
   */
@@ -43,6 +45,28 @@ private[android] object parsers {
       parser getOrElse opt(Def.spaceDelimited("<activity name>").map(_.mkString(" ")))
     }
 
+  def installSdkParser: State => Parser[Option[String]] = state => {
+    val ind = SbtAndroidProgressIndicator(state.log)
+    val repomanager = sbt.Project.extract(state).get(
+      Keys.Internal.sdkManager).getSdkManager(ind)
+    val newpkgs = repomanager.getPackages.getNewPkgs.asScala.filterNot(_.obsolete).toList.map { p =>
+      p.getPath
+    }
+    EOF.map(_ => Option.empty[String]) |
+      Space ~> token(StringBasic).examples(newpkgs:_*).map(Option.apply)
+  }
+  //noinspection MutatorLikeMethodIsParameterless
+  def updateSdkParser: State => Parser[Either[Option[String],String]] = state => {
+    val ind = SbtAndroidProgressIndicator(state.log)
+    val repomanager = sbt.Project.extract(state).get(
+      Keys.Internal.sdkManager).getSdkManager(ind)
+    val updates = repomanager.getPackages.getUpdatedPkgs.asScala.toList.collect {
+      case u if u.hasRemote => u.getRemote.getPath
+    }
+    EOF.map(_ => Left(Option.empty[String])) | Space ~> choiceParser(
+      token("all").map(Option.apply),
+      token(StringBasic).examples(updates:_*))
+  }
   private[android] implicit val sbinaryFileFormat: sbinary.Format[File] = new sbinary.Format[File] {
     override def writes(out: Output, value: File) = StringFormat.writes(out, value.getCanonicalPath)
     override def reads(in: Input) = sbt.file(StringFormat.reads(in))

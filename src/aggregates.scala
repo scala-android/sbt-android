@@ -71,6 +71,7 @@ object Aggregate {
       override def getMaxProcessCount: Integer = maxProcessCount
       override def getThreadCount: Integer = Runtime.getRuntime.availableProcessors()
       override def getPreDexLibraries: Boolean = false
+      override def getDexInProcess = false
     }
   }
 

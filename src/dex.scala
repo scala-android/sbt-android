@@ -122,7 +122,7 @@ object Dex {
         // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
         bldr.convertByteCode(Seq(shard).asJava, shardPath,
           false, null, dexOptions.toDexOptions(),
-          dexOptions.additionalParams.asJava, dexOptions.incremental, true, SbtProcessOutputHandler(s.log), false)
+          dexOptions.additionalParams.asJava, dexOptions.incremental, true, SbtProcessOutputHandler(s.log))
         val result = shardPath * "*.dex" get
 
         s.log.info(s"$sn: Generated dex shard, method count: " + (result map (dexMethodCount(_, s.log))).sum)
@@ -170,7 +170,7 @@ object Dex {
       // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(dexIn.asJava, bin,
         dexOptions.multi, if (!legacy) null else dexOptions.mainClassesConfig,
-        dexOptions.toDexOptions(), additionalDexParams.asJava, incremental, true, SbtProcessOutputHandler(s.log), false)
+        dexOptions.toDexOptions(), additionalDexParams.asJava, incremental, true, SbtProcessOutputHandler(s.log))
       s.log.info("dex method count: " + ((bin * "*.dex" get) map (dexMethodCount(_, s.log))).sum)
       (bin ** "*.dex").get.toSet
     }(dexIn.toSet)

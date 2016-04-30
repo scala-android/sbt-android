@@ -117,36 +117,53 @@ object Resources {
 
     val inputs = (respaths flatMap { r => (r ***) get }) filter (n =>
       !n.getName.startsWith(".") && !n.getName.startsWith("_"))
+    var needsFullResourceMerge = false
 
     FileFunction.cached(cache / "nuke-res-if-changed", FilesInfo.lastModified) { in =>
+      needsFullResourceMerge = true
       IO.delete(resTarget)
       in
     }(depres.toSet)
     FileFunction.cached(cache / "collect-resources")(
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
-      incrResourceMerge(layout, minSdk, resTarget, isLib, libs,
-        cache / "collect-resources", logger, bldr, sets, vectorprocessor, inChanges, s.log)
+
+      incrResourceMerge(layout, minSdk, resTarget, isLib, libs, cache / "collect-resources",
+                        logger, bldr, sets, vectorprocessor, inChanges, needsFullResourceMerge, s.log)
       ((resTarget ** FileOnlyFilter).get ++ (layout.generatedVectors ** FileOnlyFilter).get).toSet
     }(inputs.toSet)
 
     (assetBin, resTarget)
   }
-  def incrResourceMerge(layout: ProjectLayout, minSdk: Int, resTarget: File, isLib: Boolean,
-                        libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
-                        bldr: AndroidBuilder, resources: Seq[ResourceSet],
-                        preprocessor: ResourcePreprocessor,
-                        changes: ChangeReport[File],
-                        slog: Logger)(implicit m: BuildOutput.Converter) {
+
+  def incrResourceMerge(
+    layout: ProjectLayout,
+    minSdk: Int,
+    resTarget: File,
+    isLib: Boolean,
+    libs: Seq[LibraryDependency],
+    blobDir: File,
+    logger: ILogger,
+    bldr: AndroidBuilder,
+    resources: Seq[ResourceSet],
+    preprocessor: ResourcePreprocessor,
+    changes: ChangeReport[File],
+    needsFullResourceMerge: Boolean,
+    slog: Logger
+  )(implicit m: BuildOutput.Converter) {
 
     def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, libs, blobDir,
-      logger, bldr, resources, preprocessor, slog)
+                                    logger, bldr, resources, preprocessor, slog)
+
     val merger = new ResourceMerger(minSdk)
     if (!merger.loadFromBlob(blobDir, true)) {
       slog.debug("Could not load merge blob (no full merge yet?)")
       merge()
     } else if (!merger.checkValidUpdate(resources.asJava)) {
       slog.debug("requesting full merge: !checkValidUpdate")
+      merge()
+    } else if (needsFullResourceMerge) {
+      slog.debug("requesting full merge: dependency resources have changed!")
       merge()
     } else {
 

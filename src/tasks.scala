@@ -9,25 +9,23 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.xml._
 import language.postfixOps
-
 import java.util.Properties
 import java.io.File
 
 import com.android.SdkConstants
 import com.android.builder.core._
-import com.android.ddmlib.{IDevice, DdmPreferences}
+import com.android.ddmlib.{DdmPreferences, IDevice}
 import com.android.ddmlib.testrunner.ITestRunListener
-import com.android.sdklib.{SdkVersionInfo, IAndroidTarget}
+import com.android.sdklib.{IAndroidTarget, SdkVersionInfo}
 import com.android.sdklib.BuildToolInfo.PathId
-import com.android.sdklib.build.RenderScriptProcessor
-import com.android.sdklib.build.RenderScriptProcessor.CommandLineLauncher
-
 import Keys._
 import Keys.Internal._
-import Dependencies.{LibraryProject => _, AutoLibraryProject => _, _}
-import com.android.builder.compiling.{ResValueGenerator, BuildConfigGenerator}
+import Dependencies.{AutoLibraryProject => _, LibraryProject => _, _}
+import com.android.builder.compiling.{BuildConfigGenerator, ResValueGenerator}
 import java.net.URLEncoder
+
 import Resources.{ANDROID_NS, resourceUrl}
+import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 object Tasks {
   val TOOLS_NS = "http://schemas.android.com/tools"
@@ -304,42 +302,44 @@ object Tasks {
       libraryProjects.value, typedResourcesIgnores.value, streams.value)
   }
 
-  def ndkbuild(layout: ProjectLayout, args: Seq[String],
+  def ndkbuild(manager: AndroidSdkHandler, layout: ProjectLayout, args: Seq[String],
                envs: Seq[(String,String)], ndkHome: Option[String], srcs: File,
                log: Logger, debug: Boolean)(implicit m: BuildOutput.Converter) = {
     val hasJni = (layout.jni ** "Android.mk" get).nonEmpty
     if (hasJni) {
-      if (ndkHome.isEmpty) {
-        log.warn(
-          "Android.mk found, but neither ndk.dir nor ANDROID_NDK_HOME are set")
+      val ndk = ndkHome.getOrElse {
+        val bundlePath = SdkLayout.ndkBundle(manager.getLocation.getAbsolutePath)
+        if (!bundlePath.isDirectory) {
+          log.warn("Android.mk found, but ANDROID_NDK_HOME not set, searching for package...")
+          SdkInstaller.installPackage(manager, "", "ndk-bundle", "android NDK", log)
+        }
+        bundlePath.getAbsolutePath
       }
-      ndkHome flatMap { ndk =>
-        val inputs = (layout.jni ** FileOnlyFilter).get.toSet
-        FileFunction.cached(layout.ndkObj, FilesInfo.lastModified) { in =>
-          val env = Seq("NDK_PROJECT_PATH" -> (layout.jni / "..").getAbsolutePath,
-            "NDK_OUT" -> layout.ndkObj.getAbsolutePath,
-            "NDK_LIBS_OUT" -> layout.ndkBin.getAbsolutePath,
-            "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath) ++ envs
+      val inputs = (layout.jni ** FileOnlyFilter).get.toSet
+      FileFunction.cached(layout.ndkObj, FilesInfo.lastModified) { in =>
+        val env = Seq("NDK_PROJECT_PATH" -> (layout.jni / "..").getAbsolutePath,
+          "NDK_OUT" -> layout.ndkObj.getAbsolutePath,
+          "NDK_LIBS_OUT" -> layout.ndkBin.getAbsolutePath,
+          "SBT_SOURCE_MANAGED" -> srcs.getAbsolutePath) ++ envs
 
-          log.info("Executing NDK build")
-          val ndkbuildFile = if (!Commands.isWindows) file(ndk) / "ndk-build" else  {
-            val f = file(ndk) / "ndk-build.cmd"
-            if (f.exists) f else file(ndk) / "ndk-build.bat"
-          }
-          val ndkBuildInvocation = Seq(
-            ndkbuildFile.getAbsolutePath,
-            if (debug) "NDK_DEBUG=1" else "NDK_DEBUG=0"
-          ) ++ args
+        log.info("Executing NDK build")
+        val ndkbuildFile = if (!Commands.isWindows) file(ndk) / "ndk-build" else  {
+          val f = file(ndk) / "ndk-build.cmd"
+          if (f.exists) f else file(ndk) / "ndk-build.bat"
+        }
+        val ndkBuildInvocation = Seq(
+          ndkbuildFile.getAbsolutePath,
+          if (debug) "NDK_DEBUG=1" else "NDK_DEBUG=0"
+        ) ++ args
 
-          val rc = Process(ndkBuildInvocation, layout.base, env: _*) !
+        val rc = Process(ndkBuildInvocation, layout.base, env: _*) !
 
-          if (rc != 0)
-            Plugin.fail("ndk-build failed!")
+        if (rc != 0)
+          Plugin.fail("ndk-build failed!")
 
-          (layout.ndkBin ** FileOnlyFilter).get.toSet
-        }(inputs)
-        Option(layout.ndkBin)
-      }
+        (layout.ndkBin ** FileOnlyFilter).get.toSet
+      }(inputs)
+      Option(layout.ndkBin)
     } else None
   }
 
@@ -370,6 +370,7 @@ object Tasks {
   }
   val ndkBuildTaskDef = ( projectLayout
                         , outputLayout
+                        , sdkManager
                         , libraryProjects
                         , sourceManaged in Compile
                         , ndkJavah
@@ -378,13 +379,13 @@ object Tasks {
                         , ndkArgs
                         , streams
                         , apkbuildDebug
-                        ) map { (layout, o, libs, srcs, h, ndkHome, env, args, s, debug) =>
+                        ) map { (layout, o, sdk, libs, srcs, h, ndkHome, env, args, s, debug) =>
     implicit val output = o
     val subndk = libs flatMap { l =>
-      ndkbuild(l.layout, args, env, ndkHome, srcs, s.log, debug()).toSeq
+      ndkbuild(sdk, l.layout, args, env, ndkHome, srcs, s.log, debug()).toSeq
     }
 
-    ndkbuild(layout, args, env, ndkHome, srcs, s.log, debug()).toSeq ++ subndk
+    ndkbuild(sdk, layout, args, env, ndkHome, srcs, s.log, debug()).toSeq ++ subndk
   }
 
   val collectProjectJniTaskDef = Def.task {
@@ -616,32 +617,14 @@ object Tasks {
     val scripts = (layout.renderscript ** "*.rs").get
     val target = Try(rsTargetApi.value.toInt).getOrElse(11) max 11
 
-    val processor = new RenderScriptProcessor(
-      scripts.asJava,
-      List.empty.asJava,
-      layout.rsBin,
-      projectLayout.value.generatedSrc,
-      layout.rsRes,
-      layout.rsObj,
-      layout.rsLib,
-      buildTools.value,
-      target,
-      false, // debug flag -g, not used
-      rsOptimLevel.value,
-      rsSupportMode.value)
-
-    processor.build(new CommandLineLauncher {
-      override def launch(executable: sbt.File, arguments: java.util.List[String],
-                          envVariableMap: java.util.Map[String, String]): Unit = {
-
-        val cmd = executable.getAbsolutePath +: arguments.asScala
-        streams.value.log.debug(s"renderscript command: $cmd, env: ${envVariableMap.asScala.toSeq}")
-
-        val r = Process(cmd, None, envVariableMap.asScala.toSeq: _*).!
-        if (r != 0)
-          Plugin.fail("renderscript failed: " + r)
-      }
-    })
+    val abis = ndkAbiFilter.value.toSet
+    val abiFilter = if (abis.isEmpty) null else abis.asJava
+    val bldr = builder.value(streams.value.log)
+    bldr.compileAllRenderscriptFiles(Seq(layout.renderscript).asJava,
+      List.empty.asJava, layout.generatedSrc, layout.rsRes, layout.rsObj,
+      layout.rsLib, target, false, rsOptimLevel.value, false,
+      rsSupportMode.value, abiFilter,
+      SbtProcessOutputHandler(streams.value.log))
 
     if (rsSupportMode.value) { // copy support library
       val in = SdkLayout.renderscriptSupportLibFile(buildTools.value)
@@ -653,9 +636,15 @@ object Tasks {
     }
 
     val JavaSource = """\s*(\S+\.java).*""".r
-    (layout.rsDeps ** "*.d").get
+    val scriptcs = (layout.rsDeps ** "*.d").get
       .flatMap(IO.readLines(_))
       .collect { case JavaSource(path) => new File(path) }
+
+    val scriptnames = scripts.map(_.getName.takeWhile(_!='.') + "BitCode.java")
+
+    scriptcs.flatMap { sc =>
+      scriptnames.map(sc.getParentFile / _).filter(_.isFile)
+    }.distinct ++ scriptcs
   }
 
   val aidlTaskDef = ( sdkPath
@@ -665,7 +654,7 @@ object Tasks {
                     , streams
                     ) map { (s, m, layout, p, l) =>
     import SdkConstants._
-    val tools = Option(m.getLatestBuildTool(SbtAndroidProgressIndicator(l.log)))
+    val tools = Option(m.getLatestBuildTool(SbtAndroidProgressIndicator(l.log), false))
     val aidl          = tools map (_.getPath(PathId.AIDL)) getOrElse {
         s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
     }
@@ -1107,6 +1096,7 @@ object Tasks {
         override def getJavaMaxHeapSize = ta.dexMaxHeap
         override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
         override def getMaxProcessCount = ta.dexMaxProcessCount
+        override def getDexInProcess = false
       }
       val rTxt = layout.testRTxt
       val dex = layout.testDex
@@ -1130,7 +1120,7 @@ object Tasks {
       // dex doesn't support --no-optimize, see
       // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(inputs.asJava,
-        dex, false, null, options, List.empty.asJava, false, true, SbtProcessOutputHandler(s.log), false)
+        dex, false, null, options, List.empty.asJava, false, true, SbtProcessOutputHandler(s.log))
 
       bldr.packageApk(res.getAbsolutePath, Set(dex).asJava,
         List.empty.asJava, List.empty.asJava, Set.empty.asJava,
