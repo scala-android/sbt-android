@@ -410,7 +410,8 @@ object Resources {
             else {
               val color =
                 """
-                  |    def getColor(c: Context, resid: Int): Int = {
+                  |    @TargetApi(23)
+                  |    @inline def getColor(c: Context, resid: Int): Int = {
                   |      if (Build.VERSION.SDK_INT >= 23)
                   |        c.getColor(resid)
                   |      else
@@ -418,7 +419,8 @@ object Resources {
                   |    }""".stripMargin
               val drawable =
                """
-                  |    def getDrawable(c: Context, resid: Int): Drawable = {
+                  |    @TargetApi(21)
+                  |    @inline def getDrawable(c: Context, resid: Int): Drawable = {
                   |      if (Build.VERSION.SDK_INT >= 21)
                   |        c.getDrawable(resid)
                   |      else
