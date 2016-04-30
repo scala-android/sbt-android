@@ -767,8 +767,6 @@ object Plugin extends sbt.Plugin {
       manager
     },
     buildTools              := {
-      // also attempt to alleviate race condition by waiting for platform retrieval
-      val _ = platform.value
       val slog = sLog.value
       val ind = SbtAndroidProgressIndicator(slog)
       val sdkHandler = sdkManager.value
