@@ -116,7 +116,7 @@ libraryDependencies ++= Seq(
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
   "com.android.tools.lint" % "lint" % "25.1.0",
-  "net.orfjackal.retrolambda" % "retrolambda" % "2.1.0"
+  "net.orfjackal.retrolambda" % "retrolambda" % "2.3.0"
 )
 
 aggregate := false
