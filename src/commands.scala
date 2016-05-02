@@ -3,7 +3,6 @@ package android
 import java.util.Locale
 
 import com.android.ddmlib.FileListingService.FileEntry
-import com.android.sdklib.AndroidTargetHash
 import sbt._
 import sbt.complete.{Parser, Parsers}
 import complete.DefaultParsers._
@@ -12,13 +11,11 @@ import java.io.File
 import com.android.ddmlib._
 import com.android.SdkConstants
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
-import com.android.sdklib.repositoryv2.targets.AndroidTargetManager
 
 import scala.annotation.tailrec
 import scala.util.Try
 import language.postfixOps
 import scala.util.matching.Regex
-import collection.JavaConverters._
 
 object Commands {
 
@@ -398,7 +395,7 @@ object Commands {
 
   val createProjectParser: State => Parser[Either[Unit, ((String, String), String)]] = state => {
     val platforms = (7 to 30) ++ ('N' to 'Z') map ("android-" + _.toString)
-    val targets = token(StringBasic).examples(platforms:_*)
+    val targets = token(StringBasic.examples(platforms:_*))
 
     val idStart = Parser.charClass(Character.isJavaIdentifierStart)
     val id = Parser.charClass(Character.isJavaIdentifierPart)
@@ -437,6 +434,8 @@ object Commands {
             import SdkConstants._
             state.log.info("Creating project: " + name)
             val android = sdk + OS_SDK_TOOLS_FOLDER + androidCmdName
+            AndroidPlugin.platformTarget(target,
+              AndroidPlugin.sdkManager(file(sdkpath(state)), state.log), state.log)
             val p = Seq(android,
               "create", "project",
               "-g", "-v", "0.12.1",
