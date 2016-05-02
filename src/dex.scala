@@ -89,7 +89,7 @@ object Dex {
       }(Set(in))
       outs filter (_.getName.endsWith(".class")) map ((loc,_))
     } map { case ((loc,f)) =>
-      val name = f.relativeTo(loc).fold(Plugin.fail(s"$f is not relative to $loc"))(_.getPath)
+      val name = f.relativeTo(loc).fold(PluginFail(s"$f is not relative to $loc"))(_.getPath)
       // shard by top-level classname hashcode
       val i = name.indexOf("$")
       val shardTarget = 1 + math.abs((if (i != -1) name.substring(0, i) else name.dropRight(SUFFIX_LEN)).hashCode % shards)
@@ -246,7 +246,7 @@ object Dex {
           val rc = Process(cmd, layout.base) !
 
           if (rc != 0) {
-            Plugin.fail("failed to determine mainDexClasses")
+            PluginFail("failed to determine mainDexClasses")
           }
           s.log.warn("Set mainDexClasses to improve build times:")
           s.log.warn("""  dexMainClassesConfig := baseDirectory.value / "copy-of-maindexlist.txt"""")

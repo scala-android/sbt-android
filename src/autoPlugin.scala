@@ -1,6 +1,11 @@
 package android
 
+import java.io.File
+
 import Keys._
+import com.android.SdkConstants
+import com.android.sdklib.IAndroidTarget
+import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import sbt._
 import sbt.Keys.onLoad
 
@@ -11,8 +16,7 @@ object AndroidPlugin extends AutoPlugin {
 
   val autoImport = android.Keys
 
-  override def buildSettings = Plugin.androidCommands
-
+  override def buildSettings = Commands.androidCommands
 
   override def projectConfigurations = AndroidInternal :: Nil
 
@@ -60,4 +64,53 @@ object AndroidPlugin extends AutoPlugin {
       e.runTask(antLayoutDetector in ref, s)._1
     }
   }) :: Nil
+
+  def sdkPath(slog: sbt.Logger, props: java.util.Properties): String = {
+    val cached = SdkLayout.androidHomeCache
+    val path = (Option(System getenv "ANDROID_HOME") orElse
+      Option(props getProperty "sdk.dir")) flatMap { p =>
+      val f = file(p + File.separator)
+      if (f.exists && f.isDirectory) {
+        cached.getParentFile.mkdirs()
+        IO.writeLines(cached, p :: Nil)
+        Some(p + File.separator)
+      } else None
+    } orElse SdkLayout.sdkFallback(cached) getOrElse {
+      val home = SdkLayout.fallbackAndroidHome
+      slog.info("ANDROID_HOME not set, using " + home.getCanonicalPath)
+      home.mkdirs()
+      home.getCanonicalPath
+    }
+    sys.props("com.android.tools.lint.bindir") =
+      path + File.separator + SdkConstants.FD_TOOLS
+    path
+  }
+
+  def sdkManager(path: File, slog: Logger): AndroidSdkHandler = {
+    AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
+    val manager = AndroidSdkHandler.getInstance(path)
+    val ind = SbtAndroidProgressIndicator(slog)
+    val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
+    if (!pkgs.containsKey("tools")) {
+      slog.warn("android sdk tools not found, searching for package...")
+      SdkInstaller.installPackage(manager, "", "tools", "android sdk tools", slog)
+    }
+    if (!pkgs.containsKey("platform-tools")) {
+      slog.warn("android platform-tools not found, searching for package...")
+      SdkInstaller.installPackage(manager,
+        "", "platform-tools", "android platform-tools", slog)
+    }
+    manager
+  }
+
+  def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, slog: Logger): IAndroidTarget = {
+    val manager = sdkHandler.getAndroidTargetManager(SbtAndroidProgressIndicator(slog))
+    val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
+
+    if (ptarget == null) {
+      slog.warn(s"platformTarget $targetHash not found, searching for package...")
+      SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, slog)
+    }
+    manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
+  }
 }

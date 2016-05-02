@@ -102,7 +102,7 @@ package object dsl {
     Try(version.toInt) match {
       case Success(_) =>
       case Failure(_) => if (version.length > 1)
-        Plugin.fail(tag + " must be an integer value or a single letter")
+        PluginFail(tag + " must be an integer value or a single letter")
     }
   }
 

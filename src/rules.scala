@@ -25,11 +25,10 @@ import Keys._
 import Keys.Internal._
 import Tasks._
 import Resources.ANDROID_NS
-import Commands._
 import Dependencies.LibrarySeqOps
 import parsers.sbinaryFileFormat
 
-object Plugin extends sbt.Plugin {
+object Plugin extends sbt.Plugin with PluginFail {
 
   // android build steps
   // * handle library dependencies (android.library.reference.N)
@@ -75,7 +74,7 @@ object Plugin extends sbt.Plugin {
     p match {
       case ProjectRef(_, id) => id
       case LocalProject(id)  => id
-      case _ => Plugin.fail("withVariant: Unsupported ProjectReference: " + p)
+      case _ => fail("withVariant: Unsupported ProjectReference: " + p)
     },
     buildType, flavor)
 
@@ -653,26 +652,7 @@ object Plugin extends sbt.Plugin {
     packageDebug            <<= packageDebug dependsOn setDebug,
     packageRelease          <<= packageT,
     packageRelease          <<= packageRelease dependsOn setRelease,
-    sdkPath                 <<= (sLog,properties) { (slog,props) =>
-      val cached = SdkLayout.androidHomeCache
-      val path = (Option(System getenv "ANDROID_HOME") orElse
-        Option(props getProperty "sdk.dir")) flatMap { p =>
-        val f = file(p + File.separator)
-        if (f.exists && f.isDirectory) {
-          cached.getParentFile.mkdirs()
-          IO.writeLines(cached, p :: Nil)
-          Some(p + File.separator)
-        } else None
-      } orElse SdkLayout.sdkFallback(cached) getOrElse {
-        val home = SdkLayout.fallbackAndroidHome
-        slog.info("ANDROID_HOME not set, using " + home.getCanonicalPath)
-        home.mkdirs()
-        home.getCanonicalPath
-      }
-      sys.props("com.android.tools.lint.bindir") =
-        path + File.separator + SdkConstants.FD_TOOLS
-      path
-    },
+    sdkPath                  := AndroidPlugin.sdkPath(sLog.value, properties.value),
     ndkPath                 <<= (thisProject,properties, sdkPath, sLog) { (p,props,sdkPath, log) => {
       val cache = SdkLayout.androidNdkHomeCache
       def storePathInCache(path: String) = {
@@ -749,23 +729,7 @@ object Plugin extends sbt.Plugin {
       }
     },
     bootClasspath            := builder.value(sLog.value).getBootClasspath(false).asScala map Attributed.blank,
-    sdkManager               := {
-      AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
-      val manager = AndroidSdkHandler.getInstance(file(sdkPath.value))
-      val slog = sLog.value
-      val ind = SbtAndroidProgressIndicator(slog)
-      val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
-      if (!pkgs.containsKey("tools")) {
-        slog.warn("android sdk tools not found, searching for package...")
-        SdkInstaller.installPackage(manager, "", "tools", "android sdk tools", slog)
-      }
-      if (!pkgs.containsKey("platform-tools")) {
-        slog.warn("android platform-tools not found, searching for package...")
-        SdkInstaller.installPackage(manager,
-          "", "platform-tools", "android platform-tools", slog)
-      }
-      manager
-    },
+    sdkManager               := AndroidPlugin.sdkManager(file(sdkPath.value), sLog.value),
     buildTools              := {
       val slog = sLog.value
       val ind = SbtAndroidProgressIndicator(slog)
@@ -811,14 +775,7 @@ object Plugin extends sbt.Plugin {
       val targetHash = platformTarget.value
       val slog = sLog.value
       val sdkHandler = sdkManager.value
-      val manager = sdkHandler.getAndroidTargetManager(SbtAndroidProgressIndicator(slog))
-      val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
-
-      if (ptarget == null) {
-        slog.warn(s"platformTarget $targetHash not found, searching for package...")
-        SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, slog)
-      }
-
+      AndroidPlugin.platformTarget(targetHash, sdkHandler, slog)
       val logger = ilogger.value(slog)
       sdkLoader.value.getTargetInfo(
         targetHash, buildTools.value.getRevision, logger)
@@ -834,7 +791,7 @@ object Plugin extends sbt.Plugin {
       val (needSupp, needGms) = libs.foldLeft((false,false)) { case ((supp, gms), mid) =>
         (supp || supportOrgs(mid.organization), gms || gmsOrgs(mid.organization))
       }
-      if (needSupp || needGms) { // TODO handle updating as well
+      if (needSupp || needGms) {
         val ind = SbtAndroidProgressIndicator(slog)
         val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
 
@@ -878,121 +835,6 @@ object Plugin extends sbt.Plugin {
     libraryDependencies <+= Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name),
     managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
   )
-
-  lazy val androidCommands: Seq[Setting[_]] = Seq(
-    commands ++= Seq(genAndroid, genAndroidSbt,
-      pidcat, pidcatGrep, logcat, logcatGrep, adbLs, adbShell,
-      devices, device, reboot, adbScreenOn, adbRunas, adbKill,
-      adbWifi, adbPush, adbPull, adbCat, adbRm, variant, variantClear)
-  )
-
-  private def adbCat = Command(
-    "adb-cat", ("adb-cat", "Cat a file from device"),
-    "Cat a file from device to stdout"
-  )(androidFileCommandParser)(adbCatAction)
-
-  private def adbRm = Command(
-    "adb-rm", ("adb-rm", "Remove a file from device"),
-    "Remove a file from device"
-  )(androidFileCommandParser)(adbRmAction)
-
-  private def adbPull = Command(
-    "adb-pull", ("adb-pull", "pull a file from device"),
-    "Pull a file from device to the local system"
-  )(adbPullParser)(adbPullAction)
-
-  private def adbPush = Command(
-    "adb-push", ("adb-push", "push a file to device"),
-    "Push a file to device from the local system"
-  )(adbPushParser)(adbPushAction)
-
-  private def adbShell = Command(
-    "adb-shell", ("adb-shell", "execute shell commands on device"),
-    "Run a command on a selected android device using adb"
-  )(stringParser)(shellAction)
-
-  private def adbRunas = Command(
-    "adb-runas", ("adb-runas", "execute shell commands on device as a debuggable package user"),
-    "Run a command on a selected android device using adb with the permissions of the current package"
-  )(projectAndStringParser)(runasAction)
-
-  private def adbKill = Command(
-    "adb-kill", ("adb-kill", "kill the current/specified package"),
-    "Kills the process if it is not currently in the foreground"
-  )(projectAndStringParser)(killAction)
-
-  private def adbLs = Command(
-    "adb-ls", ("adb-ls", "list device files"),
-    "List files located on the selected android device"
-  )(androidFileCommandParser)(adbLsAction)
-
-  private def logcat = Command(
-    "logcat", ("logcat", "grab device logcat"),
-    "Read logcat from device without blocking"
-  )(stringParser)(logcatAction)
-
-  private def logcatGrep = Command(
-    "logcat-grep", ("logcat-grep", "grep through device logcat"),
-    "Read logcat from device without blocking, filtered by regex"
-  )(stringParser)(logcatGrepAction)
-
-  private def pidcat = Command(
-    "pidcat", ("pidcat", "grab device logcat for a package"),
-    "Read logcat for a given package, defaults to project package if no arg"
-  )(projectAndStringParser)(pidcatAction)
-
-  private def pidcatGrep = Command(
-    "pidcat-grep", ("pidcat-grep", "grep through device logcat for a package"),
-    "Read logcat for a given package, defaults to project package if no arg, filtered by regex"
-  )(projectAndStringParser)(pidcatGrepAction)
-
-  private def genAndroid = Command(
-    "gen-android", ("gen-android", "Create an android project"),
-    "Create a new android project built using SBT"
-  )(createProjectParser)(createProjectAction)
-
-  private def genAndroidSbt = Command.command(
-    "gen-android-sbt", "Create SBT files for existing android project",
-    "Creates build.properties, build.scala, etc for an existing android project"
-  )(createProjectSbtAction)
-
-  private def device = Command(
-    "device", ("device", "Select a connected android device"),
-    "Select a device (when there are multiple) to apply actions to"
-  )(deviceParser)(deviceAction)
-
-  private def adbScreenOn = Command.command(
-    "adb-screenon", "Turn on screen and unlock (if not protected)",
-    "Turn the screen on and unlock the keyguard if it is not pin-protected"
-  )(adbPowerAction)
-
-  private def adbWifi = Command.command(
-    "adb-wifi", "Enable/disable ADB-over-wifi for selected device",
-    "Toggle ADB-over-wifi for the selected device"
-  )(adbWifiAction)
-
-  private def reboot = Command(
-    "adb-reboot", ("adb-reboot", "Reboot selected device"),
-    "Reboot the selected device into the specified mode"
-  )(rebootParser)(rebootAction)
-
-  private def devices = Command.command(
-    "devices", "List connected and online android devices",
-    "List all connected and online android devices")(devicesAction)
-
-  private def variant = Command("variant",
-    ("variant[/project] <buildType> <flavor>",
-      "Load an Android build variant configuration (buildType + flavor)"),
-    "Usage: variant[/project] <buildType> <flavor>")(variantParser)(variantAction)
-
-  private def variantClear = Command("variant-reset",
-    ("variant-reset", "Clear loaded variant configuration from the project"),
-    "Usage: variant-reset[/project]")(projectParser)(variantClearAction)
-
-  // TODO refactor to fix circular dependencies (mixin, etc.)
-  def fail[A](msg: => String): A = {
-    throw new MessageOnlyException(msg)
-  }
 }
 
 @deprecated("Build.scala files are going away in sbt 1.0", "1.6.0")

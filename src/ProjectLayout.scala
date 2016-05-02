@@ -310,7 +310,7 @@ object ProjectLayout {
   def apply(base: File, target: Option[File] = None) = {
     if ((base / "AndroidManifest.xml").isFile) {
       if ((base / "src" / "main" / "AndroidManifest.xml").isFile) {
-        Plugin.fail(s"Both $base/AndroidManifest.xml and $base/src/main/AndroidManifest.xml exist, unable to determine project layout")
+        PluginFail(s"Both $base/AndroidManifest.xml and $base/src/main/AndroidManifest.xml exist, unable to determine project layout")
       }
       ProjectLayout.Ant(base)
     } else {

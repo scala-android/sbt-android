@@ -54,7 +54,7 @@ object SdkInstaller {
     val remotepkg = pkgfilter(pkgs)
     remotepkg match {
       case None =>
-        Plugin.fail(
+        PluginFail(
           s"""No installable package found for $name
               |
               |Available packages:
@@ -66,7 +66,7 @@ object SdkInstaller {
         val installer = AndroidSdkHandler.findBestInstaller(r)
         val ind = PrintingProgressIndicator()
         val succ = installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
-        if (!succ) Plugin.fail("SDK installation failed")
+        if (!succ) PluginFail("SDK installation failed")
         if (ind.getFraction != 1.0)
           ind.setFraction(1.0) // workaround for installer stopping at 99%
         // force RepoManager to clear itself
@@ -94,7 +94,7 @@ object SdkInstaller {
             s"  $path\n  - $name"
           }
         log.error("Available packages:\n" + packages.mkString("\n"))
-        Plugin.fail("A package to install must be specified")
+        PluginFail("A package to install must be specified")
     }
     ()
   }
@@ -129,7 +129,7 @@ object SdkInstaller {
         }
       case None =>
         updatesHelp()
-        Plugin.fail("A package or 'all' must be specified")
+        PluginFail("A package or 'all' must be specified")
     }
     toUpdate.right.foreach { p =>
       updates.find(_.getPath == p) match {
@@ -137,7 +137,7 @@ object SdkInstaller {
           install(sdkHandler, pkg.getDisplayName, "", log)(_.get(pkg.getPath))
         case None =>
           updatesHelp()
-          Plugin.fail(s"Update '$p' not found")
+          PluginFail(s"Update '$p' not found")
       }
     }
     ()

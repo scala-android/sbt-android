@@ -83,7 +83,7 @@ object Packaging {
     val minSdk = aggregateOptions.minSdkVersion
     import language.postfixOps
     if (isLib)
-      Plugin.fail("This project cannot build APK, it has set 'libraryProject in Android := true'")
+      PluginFail("This project cannot build APK, it has set 'libraryProject in Android := true'")
     val predexed = predex flatMap (_._2 * "*.dex" get) map (_.getParentFile)
 
     val jars = dependencyJars.list

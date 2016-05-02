@@ -228,7 +228,7 @@ object Commands {
               state.log.error("ADB pull failed: " + e.getMessage)
           }
         case None =>
-          Plugin.fail("No devices connected")
+          PluginFail("No devices connected")
       }
       state
   }
@@ -242,7 +242,7 @@ object Commands {
       }
       state.log.info("Pushing [%s] to [%s]" format (f, target))
       if (!f.isFile)
-        Plugin.fail(f + " is not a file")
+        PluginFail(f + " is not a file")
       targetDevice(sdkpath(state), state.log) match {
         case Some(d) => try {
           d.pushFile(f.getAbsolutePath, target)
@@ -250,7 +250,7 @@ object Commands {
           case e: SyncException =>
             state.log.error("ADB push failed: " + e.getMessage)
         }
-        case None => Plugin.fail("No devices connected")
+        case None => PluginFail("No devices connected")
       }
       state
   }
@@ -267,7 +267,7 @@ object Commands {
       executeShellCommand(d, "input keyevent 26", nullRecv)
       executeShellCommand(d, "input keyevent 82", nullRecv)
       state
-    } getOrElse Plugin.fail("no device selected")
+    } getOrElse PluginFail("no device selected")
   }
   val adbCatAction: (State, (FileEntry,Option[String])) => State = {
     case (state, (entry, name)) =>
@@ -278,7 +278,7 @@ object Commands {
         d.pullFile(target, f.getAbsolutePath)
         IO.readLines(f) foreach println
         f.delete()
-      } getOrElse Plugin.fail("No devices connected")
+      } getOrElse PluginFail("No devices connected")
       state
   }
 
@@ -291,7 +291,7 @@ object Commands {
     defaultDevice map { s =>
       targetDevice(sdk, state.log) foreach { _.reboot(mode) }
       state
-    } getOrElse Plugin.fail("no device selected")
+    } getOrElse PluginFail("no device selected")
   }
 
   val deviceAction: (State, String) => State = (state, dev) => {
@@ -312,7 +312,7 @@ object Commands {
 
     val adbWifiOn = defaultDevice map { s =>
       (s indexOf ":") > 0
-    } getOrElse Plugin.fail("no device selected")
+    } getOrElse PluginFail("no device selected")
 
     val d = targetDevice(sdk, state.log).get
     if (adbWifiOn) {
@@ -336,10 +336,10 @@ object Commands {
         val r = Seq(adbPath, "connect", ip) !
 
         if (r != 0)
-          Plugin.fail("failed to connect ADB-over-wifi")
+          PluginFail("failed to connect ADB-over-wifi")
         deviceAction(state, ip + ":5555")
       } else {
-        Plugin.fail("unable to determine IP of " + d.getSerialNumber)
+        PluginFail("unable to determine IP of " + d.getSerialNumber)
       }
     }
 
@@ -368,11 +368,11 @@ object Commands {
     val base = file(".")
     val layout = ProjectLayout(base)
     if (!layout.manifest.exists) {
-      Plugin.fail("An android project does not exist at this location")
+      PluginFail("An android project does not exist at this location")
     }
 
     if ((base / "*.sbt").get.nonEmpty)
-      Plugin.fail("SBT build files already exist at this location")
+      PluginFail("SBT build files already exist at this location")
     state.log.info("Creating SBT project files")
     val build = base / "project"
     build.mkdirs()
@@ -397,15 +397,8 @@ object Commands {
   }
 
   val createProjectParser: State => Parser[Either[Unit, ((String, String), String)]] = state => {
-    val sdk = sdkpath(state)
-    val manager = androidTargetManager(state)
-    val platforms = manager.getTargets(SbtAndroidProgressIndicator(state.log))
-    if (platforms.isEmpty) {
-      Plugin.fail("No platform targets configured in sdk located at: " + sdk)
-    }
-    val targets = Parser.oneOf(platforms.asScala.toSeq map { t =>
-      token(AndroidTargetHash.getPlatformHashString(t.getVersion))
-    })
+    val platforms = (7 to 30) ++ ('N' to 'Z') map ("android-" + _.toString)
+    val targets = token(StringBasic).examples(platforms:_*)
 
     val idStart = Parser.charClass(Character.isJavaIdentifierStart)
     val id = Parser.charClass(Character.isJavaIdentifierPart)
@@ -430,7 +423,7 @@ object Commands {
     case (state, maybe) =>
       val sdk = sdkpath(state)
       maybe.left foreach { _ =>
-        Plugin.fail(
+        PluginFail(
           "Usage: gen-android <platform-target> <package-name> <name>")
       }
       (maybe.right map {
@@ -438,7 +431,7 @@ object Commands {
           val base = file(".")
           val layout = ProjectLayout(base)
           if (layout.manifest.exists) {
-            Plugin.fail(
+            PluginFail(
               "An Android project already exists in this location")
           } else {
             import SdkConstants._
@@ -454,7 +447,7 @@ object Commands {
               "-t", target) !
 
             if (p != 0) {
-              Plugin.fail("failed to create project")
+              PluginFail("failed to create project")
             }
             val gitignore = base / ".gitignore"
             val ignores = Seq("target/", "project/project",
@@ -581,7 +574,7 @@ object Commands {
       } else (packageName, Seq.empty[String])
       val re = regex.mkString(" ").r
       if (pkgOpt.isEmpty || (args contains "-h"))
-        Plugin.fail("Usage: pidcat-grep [<partial package-name>] <regex>")
+        PluginFail("Usage: pidcat-grep [<partial package-name>] <regex>")
 
       targetDevice(sdk, state.log) map { d =>
         val receiver = new ShellLogging(pidcatLogLine(d, pkgOpt, state.log) { l =>
@@ -596,7 +589,7 @@ object Commands {
         receiver.flush()
 
         state
-      } getOrElse Plugin.fail("no device connected")
+      } getOrElse PluginFail("no device connected")
   }
 
   val pidcatAction: (State, (Option[ProjectRef],String)) => State = {
@@ -616,7 +609,7 @@ object Commands {
       }
     } else (packageName, Seq.empty[String])
     if (pkgOpt.isEmpty || (args contains "-h"))
-      Plugin.fail("Usage: pidcat [<partial package-name>] [TAGs]...")
+      PluginFail("Usage: pidcat [<partial package-name>] [TAGs]...")
 
     targetDevice(sdk, state.log) map { d =>
       val receiver = new ShellLogging(pidcatLogLine(d, pkgOpt, state.log)(l =>
@@ -627,7 +620,7 @@ object Commands {
       receiver.flush()
 
       state
-    } getOrElse Plugin.fail("no device connected")
+    } getOrElse PluginFail("no device connected")
   }
 
   def colorLevel(level: String) = {
@@ -686,12 +679,12 @@ object Commands {
     val sdk = sdkpath(state)
     targetDevice(sdk, state.log) map { d =>
       if (cmd.trim.isEmpty) {
-        Plugin.fail("Usage: adb-shell <command>")
+        PluginFail("Usage: adb-shell <command>")
       } else {
         executeShellCommand(d, cmd, state)
       }
       state
-    } getOrElse Plugin.fail("no device selected")
+    } getOrElse PluginFail("no device selected")
   }
 
   val killAction: (State, (Option[ProjectRef],String)) => State = {
@@ -700,7 +693,7 @@ object Commands {
       val packageName = thisPackageName(state, prj)
       val targetPackage = Option(str).filter(_.nonEmpty) orElse packageName
       if (targetPackage.isEmpty)
-        Plugin.fail("Usage: adb-kill [<package-name>]")
+        PluginFail("Usage: adb-kill [<package-name>]")
       state.log.info("Attempting to kill: " + targetPackage.get)
       targetDevice(sdk, state.log) map { d =>
         val api = Try(d.getProperty(IDevice.PROP_BUILD_API_LEVEL).toInt).toOption getOrElse 0
@@ -708,22 +701,22 @@ object Commands {
         val cmd = if (api >= 11) "am force-stop " else "am kill "
         executeShellCommand(d, cmd + FileEntry.escape(targetPackage.get), state)
         state
-      } getOrElse Plugin.fail("no device selected")
+      } getOrElse PluginFail("no device selected")
   }
   val runasAction: (State, (Option[ProjectRef],String)) => State = {
     case (state, (prj,args)) =>
       val sdk = sdkpath(state)
       val packageName = thisPackageName(state, prj)
       if (packageName.isEmpty)
-        Plugin.fail("Unable to determine package name\n\n" +
+        PluginFail("Unable to determine package name\n\n" +
           "Usage: adb-runas <command> [args...]")
       if (args.isEmpty)
-        Plugin.fail("Usage: adb-runas <command> [args...]")
+        PluginFail("Usage: adb-runas <command> [args...]")
       targetDevice(sdk, state.log) map { d =>
         executeShellCommand(d,
           "run-as " + FileEntry.escape(packageName.get) + " " + args, state)
         state
-      } getOrElse Plugin.fail("no device selected")
+      } getOrElse PluginFail("no device selected")
   }
 
   val adbRmAction: (State, (FileEntry,Option[String])) => State = {
@@ -734,7 +727,7 @@ object Commands {
       targetDevice(sdk, state.log) map { d =>
         executeShellCommand(d, "rm " + FileEntry.escape(target), state)
         state
-      } getOrElse Plugin.fail("no device selected")
+      } getOrElse PluginFail("no device selected")
   }
 
   case class LogcatLine(level: String, tag: String, pid: String, msg: String)
@@ -784,7 +777,7 @@ object Commands {
       d.executeShellCommand(LOGCAT_COMMAND, receiver)
       receiver.flush()
       state
-    } getOrElse Plugin.fail("no device selected")
+    } getOrElse PluginFail("no device selected")
   }
 
   val logcatAction: (State, String) => State = (state, args) => {
@@ -799,7 +792,7 @@ object Commands {
         (LOGCAT_COMMAND :: logcatargs).mkString(" "), receiver)
       receiver.flush()
       state
-    } getOrElse Plugin.fail("no device selected")
+    } getOrElse PluginFail("no device selected")
   }
 
   val deviceParser: State => Parser[String] = state => {
@@ -817,7 +810,7 @@ object Commands {
 
     val devices = deviceList(path, log)
     if (devices.isEmpty) {
-      Plugin.fail("no devices connected")
+      PluginFail("no devices connected")
     } else {
       defaultDevice flatMap { device =>
         devices find (device == _.getSerialNumber) orElse {
@@ -830,22 +823,9 @@ object Commands {
     }
   }
 
-  private def androidTargetManager(state: State): AndroidTargetManager = {
-    val handler = AndroidSdkHandler.getInstance(file(sdkpath(state)))
-    handler.getAndroidTargetManager(SbtAndroidProgressIndicator(state.log))
-  }
-  private def sdkpath(state: State): String = {
-    Project.extract(state).getOpt(
-      Keys.sdkPath) orElse (
-      Option(System getenv "ANDROID_HOME") flatMap {
-        p =>
-          val f = file(p)
-          if (f.exists && f.isDirectory)
-            Some(p + File.separator)
-          else
-            None: Option[String]
-      }) getOrElse Plugin.fail("ANDROID_HOME or sdk.dir is not set")
-  }
+  private def sdkpath(state: State): String =
+    AndroidPlugin.sdkPath(state.log, Tasks.loadProperties(Project.extract(state).currentProject.base))
+
   class ShellLogging[A](logger: String => A) extends IShellOutputReceiver {
     private[this] val b = new StringBuilder
 
@@ -939,4 +919,114 @@ object Commands {
         case Some(prj) => VariantSettings.clearVariant(state, prj)
       }
   }
+
+  lazy val androidCommands: Seq[Setting[_]] = Seq(
+    sbt.Keys.commands ++= Seq(genAndroid, genAndroidSbt,
+      pidcat, pidcatGrep, logcat, logcatGrep, adbLs, adbShell,
+      devices, device, reboot, adbScreenOn, adbRunas, adbKill,
+      adbWifi, adbPush, adbPull, adbCat, adbRm, variant, variantClear)
+  )
+
+  private def adbCat = Command(
+    "adb-cat", ("adb-cat", "Cat a file from device"),
+    "Cat a file from device to stdout"
+  )(androidFileCommandParser)(adbCatAction)
+
+  private def adbRm = Command(
+    "adb-rm", ("adb-rm", "Remove a file from device"),
+    "Remove a file from device"
+  )(androidFileCommandParser)(adbRmAction)
+
+  private def adbPull = Command(
+    "adb-pull", ("adb-pull", "pull a file from device"),
+    "Pull a file from device to the local system"
+  )(adbPullParser)(adbPullAction)
+
+  private def adbPush = Command(
+    "adb-push", ("adb-push", "push a file to device"),
+    "Push a file to device from the local system"
+  )(adbPushParser)(adbPushAction)
+
+  private def adbShell = Command(
+    "adb-shell", ("adb-shell", "execute shell commands on device"),
+    "Run a command on a selected android device using adb"
+  )(stringParser)(shellAction)
+
+  private def adbRunas = Command(
+    "adb-runas", ("adb-runas", "execute shell commands on device as a debuggable package user"),
+    "Run a command on a selected android device using adb with the permissions of the current package"
+  )(projectAndStringParser)(runasAction)
+
+  private def adbKill = Command(
+    "adb-kill", ("adb-kill", "kill the current/specified package"),
+    "Kills the process if it is not currently in the foreground"
+  )(projectAndStringParser)(killAction)
+
+  private def adbLs = Command(
+    "adb-ls", ("adb-ls", "list device files"),
+    "List files located on the selected android device"
+  )(androidFileCommandParser)(adbLsAction)
+
+  private def logcat = Command(
+    "logcat", ("logcat", "grab device logcat"),
+    "Read logcat from device without blocking"
+  )(stringParser)(logcatAction)
+
+  private def logcatGrep = Command(
+    "logcat-grep", ("logcat-grep", "grep through device logcat"),
+    "Read logcat from device without blocking, filtered by regex"
+  )(stringParser)(logcatGrepAction)
+
+  private def pidcat = Command(
+    "pidcat", ("pidcat", "grab device logcat for a package"),
+    "Read logcat for a given package, defaults to project package if no arg"
+  )(projectAndStringParser)(pidcatAction)
+
+  private def pidcatGrep = Command(
+    "pidcat-grep", ("pidcat-grep", "grep through device logcat for a package"),
+    "Read logcat for a given package, defaults to project package if no arg, filtered by regex"
+  )(projectAndStringParser)(pidcatGrepAction)
+
+  private def genAndroid = Command(
+    "gen-android", ("gen-android", "Create an android project"),
+    "Create a new android project built using SBT"
+  )(createProjectParser)(createProjectAction)
+
+  private def genAndroidSbt = Command.command(
+    "gen-android-sbt", "Create SBT files for existing android project",
+    "Creates build.properties, build.scala, etc for an existing android project"
+  )(createProjectSbtAction)
+
+  private def device = Command(
+    "device", ("device", "Select a connected android device"),
+    "Select a device (when there are multiple) to apply actions to"
+  )(deviceParser)(deviceAction)
+
+  private def adbScreenOn = Command.command(
+    "adb-screenon", "Turn on screen and unlock (if not protected)",
+    "Turn the screen on and unlock the keyguard if it is not pin-protected"
+  )(adbPowerAction)
+
+  private def adbWifi = Command.command(
+    "adb-wifi", "Enable/disable ADB-over-wifi for selected device",
+    "Toggle ADB-over-wifi for the selected device"
+  )(adbWifiAction)
+
+  private def reboot = Command(
+    "adb-reboot", ("adb-reboot", "Reboot selected device"),
+    "Reboot the selected device into the specified mode"
+  )(rebootParser)(rebootAction)
+
+  private def devices = Command.command(
+    "devices", "List connected and online android devices",
+    "List all connected and online android devices")(devicesAction)
+
+  private def variant = Command("variant",
+    ("variant[/project] <buildType> <flavor>",
+      "Load an Android build variant configuration (buildType + flavor)"),
+    "Usage: variant[/project] <buildType> <flavor>")(variantParser)(variantAction)
+
+  private def variantClear = Command("variant-reset",
+    ("variant-reset", "Clear loaded variant configuration from the project"),
+    "Usage: variant-reset[/project]")(projectParser)(variantClearAction)
 }

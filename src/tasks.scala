@@ -335,7 +335,7 @@ object Tasks {
         val rc = Process(ndkBuildInvocation, layout.base, env: _*) !
 
         if (rc != 0)
-          Plugin.fail("ndk-build failed!")
+          PluginFail("ndk-build failed!")
 
         (layout.ndkBin ** FileOnlyFilter).get.toSet
       }(inputs)
@@ -363,7 +363,7 @@ object Tasks {
       val rc = javah !
 
       if (rc != 0)
-        Plugin.fail("Failed to execute: " + (javah mkString " "))
+        PluginFail("Failed to execute: " + (javah mkString " "))
 
       src ** "*.h" get
     } else Seq.empty
@@ -601,7 +601,7 @@ object Tasks {
       val rv = Seq(z, "-f", "4", r.getAbsolutePath, aligned.getAbsolutePath) !
 
       if (rv != 0) {
-        Plugin.fail("zipalign failed")
+        PluginFail("zipalign failed")
       }
 
       s.log.info("zipaligned: " + aligned.getName)
@@ -675,7 +675,7 @@ object Tasks {
         val r = cmd !
 
         if (r != 0)
-          Plugin.fail("aidl failed")
+          PluginFail("aidl failed")
 
         layout.gen ** (idl.getName.stripSuffix(".aidl") + ".java") get
       } else out
@@ -721,7 +721,7 @@ object Tasks {
         val application = top \ APPLICATION_TAG
         val usesLibraries = top \ APPLICATION_TAG \ USES_LIBRARY_TAG
         val instrument = top \ INSTRUMENTATION_TAG
-        if (application.isEmpty) Plugin.fail("no manifest application node")
+        if (application.isEmpty) PluginFail("no manifest application node")
         val hasTestRunner = usesLibraries exists (
           _.attribute(ANDROID_NS, "name") exists (_ == TEST_RUNNER_LIB))
 
@@ -1048,7 +1048,7 @@ object Tasks {
                     , streams) map {
     (layout, o, agg, classes, sdk, all, ta, ma, ra, libs, s) =>
     if (ta.libraryProject)
-      Plugin.fail("This project cannot `android:test`, it has set 'libraryProject := true")
+      PluginFail("This project cannot `android:test`, it has set 'libraryProject := true")
     implicit val output = o
     val pkg = ma.applicationId
     val minSdk = ma.minSdkVersion
@@ -1231,7 +1231,7 @@ object Tasks {
       s.log.debug("instrument command executed")
 
       if (listener.failures.nonEmpty) {
-        Plugin.fail("Tests failed: " + listener.failures.size + "\n" +
+        PluginFail("Tests failed: " + listener.failures.size + "\n" +
           (listener.failures map (" - " + _)).mkString("\n"))
       }
     }
@@ -1269,7 +1269,7 @@ object Tasks {
     val isLib = libraryProject.value
     implicit val output = outputLayout.value
     if (isLib)
-      Plugin.fail("This project is not runnable, it has set 'libraryProject := true")
+      PluginFail("This project is not runnable, it has set 'libraryProject := true")
 
     val manifestXml = l.processedManifest
     val m = XML.loadFile(manifestXml)
@@ -1292,7 +1292,7 @@ object Tasks {
         else
           Commands.targetDevice(k, s.log) foreach execute
       case None =>
-        Plugin.fail(
+        PluginFail(
           "No activity found with action 'android.intent.action.MAIN'")
     }
 
@@ -1329,7 +1329,7 @@ object Tasks {
     logRate(log, "[%s] Install finished:" format apk.getName, apk.length) {
       Try(device.installPackage(apk.getAbsolutePath, true)) match {
         case util.Failure(err) =>
-          Plugin.fail("Install failed: " + err.getMessage)
+          PluginFail("Install failed: " + err.getMessage)
         case util.Success(_) =>
       }
     }
@@ -1357,7 +1357,7 @@ object Tasks {
     }
     log.info(s"Uninstalling from ${device.getProperty(IDevice.PROP_DEVICE_MODEL)} (${device.getSerialNumber})...")
     Option(device.uninstallPackage(packageName)) map { err =>
-      Plugin.fail("[%s] Uninstall failed: %s" format (packageName, err))
+      PluginFail("[%s] Uninstall failed: %s" format (packageName, err))
     } getOrElse {
       log.info("[%s] Uninstall finished" format packageName)
     }

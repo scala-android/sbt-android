@@ -129,7 +129,7 @@ object AndroidLint {
 
         val errstr = s"lint found ${fmtE(errorCount)}, ${fmtW(warningCount)}"
         if (strict && errorCount > 0)
-          Plugin.fail(errstr)
+          PluginFail(errstr)
         else {
           if (errorCount > 0)
             s.log.error(errstr)

@@ -24,7 +24,7 @@ import scala.xml.XML
 object Resources {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
   def resourceUrl =
-    Plugin.getClass.getClassLoader.getResource _
+    Resources.getClass.getClassLoader.getResource _
 
   val reservedWords = Set(
     "def",
@@ -284,7 +284,7 @@ object Resources {
       bldr.processResources(aaptCommand, true, SbtProcessOutputHandler(logger))
     } catch {
       case e: com.android.ide.common.process.ProcessException =>
-        Plugin.fail(e.getMessage)
+        PluginFail(e.getMessage)
     }
   }
 
