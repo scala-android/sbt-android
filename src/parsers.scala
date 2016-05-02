@@ -23,7 +23,7 @@ private[android] object parsers {
   def activityName(n: Node) = n.attribute(Resources.ANDROID_NS, "name").head.text
   def findMainActivities(element: Elem): NodeSeq = {
     for {
-      a <- (element \\ "activity" ++ element \\ "activity-alias")
+      a <- element \\ "activity" ++ element \\ "activity-alias"
       i <- a \ "intent-filter" \ "action"
       nm <- i.attribute(Resources.ANDROID_NS, "name").toSeq.flatten
       m <- nm if m.text == ACTION_MAIN
@@ -32,7 +32,7 @@ private[android] object parsers {
   def activityParser: Initialize[State => Parser[Option[String]]] =
     loadForParser2(Keys.processManifest, Keys.applicationId) { (state, mfile, appid) =>
       val parser = for {
-        f   <- mfile
+        f   <- mfile if f.isFile
         pkg <- appid
       } yield {
         val manifest = XML.loadFile(f)
