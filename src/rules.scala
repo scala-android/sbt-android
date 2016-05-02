@@ -404,6 +404,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       }
     },
     updateCheckSdk          <<= SdkInstaller.updateCheckSdkTaskDef,
+    showSdkProgress          := true,
     updateSdk               <<= SdkInstaller.updateSdkTaskDef,
     installSdk              <<= SdkInstaller.installSdkTaskDef,
     antLayoutDetector        := {
@@ -506,6 +507,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     manifestAggregate       <<= manifestAggregateTaskDef,
     proguardAggregate       <<= proguardAggregateTaskDef,
     apkbuildAggregate       <<= apkbuildAggregateTaskDef,
+    ndkbuildAggregate       <<= ndkbuildAggregateTaskDef,
     retrolambdaAggregate    <<= retrolambdaAggregateTaskDef,
     testAggregate           <<= testAggregateTaskDef,
     predex                  <<= predexTaskDef,
@@ -729,16 +731,17 @@ object Plugin extends sbt.Plugin with PluginFail {
       }
     },
     bootClasspath            := builder.value(sLog.value).getBootClasspath(false).asScala map Attributed.blank,
-    sdkManager               := AndroidPlugin.sdkManager(file(sdkPath.value), sLog.value),
+    sdkManager               := AndroidPlugin.sdkManager(file(sdkPath.value), showSdkProgress.value, sLog.value),
     buildTools              := {
       val slog = sLog.value
       val ind = SbtAndroidProgressIndicator(slog)
       val sdkHandler = sdkManager.value
+      val showProgress = showSdkProgress.value
       buildToolsVersion.value map { version =>
         val bti = sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         if (bti == null) {
           slog.warn(s"build-tools $version not found, searching for package...")
-          SdkInstaller.installPackage(sdkHandler, "build-tools;", version, "build-tools " + version, slog)
+          SdkInstaller.installPackage(sdkHandler, "build-tools;", version, "build-tools " + version, showProgress, slog)
           sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         } else bti
       } getOrElse {
@@ -753,7 +756,7 @@ object Plugin extends sbt.Plugin with PluginFail {
         }
         if (tools == null) {
           slog.warn(s"build-tools not found, searching for package...")
-          SdkInstaller.install(sdkHandler, "latest build-tools", "build-tools;", slog) { pkgs =>
+          SdkInstaller.install(sdkHandler, "latest build-tools", "build-tools;", showProgress, slog) { pkgs =>
             val buildTools = pkgs.keys.toList.collect {
               case k if k.startsWith("build-tools;") => pkgs(k)
             }
@@ -775,7 +778,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       val targetHash = platformTarget.value
       val slog = sLog.value
       val sdkHandler = sdkManager.value
-      AndroidPlugin.platformTarget(targetHash, sdkHandler, slog)
+      AndroidPlugin.platformTarget(targetHash, sdkHandler, showSdkProgress.value, slog)
       val logger = ilogger.value(slog)
       sdkLoader.value.getTargetInfo(
         targetHash, buildTools.value.getRevision, logger)
@@ -784,6 +787,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       val manager = sdkManager.value
       val libs = libraryDependencies.value
       val slog = sLog.value
+      val showProgress = showSdkProgress.value
       val gmsOrgs = Set("com.google.android.gms",
         "com.google.android.support.wearable",
         "com.google.android.wearable")
@@ -798,12 +802,12 @@ object Plugin extends sbt.Plugin with PluginFail {
         if (needSupp && !pkgs.containsKey("extras;android;m2repository")) {
           slog.warn("android support repository not found, searching for package...")
           SdkInstaller.installPackage(manager, "extras;android;",
-            "m2repository", "android support repository", slog)
+            "m2repository", "android support repository", showProgress, slog)
         }
         if (needGms && !pkgs.containsKey("extras;google;m2repository")) {
           slog.warn("google play services repository not found, searching for package...")
           SdkInstaller.installPackage(manager,
-            "extras;google;", "m2repository", "google play services repository", slog)
+            "extras;google;", "m2repository", "google play services repository", showProgress, slog)
         }
       }
 

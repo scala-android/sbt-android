@@ -7,10 +7,9 @@ object MyProjectBuild extends Build {
 
   // meta project
   lazy val root = Project(id = "gmroot", base = file(".")).settings(
-    android.Plugin.androidCommands :+
-    (install <<= ( // install all apps
+    install <<= ( // install all apps
       install in (guidemate, Android),
-      install in (geophon, Android)) map { (_,_) => () }): _* //:+
+      install in (geophon, Android)) map { (_,_) => () }
     ).aggregate(guidemate, geophon, guidemate_lib)
 
 

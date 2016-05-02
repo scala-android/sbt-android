@@ -304,14 +304,14 @@ object Tasks {
 
   def ndkbuild(manager: AndroidSdkHandler, layout: ProjectLayout, args: Seq[String],
                envs: Seq[(String,String)], ndkHome: Option[String], srcs: File,
-               log: Logger, debug: Boolean)(implicit m: BuildOutput.Converter) = {
+               showProgress: Boolean, log: Logger, debug: Boolean)(implicit m: BuildOutput.Converter) = {
     val hasJni = (layout.jni ** "Android.mk" get).nonEmpty
     if (hasJni) {
       val ndk = ndkHome.getOrElse {
         val bundlePath = SdkLayout.ndkBundle(manager.getLocation.getAbsolutePath)
         if (!bundlePath.isDirectory) {
           log.warn("Android.mk found, but ANDROID_NDK_HOME not set, searching for package...")
-          SdkInstaller.installPackage(manager, "", "ndk-bundle", "android NDK", log)
+          SdkInstaller.installPackage(manager, "", "ndk-bundle", "android NDK", showProgress, log)
         }
         bundlePath.getAbsolutePath
       }
@@ -368,24 +368,26 @@ object Tasks {
       src ** "*.h" get
     } else Seq.empty
   }
+  val ndkbuildAggregateTaskDef = Def.task {
+    Aggregate.Ndkbuild(ndkJavah.value, ndkPath.value, ndkEnv.value, ndkArgs.value)
+  }
+
   val ndkBuildTaskDef = ( projectLayout
                         , outputLayout
                         , sdkManager
                         , libraryProjects
                         , sourceManaged in Compile
-                        , ndkJavah
-                        , ndkPath
-                        , ndkEnv
-                        , ndkArgs
+                        , ndkbuildAggregate
+                        , showSdkProgress
                         , streams
                         , apkbuildDebug
-                        ) map { (layout, o, sdk, libs, srcs, h, ndkHome, env, args, s, debug) =>
+                        ) map { (layout, o, sdk, libs, srcs, agg, showProgress, s, debug) =>
     implicit val output = o
     val subndk = libs flatMap { l =>
-      ndkbuild(sdk, l.layout, args, env, ndkHome, srcs, s.log, debug()).toSeq
+      ndkbuild(sdk, l.layout, agg.args, agg.env, agg.path, srcs, showProgress, s.log, debug()).toSeq
     }
 
-    ndkbuild(sdk, layout, args, env, ndkHome, srcs, s.log, debug()).toSeq ++ subndk
+    ndkbuild(sdk, layout, agg.args, agg.env, agg.path, srcs, showProgress, s.log, debug()).toSeq ++ subndk
   }
 
   val collectProjectJniTaskDef = Def.task {

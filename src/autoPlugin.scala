@@ -86,30 +86,30 @@ object AndroidPlugin extends AutoPlugin {
     path
   }
 
-  def sdkManager(path: File, slog: Logger): AndroidSdkHandler = {
+  def sdkManager(path: File, showProgress: Boolean, slog: Logger): AndroidSdkHandler = {
     AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
     val manager = AndroidSdkHandler.getInstance(path)
     val ind = SbtAndroidProgressIndicator(slog)
     val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
     if (!pkgs.containsKey("tools")) {
       slog.warn("android sdk tools not found, searching for package...")
-      SdkInstaller.installPackage(manager, "", "tools", "android sdk tools", slog)
+      SdkInstaller.installPackage(manager, "", "tools", "android sdk tools", showProgress, slog)
     }
     if (!pkgs.containsKey("platform-tools")) {
       slog.warn("android platform-tools not found, searching for package...")
       SdkInstaller.installPackage(manager,
-        "", "platform-tools", "android platform-tools", slog)
+        "", "platform-tools", "android platform-tools", showProgress, slog)
     }
     manager
   }
 
-  def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, slog: Logger): IAndroidTarget = {
+  def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {
     val manager = sdkHandler.getAndroidTargetManager(SbtAndroidProgressIndicator(slog))
     val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
 
     if (ptarget == null) {
       slog.warn(s"platformTarget $targetHash not found, searching for package...")
-      SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, slog)
+      SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, showProgress, slog)
     }
     manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
   }

@@ -56,6 +56,10 @@ object Keys {
     "Version of Android build-tools to utilize, None (default) for latest") in Android
   val bootClasspath = SettingKey[sbt.Keys.Classpath](
     "boot-classpath", "boot classpath for android platform jar") in Android
+  val showSdkLicense = InputKey[Unit]("show-sdk-license",
+    "Show an Android SDK license to which you have agreed") in Android
+  val showSdkProgress = SettingKey[Boolean]("show-sdk-progress",
+    "Show Android SDK installation progress") in Android
   val updateCheck = TaskKey[Unit]("update-check", "Check for a new version of the plugin") in Android
   val updateCheckSdk = TaskKey[Unit](
     "update-check-sdk", "Check for new versions of the Android SDK") in Android
@@ -332,6 +336,8 @@ object Keys {
       "Internal android:collect-resources key aggregating task") in Android
     val testAggregate = TaskKey[Aggregate.AndroidTest]("test-aggregate",
       "Internal android:test-related key aggregating task") in Android
+    val ndkbuildAggregate = TaskKey[Aggregate.Ndkbuild]("ndkbuild-aggregate",
+      "Internal ndkbuild-related key aggregating task") in Android
     val apkbuildAggregate = TaskKey[Aggregate.Apkbuild]("apkbuild-aggregate",
       "Internal apkbuild-related key aggregating task") in Android
     val proguardAggregate = TaskKey[Aggregate.Proguard]("proguard-aggregate",

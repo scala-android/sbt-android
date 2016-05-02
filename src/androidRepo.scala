@@ -39,17 +39,19 @@ object SdkInstaller {
                      prefix: String,
                      pkg: String,
                      name: String,
+                     showProgress: Boolean,
                      slog: Logger): RepoRemotePackage =
-    install(sdkHandler, name, prefix, slog)(_.get(prefix + pkg))
+    install(sdkHandler, name, prefix, showProgress, slog)(_.get(prefix + pkg))
 
   def install(sdkHandler: AndroidSdkHandler,
               name: String,
               prefix: String,
+              showProgress: Boolean,
               slog: Logger)(pkgfilter: Map[String,RepoRemotePackage] => Option[RepoRemotePackage]): RepoRemotePackage = {
     val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
-    val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator())
+    val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator(showProgress))
     repomanager.loadSynchronously(1.day.toMillis,
-      PrintingProgressIndicator(), downloader, null)
+      PrintingProgressIndicator(showProgress), downloader, null)
     val pkgs = repomanager.getPackages.getRemotePackages.asScala.toMap
     val remotepkg = pkgfilter(pkgs)
     remotepkg match {
@@ -64,7 +66,7 @@ object SdkInstaller {
       case Some(r) =>
         slog.info(s"Installing package '${r.getDisplayName}' ...")
         val installer = AndroidSdkHandler.findBestInstaller(r)
-        val ind = PrintingProgressIndicator()
+        val ind = PrintingProgressIndicator(showProgress)
         val succ = installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
         if (!succ) PluginFail("SDK installation failed")
         if (ind.getFraction != 1.0)
@@ -86,7 +88,7 @@ object SdkInstaller {
     val newpkgs = repomanager.getPackages.getNewPkgs.asScala.filterNot(_.obsolete).toList.sorted(platformOrder)
     toInstall match {
       case Some(p) =>
-        install(sdkHandler, p, "", log)(_.get(p))
+        install(sdkHandler, p, "", Keys.showSdkProgress.value, log)(_.get(p))
       case None =>
         val packages = newpkgs.map { p =>
             val path = p.getPath
@@ -105,6 +107,7 @@ object SdkInstaller {
     val ind = SbtAndroidProgressIndicator(log)
     val sdkHandler = Keys.Internal.sdkManager.value
     val repomanager = sdkHandler.getSdkManager(ind)
+    val showProgress = Keys.showSdkProgress.value
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
     val updates = repomanager.getPackages.getUpdatedPkgs.asScala.collect {
@@ -125,7 +128,7 @@ object SdkInstaller {
     toUpdate.left.foreach {
       case Some(_) =>
         updates.foreach { u =>
-          install(sdkHandler, u.getDisplayName, "", log)(_.get(u.getPath))
+          install(sdkHandler, u.getDisplayName, "", showProgress, log)(_.get(u.getPath))
         }
       case None =>
         updatesHelp()
@@ -134,7 +137,7 @@ object SdkInstaller {
     toUpdate.right.foreach { p =>
       updates.find(_.getPath == p) match {
         case Some(pkg) =>
-          install(sdkHandler, pkg.getDisplayName, "", log)(_.get(pkg.getPath))
+          install(sdkHandler, pkg.getDisplayName, "", showProgress, log)(_.get(pkg.getPath))
         case None =>
           updatesHelp()
           PluginFail(s"Update '$p' not found")

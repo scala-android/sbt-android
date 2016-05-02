@@ -10,7 +10,6 @@ import java.io.File
 
 import com.android.ddmlib._
 import com.android.SdkConstants
-import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -57,6 +56,7 @@ object Commands {
       state.log.warn("No devices connected")
     } else {
       state.log.info(" %-22s %-16s %8s Android Version" format ("Serial", "Model", "Battery %"))
+      //noinspection ScalaMalformedFormatString
       state.log.info(       " %s %s %s ---------------" format ("-" * 22, "-" * 16, "-" * 9))
       list foreach { dev =>
         val name = Option(dev.getAvdName) orElse
@@ -435,7 +435,7 @@ object Commands {
             state.log.info("Creating project: " + name)
             val android = sdk + OS_SDK_TOOLS_FOLDER + androidCmdName
             AndroidPlugin.platformTarget(target,
-              AndroidPlugin.sdkManager(file(sdkpath(state)), state.log), state.log)
+              AndroidPlugin.sdkManager(file(sdkpath(state)), true, state.log), true, state.log)
             val p = Seq(android,
               "create", "project",
               "-g", "-v", "0.12.1",

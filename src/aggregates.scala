@@ -37,6 +37,11 @@ object Aggregate {
                                                projectLayout: ProjectLayout,
                                                outputLayout: BuildOutput.Converter)
 
+  private[android] case class Ndkbuild(javah: Seq[File],
+                                       path: Option[String],
+                                       env: Seq[(String,String)],
+                                       args: Seq[String])
+
   private[android] case class Apkbuild(packagingOptions: PackagingOptions,
                                        apkbuildDebug: Boolean,
                                        debugSigningConfig: ApkSigningConfig,

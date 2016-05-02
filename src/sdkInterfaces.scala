@@ -32,7 +32,7 @@ case class SbtAndroidProgressIndicator(log: Logger) extends ProgressIndicatorAda
   override def logInfo(s: String) = log.debug(s)
 }
 
-case class PrintingProgressIndicator() extends ProgressIndicatorAdapter {
+case class PrintingProgressIndicator(showProgress: Boolean = true) extends ProgressIndicatorAdapter {
   val SPINNER =
     "|"  ::
     "/"  ::
@@ -52,7 +52,7 @@ case class PrintingProgressIndicator() extends ProgressIndicatorAdapter {
     indeterminate = false
     if ((v*100).toInt != (fraction*100).toInt) {
       printProgress()
-      if (v == 1.0)
+      if (v == 1.0 && showProgress)
         println()
     }
     fraction = v
@@ -85,7 +85,8 @@ case class PrintingProgressIndicator() extends ProgressIndicatorAdapter {
       progress.getOrElse(f"${0}%3d%%")
     }
     val indicator = secondary.fold(text.getOrElse(""))(s => text.getOrElse("") + " / " + s)
-    print(f"${indicator.take(72)}%-72s $prog%6s\r")
+    if (showProgress)
+      print(f"${indicator.take(72)}%-72s $prog%6s\r")
   }
 
   override def logWarning(s: String, e: Throwable) = {
