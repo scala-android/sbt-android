@@ -804,6 +804,55 @@ object Commands {
       Space ~> Parser.oneOf(names)
   }
 
+  def wrapLine(text: String, width: Int): String = {
+    // TODO implement a minimal raggedness solution
+    val (lines, last,_) = text.split(" +").foldLeft((List.empty[String],"",width)) {
+      case ((ls, l, rem), w) =>
+        val rem2 = rem - w.length - 1
+        if (rem2 < 0)
+          (l :: ls, w, width - w.length - 1)
+        else
+          (ls, if (l.isEmpty) w else s"$l $w", rem2)
+    }
+    (last :: lines).reverse.mkString("\n")
+  }
+  val showLicenseAction: (State, Option[String]) => State = (state, license) => {
+    license match {
+      case Some(l) =>
+        val f = java.net.URLEncoder.encode(l, "utf-8")
+        val license = SdkLayout.sdkLicenses / f
+        val lines = IO.readLines(license)
+        state.log.info(s"Showing '$l' @ ${license.getCanonicalPath}")
+        lines foreach { line =>
+          println(wrapLine(line, 70))
+        }
+      case None    =>
+        val licenses = Option(SdkLayout.sdkLicenses.listFiles).getOrElse(Array.empty).collect {
+          case f if f.isFile =>
+            java.net.URLDecoder.decode(f.getName, "utf-8")
+        }.toList
+
+        val available = licenses.map("  " + _).mkString("\n")
+        val error =
+          s"""Usage: android-license <license-id>
+             |
+             |Available licenses:
+             |$available
+           """.stripMargin
+        PluginFail(error)
+    }
+    state
+  }
+
+  val showLicenseParser: State => Parser[Option[String]] = state => {
+    val licenses = Option(SdkLayout.sdkLicenses.listFiles).getOrElse(Array.empty).collect {
+      case f if f.isFile =>
+        java.net.URLDecoder.decode(f.getName, "utf-8")
+    }.toList
+    val options = licenses.map(s => token(s).map(Option.apply))
+    EOF.map(_ => None) | Space ~> oneOf(options)
+  }
+
   def targetDevice(path: String, log: Logger): Option[IDevice] = {
     initAdb
 
@@ -923,7 +972,8 @@ object Commands {
     sbt.Keys.commands ++= Seq(genAndroid, genAndroidSbt,
       pidcat, pidcatGrep, logcat, logcatGrep, adbLs, adbShell,
       devices, device, reboot, adbScreenOn, adbRunas, adbKill,
-      adbWifi, adbPush, adbPull, adbCat, adbRm, variant, variantClear)
+      adbWifi, adbPush, adbPull, adbCat, adbRm, variant, variantClear,
+      showLicenses)
   )
 
   private def adbCat = Command(
@@ -1028,4 +1078,8 @@ object Commands {
   private def variantClear = Command("variant-reset",
     ("variant-reset", "Clear loaded variant configuration from the project"),
     "Usage: variant-reset[/project]")(projectParser)(variantClearAction)
+
+  private def showLicenses = Command("android-license",
+    ("android-license <license-id>", "Show Android SDK licenses"),
+    "Show Android SDK licenses")(showLicenseParser)(showLicenseAction)
 }

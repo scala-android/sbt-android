@@ -47,7 +47,7 @@ object SdkInstaller {
               name: String,
               prefix: String,
               showProgress: Boolean,
-              slog: Logger)(pkgfilter: Map[String,RepoRemotePackage] => Option[RepoRemotePackage]): RepoRemotePackage = {
+              slog: Logger)(pkgfilter: Map[String,RepoRemotePackage] => Option[RepoRemotePackage]): RepoRemotePackage = synchronized {
     val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
     val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator(showProgress))
     repomanager.loadSynchronously(1.day.toMillis,
@@ -64,15 +64,29 @@ object SdkInstaller {
                  "  " + _.getPath.substring(prefix.length)).mkString("\n")}
            """.stripMargin)
       case Some(r) =>
-        slog.info(s"Installing package '${r.getDisplayName}' ...")
-        val installer = AndroidSdkHandler.findBestInstaller(r)
-        val ind = PrintingProgressIndicator(showProgress)
-        val succ = installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
-        if (!succ) PluginFail("SDK installation failed")
-        if (ind.getFraction != 1.0)
-          ind.setFraction(1.0) // workaround for installer stopping at 99%
-        // force RepoManager to clear itself
-        sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
+        Option(r.getLicense).foreach { l =>
+          val id = l.getId
+          val license = l.getValue
+          println(s"By continuing to use sbt-android, you accept the terms of '$id'")
+          println(s"You may review the terms by running 'android-license $id'")
+          val f = java.net.URLEncoder.encode(id, "utf-8")
+          SdkLayout.sdkLicenses.mkdirs()
+          IO.write(new File(SdkLayout.sdkLicenses, f), license)
+        }
+        val installed = repomanager.getPackages.getLocalPackages.asScala.get(r.getPath)
+        if (installed.forall(_.getVersion != r.getVersion)) {
+          slog.info(s"Installing package '${r.getDisplayName}' ...")
+          val installer = AndroidSdkHandler.findBestInstaller(r)
+          val ind = PrintingProgressIndicator(showProgress)
+          val succ = installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
+          if (!succ) PluginFail("SDK installation failed")
+          if (ind.getFraction != 1.0)
+            ind.setFraction(1.0) // workaround for installer stopping at 99%
+          // force RepoManager to clear itself
+          sdkHandler.getSdkManager(ind).loadSynchronously(0, ind, null, null)
+        } else {
+          slog.warn(s"'${r.getDisplayName}' already installed, skipping")
+        }
         r
     }
   }

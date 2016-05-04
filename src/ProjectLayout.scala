@@ -271,11 +271,13 @@ object SdkLayout {
     (renderscriptSupportLibFile(t) * "*.jar").get
   def ndkBundle(sdkPath: String) = file(sdkPath) / "ndk-bundle"
 
-  def predex = file(AndroidLocation.getFolder) / "sbt" / "predex"
-  def explodedAars = file(AndroidLocation.getFolder) / "sbt" / "exploded-aars"
-  def androidHomeCache = file(AndroidLocation.getFolder) / "sbt" / "sdk.dir"
-  def androidNdkHomeCache = file(AndroidLocation.getFolder) / "sbt" / "ndk.dir"
-  def fallbackAndroidHome = file(AndroidLocation.getFolder) / "sbt" / "sdk"
+  def sbtSubfolder = file(AndroidLocation.getFolder) / "sbt"
+  def predex = sbtSubfolder / "predex"
+  def explodedAars = sbtSubfolder / "exploded-aars"
+  def androidHomeCache = sbtSubfolder / "sdk.dir"
+  def androidNdkHomeCache = sbtSubfolder / "ndk.dir"
+  def fallbackAndroidHome = sbtSubfolder / "sdk"
+  def sdkLicenses = sbtSubfolder / "sdk-licenses"
   def sdkFallback(f: File): Option[String] = if (f.isFile) {
     Try(IO.readLines(f)).toOption.flatMap(_.headOption).map(file).collect {
       case d if d.isDirectory => d.getAbsolutePath + File.separator
