@@ -159,13 +159,18 @@ object SbtJavaProcessExecutor extends JavaProcessExecutor {
       envVars = javaProcessInfo.getEnvironment.asScala.map { case ((x, y)) => x -> y.toString }.toMap,
       runJVMOptions = javaProcessInfo.getJvmArgs.asScala ++
         ("-cp" :: javaProcessInfo.getClasspath :: Nil))
-    val r = Fork.java(options, (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs.asScala)
+    val args = (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs.asScala
+    val r = Fork.java(options, args)
 
     new ProcessResult {
       override def assertNormalExitValue() = {
         if (r != 0) {
-          val e = new ProcessException(
-            s"Android SDK command failed ($r); see prior messages for details")
+          val err =
+            s"""$options
+               |${args.mkString(" ")}
+               |Android SDK command failed ($r); see prior messages for details
+             """.stripMargin
+          val e = new ProcessException(err)
           e.setStackTrace(Array.empty)
           throw e
         }
