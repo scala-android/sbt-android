@@ -405,20 +405,48 @@ object Resources {
                |  }""".stripMargin :: acc
           }
 
+          val deprForward = {
+            if (platformApi < 21) ""
+            else {
+              val color =
+                """
+                  |    @TargetApi(23)
+                  |    @inline def getColor(c: Context, resid: Int): Int = {
+                  |      if (Build.VERSION.SDK_INT >= 23)
+                  |        c.getColor(resid)
+                  |      else
+                  |        c.getResources.getColor(resid)
+                  |    }""".stripMargin
+              val drawable =
+               """
+                  |    @TargetApi(21)
+                  |    @inline def getDrawable(c: Context, resid: Int): Drawable = {
+                  |      if (Build.VERSION.SDK_INT >= 21)
+                  |        c.getDrawable(resid)
+                  |      else
+                  |        c.getResources.getDrawable(resid)
+                  |    }""".stripMargin
+
+              val methods = if (platformApi >= 23) color + "\n\n" + drawable else drawable
+
+              s"""
+                |  // Helper object to suppress deprecation warnings as discussed in
+                |  // https://issues.scala-lang.org/browse/SI-7934
+                |  @deprecated("", "")
+                |  private trait compat {
+                |${methods}
+                |  }
+                |  private object compat extends compat""".stripMargin
+            }
+          }
+
           val getColor = if (platformApi >= 23) {
-            s"""      if (Build.VERSION.SDK_INT >= 23)
-               |        c.getColor(resid)
-               |      else
-               |        c.getResources.getColor(resid)""".stripMargin
+            "compat.getColor(c,resid)"
           } else {
             "c.getResources.getColor(resid)"
           }
           val getDrawable = if (platformApi >= 21) {
-            s"""      if (Build.VERSION.SDK_INT >= 21)
-               |        c.getDrawable(resid)
-               |      else
-               |        c.getResources.getDrawable(resid)
-             """.stripMargin
+            "compat.getDrawable(c,resid)"
           } else {
             "c.getResources.getDrawable(resid)"
           }
@@ -429,7 +457,7 @@ object Resources {
             } mkString "\n",
             layoutTypes map { case (k,v) =>
               "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
-            } mkString "\n", trs.mkString, getColor, getDrawable, getDrawable))
+            } mkString "\n", trs.mkString, getColor, getDrawable, getDrawable, deprForward))
           Set(tr)
         } else Set.empty
       }(a.toSet).toSeq

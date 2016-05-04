@@ -164,5 +164,7 @@ object TypedResource {
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getResources.getXml(resid)
   }
+
+%s
 }
 
