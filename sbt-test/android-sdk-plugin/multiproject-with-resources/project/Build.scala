@@ -13,7 +13,8 @@ object Build extends Build {
         "com.scalatags" % "scalatags_2.10" % "0.2.4"
       ),
       scalaVersion := "2.10.2",
-      javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6")
+      javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6"),
+      showSdkProgress in Android := false
     )
   ) dependsOn core
 
