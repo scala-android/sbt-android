@@ -594,7 +594,6 @@ object Plugin extends sbt.Plugin with PluginFail {
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
     useProguard             <<= proguardScala,
-    useSdkProguard          <<= proguardScala (!_),
     useProguardInDebug      <<= proguardScala,
     extraResDirectories         := Nil,
     extraAssetDirectories       := Nil,

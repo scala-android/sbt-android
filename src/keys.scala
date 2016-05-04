@@ -247,8 +247,6 @@ object Keys {
     "list of package names for caching proguard outputs, more rules => more cache misses") in Android
   val proguard = TaskKey[Option[File]]("proguard",
     "proguard task, generates obfuscated.jar") in Android
-  val useSdkProguard = SettingKey[Boolean]("use-sdk-proguard",
-    "use the sdk proguard config or this plugin's; default = !using scala") in Android
   val useProguard = SettingKey[Boolean]("use-proguard",
     "whether or not to run proguard, automatically true with useProguardInDebug") in Android
   val useProguardInDebug = SettingKey[Boolean]("use-proguard-in-debug",

@@ -807,26 +807,21 @@ object Tasks {
   val proguardConfigTaskDef = ( projectLayout
                               , outputLayout
                               , sdkPath
-                              , useSdkProguard
                               , aars
                               , streams) map {
-    (layout, out, p, u, a, s) =>
+    (layout, out, p, a, s) =>
     implicit val output = out
     val proguardTxt     = layout.proguardTxt
     val proguardProject = layout.proguard
 
-    val base = if (!u) {
-      IO.readLinesURL(resourceUrl("android-proguard.config"))
-    } else {
+    val base = {
       import SdkConstants._
       import File.{separator => S}
       val c1 = file(p + OS_SDK_TOOLS_FOLDER + FD_PROGUARD + S +
         FN_ANDROID_PROGUARD_FILE)
 
-      if (c1.exists)
-        IO.readLines(c1)
-      else
-        List.empty[String]
+      IO.readLinesURL(resourceUrl("android-proguard.config")) ++ (if (c1.exists)
+        IO.readLines(c1) else List.empty[String])
     }
     def lines(file: File): Seq[String] =
       if (file.exists) IO.readLines(file) else Seq.empty
