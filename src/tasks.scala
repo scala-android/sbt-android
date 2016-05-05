@@ -820,8 +820,10 @@ object Tasks {
       val c1 = file(p + OS_SDK_TOOLS_FOLDER + FD_PROGUARD + S +
         FN_ANDROID_PROGUARD_FILE)
 
-      IO.readLinesURL(resourceUrl("android-proguard.config")) ++ (if (c1.exists)
-        IO.readLines(c1) else List.empty[String])
+      if (!c1.exists)
+        PluginFail("Unable to locate SDK proguard config: " + c1)
+      IO.readLinesURL(resourceUrl("android-proguard.config")) ++
+        IO.readLines(c1)
     }
     def lines(file: File): Seq[String] =
       if (file.exists) IO.readLines(file) else Seq.empty
