@@ -2,12 +2,12 @@
 
 [![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.6.0 ([Change log](CHANGES.md))
+Current version is 1.6.1 ([Change log](CHANGES.md))
 
 Auto-import from gradle using [sbt-android-gradle](GRADLE.md)
 
-NOTE: 1.6.0 is the last version published using
-`addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.6.0")`,
+NOTE: 1.6.1 is the last version published using
+`addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.6.1")`,
 all future updates can be accessed by using
 `addSbtPlugin("org.scala-android" % "sbt-android" % VERSION)`
 
@@ -46,9 +46,8 @@ found on the #sbt-android IRC channel on Freenode, or the
   [sbt-test/android-sdk-plugin/](sbt-test/android-sdk-plugin).
   These projects are examples of how to use the plugin in various
   configurations.
-* Testing the plugin can be run via `sbt scripted`, they require `ANDROID_HOME`
-  and `ANDROID_NDK_HOME` to be set in addition to having platform `android-17`
-  installed.
+* Testing the plugin can be run via `sbt scripted`, they require a device
+  or emulator to be running in order to pass.
 * All tests have auto-generated `build.properties` and `auto_plugins.sbt`
   files that set the current version of sbt and the sbt-android to use
   for testing.
@@ -56,17 +55,22 @@ found on the #sbt-android IRC channel on Freenode, or the
 ## Usage ##
 
 1. Install sbt (from [scala-sbt.org](http://www.scala-sbt.org) or use your
-   local packaging system like macports, brew, etc.) -- make sure the
-   Android SDK is fully updated (minimum build-tools 19.1.0 and up)
+   local packaging system like macports, brew, etc.)
    * (OPTIONAL) Install the plugin globally by adding the following line
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.0")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.1")
    ```
    
 2. Set the environment variable `ANDROID_HOME` pointing to the path where the
-   Android SDK is unpacked.
+   Android SDK is installed.  If `ANDROID_HOME` is not set, an Android SDK
+   will be installed automatically at `~/.android/sbt/sdk`. If any components
+   are missing from your SDK, they will be installed automatically.
+   * (OPTIONAL) Set `ANDROID_NDK_HOME` if NDK building is desired and an NDK
+     already installed. If neither are set, or an NDK is not installed, an
+     NDK will be installed to `~/.android/sbt/sdk/ndk-bundle` automatically
+     if an NDK build is detected (Android.mk and friends)
 3. Create a new android project using `gen-android` if the plugin is installed
    globally
    * Instead of creating a new project, one can also do
@@ -77,7 +81,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    following line:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.0")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.1")
    ```
 
 5. Create or edit the file named `build.sbt` and add the
@@ -251,6 +255,9 @@ found on the #sbt-android IRC channel on Freenode, or the
   * `adb-reboot [recovery|bootloader]`
   * `variant[/project] [buildType] [flavor]`
   * `variant-reset[/project]`
+  * `android:install-sdk <package>`
+  * `android:update-sdk <all|package>`
+  * `android-license <license-id>`
 
 ### TODO / Known Issues ###
 
