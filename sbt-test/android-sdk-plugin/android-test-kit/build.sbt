@@ -13,3 +13,5 @@ lazy val flavor1 = android.Plugin.flavorOf(root, "flavor1",
 debugIncludesTests in Android := false
 
 autoScalaLibrary := false
+
+showSdkProgress in Android := false

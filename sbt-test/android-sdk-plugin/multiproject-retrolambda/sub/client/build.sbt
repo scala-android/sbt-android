@@ -10,3 +10,5 @@ platformTarget in Android		:= "android-19"
 dexAdditionalParams	in Android	+= "--core-library"
 
 proguardOptions in Android += "-ignorewarnings"
+
+showSdkProgress in Android := false

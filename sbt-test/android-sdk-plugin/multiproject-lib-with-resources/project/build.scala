@@ -33,6 +33,7 @@ object MyProjectBuild extends Build {
                         "org.slf4j" % "slf4j-simple" % "1.7.5"))
 
   lazy val appSettings = List(
+        showSdkProgress in Android := false,
         platformTarget in Android := "android-17",
         useProguard in Android := true,
         useProguardInDebug in Android := true,

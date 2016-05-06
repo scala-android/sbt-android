@@ -1,0 +1,1 @@
+showSdkProgress in Android := false

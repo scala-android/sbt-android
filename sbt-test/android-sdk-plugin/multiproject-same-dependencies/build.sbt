@@ -1,12 +1,14 @@
 javacOptions in Global ++= List("-source", "1.7", "-target", "1.7")
 
-val b = project.settings(androidBuildAar:_*).settings(platformTarget := "android-23")
+val sharedSettings = Seq(platformTarget := "android-23", showSdkProgress in Android := false)
 
-val c = project.settings(androidBuildAar:_*).settings(platformTarget := "android-23")
+val b = project.settings(androidBuildAar:_*).settings(sharedSettings: _*)
 
-val d = project.settings(androidBuildAar:_*).settings(platformTarget := "android-23")
+val c = project.settings(androidBuildAar:_*).settings(sharedSettings: _*)
 
-val a = project.androidBuildWith(b,c,d).settings(platformTarget := "android-23")
+val d = project.settings(androidBuildAar:_*).settings(sharedSettings: _*)
+
+val a = project.androidBuildWith(b,c,d).settings(sharedSettings: _*)
 
 libraryDependencies in b += "com.android.support" % "appcompat-v7" % "23.1.1"
 
