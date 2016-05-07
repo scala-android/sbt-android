@@ -440,16 +440,16 @@ object Resources {
             }
           }
 
-          val getColor = "      " + if (platformApi >= 23) {
+          val getColor = "      " + (if (platformApi >= 23) {
             "compat.getColor(c,resid)"
           } else {
             "c.getResources.getColor(resid)"
-          }
-          val getDrawable = "      " + if (platformApi >= 21) {
+          })
+          val getDrawable = "      " + (if (platformApi >= 21) {
             "compat.getDrawable(c,resid)"
           } else {
             "c.getResources.getDrawable(resid)"
-          }
+          })
 
           IO.write(tr, trTemplate format (p,
             resources map { case (k,v) =>
