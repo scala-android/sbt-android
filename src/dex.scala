@@ -235,6 +235,7 @@ object Dex {
         }
         val injars = inputs map (_.getAbsolutePath) mkString File.pathSeparator
         FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
+          mainDexListTxt.getParentFile.mkdirs()
           val cmd = Seq(
             script.getAbsolutePath,
             "--output", mainDexListTxt.getAbsolutePath,

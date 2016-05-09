@@ -2,6 +2,7 @@
 $ exists target/android/output/hello-multidex-debug.apk
 $ exists target/android/intermediates/dex/classes2.dex
 > set dexMainClasses in Android := Nil
+> clean
 > android:package
 $ exists target/android/intermediates/dex/maindexlist.txt
 > check-list

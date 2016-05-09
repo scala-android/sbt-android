@@ -42,7 +42,6 @@ dexMainClasses in Android := Seq(
   "android/support/multidex/ZipUtil.class"
 )
 
-
 packagingOptions in Android := PackagingOptions(excludes = Seq(
   "META-INF/MANIFEST.MF",
   "META-INF/LICENSE.txt",
