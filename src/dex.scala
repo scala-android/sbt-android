@@ -223,6 +223,7 @@ object Dex {
       inputs: Seq[File], mainDexClasses: Seq[String],
       bt: BuildToolInfo, s: sbt.Keys.TaskStreams)(implicit m: BuildOutput.Converter) = {
     val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile
+    mainDexListTxt.getParentFile.mkdirs()
     if (multidex && legacy) {
       if (mainDexClasses.nonEmpty) {
         IO.writeLines(mainDexListTxt, mainDexClasses)
@@ -235,7 +236,6 @@ object Dex {
         }
         val injars = inputs map (_.getAbsolutePath) mkString File.pathSeparator
         FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
-          mainDexListTxt.getParentFile.mkdirs()
           val cmd = Seq(
             script.getAbsolutePath,
             "--output", mainDexListTxt.getAbsolutePath,
