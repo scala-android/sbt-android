@@ -240,6 +240,8 @@ object Dex {
           makeMultiDexRoots(XML.loadFile(manifest), inputs, proguardClasspath, bt, layout.maindexRootsJar)
           val mainClasses = createMainDexList(inputs, layout.maindexRootsJar, bt)
           IO.writeLines(mainDexListTxt, mainClasses)
+          s.log.warn("Set mainDexClasses to improve build times:")
+          s.log.warn("""  dexMainClassesConfig := baseDirectory.value / "copy-of-maindexlist.txt"""")
           Set(mainDexListTxt)
         }(inputs.toSet)
 
