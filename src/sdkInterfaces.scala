@@ -155,8 +155,10 @@ case class SbtProcessOutputHandler(lg: Logger) extends BaseProcessOutputHandler 
 object SbtJavaProcessExecutor extends JavaProcessExecutor {
   import language.existentials
   override def execute(javaProcessInfo: JavaProcessInfo, processOutputHandler: ProcessOutputHandler) = {
+    val out = processOutputHandler.createOutput()
     val options = ForkOptions(
       envVars = javaProcessInfo.getEnvironment.asScala.map { case ((x, y)) => x -> y.toString }.toMap,
+      outputStrategy = Some(sbt.CustomOutput(out.getStandardOutput)),
       runJVMOptions = javaProcessInfo.getJvmArgs.asScala ++
         ("-cp" :: javaProcessInfo.getClasspath :: Nil))
     val args = (javaProcessInfo.getMainClass :: Nil) ++ javaProcessInfo.getArgs.asScala

@@ -323,8 +323,6 @@ object Dex {
     builder.addArgs(jarOfRoots.getAbsolutePath)
     builder.addArgs(inputs.map(_.getAbsolutePath).mkString(File.pathSeparator))
     val processOutputHandler = new CachedProcessOutputHandler
-    // eh? why is this necessary, AndroidBuilder doesn't do it...
-    processOutputHandler.createOutput()
     SbtJavaProcessExecutor.execute(
       builder.createJavaProcess, processOutputHandler
     ).rethrowFailure().assertNormalExitValue()

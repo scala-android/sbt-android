@@ -1,4 +1,4 @@
 TaskKey[Unit]("check-list") := {
-  val main = (dexMainClassesConfig in Android).value
-  println(IO.read(main))
+  val mainClasses = IO.readLines((dexMainClassesConfig in Android).value).toList
+  if (mainClasses.isEmpty) android.Plugin.fail("No good")
 }
