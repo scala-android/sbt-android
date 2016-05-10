@@ -13,6 +13,7 @@ android:
     - sys-img-armeabi-v7a-android-21
     - build-tools-22.0.1
     - build-tools-23.0.1
+    - ndk-bundle
     - platform-tools
     - tools
     - extra
