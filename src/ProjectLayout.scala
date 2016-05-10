@@ -42,6 +42,7 @@ trait BuildOutput extends Any {
   def proguardTxt: File
   def publicTxt: File
   def maindexlistTxt: File
+  def maindexRootsJar: File
   def ndk: File
   def ndkObj: File
   def ndkBin: File
@@ -101,6 +102,7 @@ object BuildOutput {
     def proguardTxt = proguardOut / "proguard.txt"
     def publicTxt = intermediates / "public.txt"
     def maindexlistTxt = dex / "maindexlist.txt"
+    def maindexRootsJar = dex / "mainDexRoots.jar"
     def ndk = intermediates / "ndk"
     def ndkObj = ndk / "obj"
     def ndkBin = ndk / "jni"
@@ -177,6 +179,7 @@ object BuildOutput {
     def proguardTxt = base.proguardTxt
     def publicTxt = base.publicTxt
     def maindexlistTxt = base.maindexlistTxt
+    def maindexRootsJar = base.maindexRootsJar
     def ndk = base.ndk
     def ndkObj = base.ndkObj
     def ndkBin = base.ndkBin
@@ -232,6 +235,7 @@ object BuildOutput {
     def proguardTxt = base(layout).proguardTxt
     def publicTxt = base(layout).publicTxt
     def maindexlistTxt = base(layout).maindexlistTxt
+    def maindexRootsJar = base(layout).maindexRootsJar
     def ndk = base(layout).ndk
     def ndkObj = base(layout).ndkObj
     def ndkBin = base(layout).ndkBin

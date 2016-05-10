@@ -4,10 +4,12 @@ import java.io.File
 
 import com.android.SdkConstants
 import com.android.builder.core.AndroidBuilder
+import com.android.ide.common.process.{CachedProcessOutputHandler, ProcessInfoBuilder}
 import com.android.sdklib.BuildToolInfo
 import sbt._
 
 import scala.language.postfixOps
+import scala.xml.{Elem, XML}
 
 object Dex {
   import ProguardUtil._
@@ -219,38 +221,25 @@ object Dex {
     } else Nil
   }
 
-  def dexMainClassesConfig(layout: ProjectLayout, legacy: Boolean, multidex: Boolean,
-      inputs: Seq[File], mainDexClasses: Seq[String],
-      bt: BuildToolInfo, s: sbt.Keys.TaskStreams)(implicit m: BuildOutput.Converter) = {
+  def dexMainClassesConfig(manifest: File,
+                           proguardClasspath: Def.Classpath,
+                           layout: ProjectLayout,
+                           legacy: Boolean,
+                           multidex: Boolean,
+                           inputs: Seq[File],
+                           mainDexClasses: Seq[String],
+                           bt: BuildToolInfo,
+                           s: sbt.Keys.TaskStreams)(implicit m: BuildOutput.Converter) = {
     val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile
     mainDexListTxt.getParentFile.mkdirs()
     if (multidex && legacy) {
       if (mainDexClasses.nonEmpty) {
         IO.writeLines(mainDexListTxt, mainDexClasses)
       } else {
-        val btl = bt.getLocation
-        val script = if (!Commands.isWindows) btl / "mainDexClasses"
-        else {
-          val f = btl / "mainDexClasses.cmd"
-          if (f.exists) f else btl / "mainDexClasses.bat"
-        }
-        val injars = inputs map (_.getAbsolutePath) mkString File.pathSeparator
         FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
-          val cmd = Seq(
-            script.getAbsolutePath,
-            "--output", mainDexListTxt.getAbsolutePath,
-            if (Commands.isWindows) s""""$injars"""" else injars
-          )
-
-          s.log.info("Generating maindexlist.txt")
-          s.log.debug("mainDexClasses => " + cmd.mkString(" "))
-          val rc = Process(cmd, layout.base) !
-
-          if (rc != 0) {
-            PluginFail("failed to determine mainDexClasses")
-          }
-          s.log.warn("Set mainDexClasses to improve build times:")
-          s.log.warn("""  dexMainClassesConfig := baseDirectory.value / "copy-of-maindexlist.txt"""")
+          makeMultiDexRoots(XML.loadFile(manifest), inputs, proguardClasspath, bt, layout.maindexRootsJar)
+          val mainClasses = createMainDexList(inputs, layout.maindexRootsJar, bt)
+          IO.writeLines(mainDexListTxt, mainClasses)
           Set(mainDexListTxt)
         }(inputs.toSet)
 
@@ -258,6 +247,89 @@ object Dex {
     } else
       mainDexListTxt.delete()
     mainDexListTxt
+  }
+
+  def makeMultiDexRoots(manifest: Elem,
+                        inputs: Seq[File],
+                        proguardClasspath: Def.Classpath,
+                        buildTools: BuildToolInfo, output: File): Unit = {
+    val shrunk1 = buildTools.getLocation / "lib" / "shrinkedAndroid.jar"
+    val shrinkedAndroid = if (!shrunk1.isFile) {
+      buildTools.getLocation / "multidex" / "shrinkedAndroid.jar"
+    } else {
+      shrunk1
+    }
+    val applicationSpec =
+      """{
+        |  <init>();
+        |  void attachBaseContext(android.content.Context);
+        |}
+      """.stripMargin
+    val defaultSpec = "{ <init>(); }"
+    val roots = "activity" ::
+      "application" ::
+      "service" ::
+      "receiver" ::
+      "provider" ::
+      "instrumentation" ::
+      Nil
+    val baseConfig =
+      s"""
+        |-dontobfuscate
+        |-dontoptimize
+        |-dontpreverify
+        |-dontwarn **
+        |-dontnote **
+        |-forceprocessing
+        |-libraryjars ${shrinkedAndroid.getAbsolutePath}
+        |-injars ${inputs.map {
+          _.getAbsolutePath + "(!META-INF/**,!rootdoc.txt)" }.mkString(File.pathSeparator)}
+        |-outjars ${output.getAbsolutePath}
+        |
+        |-keep public class * extends android.app.backup.BackupAgent {
+        |    <init>();
+        |}
+        |-keep public class * extends java.lang.annotation.Annotation {
+        |    *;
+        |}
+        |-keep class com.android.tools.fd.** {
+        |    *;
+        |}
+        |-dontnote com.android.tools.fd.**,android.support.multidex.MultiDexExtractor
+      """.stripMargin.split("\n").toList
+    val rootsCfg = roots.flatMap { root =>
+      val rs = manifest \\ root
+      rs.flatMap { r =>
+        r.attribute(Resources.ANDROID_NS, "name").flatMap(_.headOption).toList.map { n =>
+          if (n.text == "application")
+            s"-keep class $n $applicationSpec"
+          else
+            s"-keep class $n $defaultSpec"
+        }
+      }
+    }
+    Proguard.runProguard(proguardClasspath, baseConfig ++ rootsCfg)
+  }
+
+  // copied and adapted from AndroidBuilder.createMainDexList
+  def createMainDexList(inputs: Seq[File],  jarOfRoots: File, buildToolInfo: BuildToolInfo): List[String] = {
+    val builder = new ProcessInfoBuilder
+    val dx = buildToolInfo.getPath(BuildToolInfo.PathId.DX_JAR)
+    if (dx == null || !new File(dx).isFile) {
+      throw new IllegalStateException("dx.jar is missing")
+    }
+    builder.setClasspath(dx)
+    builder.setMain(classOf[com.android.multidex.ClassReferenceListBuilder].getName)
+    builder.addArgs(jarOfRoots.getAbsolutePath)
+    builder.addArgs(inputs.map(_.getAbsolutePath).mkString(File.pathSeparator))
+    val processOutputHandler = new CachedProcessOutputHandler
+    // eh? why is this necessary, AndroidBuilder doesn't do it...
+    processOutputHandler.createOutput()
+    SbtJavaProcessExecutor.execute(
+      builder.createJavaProcess, processOutputHandler
+    ).rethrowFailure().assertNormalExitValue()
+    val content = processOutputHandler.getProcessOutput.getStandardOutputAsString
+    content.split("\n").toList
   }
 
   // see https://source.android.com/devices/tech/dalvik/dex-format.html

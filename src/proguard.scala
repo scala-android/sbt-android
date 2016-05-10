@@ -131,21 +131,6 @@ object Proguard {
     val o = a.proguardOptions
     val pc = a.proguardCache
     val re = ra.enable
-    import java.util.Properties
-
-    import language.reflectiveCalls
-    val cl = ClasspathUtilities.toLoader(cp map (_.data))
-    type ProG = {
-      def execute(): Unit
-    }
-    val cfgClass = cl.loadClass("proguard.Configuration")
-    val pgcfg    = cfgClass.newInstance().asInstanceOf[AnyRef]
-    val pgClass  = cl.loadClass("proguard.ProGuard")
-    val cpClass  = cl.loadClass("proguard.ConfigurationParser")
-    val cpCtor   = cpClass.getConstructor(classOf[Array[String]], classOf[Properties])
-    val cpMethod = cpClass.getDeclaredMethod("parse", cfgClass)
-    cpMethod.setAccessible(true)
-    val pgCtor   = pgClass.getConstructor(cfgClass)
 
     if (inputs.proguardCache exists (_.exists)) {
       s.log.info("[debug] cache hit, skipping proguard!")
@@ -174,11 +159,8 @@ object Proguard {
 
       if (jars.exists( _.lastModified > t.lastModified ) || cacheHash != rulesHash) {
         cfg foreach (l => s.log.debug(l))
-        val cparser = cpCtor.newInstance(cfg.toArray[String], new Properties)
         IO.write(s.cacheDirectory / "proguard-rules.hash", rulesHash)
-        cpMethod.invoke(cparser, pgcfg)
-        val pg = pgCtor.newInstance(pgcfg).asInstanceOf[ProG]
-        pg.execute()
+        runProguard(cp, cfg)
       } else {
         s.log.info(t.getName + " is up-to-date")
       }
@@ -187,6 +169,27 @@ object Proguard {
       }
       Option(t)
     } else None
+  }
+
+  def runProguard(classpath: Def.Classpath, cfg: Seq[String]): Unit = {
+    import language.reflectiveCalls
+    val cl = ClasspathUtilities.toLoader(classpath map (_.data))
+    type ProG = {
+      def execute(): Unit
+    }
+    val cfgClass = cl.loadClass("proguard.Configuration")
+    val pgcfg    = cfgClass.newInstance().asInstanceOf[AnyRef]
+    val pgClass  = cl.loadClass("proguard.ProGuard")
+    val cpClass  = cl.loadClass("proguard.ConfigurationParser")
+    val cpCtor   = cpClass.getConstructor(classOf[Array[String]], classOf[java.util.Properties])
+    val cpMethod = cpClass.getDeclaredMethod("parse", cfgClass)
+    cpMethod.setAccessible(true)
+    val pgCtor   = pgClass.getConstructor(cfgClass)
+
+    val cparser = cpCtor.newInstance(cfg.toArray[String], new java.util.Properties)
+    cpMethod.invoke(cparser, pgcfg)
+    val pg = pgCtor.newInstance(pgcfg).asInstanceOf[ProG]
+    pg.execute()
   }
 }
 
