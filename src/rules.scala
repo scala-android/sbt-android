@@ -737,6 +737,9 @@ object Plugin extends sbt.Plugin with PluginFail {
       val sdkHandler = sdkManager.value
       val showProgress = showSdkProgress.value
       buildToolsVersion.value map { version =>
+        AndroidPlugin.retryWhileFailed(
+          "Failed to fetch build tool info, retrying...", slog)(
+          sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind))
         val bti = sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         if (bti == null) {
           slog.warn(s"build-tools $version not found, searching for package...")
@@ -744,15 +747,9 @@ object Plugin extends sbt.Plugin with PluginFail {
           sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         } else bti
       } getOrElse {
-        val tools = try {
+        val tools = AndroidPlugin.retryWhileFailed("Failed to determine latest build tools, retrying...", slog)(
           sdkHandler.getLatestBuildTool(ind, false)
-        } catch {
-          // Some sort of race condition seems to cause this
-          case e: NullPointerException =>
-            slog.error("Failed to determine latest build tools, retrying...")
-            Thread.sleep(250) // random sleep ftw
-            sdkHandler.getLatestBuildTool(ind, false)
-        }
+        )
         if (tools == null) {
           slog.warn(s"build-tools not found, searching for package...")
           SdkInstaller.install(sdkHandler, "latest build-tools", "build-tools;", showProgress, slog) { pkgs =>

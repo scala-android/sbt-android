@@ -86,11 +86,13 @@ object AndroidPlugin extends AutoPlugin {
     path
   }
 
-  def sdkManager(path: File, showProgress: Boolean, slog: Logger): AndroidSdkHandler = {
+  def sdkManager(path: File, showProgress: Boolean, slog: Logger): AndroidSdkHandler = synchronized {
     AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
     val manager = AndroidSdkHandler.getInstance(path)
     val ind = SbtAndroidProgressIndicator(slog)
-    val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
+    val pkgs = retryWhileFailed(
+      "Unable to retrieve local packages, retrying...", slog)(
+      manager.getSdkManager(ind).getPackages.getLocalPackages)
     if (!pkgs.containsKey("tools")) {
       slog.warn("android sdk tools not found, searching for package...")
       SdkInstaller.installPackage(manager, "", "tools", "android sdk tools", showProgress, slog)
@@ -112,5 +114,16 @@ object AndroidPlugin extends AutoPlugin {
       SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, showProgress, slog)
     }
     manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
+  }
+
+  def retryWhileFailed[A](err: String, log: Logger, delay: Int = 250)(f: => A): A = {
+    Iterator.continually(util.Try(f)).dropWhile { t =>
+      val failed = t.isFailure
+      if (failed) {
+        log.error(err)
+        Thread.sleep(delay)
+      }
+      failed
+    }.next.get
   }
 }

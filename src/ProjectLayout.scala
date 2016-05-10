@@ -280,6 +280,7 @@ object SdkLayout {
   def explodedAars = sbtSubfolder / "exploded-aars"
   def androidHomeCache = sbtSubfolder / "sdk.dir"
   def androidNdkHomeCache = sbtSubfolder / "ndk.dir"
+  // TODO consider using ~/.android-sdk
   def fallbackAndroidHome = sbtSubfolder / "sdk"
   def sdkLicenses = sbtSubfolder / "sdk-licenses"
   def sdkFallback(f: File): Option[String] = if (f.isFile) {
