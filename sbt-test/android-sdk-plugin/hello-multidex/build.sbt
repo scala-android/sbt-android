@@ -30,6 +30,8 @@ dexMinimizeMain in Android := true
 
 dexMaxProcessCount := 1
 
+dexMaxHeap := "768m"
+
 dexMainClasses in Android := Seq(
   "com/example/app/MultidexApplication.class",
   "android/support/multidex/BuildConfig.class",
