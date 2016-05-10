@@ -68,7 +68,7 @@ object ArbitraryProject {
           override def projectDefinitions(b: File) = {
             val newProject = (oldBuild projectDefinitions b).head match {
               case p: ProjectDefinition[_] => p.copy(
-                settings = Defaults.defaultSettings ++ settingsMap(in.uri))
+                settings = (p: ProjectDefinition[_]).settings ++ settingsMap(in.uri))
             }
             Seq(newProject)
           }
@@ -77,7 +77,7 @@ object ArbitraryProject {
         val newDefns = new LoadedDefinitions(
           oldDefns.base, oldDefns.target, oldDefns.loader,
           Seq(newBuild), oldDefns.projects map { p =>
-            p.copy(settings = Defaults.defaultSettings ++ settingsMap(in.uri))
+            p.copy(settings = (p: ProjectDefinition[_]).settings ++ settingsMap(in.uri))
           }, oldDefns.buildNames)
         new BuildUnit(
           in.unit.uri, in.unit.localBase, newDefns, in.unit.plugins)

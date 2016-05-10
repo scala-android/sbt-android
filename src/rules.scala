@@ -115,11 +115,21 @@ object Plugin extends sbt.Plugin with PluginFail {
   @deprecated("Use aar files instead", "gradle compatibility")
   lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
   def androidBuildAar(projects: ProjectReference*): Seq[Setting[_]] = {
-    androidBuild(projects:_*) ++ buildAar
+    Forwarder.deprecations.androidBuild(projects:_*) ++ buildAar
   }
   @deprecated("Use aar files instead", "gradle compatibility")
   def androidBuildApklib(projects: ProjectReference*): Seq[Setting[_]] = {
     androidBuild(projects:_*) ++ buildApklib
+  }
+
+  private[this] object Forwarder {
+    @deprecated("forwarding", "1.6.0")
+    trait deprecations {
+      @inline
+      def androidBuild(prj: ProjectReference*) = Plugin.androidBuild(prj:_*)
+      val packageName = Keys.packageName
+    }
+    object deprecations extends deprecations
   }
 
   def useSupportVectors = Seq(
@@ -560,7 +570,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       m.attribute("package").get.head.text
     },
     applicationId           <<= Def.task {
-      packageName.?.value.fold(manifest.value.attribute("package").head.text) { p =>
+      Forwarder.deprecations.packageName.?.value.fold(manifest.value.attribute("package").head.text) { p =>
         streams.value.log.warn(
           "'packageName in Android' is deprecated, use 'applicationId'")
         p
