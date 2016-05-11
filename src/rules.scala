@@ -415,8 +415,6 @@ object Plugin extends sbt.Plugin with PluginFail {
     },
     updateCheckSdk          <<= SdkInstaller.updateCheckSdkTaskDef,
     showSdkProgress          := true,
-    updateSdk               <<= SdkInstaller.updateSdkTaskDef,
-    installSdk              <<= SdkInstaller.installSdkTaskDef,
     antLayoutDetector        := {
       val log = streams.value.log
       val prj = thisProjectRef.value.project

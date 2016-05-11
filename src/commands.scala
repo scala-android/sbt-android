@@ -973,7 +973,7 @@ object Commands {
       pidcat, pidcatGrep, logcat, logcatGrep, adbLs, adbShell,
       devices, device, reboot, adbScreenOn, adbRunas, adbKill,
       adbWifi, adbPush, adbPull, adbCat, adbRm, variant, variantClear,
-      showLicenses)
+      showLicenses, installSdk, updateSdk)
   )
 
   private def adbCat = Command(
@@ -1082,4 +1082,13 @@ object Commands {
   private def showLicenses = Command("android-license",
     ("android-license <license-id>", "Show Android SDK licenses"),
     "Show Android SDK licenses")(showLicenseParser)(showLicenseAction)
+
+  private def installSdk = Command("android-install",
+    ("android-install <package>", "Install Android SDK package"),
+    "Install Android SDK package")(parsers.installSdkParser)(SdkInstaller.installSdkAction)
+
+  //noinspection MutatorLikeMethodIsParameterless
+  private def updateSdk = Command("android-update",
+    ("android-update <all|package-name>", "Update Android SDK package(s)"),
+    "Update Android SDK package(s)")(parsers.updateSdkParser)(SdkInstaller.updateSdkAction)
 }

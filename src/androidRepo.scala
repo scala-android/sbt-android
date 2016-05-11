@@ -1,21 +1,20 @@
 package android
 
 import java.io.File
-import java.net.URL
+import java.net.{HttpURLConnection, URL}
 
 import com.android.repository.Revision
 import com.android.repository.api._
 import com.android.repository.impl.generated.generic.v1.GenericDetailsType
 import com.android.repository.impl.generated.v1._
 import com.android.repository.io.FileOp
-import com.android.sdklib.internal.repository.{CanceledByUserException, DownloadCache}
-import com.android.sdklib.repositoryv2.{AndroidSdkHandler, LegacyDownloader, LegacyTaskMonitor}
+import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import com.android.repository.api.{RemotePackage => RepoRemotePackage}
 import com.android.sdklib.repositoryv2.generated.addon.v1.{AddonDetailsType, ExtraDetailsType, LibrariesType}
 import com.android.sdklib.repositoryv2.generated.common.v1.IdDisplayType
 import com.android.sdklib.repositoryv2.generated.repository.v1.{LayoutlibType, PlatformDetailsType}
 import com.android.sdklib.repositoryv2.generated.sysimg.v1.SysImgDetailsType
-import sbt.{IO, Using, Logger}
+import sbt.{IO, Logger, Using}
 
 import collection.JavaConverters._
 import concurrent.duration._
@@ -91,18 +90,20 @@ object SdkInstaller {
     }
   }
 
-  def installSdkTaskDef = sbt.Def.inputTask {
-    val toInstall = parsers.installSdkParser.parsed
-    val log = sbt.Keys.streams.value.log
+  private def sdkpath(state: sbt.State): String =
+    AndroidPlugin.sdkPath(state.log, Tasks.loadProperties(sbt.Project.extract(state).currentProject.base))
+
+  def installSdkAction: (sbt.State, Option[String]) => sbt.State = (state,toInstall) => {
+    val log = state.log
     val ind = SbtAndroidProgressIndicator(log)
-    val sdkHandler = Keys.Internal.sdkManager.value
+    val sdkHandler = AndroidPlugin.sdkManager(sbt.file(sdkpath(state)), true, log)
     val repomanager = sdkHandler.getSdkManager(ind)
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
     val newpkgs = repomanager.getPackages.getNewPkgs.asScala.filterNot(_.obsolete).toList.sorted(platformOrder)
     toInstall match {
       case Some(p) =>
-        install(sdkHandler, p, "", Keys.showSdkProgress.value, log)(_.get(p))
+        install(sdkHandler, p, "", true, log)(_.get(p))
       case None =>
         val packages = newpkgs.map { p =>
             val path = p.getPath
@@ -112,16 +113,14 @@ object SdkInstaller {
         log.error("Available packages:\n" + packages.mkString("\n"))
         PluginFail("A package to install must be specified")
     }
-    ()
+    state
   }
   //noinspection MutatorLikeMethodIsParameterless
-  def updateSdkTaskDef = sbt.Def.inputTask {
-    val toUpdate = parsers.updateSdkParser.parsed
-    val log = sbt.Keys.streams.value.log
+  def updateSdkAction: (sbt.State, Either[Option[String],String]) => sbt.State = (state,toUpdate) => {
+    val log = state.log
     val ind = SbtAndroidProgressIndicator(log)
-    val sdkHandler = Keys.Internal.sdkManager.value
+    val sdkHandler = AndroidPlugin.sdkManager(sbt.file(sdkpath(state)), true, log)
     val repomanager = sdkHandler.getSdkManager(ind)
-    val showProgress = Keys.showSdkProgress.value
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
     val updates = repomanager.getPackages.getUpdatedPkgs.asScala.collect {
@@ -142,7 +141,7 @@ object SdkInstaller {
     toUpdate.left.foreach {
       case Some(_) =>
         updates.foreach { u =>
-          install(sdkHandler, u.getDisplayName, "", showProgress, log)(_.get(u.getPath))
+          install(sdkHandler, u.getDisplayName, "", true, log)(_.get(u.getPath))
         }
       case None =>
         updatesHelp()
@@ -151,13 +150,13 @@ object SdkInstaller {
     toUpdate.right.foreach { p =>
       updates.find(_.getPath == p) match {
         case Some(pkg) =>
-          install(sdkHandler, pkg.getDisplayName, "", showProgress, log)(_.get(pkg.getPath))
+          install(sdkHandler, pkg.getDisplayName, "", true, log)(_.get(pkg.getPath))
         case None =>
           updatesHelp()
           PluginFail(s"Update '$p' not found")
       }
     }
-    ()
+    state
   }
   //noinspection MutatorLikeMethodIsParameterless
   def updateCheckSdkTaskDef = sbt.Def.task {
@@ -170,7 +169,7 @@ object SdkInstaller {
       repomanager.loadSynchronously(1.day.toMillis, ind, SbtAndroidDownloader(sdkHandler.getFileOp), null)
       val updates = repomanager.getPackages.getUpdatedPkgs.asScala.filter(_.hasRemote)
       if (updates.nonEmpty) {
-        log.warn("Android SDK updates available, run 'android:update-sdk' to update:")
+        log.warn("Android SDK updates available, run 'android-update' to update:")
         updates.foreach { u =>
           val p = u.getRemote
           log.warn("    " + p.getDisplayName)
@@ -380,38 +379,40 @@ case class ArchiveFile(getChecksum: String, getSize: Long, getUrl: String) {
   }
 }
 
-case class SbtAndroidDownloader(fop: FileOp) extends LegacyDownloader(fop) {
-  val mDownloadCache = new DownloadCache(fop, DownloadCache.Strategy.FRESH_CACHE)
+case class SbtAndroidDownloader(fop: FileOp) extends Downloader {
   override def downloadFully(url: URL, settings: SettingsController, indicator: ProgressIndicator) = {
     val result = File
       .createTempFile("LegacyDownloader", System.currentTimeMillis.toString)
+    result.deleteOnExit()
     val out = fop.newFileOutputStream(result)
-    try {
-      val downloadedResult =  mDownloadCache.openDirectUrl(url.toString, null, new LegacyTaskMonitor(indicator))
-      val httpresult = downloadedResult.getSecond
-      if (httpresult.getStatusLine.getStatusCode == 200) {
-        val length = Option(httpresult.getFirstHeader("Content-Length")).map(_.getValue.toLong)
-        val len = 65536
-        val buf = Array.ofDim[Byte](len)
-        indicator.setIndeterminate(length.isEmpty)
-        indicator.setText("Downloading " + url.getFile)
-        var read = 0
-        Iterator.continually(downloadedResult.getFirst.read(buf, 0, len)).takeWhile(_ != -1).foreach { r =>
-          read = read + r
-          length foreach { l =>
-            indicator.setFraction(read.toDouble / l)
+    val uc = url.openConnection().asInstanceOf[HttpURLConnection]
+    val responseCode = uc.getResponseCode
+    if (responseCode == 200) {
+      val length = uc.getContentLength
+      val in = uc.getInputStream
+      Using.bufferedInputStream(in) { b =>
+        Using.bufferedOutputStream(out) { o =>
+          val len = 65536
+          val buf = Array.ofDim[Byte](len)
+          indicator.setIndeterminate(length == -1)
+          indicator.setText("Downloading " + url.getFile)
+          var read = 0
+          Iterator.continually(in.read(buf, 0, len)).takeWhile(_ != -1).foreach { r =>
+            read = read + r
+            if (length != -1)
+              indicator.setFraction(read.toDouble / length)
+            o.write(buf, 0, r)
           }
-          out.write(buf, 0, r)
+          indicator.setFraction(1.0)
+          o.close()
+          result
         }
-        downloadedResult.getFirst.close()
-        indicator.setFraction(1.0)
-        out.close()
-        result
-      } else null
-    } catch {
-      case e: CanceledByUserException =>
-        indicator.logInfo("The download was cancelled.");
-        null
-    }
+      }
+    } else null
   }
+
+  //noinspection JavaAccessorMethodCalledAsEmptyParen
+  override def downloadAndStream(url: URL,
+                                 settings: SettingsController,
+                                 indicator: ProgressIndicator) = url.openConnection().getInputStream()
 }

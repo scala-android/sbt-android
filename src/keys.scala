@@ -63,10 +63,6 @@ object Keys {
   val updateCheck = TaskKey[Unit]("update-check", "Check for a new version of the plugin") in Android
   val updateCheckSdk = TaskKey[Unit](
     "update-check-sdk", "Check for new versions of the Android SDK") in Android
-  val updateSdk = InputKey[Unit](
-    "update-sdk", "Update the Android SDK") in Android
-  val installSdk = InputKey[Unit](
-    "install-sdk", "Install Android SDK packages") in Android
   val flavors = SettingKey[Map[String,Seq[Setting[_]]]]("flavors",
     "build flavor definitions, map of flavor names to settings") in Android
   val buildTypes = SettingKey[Map[String,Seq[Setting[_]]]]("build-types",
