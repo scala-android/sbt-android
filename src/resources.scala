@@ -298,7 +298,7 @@ object Resources {
 
   def generateTR(t: Boolean, a: Seq[File], p: String, layout: ProjectLayout,
                  platformApi: Int, platform: (String,Seq[String]), sv: String,
-                 l: Seq[LibraryDependency], i: Seq[String], s: TaskStreams): Seq[File] = {
+                 l: Seq[LibraryDependency], f: Boolean, i: Seq[String], s: TaskStreams): Seq[File] = {
 
     val j = platform._1
     val r = layout.res
@@ -374,13 +374,14 @@ object Resources {
 
           tr.delete()
 
-          val resdirs = r +:
-            (for {
+          val resdirs = if (f) {
+            r +: (for {
               lib <- l filterNot {
                 case p: Dependencies.Pkg => ignores(p.pkg)
                 case _                   => false
               }
             } yield lib.getResFolder)
+          } else Nil
           val rms1 = processValuesXml(resdirs, s)
           val rms2 = processResourceTypeDirs(resdirs, s)
           val combined = reduceResourceMap(Seq(rms1, rms2)).filter(_._2.nonEmpty)
