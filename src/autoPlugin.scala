@@ -106,14 +106,16 @@ object AndroidPlugin extends AutoPlugin {
   }
 
   def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {
-    val manager = sdkHandler.getAndroidTargetManager(SbtAndroidProgressIndicator(slog))
-    val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
+    retryWhileFailed("Failed to determine platform target, retrying...", slog) {
+      val manager = sdkHandler.getAndroidTargetManager(SbtAndroidProgressIndicator(slog))
+      val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
 
-    if (ptarget == null) {
-      slog.warn(s"platformTarget $targetHash not found, searching for package...")
-      SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, showProgress, slog)
+      if (ptarget == null) {
+        slog.warn(s"platformTarget $targetHash not found, searching for package...")
+        SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, showProgress, slog)
+      }
+      manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
     }
-    manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
   }
 
   def retryWhileFailed[A](err: String, log: Logger, delay: Int = 250)(f: => A): A = {
