@@ -1,5 +1,10 @@
 ## New features in 1.6.x ##
 
+* `1.6.2`:
+  * Fix automatic maindexlist.txt generation
+  * Add more workarounds for race conditions in android builder code
+  * Rename `android:install-sdk` and `android:update-sdk` to `android-install`
+    and `android-update`, respectively
 * `1.6.1`: major new features in a `.1` release!
   * Automatic Android SDK installation
     * `sdkPath` will be set to `~/.android/sbt/sdk` if `ANDROID_HOME` or

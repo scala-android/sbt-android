@@ -3,12 +3,12 @@
 [![Build Status](https://travis-ci.org/scala-android/sbt-android.svg?branch=master)](https://travis-ci.org/scala-android/sbt-android)
 [![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.6.1 ([Change log](CHANGES.md))
+Current version is 1.6.2 ([Change log](CHANGES.md))
 
 Auto-import from gradle using [sbt-android-gradle](GRADLE.md)
 
-NOTE: 1.6.1 is the last version published using
-`addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.6.1")`,
+NOTE: 1.6.0 is the last version published using
+`addSbtPlugin("com.hanhuy.sbt" % "android-sdk-plugin" % "1.6.0")`,
 all future updates can be accessed by using
 `addSbtPlugin("org.scala-android" % "sbt-android" % VERSION)`
 
@@ -61,7 +61,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.1")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.2")
    ```
    
 2. Set the environment variable `ANDROID_HOME` pointing to the path where the
@@ -82,7 +82,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    following line:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.1")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.2")
    ```
 
 5. Create or edit the file named `build.sbt` and add the
@@ -256,8 +256,8 @@ found on the #sbt-android IRC channel on Freenode, or the
   * `adb-reboot [recovery|bootloader]`
   * `variant[/project] [buildType] [flavor]`
   * `variant-reset[/project]`
-  * `android:install-sdk <package>`
-  * `android:update-sdk <all|package>`
+  * `android-install <package>`
+  * `android-update <all|package>`
   * `android-license <license-id>`
 
 ### TODO / Known Issues ###
