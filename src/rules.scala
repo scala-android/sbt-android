@@ -745,10 +745,9 @@ object Plugin extends sbt.Plugin with PluginFail {
       val sdkHandler = sdkManager.value
       val showProgress = showSdkProgress.value
       buildToolsVersion.value map { version =>
-        AndroidPlugin.retryWhileFailed(
-          "Failed to fetch build tool info, retrying...", slog)(
-          sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind))
-        val bti = sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
+        val bti = AndroidPlugin.retryWhileFailed("Failed to fetch build tool info, retrying...", slog) {
+          sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
+        }
         if (bti == null) {
           slog.warn(s"build-tools $version not found, searching for package...")
           SdkInstaller.installPackage(sdkHandler, "build-tools;", version, "build-tools " + version, showProgress, slog)
