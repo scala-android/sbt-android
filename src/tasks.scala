@@ -837,10 +837,18 @@ object Tasks {
 
   val dexMainClassesConfigTaskDef = Def.task {
     implicit val output = outputLayout.value
-    Dex.dexMainClassesConfig(processManifest.value,
-      (managedClasspath in AndroidInternal).value, projectLayout.value,
-      dexLegacyMode.value, dexMulti.value, dexInputs.value._2,
-      dexMainClasses.value, buildTools.value, streams.value)
+    Dex.dexMainClassesConfig(
+      processManifest.value,
+      (managedClasspath in AndroidInternal).value,
+      projectLayout.value,
+      dexLegacyMode.value,
+      dexMulti.value,
+      dexMainClassesRules.value,
+      dexInputs.value._2,
+      dexMainClasses.value,
+      buildTools.value,
+      streams.value
+    )
   }
 
   val retrolambdaAggregateTaskDef = Def.task {
