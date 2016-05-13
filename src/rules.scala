@@ -542,9 +542,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       "-forceprocessing",
       "-keep public class * extends android.app.backup.BackupAgent { <init>(); }",
       "-keep public class * extends java.lang.annotation.Annotation { *; }",
-      "-keep class android.support.multidex.** { *; }",
-      "-keep class com.android.tools.fd.** { *; }",
-      "-dontnote com.android.tools.fd.**,android.support.multidex.MultiDexExtractor"
+      "-keep class android.support.multidex.** { *; }"
     ),
     dexMainClasses           := Seq.empty,
     dexMinimizeMain          := false,
