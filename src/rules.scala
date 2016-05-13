@@ -495,10 +495,10 @@ object Plugin extends sbt.Plugin with PluginFail {
     ndkBuild                <<= ndkBuildTaskDef,
     aidl                    <<= aidlTaskDef,
     rsTargetApi             <<= (properties, minSdkVersion) map { (p, m) =>
-      Option(p.getProperty("renderscript.target")).getOrElse(m) 
+      Option(p.getProperty("renderscript.target")).getOrElse(m)
     },
-    rsSupportMode           <<= properties { p => 
-      Try(p.getProperty("renderscript.support.mode").toBoolean).getOrElse(false) 
+    rsSupportMode           <<= properties { p =>
+      Try(p.getProperty("renderscript.support.mode").toBoolean).getOrElse(false)
     },
     rsOptimLevel            := 3,
     renderscript            <<= renderscriptTaskDef,
@@ -534,6 +534,17 @@ object Plugin extends sbt.Plugin with PluginFail {
     dexInProcess             := java.lang.Runtime.getRuntime.maxMemory >= 0x7fffffff,
     dexMaxProcessCount       := java.lang.Runtime.getRuntime.availableProcessors,
     dexMulti                 := false,
+    dexMainClassesRules      := Seq(
+      "-dontobfuscate",
+      "-dontoptimize",
+      "-dontpreverify",
+      "-dontwarn **",
+      "-dontnote **",
+      "-forceprocessing",
+      "-keep public class * extends android.app.backup.BackupAgent { <init>(); }",
+      "-keep public class * extends java.lang.annotation.Annotation { *; }",
+      "-keep class android.support.multidex.** { *; }"
+    ),
     dexMainClasses           := Seq.empty,
     dexMinimizeMain          := false,
     dexAdditionalParams      := Seq.empty,

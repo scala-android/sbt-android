@@ -226,6 +226,7 @@ object Dex {
                            layout: ProjectLayout,
                            legacy: Boolean,
                            multidex: Boolean,
+                           proguardRules: Seq[String],
                            inputs: Seq[File],
                            mainDexClasses: Seq[String],
                            bt: BuildToolInfo,
@@ -237,7 +238,7 @@ object Dex {
         IO.writeLines(mainDexListTxt, mainDexClasses)
       } else {
         FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
-          makeMultiDexRoots(XML.loadFile(manifest), inputs, proguardClasspath, bt, layout.maindexRootsJar)
+          makeMultiDexRoots(XML.loadFile(manifest), inputs, proguardRules, proguardClasspath, bt, layout.maindexRootsJar)
           val mainClasses = createMainDexList(inputs, layout.maindexRootsJar, bt)
           IO.writeLines(mainDexListTxt, mainClasses)
           s.log.warn("Set mainDexClasses to improve build times:")
@@ -253,6 +254,7 @@ object Dex {
 
   def makeMultiDexRoots(manifest: Elem,
                         inputs: Seq[File],
+                        proguardRules: Seq[String],
                         proguardClasspath: Def.Classpath,
                         buildTools: BuildToolInfo, output: File): Unit = {
     val shrunk1 = buildTools.getLocation / "lib" / "shrinkedAndroid.jar"
@@ -275,30 +277,14 @@ object Dex {
       "provider" ::
       "instrumentation" ::
       Nil
-    val baseConfig =
-      s"""
-        |-dontobfuscate
-        |-dontoptimize
-        |-dontpreverify
-        |-dontwarn **
-        |-dontnote **
-        |-forceprocessing
-        |-libraryjars ${shrinkedAndroid.getAbsolutePath}
-        |-injars ${inputs.map {
-          _.getAbsolutePath + "(!META-INF/**,!rootdoc.txt)" }.mkString(File.pathSeparator)}
-        |-outjars ${output.getAbsolutePath}
-        |
-        |-keep public class * extends android.app.backup.BackupAgent {
-        |    <init>();
-        |}
-        |-keep public class * extends java.lang.annotation.Annotation {
-        |    *;
-        |}
-        |-keep class com.android.tools.fd.** {
-        |    *;
-        |}
-        |-dontnote com.android.tools.fd.**,android.support.multidex.MultiDexExtractor
-      """.stripMargin.split("\n").toList
+    val baseConfig = proguardRules ++ Seq(
+      s"-libraryjars ${shrinkedAndroid.getAbsolutePath}",
+      s"""-injars ${inputs.map {
+        _.getAbsolutePath + "(!META-INF/**,!rootdoc.txt)"
+      }.mkString(File.pathSeparator)}""",
+      s"-outjars ${output.getAbsolutePath}"
+    )
+
     val rootsCfg = roots.flatMap { root =>
       val rs = manifest \\ root
       rs.flatMap { r =>
