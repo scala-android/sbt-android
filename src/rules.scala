@@ -600,6 +600,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     proguardScala           <<= autoScalaLibrary,
     retrolambdaEnabled       := false,
     typedResources          <<= autoScalaLibrary,
+    typedResourcesFull       := true,
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
     useProguard             <<= proguardScala,
