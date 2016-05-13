@@ -213,6 +213,8 @@ object Keys {
   val predexSkip = TaskKey[Seq[File]]("predex-skip",
     "files to skip predexing, go straight into main dex") in Android
   val dexInputs = TaskKey[(Boolean,Seq[File])]("dex-inputs", "incremental dex, input jars to dex") in Android
+  val dexInProcess = SettingKey[Boolean]("dex-in-process",
+    "Whether to perform bytecode dexing in process, default: heap >= 2gb") in Android
   val dexMaxHeap = SettingKey[String]("dex-max-heap",
    "Maximum heapsize for dex, default 1024m") in Android
   val dexMaxProcessCount = SettingKey[Int]("dex-max-process-count",

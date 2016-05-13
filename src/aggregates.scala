@@ -65,6 +65,7 @@ object Aggregate {
                                   multi: Boolean,
                                   mainClassesConfig: File,
                                   minimizeMain: Boolean,
+                                  dexInProcess: Boolean,
                                   buildTools: BuildToolInfo,
                                   additionalParams: Seq[String]) {
     lazy val incremental = inputs._1 && !multi
@@ -76,7 +77,7 @@ object Aggregate {
       override def getMaxProcessCount: Integer = maxProcessCount
       override def getThreadCount: Integer = Runtime.getRuntime.availableProcessors()
       override def getPreDexLibraries: Boolean = false
-      override def getDexInProcess = false
+      override def getDexInProcess = dexInProcess
     }
   }
 

@@ -875,7 +875,7 @@ object Tasks {
   val dexAggregateTaskDef = Def.task {
     Aggregate.Dex(dexInputs.value, dexMaxHeap.value, dexMaxProcessCount.value,
       dexMulti.value, dexMainClassesConfig.value, dexMinimizeMain.value,
-      buildTools.value, dexAdditionalParams.value)
+      dexInProcess.value, buildTools.value, dexAdditionalParams.value)
   }
 
   val dexTaskDef = ( builder
