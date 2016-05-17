@@ -11,7 +11,7 @@ import com.android.repository.io.FileOp
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import com.android.repository.api.{RemotePackage => RepoRemotePackage}
 import com.android.sdklib.repositoryv2.generated.addon.v1.{AddonDetailsType, ExtraDetailsType, LibrariesType}
-import com.android.sdklib.repositoryv2.generated.common.v1.IdDisplayType
+import com.android.sdklib.repositoryv2.generated.common.v1.{IdDisplayType, LibraryType}
 import com.android.sdklib.repositoryv2.generated.repository.v1.{LayoutlibType, PlatformDetailsType}
 import com.android.sdklib.repositoryv2.generated.sysimg.v1.SysImgDetailsType
 import sbt.{IO, Logger, Using}
@@ -260,6 +260,7 @@ object FallbackSdkLoader extends FallbackRemoteRepoLoader {
           val vId = (e \ "vendor-id").headOption.fold("???")(_.text)
           val vDi = (e \ "vendor-display").headOption.fold("???")(_.text)
           val nId = (e \ "name-id").headOption.fold("???")(_.text)
+          val libNodes = e \ "libs" \ "lib"
           val tpe = new AddonDetailsType
           tpe.setApiLevel(api.toInt)
           val idD = new IdDisplayType
@@ -267,8 +268,15 @@ object FallbackSdkLoader extends FallbackRemoteRepoLoader {
           idD.setDisplay(vDi)
           tpe.setVendor(idD)
           val libs = new LibrariesType
-          // TODO implement LibraryType, but don't really care since we don't allow
-          // installing any add-ons
+          val libTypes = libNodes map { n =>
+            val nm   = (n \ "name").headOption.fold("???")(_.text)
+            val desc = (n \ "description").headOption.fold("???")(_.text)
+            val lt = new LibraryType
+            lt.setDescription(desc)
+            lt.setName(nm)
+            lt
+          }
+          libs.getLibrary.addAll(libTypes.asJava)
           tpe.setLibraries(libs)
           (None,tpe,s"add-ons;addon-$nId-$vId-$api")
       }

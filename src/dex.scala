@@ -18,7 +18,6 @@ object Dex {
       multiDex: Boolean, b: File, deps: sbt.Keys.Classpath,
       classJar: File, debug: Boolean, s: sbt.Keys.TaskStreams) = {
     val re = ra.enable
-    val bldr = ra.builder
     val progCache = pa.proguardCache
     val proguardRelease = pa.useProguard
     val proguardDebug = pa.useProguardInDebug

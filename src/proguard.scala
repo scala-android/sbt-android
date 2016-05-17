@@ -10,6 +10,7 @@ import sbt.classpath.ClasspathUtilities
 
 import scala.language.postfixOps
 import scala.util.Try
+import language.existentials
 
 case class ProguardInputs(injars: Seq[Attributed[File]],
                           libraryjars: Seq[File],
