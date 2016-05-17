@@ -903,8 +903,6 @@ trait AutoBuild extends Build {
 
     val projects = super.projects
     if (projects.isEmpty) {
-      // TODO search subdirectories to find more complex project structures
-      // e.g. root(empty) -> { main-android, library-android }
       val basedir = file(".")
       val layout = ProjectLayout(basedir)
       if (layout.manifest.exists) {
@@ -919,8 +917,6 @@ trait AutoBuild extends Build {
         project +: libProjects
       } else Nil
     } else {
-      // TODO automatically apply androidBuild with all library/sub projects
-      // for now, all main projects have to specify androidBuild(deps) manually
       projects map { p =>
         val layout = ProjectLayout(p.base)
         if (layout.manifest.exists) {

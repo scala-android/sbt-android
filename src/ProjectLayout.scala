@@ -68,7 +68,6 @@ trait BuildOutput extends Any {
 object BuildOutput {
   type Converter = ProjectLayout => BuildOutput
 
-  // TODO figure out how to make this user-configurable
   class AndroidOutput(val layout: ProjectLayout) extends AnyVal with BuildOutput {
     def intermediates = layout.bin / "intermediates"
     def generated = layout.bin / "generated"
