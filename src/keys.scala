@@ -81,6 +81,8 @@ object Keys {
     "TR.scala generating task") in Android
   val typedResources = SettingKey[Boolean]("typed-resources",
     "flag indicating whether to generated TR.scala") in Android
+  val typedResourcesFull = SettingKey[Boolean]("typed-resources-full",
+    "whether full of resources should be generated at TR.scala, default true") in Android
   val typedResourcesIgnores = SettingKey[Seq[String]]("typed-resources-ignores",
     "list of android package names to ignore for TR.scala generation") in Android
   val buildConfigGenerator = TaskKey[Seq[File]]("build-config-generator",
@@ -221,6 +223,10 @@ object Keys {
     "Maximum process count for dex, default available processor count") in Android
   val dexMulti = SettingKey[Boolean]("dex-multi",
     "multi-dex flag for dex, default false") in Android
+  val dexMainClassesRules = SettingKey[Seq[String]](
+    "dex-main-classes-rules",
+    "The proguard rules applied when generating the dex main classes list for mutli-dex build."
+  ) in Android
   val dexMainClasses = SettingKey[Seq[String]]("dex-main-classes",
     "list of class files that go into main-dex-list parameter for dex") in Android
   val dexMinimizeMain = SettingKey[Boolean]("dex-minimize-main",
