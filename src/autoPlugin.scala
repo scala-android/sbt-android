@@ -90,8 +90,7 @@ object AndroidPlugin extends AutoPlugin {
     AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
     val manager = AndroidSdkHandler.getInstance(path)
     val ind = SbtAndroidProgressIndicator(slog)
-    val pkgs = retryWhileFailed(
-      "Unable to retrieve local packages, retrying...", slog)(
+    val pkgs = retryWhileFailed("retrieve local packages", slog)(
       manager.getSdkManager(ind).getPackages.getLocalPackages)
     if (!pkgs.containsKey("tools")) {
       slog.warn("android sdk tools not found, searching for package...")
@@ -106,7 +105,7 @@ object AndroidPlugin extends AutoPlugin {
   }
 
   def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {
-    retryWhileFailed("Failed to determine platform target, retrying...", slog) {
+    retryWhileFailed("determine platform target", slog) {
       val manager = sdkHandler.getAndroidTargetManager(SbtAndroidProgressIndicator(slog))
       val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
 
@@ -122,7 +121,7 @@ object AndroidPlugin extends AutoPlugin {
     Iterator.continually(util.Try(f)).dropWhile { t =>
       val failed = t.isFailure
       if (failed) {
-        log.error(err)
+        log.error(s"Failed to $err, retrying...")
         Thread.sleep(delay)
       }
       failed
