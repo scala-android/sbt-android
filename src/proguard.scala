@@ -1,6 +1,7 @@
 package android
 
 import java.io.{File, FileInputStream, FileOutputStream}
+import java.lang.reflect.{Constructor, Method}
 import java.util.jar.{JarInputStream, JarOutputStream}
 
 import com.android.builder.core.AndroidBuilder
@@ -171,20 +172,37 @@ object Proguard {
     } else None
   }
 
+  object ProguardMirror {
+    def fromClasspath(cp: Def.Classpath): ProguardMirror = {
+      val cl = ClasspathUtilities.toLoader(cp.map(_.data))
+      val cfgClass = cl.loadClass("proguard.Configuration")
+      val pgClass  = cl.loadClass("proguard.ProGuard")
+      val cpClass  = cl.loadClass("proguard.ConfigurationParser")
+      val cpCtor   = cpClass.getConstructor(classOf[Array[String]], classOf[java.util.Properties])
+      val cpMethod = cpClass.getDeclaredMethod("parse", cfgClass)
+      cpMethod.setAccessible(true)
+      val pgCtor   = pgClass.getConstructor(cfgClass)
+      ProguardMirror(cfgClass, pgClass, cpClass, cpCtor, cpMethod, pgCtor)
+    }
+  }
+  case class ProguardMirror(cfgClass: Class[_],
+                            pgClass: Class[_],
+                            cpClass: Class[_],
+                            cpCtor: Constructor[_],
+                            cpMethod: Method,
+                            pgCtor: Constructor[_])
+
+  lazy val proguardMemo = scalaz.Memo.immutableHashMapMemo[Def.Classpath, ProguardMirror](
+    ProguardMirror.fromClasspath)
+
   def runProguard(classpath: Def.Classpath, cfg: Seq[String]): Unit = {
     import language.reflectiveCalls
-    val cl = ClasspathUtilities.toLoader(classpath map (_.data))
+    val mirror = proguardMemo(classpath)
     type ProG = {
       def execute(): Unit
     }
-    val cfgClass = cl.loadClass("proguard.Configuration")
+    import mirror._
     val pgcfg    = cfgClass.newInstance().asInstanceOf[AnyRef]
-    val pgClass  = cl.loadClass("proguard.ProGuard")
-    val cpClass  = cl.loadClass("proguard.ConfigurationParser")
-    val cpCtor   = cpClass.getConstructor(classOf[Array[String]], classOf[java.util.Properties])
-    val cpMethod = cpClass.getDeclaredMethod("parse", cfgClass)
-    cpMethod.setAccessible(true)
-    val pgCtor   = pgClass.getConstructor(cfgClass)
 
     val cparser = cpCtor.newInstance(cfg.toArray[String], new java.util.Properties)
     cpMethod.invoke(cparser, pgcfg)
