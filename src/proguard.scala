@@ -25,12 +25,12 @@ object ProguardUtil {
     val jout = new JarOutputStream(new FileOutputStream(outJar))
     try {
       val buf = Array.ofDim[Byte](32768)
-      Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) filter { entry =>
+      Iterator.continually(jin.getNextJarEntry) takeWhile (_ != null) filter { entry =>
         inPackages(entry.getName, rules) && !entry.getName.matches(".*/R\\W+.*class")
         } foreach {
         entry =>
           jout.putNextEntry(entry)
-          Stream.continually(jin.read(buf, 0, 32768)) takeWhile (_ != -1) foreach { r =>
+          Iterator.continually(jin.read(buf, 0, 32768)) takeWhile (_ != -1) foreach { r =>
             jout.write(buf, 0, r)
           }
       }

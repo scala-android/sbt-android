@@ -63,7 +63,7 @@ object Java8Detector {
   def apply(jar: File): Boolean = {
     Using.fileInputStream(jar)(Using.jarInputStream(_) { jin =>
       val buf = Array.ofDim[Byte](8)
-      Stream.continually(jin.getNextJarEntry) takeWhile (_ != null) exists { j =>
+      Iterator.continually(jin.getNextJarEntry) takeWhile (_ != null) exists { j =>
         if (j.getName.endsWith(".class")) {
           jin.read(buf)
           jin.closeEntry()
