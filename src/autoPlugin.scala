@@ -86,22 +86,19 @@ object AndroidPlugin extends AutoPlugin {
     path
   }
 
-  def sdkManager(path: File, showProgress: Boolean, slog: Logger): AndroidSdkHandler = synchronized {
+  private[this] lazy val sdkMemo = scalaz.Memo.immutableHashMapMemo[File, (Boolean, Logger) => AndroidSdkHandler] { f =>
     AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
-    val manager = AndroidSdkHandler.getInstance(path)
-    val ind = SbtAndroidProgressIndicator(slog)
-    val pkgs = retryWhileFailed("retrieve local packages", slog)(
-      manager.getSdkManager(ind).getPackages.getLocalPackages)
-    if (!pkgs.containsKey("tools")) {
-      slog.warn("android sdk tools not found, searching for package...")
-      SdkInstaller.installPackage(manager, "", "tools", "android sdk tools", showProgress, slog)
+    val manager = AndroidSdkHandler.getInstance(f)
+
+    (showProgress, slog) => manager.synchronized {
+      SdkInstaller.autoInstallPackage(manager, "", "tools", "android sdk tools", showProgress, slog)
+      SdkInstaller.autoInstallPackage(manager, "", "platform-tools", "android platform-tools", showProgress, slog)
+      manager
     }
-    if (!pkgs.containsKey("platform-tools")) {
-      slog.warn("android platform-tools not found, searching for package...")
-      SdkInstaller.installPackage(manager,
-        "", "platform-tools", "android platform-tools", showProgress, slog)
-    }
-    manager
+  }
+
+  def sdkManager(path: File, showProgress: Boolean, slog: Logger): AndroidSdkHandler = synchronized {
+    sdkMemo(path)(showProgress, slog)
   }
 
   def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {

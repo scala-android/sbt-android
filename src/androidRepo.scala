@@ -20,6 +20,7 @@ import collection.JavaConverters._
 import concurrent.duration._
 import scala.xml.{Elem, Node, XML}
 
+// TODO fix circular dependency with AndroidPlugin
 object SdkInstaller {
   implicit val packageOrder: Ordering[com.android.repository.api.RemotePackage] =
     new Ordering[com.android.repository.api.RemotePackage] {
@@ -41,6 +42,19 @@ object SdkInstaller {
                      showProgress: Boolean,
                      slog: Logger): RepoRemotePackage =
     install(sdkHandler, name, prefix, showProgress, slog)(_.get(prefix + pkg))
+  def autoInstallPackage(sdkHandler: AndroidSdkHandler,
+                         prefix: String,
+                         pkg: String,
+                         name: String,
+                         showProgress: Boolean,
+                         slog: Logger): RepoRemotePackage = {
+    val ind = SbtAndroidProgressIndicator(slog)
+    val pkgs = AndroidPlugin.retryWhileFailed(sdkHandler.getSdkManager(ind).getPackages.getLocalPackages)
+    if (!pkgs.containsKey("tools")) {
+      slog.warn(s"$name not found, searching for package...")
+      installPackage(manager, prefix, pkg, name, showProgress, slog)
+    }
+  }
 
   def install(sdkHandler: AndroidSdkHandler,
               name: String,
