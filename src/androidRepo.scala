@@ -42,17 +42,22 @@ object SdkInstaller {
                      showProgress: Boolean,
                      slog: Logger): RepoRemotePackage =
     install(sdkHandler, name, prefix, showProgress, slog)(_.get(prefix + pkg))
+
   def autoInstallPackage(sdkHandler: AndroidSdkHandler,
                          prefix: String,
                          pkg: String,
                          name: String,
                          showProgress: Boolean,
-                         slog: Logger): RepoRemotePackage = {
+                         slog: Logger): Option[RepoRemotePackage] = {
     val ind = SbtAndroidProgressIndicator(slog)
-    val pkgs = AndroidPlugin.retryWhileFailed(sdkHandler.getSdkManager(ind).getPackages.getLocalPackages)
-    if (!pkgs.containsKey("tools")) {
+    val pkgs = AndroidPlugin.retryWhileFailed("get local packages", slog)(
+          sdkHandler.getSdkManager(ind).getPackages.getLocalPackages
+    )
+    if (!pkgs.containsKey(pkg)) {
       slog.warn(s"$name not found, searching for package...")
-      installPackage(manager, prefix, pkg, name, showProgress, slog)
+      Option(installPackage(sdkHandler, prefix, pkg, name, showProgress, slog))
+    } else {
+      None
     }
   }
 
