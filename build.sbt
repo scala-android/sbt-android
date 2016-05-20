@@ -147,7 +147,7 @@ bintrayOrganization in bintray := None
 // scripted-test settings
 scriptedSettings
 
-scriptedLaunchOpts ++= Seq("-Xmx1024m")
+scriptedLaunchOpts ++= Seq("-Xmx1024m", "-Dplugin.version=" + version.value)
 
 //scriptedBufferLog := false
 sbtTestDirectory <<= baseDirectory (_ / "sbt-test")
