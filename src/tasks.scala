@@ -27,7 +27,7 @@ import java.net.URLEncoder
 import Resources.{ANDROID_NS, resourceUrl}
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
-object Tasks {
+object Tasks extends TaskBase {
   val TOOLS_NS = "http://schemas.android.com/tools"
   val INSTRUMENTATION_TAG = "instrumentation"
   val USES_LIBRARY_TAG = "uses-library"
@@ -309,10 +309,7 @@ object Tasks {
     if (hasJni) {
       val ndk = ndkHome.getOrElse {
         val bundlePath = SdkLayout.ndkBundle(manager.getLocation.getAbsolutePath)
-        if (!bundlePath.isDirectory) {
-          log.warn("Android.mk found, but ANDROID_NDK_HOME not set, searching for package...")
-          SdkInstaller.installPackage(manager, "", "ndk-bundle", "android NDK", showProgress, log)
-        }
+        SdkInstaller.autoInstallPackage(manager, "", "ndk-bundle", "android NDK", showProgress, log, _ => !bundlePath.isDirectory)
         bundlePath.getAbsolutePath
       }
       val inputs = (layout.jni ** FileOnlyFilter).get.toSet
@@ -1390,14 +1387,6 @@ object Tasks {
         AutoLibraryProject(b/p(k)) +:
           loadLibraryReferences(b/p(k), loadProperties(b/p(k)), k)
       }) distinct
-  }
-
-  def loadProperties(path: File): Properties = {
-    val p = new Properties
-    (path * "*.properties" get) foreach { f =>
-      Using.fileInputStream(f) { p.load }
-    }
-    p
   }
 
   val unmanagedJarsTaskDef = ( unmanagedJars

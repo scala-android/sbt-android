@@ -1,9 +1,6 @@
 package android
 
-import java.io.File
-
 import Keys._
-import com.android.SdkConstants
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import sbt._
@@ -65,63 +62,12 @@ object AndroidPlugin extends AutoPlugin {
     }
   }) :: Nil
 
-  def sdkPath(slog: sbt.Logger, props: java.util.Properties): String = {
-    val cached = SdkLayout.androidHomeCache
-    val path = (Option(System getenv "ANDROID_HOME") orElse
-      Option(props getProperty "sdk.dir")) flatMap { p =>
-      val f = file(p + File.separator)
-      if (f.exists && f.isDirectory) {
-        cached.getParentFile.mkdirs()
-        IO.writeLines(cached, p :: Nil)
-        Some(p + File.separator)
-      } else None
-    } orElse SdkLayout.sdkFallback(cached) getOrElse {
-      val home = SdkLayout.fallbackAndroidHome
-      slog.info("ANDROID_HOME not set, using " + home.getCanonicalPath)
-      home.mkdirs()
-      home.getCanonicalPath
-    }
-    sys.props("com.android.tools.lint.bindir") =
-      path + File.separator + SdkConstants.FD_TOOLS
-    path
-  }
-
-  private[this] lazy val sdkMemo = scalaz.Memo.immutableHashMapMemo[File, (Boolean, Logger) => AndroidSdkHandler] { f =>
-    AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
-    val manager = AndroidSdkHandler.getInstance(f)
-
-    (showProgress, slog) => manager.synchronized {
-      SdkInstaller.autoInstallPackage(manager, "", "tools", "android sdk tools", showProgress, slog)
-      SdkInstaller.autoInstallPackage(manager, "", "platform-tools", "android platform-tools", showProgress, slog)
-      manager
-    }
-  }
-
-  def sdkManager(path: File, showProgress: Boolean, slog: Logger): AndroidSdkHandler = synchronized {
-    sdkMemo(path)(showProgress, slog)
-  }
-
   def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {
-    retryWhileFailed("determine platform target", slog) {
+    SdkInstaller.retryWhileFailed("determine platform target", slog) {
       val manager = sdkHandler.getAndroidTargetManager(SbtAndroidProgressIndicator(slog))
       val ptarget = manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
-
-      if (ptarget == null) {
-        slog.warn(s"platformTarget $targetHash not found, searching for package...")
-        SdkInstaller.installPackage(sdkHandler, "platforms;", targetHash, targetHash, showProgress, slog)
-      }
+      SdkInstaller.autoInstallPackage(sdkHandler, "platforms;", targetHash, targetHash, showProgress, slog, _ => ptarget == null)
       manager.getTargetFromHashString(targetHash, SbtAndroidProgressIndicator(slog))
     }
-  }
-
-  def retryWhileFailed[A](err: String, log: Logger, delay: Int = 250)(f: => A): A = {
-    Iterator.continually(util.Try(f)).dropWhile { t =>
-      val failed = t.isFailure
-      if (failed) {
-        log.error(s"Failed to $err, retrying...")
-        Thread.sleep(delay)
-      }
-      failed
-    }.next.get
   }
 }

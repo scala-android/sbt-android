@@ -674,7 +674,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     packageDebug            <<= packageDebug dependsOn setDebug,
     packageRelease          <<= packageT,
     packageRelease          <<= packageRelease dependsOn setRelease,
-    sdkPath                  := AndroidPlugin.sdkPath(sLog.value, properties.value),
+    sdkPath                  := SdkInstaller.sdkPath(sLog.value, properties.value),
     ndkPath                 <<= (thisProject,properties, sdkPath, sLog) { (p,props,sdkPath, log) => {
       val cache = SdkLayout.androidNdkHomeCache
       def storePathInCache(path: String) = {
@@ -751,37 +751,32 @@ object Plugin extends sbt.Plugin with PluginFail {
       }
     },
     bootClasspath            := builder.value(sLog.value).getBootClasspath(false).asScala map Attributed.blank,
-    sdkManager               := AndroidPlugin.sdkManager(file(sdkPath.value), showSdkProgress.value, sLog.value),
+    sdkManager               := SdkInstaller.sdkManager(file(sdkPath.value), showSdkProgress.value, sLog.value),
     buildTools              := {
       val slog = sLog.value
       val ind = SbtAndroidProgressIndicator(slog)
       val sdkHandler = sdkManager.value
       val showProgress = showSdkProgress.value
       buildToolsVersion.value map { version =>
-        val bti = AndroidPlugin.retryWhileFailed("fetch build tool info", slog) {
+        val bti = SdkInstaller.retryWhileFailed("fetch build tool info", slog) {
           sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         }
-        if (bti == null) {
-          slog.warn(s"build-tools $version not found, searching for package...")
-          SdkInstaller.installPackage(sdkHandler, "build-tools;", version, "build-tools " + version, showProgress, slog)
-          sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
-        } else bti
+        SdkInstaller.autoInstallPackage(sdkHandler, "build-tools;", version, "build-tools " + version, showProgress, slog,
+          _ => bti == null).fold(bti)(_ => sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind))
       } getOrElse {
-        val tools = AndroidPlugin.retryWhileFailed("determine latest build tools", slog)(
+        val tools = SdkInstaller.retryWhileFailed("determine latest build tools", slog)(
           sdkHandler.getLatestBuildTool(ind, false)
         )
-        if (tools == null) {
-          slog.warn(s"build-tools not found, searching for package...")
-          SdkInstaller.install(sdkHandler, "latest build-tools", "build-tools;", showProgress, slog) { pkgs =>
-            val buildTools = pkgs.keys.toList.collect {
-              case k if k.startsWith("build-tools;") => pkgs(k)
-            }
-            buildTools.sorted(SdkInstaller.packageOrder).dropWhile(_.getVersion.getPreview > 0).headOption
+        SdkInstaller.autoInstall(sdkHandler, "latest build-tools", "build-tools;", showProgress, slog, _ => tools == null) { pkgs =>
+          val buildTools = pkgs.keys.toList.collect {
+            case k if k.startsWith("build-tools;") => pkgs(k)
           }
-          sdkHandler.getLatestBuildTool(ind, false)
-        } else {
+          buildTools.sorted(SdkInstaller.packageOrder).dropWhile(_.getVersion.getPreview > 0).headOption
+        }.fold {
           sLog.value.debug("Using Android build-tools: " + tools)
           tools
+        } { _ =>
+          sdkHandler.getLatestBuildTool(ind, false)
         }
       }
     },
@@ -815,18 +810,13 @@ object Plugin extends sbt.Plugin with PluginFail {
         val ind = SbtAndroidProgressIndicator(slog)
         val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
 
-        if (needSupp && !pkgs.containsKey("extras;android;m2repository")) {
-          slog.warn("android support repository not found, searching for package...")
-          SdkInstaller.installPackage(manager, "extras;android;",
-            "m2repository", "android support repository", showProgress, slog)
-        }
-        if (needGms && !pkgs.containsKey("extras;google;m2repository")) {
-          slog.warn("google play services repository not found, searching for package...")
-          SdkInstaller.installPackage(manager,
-            "extras;google;", "m2repository", "google play services repository", showProgress, slog)
-        }
+        SdkInstaller.autoInstallPackage(manager, "extras;android;",
+          "m2repository", "android support repository", showProgress, slog,
+          !_.contains("extras;android;m2repository") && needSupp)
+        SdkInstaller.autoInstallPackage(manager,
+          "extras;google;", "m2repository", "google play services repository", showProgress, slog,
+          !_.contains("extras;google;m2repository") && needGms)
       }
-
     }
   )) ++ Seq(
     autoScalaLibrary   := {

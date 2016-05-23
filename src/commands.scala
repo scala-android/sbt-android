@@ -435,7 +435,7 @@ object Commands {
             state.log.info("Creating project: " + name)
             val android = sdk + OS_SDK_TOOLS_FOLDER + androidCmdName
             AndroidPlugin.platformTarget(target,
-              AndroidPlugin.sdkManager(file(sdkpath(state)), true, state.log), true, state.log)
+              SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log), true, state.log)
             val p = Seq(android,
               "create", "project",
               "-g", "-v", "0.12.1",
@@ -872,7 +872,7 @@ object Commands {
   }
 
   private def sdkpath(state: State): String =
-    AndroidPlugin.sdkPath(state.log, Tasks.loadProperties(Project.extract(state).currentProject.base))
+    SdkInstaller.sdkPath(state.log, Tasks.loadProperties(Project.extract(state).currentProject.base))
 
   class ShellLogging[A](logger: String => A) extends IShellOutputReceiver {
     private[this] val b = new StringBuilder

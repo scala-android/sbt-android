@@ -3,10 +3,11 @@ package android
 import java.io.File
 import java.net.{HttpURLConnection, URL}
 
+import com.android.SdkConstants
 import com.android.repository.Revision
 import com.android.repository.api._
 import com.android.repository.impl.generated.generic.v1.GenericDetailsType
-import com.android.repository.impl.generated.v1._
+import com.android.repository.impl.generated.v1.{LocalPackage => _,_}
 import com.android.repository.io.FileOp
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import com.android.repository.api.{RemotePackage => RepoRemotePackage}
@@ -20,8 +21,7 @@ import collection.JavaConverters._
 import concurrent.duration._
 import scala.xml.{Elem, Node, XML}
 
-// TODO fix circular dependency with AndroidPlugin
-object SdkInstaller {
+object SdkInstaller extends TaskBase {
   implicit val packageOrder: Ordering[com.android.repository.api.RemotePackage] =
     new Ordering[com.android.repository.api.RemotePackage] {
       override def compare(x: com.android.repository.api.RemotePackage,
@@ -48,14 +48,39 @@ object SdkInstaller {
                          pkg: String,
                          name: String,
                          showProgress: Boolean,
-                         slog: Logger): Option[RepoRemotePackage] = {
+                         slog: Logger): Option[RepoRemotePackage] =
+    autoInstallPackage(sdkHandler, prefix, pkg, name, showProgress, slog, !_.contains(pkg))
+  def autoInstallPackage(sdkHandler: AndroidSdkHandler,
+                         prefix: String,
+                         pkg: String,
+                         name: String,
+                         showProgress: Boolean,
+                         slog: Logger,
+                         pred: Map[String,LocalPackage] => Boolean): Option[RepoRemotePackage] = {
     val ind = SbtAndroidProgressIndicator(slog)
-    val pkgs = AndroidPlugin.retryWhileFailed("get local packages", slog)(
-          sdkHandler.getSdkManager(ind).getPackages.getLocalPackages
+    val pkgs = retryWhileFailed("get local packages", slog)(
+      sdkHandler.getSdkManager(ind).getPackages.getLocalPackages.asScala.toMap
     )
-    if (!pkgs.containsKey(pkg)) {
+    if (pred(pkgs)) {
       slog.warn(s"$name not found, searching for package...")
       Option(installPackage(sdkHandler, prefix, pkg, name, showProgress, slog))
+    } else {
+      None
+    }
+  }
+  def autoInstall(sdkHandler: AndroidSdkHandler,
+                  name: String,
+                  prefix: String,
+                  showProgress: Boolean,
+                  slog: Logger,
+                  pred: Map[String,LocalPackage] => Boolean)(pkgfilter: Map[String,RepoRemotePackage] => Option[RepoRemotePackage]): Option[RepoRemotePackage] = {
+    val ind = SbtAndroidProgressIndicator(slog)
+    val pkgs = retryWhileFailed("get local packages", slog)(
+      sdkHandler.getSdkManager(ind).getPackages.getLocalPackages.asScala.toMap
+    )
+    if (pred(pkgs)) {
+      slog.warn(s"$name not found, searching for package...")
+      Option(install(sdkHandler, prefix, name, showProgress, slog)(pkgfilter))
     } else {
       None
     }
@@ -109,13 +134,60 @@ object SdkInstaller {
     }
   }
 
+  def retryWhileFailed[A](err: String, log: Logger, delay: Int = 250)(f: => A): A = {
+    Iterator.continually(util.Try(f)).dropWhile { t =>
+      val failed = t.isFailure
+      if (failed) {
+        log.error(s"Failed to $err, retrying...")
+        Thread.sleep(delay)
+      }
+      failed
+    }.next.get
+  }
+
+  def sdkPath(slog: sbt.Logger, props: java.util.Properties): String = {
+    val cached = SdkLayout.androidHomeCache
+    val path = (Option(System getenv "ANDROID_HOME") orElse
+      Option(props getProperty "sdk.dir")) flatMap { p =>
+      val f = sbt.file(p + File.separator)
+      if (f.exists && f.isDirectory) {
+        cached.getParentFile.mkdirs()
+        IO.writeLines(cached, p :: Nil)
+        Some(p + File.separator)
+      } else None
+    } orElse SdkLayout.sdkFallback(cached) getOrElse {
+      val home = SdkLayout.fallbackAndroidHome
+      slog.info("ANDROID_HOME not set, using " + home.getCanonicalPath)
+      home.mkdirs()
+      home.getCanonicalPath
+    }
+    sys.props("com.android.tools.lint.bindir") =
+      path + File.separator + SdkConstants.FD_TOOLS
+    path
+  }
+
   private def sdkpath(state: sbt.State): String =
-    AndroidPlugin.sdkPath(state.log, Tasks.loadProperties(sbt.Project.extract(state).currentProject.base))
+    sdkPath(state.log, loadProperties(sbt.Project.extract(state).currentProject.base))
+
+  private[this] lazy val sdkMemo = scalaz.Memo.immutableHashMapMemo[File, (Boolean, Logger) => AndroidSdkHandler] { f =>
+    AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
+    val manager = AndroidSdkHandler.getInstance(f)
+
+    (showProgress, slog) => manager.synchronized {
+      SdkInstaller.autoInstallPackage(manager, "", "tools", "android sdk tools", showProgress, slog)
+      SdkInstaller.autoInstallPackage(manager, "", "platform-tools", "android platform-tools", showProgress, slog)
+      manager
+    }
+  }
+
+  def sdkManager(path: File, showProgress: Boolean, slog: Logger): AndroidSdkHandler = synchronized {
+    sdkMemo(path)(showProgress, slog)
+  }
 
   def installSdkAction: (sbt.State, Option[String]) => sbt.State = (state,toInstall) => {
     val log = state.log
     val ind = SbtAndroidProgressIndicator(log)
-    val sdkHandler = AndroidPlugin.sdkManager(sbt.file(sdkpath(state)), true, log)
+    val sdkHandler = sdkManager(sbt.file(sdkpath(state)), true, log)
     val repomanager = sdkHandler.getSdkManager(ind)
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
@@ -138,7 +210,7 @@ object SdkInstaller {
   def updateSdkAction: (sbt.State, Either[Option[String],String]) => sbt.State = (state,toUpdate) => {
     val log = state.log
     val ind = SbtAndroidProgressIndicator(log)
-    val sdkHandler = AndroidPlugin.sdkManager(sbt.file(sdkpath(state)), true, log)
+    val sdkHandler = sdkManager(sbt.file(sdkpath(state)), true, log)
     val repomanager = sdkHandler.getSdkManager(ind)
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
