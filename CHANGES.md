@@ -1,5 +1,12 @@
 ## New features in 1.6.x ##
 
+* `1.6.3`:
+  * Further bugfixes around android builder initialization
+  * add `dexMainClassesRules` to set keep rules for dex main file
+  * add `typedResourcesFull` to toggle full TR feature support
+  * add `aaptPngCrunch` to toggle automatic pngcrunch in aapt
+  * auto-enable `dexInProcess` if max heap assigned to SBT is >= 2gb
+  * some performance improvements by memoizing reflective calls
 * `1.6.2`:
   * Fix automatic maindexlist.txt generation
   * Add more workarounds for race conditions in android builder code
