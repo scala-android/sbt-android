@@ -808,9 +808,6 @@ object Plugin extends sbt.Plugin with PluginFail {
         (supp || supportOrgs(mid.organization), gms || gmsOrgs(mid.organization))
       }
       if (needSupp || needGms) {
-        val ind = SbtAndroidProgressIndicator(slog)
-        val pkgs = manager.getSdkManager(ind).getPackages.getLocalPackages
-
         SdkInstaller.autoInstallPackage(manager, "extras;android;",
           "m2repository", "android support repository", showProgress, slog,
           !_.contains("extras;android;m2repository") && needSupp)

@@ -1280,10 +1280,10 @@ object Tasks extends TaskBase {
     val manifestXml = l.processedManifest
     val m = XML.loadFile(manifestXml)
     // if an arg is specified, try to launch that
-    parsers.activityParser.parsed orElse (parsers.findMainActivities(m).headOption.map(activity => {
+    parsers.activityParser.parsed orElse parsers.findMainActivities(m).headOption.map(activity => {
       val name = activity.attribute(ANDROID_NS, "name").get.head.text
       "%s/%s" format (p, if (name.indexOf(".") == -1) "." + name else name)
-    })) match {
+    }) match {
       case Some(intent) =>
         val receiver = new Commands.ShellLogging(l => s.log.info(l))
         val command = "am start %s -n %s" format (if (debug) "-D" else "", intent)

@@ -445,7 +445,7 @@ object Resources {
                 |  // https://issues.scala-lang.org/browse/SI-7934
                 |  @deprecated("", "")
                 |  private trait compat {
-                |${methods}
+                |$methods
                 |  }
                 |  private object compat extends compat""".stripMargin
             }
