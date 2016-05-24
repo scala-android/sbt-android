@@ -450,6 +450,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     run                     <<= runTaskDef(false) dependsOn install,
     aaptAggregate           <<= aaptAggregateTaskDef,
     aaptAdditionalParams     := Nil,
+    aaptPngCrunch            := true,
     cleanForR               <<= (rGenerator
                                 , projectLayout
                                 , outputLayout

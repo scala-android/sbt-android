@@ -413,9 +413,10 @@ object Tasks extends TaskBase {
                                 , collectResourcesAggregate
                                 , ilogger
                                 , renderVectorDrawables
+                                , aaptPngCrunch
                                 , streams
                                 ) map {
-    (bldr, noTestApk, minSdk, cra, logger, rv, s) =>
+    (bldr, noTestApk, minSdk, cra, logger, rv, c, s) =>
       implicit val output = cra.outputLayout
       val layout = cra.projectLayout
       val er = cra.extraResDirectories
@@ -429,7 +430,7 @@ object Tasks extends TaskBase {
       val assets = layout.assets +: ea.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get)
       withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
         val res = Resources.doCollectResources(bldr(s.log), minLevel, noTestApk,
-          isLib, libs, layout, ea, layout.generatedRes +: er, rv, logger(s.log),
+          isLib, libs, layout, ea, layout.generatedRes +: er, rv, c, logger(s.log),
           s.cacheDirectory, s)
         if (out != res) sys.error(s"Unexpected directories $out != $res")
         Set(res._1, res._2)

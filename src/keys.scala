@@ -111,6 +111,8 @@ object Keys {
   val renderVectorDrawables = SettingKey[Boolean]("render-vector-drawables") in Android
   val aaptAdditionalParams = SettingKey[Seq[String]]("aapt-additional-params",
     "additional params to pass to aapt") in Android
+  val aaptPngCrunch = SettingKey[Boolean]("aapt-png-crunch",
+    "whether to enable pngcrunch, default: true, disable if pre-processing") in Android
 
   // packaging-related keys
   val packageRelease = TaskKey[File]("package-release", "create a release apk") in Android

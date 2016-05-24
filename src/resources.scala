@@ -44,18 +44,19 @@ object Resources {
   )
 
   def doCollectResources( bldr: AndroidBuilder
-                          , minSdk: Int
-                          , noTestApk: Boolean
-                          , isLib: Boolean
-                          , libs: Seq[LibraryDependency]
-                          , layout: ProjectLayout
-                          , extraAssets: Seq[File]
-                          , extraRes: Seq[File]
-                          , renderVectors: Boolean
-                          , logger: ILogger
-                          , cache: File
-                          , s: TaskStreams
-                          )(implicit m: BuildOutput.Converter): (File,File) = {
+                        , minSdk: Int
+                        , noTestApk: Boolean
+                        , isLib: Boolean
+                        , libs: Seq[LibraryDependency]
+                        , layout: ProjectLayout
+                        , extraAssets: Seq[File]
+                        , extraRes: Seq[File]
+                        , renderVectors: Boolean
+                        , pngcrunch: Boolean
+                        , logger: ILogger
+                        , cache: File
+                        , s: TaskStreams
+                        )(implicit m: BuildOutput.Converter): (File,File) = {
     val assetBin = layout.mergedAssets
     val assets = layout.assets
     val resTarget = layout.mergedRes
@@ -129,7 +130,7 @@ object Resources {
       s.log.info("Collecting resources")
 
       incrResourceMerge(layout, minSdk, resTarget, isLib, libs, cache / "collect-resources",
-                        logger, bldr, sets, vectorprocessor, inChanges, needsFullResourceMerge, s.log)
+                        logger, bldr, sets, pngcrunch, vectorprocessor, inChanges, needsFullResourceMerge, s.log)
       ((resTarget ** FileOnlyFilter).get ++ (layout.generatedVectors ** FileOnlyFilter).get).toSet
     }(inputs.toSet)
 
@@ -146,6 +147,7 @@ object Resources {
     logger: ILogger,
     bldr: AndroidBuilder,
     resources: Seq[ResourceSet],
+    pngcrunch: Boolean,
     preprocessor: ResourcePreprocessor,
     changes: ChangeReport[File],
     needsFullResourceMerge: Boolean,
@@ -153,7 +155,7 @@ object Resources {
   )(implicit m: BuildOutput.Converter) {
 
     def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, libs, blobDir,
-                                    logger, bldr, resources, preprocessor, slog)
+      logger, bldr, resources, pngcrunch, preprocessor, slog)
 
     val merger = new ResourceMerger(minSdk)
     if (!merger.loadFromBlob(blobDir, true)) {
@@ -221,17 +223,25 @@ object Resources {
         slog.info("Performing incremental resource merge")
         val writer = new MergedResourceWriter(resTarget,
           bldr.getAaptCruncher(SbtProcessOutputHandler(slog)),
-          true, true, layout.publicTxt, layout.mergeBlame,
+          pngcrunch, true, layout.publicTxt, layout.mergeBlame,
           preprocessor)
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer)
       }
     }
   }
-  def fullResourceMerge(layout: ProjectLayout, minSdk: Int, resTarget: File, isLib: Boolean,
-                        libs: Seq[LibraryDependency], blobDir: File, logger: ILogger,
-                        bldr: AndroidBuilder, resources: Seq[ResourceSet],
-                        preprocessor: ResourcePreprocessor, slog: Logger)(implicit m: BuildOutput.Converter) {
+  def fullResourceMerge(layout: ProjectLayout,
+                        minSdk: Int,
+                        resTarget: File,
+                        isLib: Boolean,
+                        libs: Seq[LibraryDependency],
+                        blobDir: File,
+                        logger: ILogger,
+                        bldr: AndroidBuilder,
+                        resources: Seq[ResourceSet],
+                        pngcrunch: Boolean,
+                        preprocessor: ResourcePreprocessor,
+                        slog: Logger)(implicit m: BuildOutput.Converter) {
 
     slog.info("Performing full resource merge")
     val merger = new ResourceMerger(minSdk)
@@ -244,7 +254,7 @@ object Resources {
     }
     val writer = new MergedResourceWriter(resTarget,
       bldr.getAaptCruncher(SbtProcessOutputHandler(slog)),
-      true, true, layout.publicTxt, layout.mergeBlame, preprocessor)
+      pngcrunch, true, layout.publicTxt, layout.mergeBlame, preprocessor)
     merger.mergeData(writer, false)
     merger.writeBlobTo(blobDir, writer)
   }
