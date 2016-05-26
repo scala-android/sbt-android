@@ -10,6 +10,7 @@ import sbt._
   * See https://gist.github.com/pfn/6238004 for example usage.
   */
 object ArbitraryProject {
+  /*
   import sbt.RichURI.fromURI
   // this part is totally ghetto, plucking a State out of thin air
   private object Config extends xsbti.AppConfiguration {
@@ -84,6 +85,7 @@ object ArbitraryProject {
       } else in.unit
     }) :: Nil
   }
+  */
 }
 
 // vim: set ts=4 sw=4 et:

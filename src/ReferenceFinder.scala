@@ -2,7 +2,7 @@ package android
 
 import javassist.util.proxy.{MethodHandler, MethodFilter, ProxyFactory}
 
-import sbt._
+import sbt._, io.Using
 
 import org.objectweb.asm._
 import org.objectweb.asm.signature.SignatureVisitor

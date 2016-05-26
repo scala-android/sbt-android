@@ -1,6 +1,6 @@
 package android
 
-import sbt._
+import sbt._, syntax._, internal.{SessionSettings, BuildStructure}
 import VariantSettings._
 
 /**
@@ -139,7 +139,7 @@ object VariantSettings {
       override def log(level: Level.Value, message: => String) = slog.log(level, message)
     }
     val withLogger = newVariant.appendRaw(loggerInject :: Nil)
-    val newStructure = Load.reapply(session.mergeSettings ++ withLogger.mergeSettings.toList, structure)(showContextKey(session, structure))
+    val newStructure = sbt.LoadForwarder.reapply(session.mergeSettings ++ withLogger.mergeSettings.toList, structure)(showContextKey(session, structure))
     setProject(newVariant, newStructure, s)
   }
 

@@ -1,12 +1,12 @@
-import sbt._
+import sbt._, syntax._
 import sbt.Keys._
 import android.Dependencies.LibraryProject
 import android.Keys._
 
-object MyProjectBuild extends Build {
+object MyProjectBuild {
 
   // meta project
-  lazy val root = Project(id = "gmroot", base = file(".")).settings(
+  val root = project.in(file(".")).settings(
     install <<= ( // install all apps
       install in (guidemate, Android),
       install in (geophon, Android)) map { (_,_) => () }
@@ -14,11 +14,10 @@ object MyProjectBuild extends Build {
 
 
   // android application project
-  lazy val guidemate = Project(id = "app", base = file("app")).androidBuildWith(guidemate_lib).settings(appSettings:_*)
-  lazy val geophon = Project(id = "app2", base = file("app2")).androidBuildWith(guidemate_lib).settings(appSettings :_*)
+  lazy val guidemate = project.in(file("app")).androidBuildWith(guidemate_lib).settings(appSettings:_*)
+  lazy val geophon = project.in(file("app2")).androidBuildWith(guidemate_lib).settings(appSettings :_*)
 
-  val guidemate_lib = Project(id = "lib",
-    base = file("lib-with-resources")).settings(
+  lazy val guidemate_lib = project.in(file("lib-with-resources")).settings(
     android.Plugin.androidBuildAar: _*)
     .settings(libraryDependencies ++= Seq(
                         "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test",

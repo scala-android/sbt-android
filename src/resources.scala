@@ -11,12 +11,12 @@ import com.android.ide.common.res2._
 import com.android.resources.Density
 import com.android.utils.ILogger
 import sbt.Keys.TaskStreams
-import sbt._
+import sbt._, syntax._
 
 import collection.JavaConverters._
 import language.postfixOps
 import Dependencies.LibrarySeqOps
-import sbt.classpath.ClasspathUtilities
+import sbt.internal.inc.classpath.ClasspathUtilities
 
 import scala.util.Try
 import scala.xml.XML
@@ -121,7 +121,7 @@ object Resources {
       }
     }
 
-    val inputs = (respaths flatMap { r => (r ***) get }) filter (n =>
+    val inputs = (respaths flatMap { _.allPaths.get }) filter (n =>
       !n.getName.startsWith(".") && !n.getName.startsWith("_"))
     var needsFullResourceMerge = false
 

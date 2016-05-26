@@ -1,3 +1,0 @@
-> android:package
-$ absent target/android/intermediates/aars/com.android.support-appcompat-v7-19.1.0
-$ exists target/android/output/com-example-android-test-debug.apk

@@ -10,7 +10,7 @@ import com.hanhuy.sbt.bintray.UpdateChecker
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 import org.gradle.tooling.{GradleConnector, ProjectConnection}
 import sbt.Keys._
-import sbt._
+import sbt._, syntax._
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
@@ -23,7 +23,7 @@ import Serializer._
  */
 object AndroidGradlePlugin extends AutoPlugin {
 
-  val Gradle = sbt.config("gradle")
+  val Gradle = sbt.syntax.config("gradle")
 
   override def trigger = allRequirements
   override def requires = android.AndroidPlugin
@@ -357,11 +357,12 @@ object AndroidGradlePlugin extends AutoPlugin {
           extraDirectories(sourceProvider.getResDirectories, extraResDirectories) ++
           extraDirectories(sourceProvider.getResourcesDirectories, resourceDirectories in Compile) ++
           extraDirectories(sourceProvider.getAssetsDirectories, extraAssetDirectories)
+        val pubMavenStyle = List(publishMavenStyle /:= false)
 
         val sp = SbtProject(
           ap.getName, base, discovery.isApplication,
           projects.map(_.getProject.replace(":","")).toSet, buildTypes, flavors,
-          optional ++ libs ++ localAar ++ standard ++ unmanaged ++ defaultConfig.settings)
+          pubMavenStyle ++ optional ++ libs ++ localAar ++ standard ++ unmanaged ++ defaultConfig.settings)
         (visited, sp :: subprojects)
       } else
         (visited, subprojects)
@@ -493,7 +494,7 @@ object Serializer {
   }
   implicit val resolverEncoder = new Encoder[Resolver] {
     def encode(r: Resolver) = r match {
-      case MavenRepository(n, root) => enc(n) + " at " + enc(root)
+      case MavenRepository(n, root, _) => enc(n) + " at " + enc(root)
       case _ => throw new UnsupportedOperationException("Cannot handle: " + r)
     }
   }
@@ -628,7 +629,7 @@ object GradleBuildSerializer {
       s"""
          |val ${escaped(id)} = project.in(
          |  ${enc(base)}
-         |).settings(${if (isApplication) "androidBuild" else "androidBuildAar"}:_*).settings(
+         |).settings(${if (isApplication) "android.Plugin.androidBuild" else "android.Plugin.androidBuildAar"}:_*).settings(
          |  ${settings.map(_.serialized).mkString(",\n  ")}
          |)$serializedBuildTypes$serializedFlavors.withExtraProperties
          |$dependsOnProjects$dependsOnSettings

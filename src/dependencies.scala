@@ -1,6 +1,6 @@
 package android
 
-import sbt._
+import sbt._, syntax._
 
 import scala.collection.JavaConverters._
 import scala.xml.XML
@@ -174,7 +174,7 @@ object Dependencies {
   implicit class RichProject(val project: Project) extends AnyVal {
     def androidBuildWith(deps: ProjectReference*): Project = {
       project.settings(Plugin.androidBuild ++ Plugin.buildWith(deps:_*):_*) dependsOn (
-        deps map { x => x: ClasspathDep[ProjectReference] }:_*)
+        deps map { x => internal.util.Eval.now(x: ClasspathDep[ProjectReference]) }: _*)
     }
   }
 
@@ -198,7 +198,7 @@ object Dependencies {
   }
 
   implicit class ProjectRefOps(project: ProjectRef)
-  (implicit struct: BuildStructure)
+  (implicit struct: internal.BuildStructure)
   {
     def resolved = Project.getProject(project, struct)
 

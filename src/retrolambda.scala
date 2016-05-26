@@ -3,7 +3,7 @@ package android
 import java.io.FileInputStream
 import java.nio.ByteBuffer
 
-import sbt._
+import sbt._, syntax._, io.Using
 import language.postfixOps
 
 import net.orfjackal.retrolambda.{Main => RMain, SystemPropertiesConfig, Retrolambda}
@@ -51,7 +51,7 @@ object RetrolambdaSupport {
         if (r != 0) PluginFail(s"Retrolambda failure: exit $r")
         in
       }((dest ** "*.class" get).toSet)
-      IO.jar((PathFinder(dest) ***) pair rebase(dest, "") filter (
+      IO.jar((PathFinder(dest).allPaths) pair Path.rebase(dest, "") filter (
         _._1.getName endsWith ".class"), finalJar, new java.util.jar.Manifest)
       finalJar :: (classpath.toSet -- java8jars).toList
     } else {

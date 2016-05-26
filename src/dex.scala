@@ -6,7 +6,7 @@ import com.android.SdkConstants
 import com.android.builder.core.AndroidBuilder
 import com.android.ide.common.process.{CachedProcessOutputHandler, ProcessInfoBuilder}
 import com.android.sdklib.BuildToolInfo
-import sbt._
+import sbt._, syntax._, io.Using
 
 import scala.language.postfixOps
 import scala.xml.{Elem, XML}

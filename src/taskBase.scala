@@ -8,9 +8,9 @@ import java.util.Properties
 private[android] trait TaskBase {
 
   def loadProperties(path: File): Properties = {
-    import sbt._
+    import sbt._, syntax._
     val p = new Properties
-    (path * "*.properties").get.foreach(Using.fileInputStream(_)(p.load))
+    (path * "*.properties").get.foreach(io.Using.fileInputStream(_)(p.load))
     p
   }
 }

@@ -2,6 +2,7 @@ package android
 import java.io.File
 
 import sbt.{Configuration, Task, Def, Setting}
+import sbt.syntax._
 
 import scala.language.experimental.macros
 import scala.util.{Failure, Success, Try}
@@ -11,7 +12,7 @@ package object dsl {
   def list[A](body: A): List[A]      = macro dsl.Macros.listImpl1[A]
 
   def inProject(project: String)(ss: Setting[_]*): Seq[Setting[_]] =
-    inProject(sbt.ProjectRef(sbt.file(".").getCanonicalFile, project))(ss:_*)
+    inProject(sbt.ProjectRef(sbt.syntax.file(".").getCanonicalFile, project))(ss:_*)
   def inProject(project: sbt.ProjectRef)(ss: Setting[_]*): Seq[Setting[_]] =
     ss map VariantSettings.fixProjectScope(project)
   private def stringFlags(key: sbt.TaskKey[Seq[String]], ss: Seq[String]) = key ++= ss

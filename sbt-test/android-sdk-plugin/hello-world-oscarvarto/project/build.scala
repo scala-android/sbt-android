@@ -1,34 +1,10 @@
 import sbt._
+import syntax._
 import sbt.Keys._
-import com.typesafe.sbt.SbtScalariform._
 
-object Build extends Build {
+object Build {
 
-  lazy val androidScala = Project(
-    "tims-scala-android",
-    file("."),
-    settings = commonSettings ++ Seq(
-      libraryDependencies ++= Seq()
-    )
-  )
-
-  lazy val formatSettings = scalariformSettings ++ Seq(
-    ScalariformKeys.preferences in Compile := formattingPreferences,
-    ScalariformKeys.preferences in Test := formattingPreferences
-  )
-
-  def formattingPreferences = {
-    import scalariform.formatter.preferences._
-    FormattingPreferences()
-      .setPreference(RewriteArrowSymbols, true)
-      .setPreference(AlignParameters, true)
-      .setPreference(AlignSingleLineCaseStatements, true)
-      .setPreference(PlaceScaladocAsterisksBeneathSecondAsterisk, true)
-      .setPreference(CompactControlReadability, false)
-  }
-
-  def commonSettings = Defaults.defaultSettings ++ formatSettings ++
-    Seq(
+  def commonSettings = Seq(
       organization := "com.optrak",
       scalaVersion := Version.scala,
       scalacOptions ++= Seq(

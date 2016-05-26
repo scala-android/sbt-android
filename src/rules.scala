@@ -6,7 +6,7 @@ import android.Dependencies.LibraryProject
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
 import com.hanhuy.sbt.bintray.UpdateChecker
-import sbt._
+import sbt._, syntax._
 import sbt.Cache.StringFormat
 import sbt.Keys._
 import com.android.builder.core.{AndroidBuilder, LibraryRequest}
@@ -28,8 +28,9 @@ import Resources.ANDROID_NS
 import Dependencies.LibrarySeqOps
 import parsers.sbinaryFileFormat
 
-object Plugin extends sbt.Plugin with PluginFail {
+object Plugin extends sbt.AutoPlugin with PluginFail {
 
+  override def trigger = NoTrigger
   // android build steps
   // * handle library dependencies (android.library.reference.N)
   // * ndk
@@ -50,12 +51,12 @@ object Plugin extends sbt.Plugin with PluginFail {
    * create a new project flavor, build outputs will go in "id/android"
    * does not work in conjunction with AutoBuild, must use standard build.
    */
-  def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
-    val base = p.base / id
-    p.copy(id = id, base = base).settings(Seq(
-      projectLayout := ProjectLayout(p.base.getCanonicalFile, Some(base.getCanonicalFile)),
-      sbt.Keys.target := base) ++ settings:_*)
-  }
+//  def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
+//    val base = p.base / id
+//    p.copy(id = id, base = base).settings(Seq(
+//      projectLayout := ProjectLayout(p.base.getCanonicalFile, Some(base.getCanonicalFile)),
+//      sbt.Keys.target := base) ++ settings:_*)
+//  }
   def withVariant(project: String,
                   buildType: Option[String] = None,
                   flavor: Option[String] = None): Setting[_] =
@@ -138,7 +139,7 @@ object Plugin extends sbt.Plugin with PluginFail {
   )
 
   def buildJar = Seq(
-    manifest := <manifest package="org.scala-android.placeholder">
+    manifest := <manifest package="org.scalaandroid.placeholder">
       <application/>
     </manifest>,
     processManifest := {
@@ -287,7 +288,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       }
     },
     scalacOptions in console    := Seq.empty
-  )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
+  )) ++ inConfig(Android) (Classpaths.configSettings ++ compileInputsSettings ++ Defaults.compileAnalysisSettings ++ Seq(
     // fix for sbt 0.13.11
     artifactPath in packageBin  := (artifactPath in (Compile,packageBin)).value,
     flavors                     := Map.empty,
@@ -323,37 +324,23 @@ object Plugin extends sbt.Plugin with PluginFail {
       excludeFilter in (Compile,unmanagedSources)),
     scalacOptions               := (scalacOptions in Compile).value,
     javacOptions                := (javacOptions in Compile).value,
-    compile := {
-      def exported(w: PrintWriter, command: String): Seq[String] => Unit =
-        args => w.println((command +: args).mkString(" "))
-      val s = streams.value
-      val ci = (compileInputs in compile).value
-      val reporter = (TaskKey[Option[xsbti.Reporter]]("compilerReporter") in (Compile,compile)).value
-      lazy val x = s.text(CommandStrings.ExportStream)
-      def onArgs(cs: Compiler.Compilers) =
-        cs.copy(scalac = cs.scalac.onArgs(exported(x, "scalac")),
-          javac = cs.javac.onArgs(exported(x, "javac")))
-      val i = ci.copy(compilers = onArgs(ci.compilers))
-
-      try reporter match {
-        case Some(r) => Compiler(i, s.log, r)
-        case None           => Compiler(i, s.log)
-      }
-      finally x.close() // workaround for #937
-    },
-    compileIncSetup := {
-      Compiler.IncSetup(
-        Defaults.analysisMap((dependencyClasspath in Test).value),
-        definesClass.value,
-        (skip in compile).value,
-        // TODO - this is kind of a bad way to grab the cache directory for streams...
-        streams.value.cacheDirectory / compileAnalysisFilename.value,
-        compilerCache.value,
-        incOptions.value)
-    },
+    compile <<= Defaults.compileTask,
+    compileIncSetup <<= Defaults.compileIncSetupTask,
+    manipulateBytecode := compileIncremental.value,
+    compileIncremental <<= Defaults.compileIncrementalTask tag (Tags.Compile, Tags.CPU),
+//    compileInputs in compile := {
+//      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in Test).value)
+//      Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
+//    },
     compileInputs in compile := {
-      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in Test).value)
-      Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
+//      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in Test).value)
+//      Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
+      new xsbti.compile.Inputs(
+        compilers.value,
+        compileOptions.value,
+        compileIncSetup.value,
+        previousCompile.value
+      )
     },
     compileAnalysisFilename := {
       // Here, if the user wants cross-scala-versioning, we also append it
@@ -851,6 +838,29 @@ object Plugin extends sbt.Plugin with PluginFail {
     libraryDependencies <+= Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name),
     managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
   )
+  def compileInputsSettings: Seq[Setting[_]] = {
+    import Attributed._
+    val compilerReporter = TaskKey[xsbti.Reporter]("compilerReporter", "Experimental hook to listen (or send) compilation failure messages.", KeyRanks.DTask)
+    def foldMappers[A](mappers: Seq[A => Option[A]]) =
+      mappers.foldRight({ p: A => p }) { (mapper, mappers) => { p: A => mapper(p).getOrElse(mappers(p)) } }
+    Seq(
+      compileOptions := new xsbti.compile.CompileOptions(
+        (classDirectory.value +: data((dependencyClasspath in Test).value)).toArray,
+        sources.value.toArray,
+        classDirectory.value,
+        scalacOptions.value.toArray,
+        javacOptions.value.toArray,
+        maxErrors.value,
+        util.InterfaceUtil.f1(foldMappers(sourcePositionMappers.value)),
+        compileOrder.value),
+      compilerReporter := new sbt.internal.inc.LoggerReporter(maxErrors.value, streams.value.log, foldMappers(sourcePositionMappers.value)),
+      compileInputs := new xsbti.compile.Inputs(
+        compilers.value,
+        compileOptions.value,
+        compileIncSetup.value,
+        previousCompile.value)
+    )
+  }
 
   private[this] val stableProguardConfig = Def.taskDyn {
     val checkdir = streams.value.cacheDirectory / "proguardRuleCheck"
@@ -866,83 +876,6 @@ object Plugin extends sbt.Plugin with PluginFail {
       checkdir.mkdirs()
       IO.touch(checkdir / ruleHash)
       IO.touch(checkdir / optionHash)
-    }
-  }
-}
-
-@deprecated("Build.scala files are going away in sbt 1.0", "1.6.0")
-trait AutoBuild extends Build {
-  private def loadLibraryProjects(b: File, props: Properties): Seq[Project] = {
-    val p = props.asScala
-    (p.keys.collect {
-      case k if k.startsWith("android.library.reference") => k
-    }.toList.sortWith { (a,b) => a < b } flatMap { k =>
-      val layout = ProjectLayout(b/p(k))
-      val pkg = pkgFor(layout.manifest)
-      (Project(id=pkg, base=b/p(k)) settings(Plugin.androidBuild ++
-        Seq(platformTarget := target(b/p(k)),
-          libraryProject := true): _*) enablePlugins
-            AndroidPlugin) +:
-        loadLibraryProjects(b/p(k), loadProperties(b/p(k)))
-    }).distinct
-  }
-  private def target(basedir: File): String = {
-    val props = loadProperties(basedir)
-    val path = (Option(System getenv "ANDROID_HOME") orElse
-      Option(props get "sdk.dir")) flatMap { p =>
-      val f = file(p + File.separator)
-      if (f.exists && f.isDirectory)
-        Some(p + File.separator)
-      else
-        None
-    } getOrElse {
-      fail("set ANDROID_HOME or run 'android update project -p %s'"
-        format basedir.getCanonicalPath): String
-    }
-    Option(props getProperty "target") getOrElse {
-      val handler = AndroidSdkHandler.getInstance(file(path))
-      val manager = handler.getAndroidTargetManager(NullProgressIndicator)
-      val versions = manager.getTargets(NullProgressIndicator).asScala.toList.map {
-        _.getVersion
-      }.sorted.reverse
-
-      AndroidTargetHash.getPlatformHashString(versions.head)
-    }
-  }
-  private def pkgFor(manifest: File) =
-    XML.loadFile(manifest).attribute("package").get.head.text.replace('.', '-')
-
-  override def projects = {
-
-    val projects = super.projects
-    if (projects.isEmpty) {
-      val basedir = file(".")
-      val layout = ProjectLayout(basedir)
-      if (layout.manifest.exists) {
-
-        val props = loadProperties(basedir)
-        val libProjects = loadLibraryProjects(basedir, props)
-
-        val project = Project(id=pkgFor(layout.manifest),
-          base=basedir).androidBuildWith(libProjects map(a ⇒ a: ProjectReference): _*).settings(
-              platformTarget := target(basedir)) enablePlugins
-                AndroidPlugin
-        project +: libProjects
-      } else Nil
-    } else {
-      projects map { p =>
-        val layout = ProjectLayout(p.base)
-        if (layout.manifest.exists) {
-          val settings: Seq[Def.Setting[_]] = p.settings
-          val prefix = settings.takeWhile(
-            _.key.scope.config.toOption exists (_.name != Android.name))
-          val tail = settings.dropWhile(
-            _.key.scope.config.toOption exists (_.name != Android.name))
-          val platform = platformTarget := target(p.base)
-          p.settings(prefix ++ Plugin.androidBuild ++ (platform +: tail): _*)
-            .enablePlugins(AndroidPlugin)
-        } else p
-      }
     }
   }
 }

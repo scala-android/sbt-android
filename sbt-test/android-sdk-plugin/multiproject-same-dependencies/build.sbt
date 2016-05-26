@@ -2,11 +2,11 @@ javacOptions in Global ++= List("-source", "1.7", "-target", "1.7")
 
 val sharedSettings = Seq(platformTarget := "android-23", showSdkProgress in Android := false)
 
-val b = project.settings(androidBuildAar:_*).settings(sharedSettings: _*)
+val b = project.settings(android.Plugin.androidBuildAar:_*).settings(sharedSettings: _*)
 
-val c = project.settings(androidBuildAar:_*).settings(sharedSettings: _*)
+val c = project.settings(android.Plugin.androidBuildAar:_*).settings(sharedSettings: _*)
 
-val d = project.settings(androidBuildAar:_*).settings(sharedSettings: _*)
+val d = project.settings(android.Plugin.androidBuildAar:_*).settings(sharedSettings: _*)
 
 val a = project.androidBuildWith(b,c,d).settings(sharedSettings: _*)
 

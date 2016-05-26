@@ -1,7 +1,7 @@
 import android.Keys._
 import Tests._
 
-TaskKey[Unit]("check-lib-for-nothing") <<= (sbt.Keys.`package` in (core, Compile)) map { j =>
+TaskKey[Unit]("check-lib-for-nothing") <<= (sbt.Keys.`package` in (Build.core, Compile)) map { j =>
   val found = findInArchive(j) (_ == "nothing.txt")
   if (!found) error("nothing.txt not found in library")
 }

@@ -2,6 +2,8 @@ import android.Keys._
 
 android.Plugin.androidBuild
 
+Build.commonSettings
+
 platformTarget in Android := "android-17"
 
 name := "hello-world"

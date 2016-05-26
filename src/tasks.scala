@@ -2,7 +2,7 @@ package android
 
 import com.android.builder.internal.ClassFieldImpl
 import com.android.manifmerger.ManifestMerger2
-import sbt._
+import sbt._, syntax._
 import sbt.Keys._
 
 import scala.collection.JavaConverters._
@@ -104,6 +104,7 @@ object Tasks extends TaskBase {
                     , streams
                     ) map {
     (u,local,d,tx,tw,ta,lp, layout,o,s) =>
+    import internal.librarymanagement.syntax._
     implicit val output = o
 
     val subaars = ta.collect { case a: AarLibrary => a }.map { a => moduleString(a.moduleID) }.toSet
@@ -182,7 +183,7 @@ object Tasks extends TaskBase {
           s.log)
 
       def copyDirectory(src: File, dst: File) {
-        IO.copy(((src ***) --- (src ** "R.txt")) pair Path.rebase(src, dst),
+        IO.copy((src.allPaths --- (src ** "R.txt")) pair Path.rebase(src, dst),
           false, true)
       }
       if (isLib)
@@ -202,6 +203,7 @@ object Tasks extends TaskBase {
                        , aaptAggregate
                        ) map {
     (u,d,layout,o, isLib,tx,tw, s,agg) =>
+    import internal.librarymanagement.syntax._
     implicit val output = o
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = layout.apklibs
@@ -224,7 +226,7 @@ object Tasks extends TaskBase {
             s.log)
         }
         def copyDirectory(src: File, dst: File) {
-          IO.copy(((src ***) --- (src ** "R.txt")) pair Path.rebase(src, dst),
+          IO.copy((src.allPaths --- (src ** "R.txt")) pair Path.rebase(src, dst),
             false, true)
         }
         if (isLib)
@@ -249,9 +251,9 @@ object Tasks extends TaskBase {
     def comparePart(part: (String, String)) = {
       val (a, b) = part
       Try((a.toInt, b.toInt)) match {
-        case util.Success((l, r)) ⇒
+        case scala.util.Success((l, r)) ⇒
           l compareTo r
-        case util.Failure(_) ⇒
+        case scala.util.Failure(_) ⇒
           a compareTo b
       }
     }
@@ -276,7 +278,7 @@ object Tasks extends TaskBase {
   val checkAarsTaskDef = Def.task {
     implicit val log = streams.value.log
     implicit val struct = buildStructure.value
-    implicit val projects = thisProjectRef.value.deepDeps
+    implicit val projects: Seq[ProjectRef] = ProjectRefOps(thisProjectRef.value).deepDeps
     val resolved = resolvedAars.value
     transitiveAars.value
       .collect { case a: AarLibrary ⇒ a → resolved.find(_.name == a.moduleID.name) }
@@ -285,10 +287,10 @@ object Tasks extends TaskBase {
   }
 
   def reportIncompatibleAars(aar: OrganizationArtifactReport)
-  (implicit log: Logger, struct: BuildStructure, projects: Seq[ProjectRef]) = {
+  (implicit log: Logger, struct: internal.BuildStructure, projects: Seq[ProjectRef]) = {
     log.warn(s"aar ${aar.name} older than latest version ${aar.latest}")
     aar.ids foreach { id ⇒
-      val dpds = projects filter(_.dependsOn(id)) map(_.project)
+      val dpds = projects filter(p => ProjectRefOps(p).dependsOn(id)) map(_.project)
       val sourceDesc =
         if (dpds.isEmpty) "as transitive dep"
         else s"specified in ${dpds.mkString(", ")}"
@@ -344,7 +346,7 @@ object Tasks extends TaskBase {
           if (debug) "NDK_DEBUG=1" else "NDK_DEBUG=0"
         ) ++ args
 
-        val rc = Process(ndkBuildInvocation, layout.base, env: _*) !
+        val rc = sys.process.Process(ndkBuildInvocation, layout.base, env: _*) !
 
         if (rc != 0)
           PluginFail("ndk-build failed!")
@@ -458,12 +460,12 @@ object Tasks extends TaskBase {
     val layout = projectLayout.value
     import layout._
 
-    (PathFinder(manifest)                 pair flat) ++
-    (PathFinder(javaSource) ** "*.java"   pair rebase(javaSource,  "src"))  ++
-    (PathFinder(scalaSource) ** "*.scala" pair rebase(scalaSource, "src"))  ++
-    ((PathFinder(libs) ***)               pair rebase(libs,        "libs")) ++
-    ((PathFinder(res) ***)                pair rebase(res,         "res"))  ++
-    ((PathFinder(assets) ***)             pair rebase(assets,      "assets"))
+    (PathFinder(manifest)                 pair Path.flat) ++
+    (PathFinder(javaSource) ** "*.java"   pair Path.rebase(javaSource,  "src"))  ++
+    (PathFinder(scalaSource) ** "*.scala" pair Path.rebase(scalaSource, "src"))  ++
+    (PathFinder(libs).allPaths          pair Path.rebase(libs,        "libs")) ++
+    (PathFinder(res).allPaths           pair Path.rebase(res,         "res"))  ++
+    (PathFinder(assets).allPaths        pair Path.rebase(assets,      "assets"))
   }
   val packageApklibTaskDef = Def.task {
     implicit val output = outputLayout.value
@@ -484,16 +486,16 @@ object Tasks extends TaskBase {
     val rsLibs = layout.rsLib
     val rsRes = layout.rsRes
 
-    (PathFinder(manifest)             pair flat) ++
-    (PathFinder(layout.rTxt)          pair flat) ++
-    (PathFinder(layout.proguardTxt)   pair flat) ++
-    (PathFinder(j)                    pair flat) ++
-    ((PathFinder(libs) ** "*.jar")    pair rebase(libs,   "libs")) ++
-    ((PathFinder(rsLibs) * "*.jar")   pair rebase(rsLibs, "libs")) ++
-    ((PathFinder(res) ***)            pair rebase(res,    "res"))  ++
-    ((PathFinder(rsRes) ***)          pair rebase(rsRes,  "res"))  ++
-    ((PathFinder(assets) ***)         pair rebase(assets, "assets")) ++
-    so.flatMap { d => (PathFinder(d) ** "*.so") pair rebase(d, "jni") }
+    (PathFinder(manifest)             pair Path.flat) ++
+    (PathFinder(layout.rTxt)          pair Path.flat) ++
+    (PathFinder(layout.proguardTxt)   pair Path.flat) ++
+    (PathFinder(j)                    pair Path.flat) ++
+    (PathFinder(libs) ** "*.jar"   pair Path.rebase(libs,   "libs")) ++
+    (PathFinder(rsLibs) * "*.jar"   pair Path.rebase(rsLibs, "libs")) ++
+    (PathFinder(res).allPaths            pair Path.rebase(res,    "res"))  ++
+    (PathFinder(rsRes).allPaths          pair Path.rebase(rsRes,  "res"))  ++
+    (PathFinder(assets).allPaths         pair Path.rebase(assets, "assets")) ++
+    so.flatMap { d => (PathFinder(d) ** "*.so") pair Path.rebase(d, "jni") }
   }
 
   val packageAarTaskDef = Def.task {
@@ -581,15 +583,16 @@ object Tasks extends TaskBase {
       a
     } else {
       c map { cfg =>
-        import SignJar._
+        import SignAndroidJar._
         val signed = l.signedApk(a)
-        val options = Seq( storeType(cfg.storeType)
-          , storePassword(cfg.storePass)
-          , signedJar(signed)
-          , keyStore(cfg.keystore.toURI.toURL)
+        val options: Seq[SignOption] = Seq(
+          storeType(cfg.storeType),
+          storePassword(cfg.storePass),
+          signedJar(signed),
+          keyStore(cfg.keystore.toURI.toURL)
         )
 
-        val kp = cfg.keyPass map { p => keyPassword(p) }
+        val kp: Seq[SignOption] = cfg.keyPass.map(keyPassword).toSeq
         sign(a, cfg.alias, options ++ kp) { (jarsigner, args) =>
           (jarsigner +: (args ++ Seq(
             "-digestalg", "SHA1", "-sigalg", "MD5withRSA"))) !
@@ -646,8 +649,8 @@ object Tasks extends TaskBase {
       val in = SdkLayout.renderscriptSupportLibFile(buildTools.value)
       val out = layout.rsLib
       IO.copy(
-        (in * "*.jar" pair rebase(in, out)) ++
-        (in / "packaged" ** "*.so" pair rebase(in / "packaged", out))
+        (in * "*.jar" pair Path.rebase(in, out)) ++
+        (in / "packaged" ** "*.so" pair Path.rebase(in / "packaged", out))
       )
     }
 
@@ -1351,9 +1354,9 @@ object Tasks extends TaskBase {
   def installPackage(apk: File, sdkPath: String, device: IDevice, log: Logger) {
     logRate(log, "[%s] Install finished:" format apk.getName, apk.length) {
       Try(device.installPackage(apk.getAbsolutePath, true)) match {
-        case util.Failure(err) =>
+        case scala.util.Failure(err) =>
           PluginFail("Install failed: " + err.getMessage)
-        case util.Success(_) =>
+        case scala.util.Success(_) =>
       }
     }
   }

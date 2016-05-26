@@ -15,7 +15,8 @@ import com.android.sdklib.repositoryv2.generated.addon.v1.{AddonDetailsType, Ext
 import com.android.sdklib.repositoryv2.generated.common.v1.{IdDisplayType, LibraryType}
 import com.android.sdklib.repositoryv2.generated.repository.v1.{LayoutlibType, PlatformDetailsType}
 import com.android.sdklib.repositoryv2.generated.sysimg.v1.SysImgDetailsType
-import sbt.{IO, Logger, Using}
+import sbt.{IO, Logger}
+import sbt.io.Using
 
 import collection.JavaConverters._
 import concurrent.duration._
@@ -149,7 +150,7 @@ object SdkInstaller extends TaskBase {
     val cached = SdkLayout.androidHomeCache
     val path = (Option(System getenv "ANDROID_HOME") orElse
       Option(props getProperty "sdk.dir")) flatMap { p =>
-      val f = sbt.file(p + File.separator)
+      val f = sbt.syntax.file(p + File.separator)
       if (f.exists && f.isDirectory) {
         cached.getParentFile.mkdirs()
         IO.writeLines(cached, p :: Nil)
@@ -187,7 +188,7 @@ object SdkInstaller extends TaskBase {
   def installSdkAction: (sbt.State, Option[String]) => sbt.State = (state,toInstall) => {
     val log = state.log
     val ind = SbtAndroidProgressIndicator(log)
-    val sdkHandler = sdkManager(sbt.file(sdkpath(state)), true, log)
+    val sdkHandler = sdkManager(sbt.syntax.file(sdkpath(state)), true, log)
     val repomanager = sdkHandler.getSdkManager(ind)
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
@@ -210,7 +211,7 @@ object SdkInstaller extends TaskBase {
   def updateSdkAction: (sbt.State, Either[Option[String],String]) => sbt.State = (state,toUpdate) => {
     val log = state.log
     val ind = SbtAndroidProgressIndicator(log)
-    val sdkHandler = sdkManager(sbt.file(sdkpath(state)), true, log)
+    val sdkHandler = sdkManager(sbt.syntax.file(sdkpath(state)), true, log)
     val repomanager = sdkHandler.getSdkManager(ind)
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)

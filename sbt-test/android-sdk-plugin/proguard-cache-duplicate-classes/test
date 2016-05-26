@@ -1,5 +1,5 @@
 > android:package
-$ exists target/android/output/com-example-proguardcache-debug.apk
+$ exists target/android/output/proguard-cache-duplicate-classes-debug.apk
 $ exists target/android/generated/source/com/example/proguardcache/TR.scala
 $ exists target/android/intermediates/proguard/classes.proguard.jar
 > last android:proguard-inputs

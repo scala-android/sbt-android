@@ -3,7 +3,7 @@ package android
 import java.util.Locale
 
 import com.android.ddmlib.FileListingService.FileEntry
-import sbt._
+import sbt._, syntax._, io.Using
 import sbt.complete.{Parser, Parsers}
 import complete.DefaultParsers._
 import java.io.File
@@ -382,7 +382,7 @@ object Commands {
     IO.writeLines(pluginSbt, plugin ::  Nil)
     IO.writeLines(properties, "sbt.version=" + useVersion :: Nil)
     val buildSettings = "androidBuild"
-    val javacOption = if (util.Properties.isJavaAtLeast("1.8")) {
+    val javacOption = if (scala.util.Properties.isJavaAtLeast("1.8")) {
       "" ::
       """
         |javacOptions in Compile ++= "-source" :: "1.7" :: "-target" :: "1.7" :: Nil

@@ -57,7 +57,7 @@ private[android] object parsers {
 
     e.getOpt(Keys.Internal.sdkManager).orElse(existing).getOrElse(
       SdkInstaller.sdkManager(
-        sbt.file(SdkInstaller.sdkPath(s.log, Tasks.loadProperties(sbt.file(".")))),
+        sbt.syntax.file(SdkInstaller.sdkPath(s.log, Tasks.loadProperties(sbt.syntax.file(".")))),
         true, s.log))
   }
   def installSdkParser: State => Parser[Option[String]] = state => {
@@ -82,7 +82,7 @@ private[android] object parsers {
   }
   private[android] implicit val sbinaryFileFormat: sbinary.Format[File] = new sbinary.Format[File] {
     override def writes(out: Output, value: File) = StringFormat.writes(out, value.getCanonicalPath)
-    override def reads(in: Input) = sbt.file(StringFormat.reads(in))
+    override def reads(in: Input) = sbt.syntax.file(StringFormat.reads(in))
   }
   def loadForParser2[P, T: Format, T2: Format](task: TaskKey[T], task2: TaskKey[T2])
                               (f: (State, Option[T], Option[T2]) => Parser[P]): Initialize[State => Parser[P]] =

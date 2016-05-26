@@ -1,8 +1,8 @@
 import ScriptedPlugin._
-import bintray.Keys._
+import _root_.bintray.BintrayPlugin._
 
 val pluginVersion = "1.6.9-SNAPSHOT"
-val gradleBuildVersion = "1.2.1"
+val gradleBuildVersion = "1.2.2-SNAPSHOT"
 
 val androidToolsVersion = "2.1.2"
 
@@ -22,7 +22,7 @@ val model = project.in(file("gradle-model")).settings(
 val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_*).settings(
   name := "gradle-discovery-plugin",
   mappings in (Compile, packageBin) ++= (mappings in (Compile, packageBin) in model).value,
-  repository in bintray := "maven",
+  bintrayRepository in bintray := "maven",
   organization := "com.hanhuy.gradle",
   bintrayOrganization in bintray := None,
   resolvers += Resolver.jcenterRepo,
@@ -47,7 +47,7 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
     Nil
 ) dependsOn(model % "compile-internal")
 
-val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++ bintrayPublishSettings:_*).settings(
+val gradlebuild = project.in(file("gradle-build")).enablePlugins(BuildInfoPlugin).settings(bintrayPublishSettings:_*).settings(
   version := gradleBuildVersion,
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
@@ -77,11 +77,10 @@ val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++
     g +: p
   },
   sbtPlugin := true,
-  repository in bintray := "sbt-plugins",
+  bintrayRepository in bintray := "sbt-plugins",
   publishMavenStyle := false,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
   bintrayOrganization in bintray := None,
-  sourceGenerators in Compile <+= buildInfo,
   buildInfoKeys := Seq(name, version),
   buildInfoPackage := "android.gradle"
 ).settings(addSbtPlugin(
@@ -125,9 +124,7 @@ sbtPlugin := true
 
 // build info plugin
 
-buildInfoSettings
-
-sourceGenerators in Compile <+= buildInfo
+enablePlugins(BuildInfoPlugin, ScriptedPlugin)
 
 buildInfoKeys := Seq(name, version, scalaVersion, sbtVersion)
 
@@ -136,7 +133,7 @@ buildInfoPackage := "android"
 // bintray
 bintrayPublishSettings
 
-repository in bintray := "sbt-plugins"
+bintrayRepository in bintray := "sbt-plugins"
 
 publishMavenStyle := false
 
@@ -145,7 +142,6 @@ licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
 bintrayOrganization in bintray := None
 
 // scripted-test settings
-scriptedSettings
 
 scriptedLaunchOpts ++= Seq("-Xmx1024m", "-Dplugin.version=" + version.value)
 
@@ -173,7 +169,7 @@ scriptedDependencies <<= ( sbtTestDirectory
     pluginsFile.delete()
     propertiesFile.delete()
     IO.write(pluginsFile,
-      """addSbtPlugin("%s" %% "%s" %% "%s")""" format (org, n, v))
+      """addSbtPlugin("%s" %%%% "%s" %% "%s")""" format (org, n, v))
     IO.write(propertiesFile, """sbt.version=%s""" format sbtv)
   }
 }

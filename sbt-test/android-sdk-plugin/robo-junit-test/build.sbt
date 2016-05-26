@@ -1,3 +1,5 @@
+android.Plugin.androidBuild
+
 import collection.JavaConversions._
  
 libraryDependencies ++= Seq(

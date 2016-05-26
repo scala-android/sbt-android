@@ -47,7 +47,7 @@ case class PromptPasswordsSigningConfig(override val keystore: File,
     Option(console.readPassword("Enter password for key '%s': " format alias) mkString)
 }
 
-case class DebugSigningConfig(override val keystore: File = file(KeystoreHelper.defaultDebugKeystoreLocation),
+case class DebugSigningConfig(override val keystore: File = syntax.file(KeystoreHelper.defaultDebugKeystoreLocation),
                               override val storePass: String = DefaultSigningConfig.DEFAULT_PASSWORD,
                               override val alias: String = DefaultSigningConfig.DEFAULT_ALIAS,
                               override val keyPass: Option[String] = None,

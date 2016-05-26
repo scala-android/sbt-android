@@ -1,14 +1,15 @@
-import sbt._
+import sbt._, syntax._
 import sbt.Keys._
 import android.Keys._
 
-object Build extends Build {
-  val core = ProjectRef(uri("android-core"), "android-core")
+object Build {
+  val core = project.in(file("android-core")).settings(
+    name := "Android Core",
+    scalaVersion := "2.10.2",
+    exportJars := true
+  )
 
-  lazy val androidScala = Project(
-    id = "android-main",
-    base = file("."),
-    settings = Defaults.defaultSettings ++ android.Plugin.androidBuild ++ Seq(
+  lazy val androidMain = project.in(file(".")).settings(android.Plugin.androidBuild ++ Seq(
       libraryDependencies ++= Seq(
         "com.scalatags" % "scalatags_2.10" % "0.2.4"
       ),

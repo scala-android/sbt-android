@@ -5,8 +5,8 @@ import java.lang.reflect.{Constructor, Method}
 import java.util.jar.{JarInputStream, JarOutputStream}
 
 import com.android.builder.core.AndroidBuilder
-import sbt._
-import sbt.classpath.ClasspathUtilities
+import sbt._, syntax._, sbt.io.Using
+import sbt.internal.inc.classpath.ClasspathUtilities
 
 import scala.language.postfixOps
 import scala.util.Try

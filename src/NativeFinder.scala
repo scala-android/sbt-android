@@ -2,7 +2,7 @@ package android
 
 import javassist.util.proxy.{MethodHandler, MethodFilter, ProxyFactory}
 
-import sbt._
+import sbt._, syntax._, io.Using
 import language.postfixOps
 
 import org.objectweb.asm._

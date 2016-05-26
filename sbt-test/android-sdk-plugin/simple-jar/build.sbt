@@ -1,4 +1,4 @@
-androidBuildJar
+android.Plugin.androidBuildJar
 
 platformTarget in Android := "android-22"
 

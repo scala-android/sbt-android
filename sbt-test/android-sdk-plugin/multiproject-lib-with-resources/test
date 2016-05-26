@@ -1,5 +1,5 @@
-> app/android:package
-$ exists app/bin/output/app-debug.apk
-> last app/android:apkbuild
+> guidemate/android:package
+$ exists app/bin/output/guidemate-debug.apk
+> last guidemate/android:apkbuild
 > check-for-properties
 > check-for-bin

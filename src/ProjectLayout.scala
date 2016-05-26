@@ -4,7 +4,7 @@ import java.io.File
 
 import com.android.prefs.AndroidLocation
 import com.android.sdklib.BuildToolInfo
-import sbt._
+import sbt._, syntax._
 
 import scala.util.Try
 

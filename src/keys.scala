@@ -2,7 +2,7 @@ package android
 
 import com.android.tools.lint.LintCliFlags
 import com.android.tools.lint.detector.api.Issue
-import sbt._
+import sbt._, syntax._
 
 import scala.xml.Elem
 import java.io.File
@@ -179,7 +179,7 @@ object Keys {
   val manifestOverlays = TaskKey[Seq[File]]("manifest-overlays",
     "overlay manifest files to merge (from build variants)") in Android
   val manifestPlaceholders = TaskKey[Map[String,String]](
-    "manifest-placeholders", "${variable} expansion for AndroidManifest.xml") in Android
+    "manifest-placeholders", s"$${variable} expansion for AndroidManifest.xml") in Android
   val packageForR = TaskKey[String]("packageForR",
     "Custom package name for aapt --custom-package, defaults to manifest package name") in Android
   val versionName = TaskKey[Option[String]]("version-name",
