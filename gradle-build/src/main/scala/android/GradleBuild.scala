@@ -173,13 +173,11 @@ object AndroidGradlePlugin extends AutoPlugin {
     val minify = buildType.isMinifyEnabled
     SbtBuildType(buildType.getName, processBaseConfig(buildType) ++ List(
       apkbuildDebug /:= Literal(
-        s"""
-          |      {
-          |        val debug = apkbuildDebug.value
-          |        debug($debuggable)
-          |        debug
-          |      }
-        """.stripMargin),
+        s"""{
+          |      val debug = apkbuildDebug.value
+          |      debug($debuggable)
+          |      debug
+          |    }""".stripMargin),
       rsOptimLevel /:= buildType.getRenderscriptOptimLevel,
       if (debuggable)
         useProguardInDebug /:= minify
@@ -298,7 +296,7 @@ object AndroidGradlePlugin extends AutoPlugin {
           val module = m.getGroupId % m.getArtifactId % m.getVersion intransitive()
           val mID = if (m.getPackaging == "jar") module else module.artifacts(
             Artifact(m.getArtifactId, m.getPackaging, m.getPackaging, Option(m.getClassifier), Nil, None))
-          libraryDependencies /+= mID
+          mID
         }
 
         val androidLibraries = art.getDependencies.getLibraries.asScala.toList
@@ -322,7 +320,7 @@ object AndroidGradlePlugin extends AutoPlugin {
         val allJar = (javalibs ++ javalibs.flatMap(javaDependencies)).groupBy(
           _.getJarFile.getCanonicalFile).map(_._2.head).toList
 
-        val libs = allAar ++ allJar filter { j =>
+        val libs = List(libraryDependencies /++= (allAar ++ allJar filter { j =>
           Option(j.getResolvedCoordinates).exists { c =>
             val g = c.getGroupId
             val n = c.getArtifactId
@@ -330,7 +328,7 @@ object AndroidGradlePlugin extends AutoPlugin {
           }
         } map { j =>
           libraryDependency(j.getResolvedCoordinates)
-        }
+        }))
 
         val unmanaged = allJar filter (_.getResolvedCoordinates == null) map { j =>
           unmanagedJars in Compile /+= Attributed.blank(j.getJarFile)
@@ -442,29 +440,30 @@ object Serializer {
       case x: ProjectLayout.Gradle => enc(x)
       case x: ProjectLayout.Wrapped =>
         s"""
-           |      new ProjectLayout.Wrapped(ProjectLayout(baseDirectory.value)) {
-           |        override def base = ${enc(x.base)}
-           |        override def resources = ${enc(x.resources)}
-           |        override def testSources = ${enc(x.testSources)}
-           |        override def sources = ${enc(x.sources)}
-           |        override def javaSource = ${enc(x.javaSource)}
-           |        override def libs = ${enc(x.libs)}
-           |        override def gen = ${enc(x.gen)}
-           |        override def testRes = ${enc(x.testRes)}
-           |        override def manifest = ${enc(x.manifest)}
-           |        override def testManifest = ${enc(x.testManifest)}
-           |        override def scalaSource = ${enc(x.scalaSource)}
-           |        override def aidl = ${enc(x.aidl)}
-           |        override def bin = ${enc(x.bin)}
-           |        override def renderscript = ${enc(x.renderscript)}
-           |        override def testScalaSource = ${enc(x.testScalaSource)}
-           |        override def testAssets = ${enc(x.testAssets)}
-           |        override def jni = ${enc(x.jni)}
-           |        override def assets = ${enc(x.assets)}
-           |        override def testJavaSource = ${enc(x.testJavaSource)}
-           |        override def jniLibs = ${enc(x.jniLibs)}
-           |        override def res = ${enc(x.res)}
-           |      }""".stripMargin
+           |    new ProjectLayout.Wrapped(ProjectLayout(baseDirectory.value)) {
+           |      override def base = ${enc(x.base)}
+           |      override def resources = ${enc(x.resources)}
+           |      override def testSources = ${enc(x.testSources)}
+           |      override def sources = ${enc(x.sources)}
+           |      override def javaSource = ${enc(x.javaSource)}
+           |      override def libs = ${enc(x.libs)}
+           |      override def gen = ${enc(x.gen)}
+           |      override def testRes = ${enc(x.testRes)}
+           |      override def manifest = ${enc(x.manifest)}
+           |      override def testManifest = ${enc(x.testManifest)}
+           |      override def scalaSource = ${enc(x.scalaSource)}
+           |      override def aidl = ${enc(x.aidl)}
+           |      override def bin = ${enc(x.bin)}
+           |      override def renderscript = ${enc(x.renderscript)}
+           |      override def testScalaSource = ${enc(x.testScalaSource)}
+           |      override def testAssets = ${enc(x.testAssets)}
+           |      override def jni = ${enc(x.jni)}
+           |      override def assets = ${enc(x.assets)}
+           |      override def testJavaSource = ${enc(x.testJavaSource)}
+           |      override def jniLibs = ${enc(x.jniLibs)}
+           |      override def res = ${enc(x.res)}
+           |    }
+           |""".stripMargin
     }
   }
   implicit val signingConfigEncoding = new Encoder[ApkSigningConfig] {
@@ -490,7 +489,7 @@ object Serializer {
     def encode(literal: Literal) = literal.value
   }
   implicit def listEncoder[T : Encoder] = new Encoder[List[T]] {
-    def encode(l: List[T]) = if (l.isEmpty) "Nil" else "List(" + l.map(i => enc(i)).mkString(",\n      ") + ")"
+    def encode(l: List[T]) = if (l.isEmpty) "Nil" else "List(\n    " + l.map(i => enc(i)).mkString(",\n    ") + ")"
   }
   implicit val resolverEncoder = new Encoder[Resolver] {
     def encode(r: Resolver) = r match {
@@ -520,24 +519,52 @@ object Serializer {
   def serialize[T : Manifest, U : Encoder](k: TaskKey[T], op: String, value: U) =
     key(k) + " " + op + " " + enc(value)
   def config(s: Scope) =
-    s.config.toOption.fold("")(c => s""" in config("${c.name}")""")
+    s.config.toOption.fold("")(c => s""" in ${c.name.capitalize}""")
+  val COLLECTIONS           = """scala\.collection\.(\w+)""".r
+  val IMMUTABLE_COLLECTIONS = """scala\.collection\.immutable\.(\w+)""".r
+  val SBT                   = """sbt\.(\w+)""".r
+  val ANDROID_KEY           = """android\.Keys\.(\w+)""".r
+  val ANDROID               = """android\.(\w+)""".r
+  val JAVA                  = """java\.lang\.(\w+)""".r
+  val SCALA                 = """scala\.(\w+)""".r
+  val FILE                  = """java.io.File"""
+  val TUPLES                = """scala.(Tuple\d+)""".r
+  // TODO handle tuple naming
   def typeName[T](implicit manifest: Manifest[T]): String = {
     def capitalized(m: Manifest[_]) = {
       if (m.runtimeClass.isPrimitive)
         m.runtimeClass.getName.capitalize
-      else m.runtimeClass.getName
+      else {
+        m.runtimeClass.getName match {
+          case COLLECTIONS(tpe)           => tpe
+          case IMMUTABLE_COLLECTIONS(tpe) => tpe
+          case SBT(tpe)                   => tpe
+          case ANDROID_KEY(tpe)           => tpe
+          case ANDROID(tpe)               => tpe
+          case JAVA(tpe)                  => tpe
+          case TUPLES(tuple)              => tuple
+          case SCALA(tpe)                 => tpe
+          case FILE                       => "File"
+          case fullName                   => fullName
+        }
+      }
     }
     val typename = capitalized(manifest)
     val types = if (manifest.typeArguments.isEmpty) "" else {
       s"[${manifest.typeArguments.map(m => typeName(m)).mkString(",")}]"
     }
-    (typename + types).replace("$",".") // replace hack, better solution?
+    if (typename.startsWith("Tuple")) {
+     "(" + types.replace("$",".").drop(1).dropRight(1) + ")"
+    } else
+      (typename + types).replace("$",".") // replace $ hack, better solution?
   }
   def key[T : Manifest](k: SettingKey[T]): String = {
     s"""SettingKey[${typeName[T]}]("${k.key.label}")""" + config(k.scope)
+    k.key.label + config(k.scope)
   }
   def key[T : Manifest](k: TaskKey[T]): String = {
     s"""TaskKey[${typeName[T]}]("${k.key.label}")""" + config(k.scope)
+    k.key.label + config(k.scope)
   }
 }
 
@@ -549,7 +576,7 @@ object GradleBuildSerializer {
       s"""
         |  flavors += ((${enc(name)}, List(
         |    $serializedSettings)))
-      """.stripMargin
+        |""".stripMargin
   }
   case class SbtBuildType(name: String, settings: List[SbtSetting]) {
     def serializedSettings = settings map (_.serialized) mkString ",\n    "
@@ -558,7 +585,7 @@ object GradleBuildSerializer {
       s"""
          |  buildTypes += ((${enc(name)}, List(
          |    $serializedSettings)))
-      """.stripMargin
+         |""".stripMargin
   }
   case class SbtProject(id: String, base: File, isApplication: Boolean,
                         dependencies: Set[String], buildTypes: Seq[SbtBuildType],
@@ -592,20 +619,20 @@ object GradleBuildSerializer {
            |  compile in Compile <<= compile in Compile dependsOn(
            |    sbt.Keys.`package` in Compile in ${escaped(d)}),
            |  localProjects += LibraryProject(${escaped(d)}.base)((outputLayout in ${escaped(d)}).value)
-           |""".
-            stripMargin
+           |""".stripMargin
           } mkString ",\n"
         s".settings($depSettings)"
       } else ""
     }
     def serialized =
       s"""
-         |val ${escaped(id)} = project.in(${enc(base)}).settings(
-         |  ${if (isApplication) "android.Plugin.androidBuild" else "android.Plugin.androidBuildAar"}:_*).settings(
-         |    ${settings.map(_.serialized).mkString(",\n    ")}
+         |val ${escaped(id)} = project.in(
+         |  ${enc(base)}
+         |).settings(${if (isApplication) "androidBuild" else "androidBuildAar"}:_*).settings(
+         |  ${settings.map(_.serialized).mkString(",\n  ")}
          |)$serializedBuildTypes$serializedFlavors.withExtraProperties
          |$dependsOnProjects$dependsOnSettings
-       """.stripMargin
+         |""".stripMargin
   }
 
   def toposort(ps: List[SbtProject]): List[SbtProject] = {
@@ -614,28 +641,28 @@ object GradleBuildSerializer {
   }
 
   import language.existentials
-  case class SbtSetting(serialized: String)
+  case class SbtSetting(key: String, serialized: String)
   object Op {
     case object := extends Op {
       val serialized = ":="
-      def apply[T : Encoder : Manifest](lhs: SettingKey[T], rhs: T) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Encoder : Manifest](lhs: TaskKey[T], rhs: T) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Manifest](lhs: SettingKey[T], rhs: Literal) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Manifest](lhs: TaskKey[T], rhs: Literal) = SbtSetting(serialize(lhs, serialized, rhs))
+      def apply[T : Encoder : Manifest](lhs: SettingKey[T], rhs: T) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Encoder : Manifest](lhs: TaskKey[T], rhs: T) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Manifest](lhs: SettingKey[T], rhs: Literal) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Manifest](lhs: TaskKey[T], rhs: Literal) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
     }
     case object += extends Op {
       val serialized = "+="
-      def apply[T : Manifest,U : Encoder](lhs: SettingKey[T], rhs: U) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Manifest,U : Encoder](lhs: TaskKey[T], rhs: U) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Manifest](lhs: SettingKey[T], rhs: Literal) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Manifest](lhs: TaskKey[T], rhs: Literal) = SbtSetting(serialize(lhs, serialized, rhs))
+      def apply[T : Manifest,U : Encoder](lhs: SettingKey[T], rhs: U) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Manifest,U : Encoder](lhs: TaskKey[T], rhs: U) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Manifest](lhs: SettingKey[T], rhs: Literal) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Manifest](lhs: TaskKey[T], rhs: Literal) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
     }
     case object ++= extends Op {
       val serialized = "++="
-      def apply[T : Manifest, U : Encoder](lhs: SettingKey[T], rhs: U) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Manifest, U : Encoder](lhs: TaskKey[T], rhs: U) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Manifest](lhs: SettingKey[T], rhs: Literal) = SbtSetting(serialize(lhs, serialized, rhs))
-      def apply[T : Manifest](lhs: TaskKey[T], rhs: Literal) = SbtSetting(serialize(lhs, serialized, rhs))
+      def apply[T : Manifest, U : Encoder](lhs: SettingKey[T], rhs: U) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Manifest, U : Encoder](lhs: TaskKey[T], rhs: U) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Manifest](lhs: SettingKey[T], rhs: Literal) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
+      def apply[T : Manifest](lhs: TaskKey[T], rhs: Literal) = SbtSetting(lhs.key.label, serialize(lhs, serialized, rhs))
     }
   }
 
