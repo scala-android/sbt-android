@@ -1,5 +1,8 @@
 ## New features in 1.6.x ##
 
+* `1.6.4`:
+  * Do not enable `dexInProcess` unless explicitly turned on (fails in too
+    many configurations to enable automatically)
 * `1.6.3`:
   * Further bugfixes around android builder initialization
   * add `dexMainClassesRules` to set keep rules for dex main file
