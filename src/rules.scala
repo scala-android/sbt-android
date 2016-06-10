@@ -532,7 +532,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       minLevel < 21
     },
     dexMaxHeap               := "1024m",
-    dexInProcess             := dexMulti.value && java.lang.Runtime.getRuntime.maxMemory >= 0x7fffffff,
+    dexInProcess             := false, // turn off, does not work properly?
     dexMaxProcessCount       := java.lang.Runtime.getRuntime.availableProcessors,
     dexMulti                 := false,
     dexMainClassesRules      := Seq(
