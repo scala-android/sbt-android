@@ -277,7 +277,8 @@ object Plugin extends sbt.Plugin with PluginFail {
       // scalac has -g:vars by default
       val bcp = boot.map(_.data) mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
-    }
+    },
+    managedSources    <<= managedSources dependsOn stableProguardCache
   )) ++ inConfig(Test) (Seq(
     exportJars         := false,
     managedClasspath <++= platform map { t =>
@@ -843,6 +844,19 @@ object Plugin extends sbt.Plugin with PluginFail {
     libraryDependencies <+= Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name),
     managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
   )
+
+  private[this] val stableProguardCache = Def.taskDyn {
+    val cachecheckdir = streams.value.cacheDirectory / "proguardCacheCheck"
+    val rulecheck = (cachecheckdir * "*").get.headOption.map(_.getName)
+    val ruleHash = Hash.toHex(Hash(proguardCache.value.mkString(";")))
+    if (rulecheck.exists (_ != ruleHash) && useProguardInDebug.value) Def.task {
+      streams.value.log.warn("proguardCache rules have changed, forcing clean build")
+      val _ = (clean in Compile).value
+    } else Def.task {
+      cachecheckdir.mkdirs()
+      IO.touch(cachecheckdir / ruleHash)
+    }
+  }
 }
 
 @deprecated("Build.scala files are going away in sbt 1.0", "1.6.0")
