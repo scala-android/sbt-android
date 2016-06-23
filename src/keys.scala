@@ -104,6 +104,7 @@ object Keys {
     "a sequence of ('type', 'field name', 'value') to inject into res values.xml") in Android
   val resValuesGenerator = TaskKey[Unit]("res-values-generator",
     "generate res-values into values.xml") in Android
+  val resConfigs = SettingKey[Seq[String]]("res-configs", "include res configurations") in Android
   val extraResDirectories = SettingKey[Seq[File]]("extra-res-directories",
     "list of additional android res folders to include (primarily for flavors") in Android
   val extraAssetDirectories = SettingKey[Seq[File]]("extra-asset-directories",

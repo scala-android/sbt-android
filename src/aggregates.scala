@@ -16,6 +16,7 @@ object Aggregate {
 
   private[android] case class Aapt(builder: Logger => AndroidBuilder,
                                    debug: Boolean,
+                                   resConfigs: Seq[String],
                                    additionalParams: Seq[String])
 
   private[android] case class AndroidTest(debugIncludesTests: Boolean,

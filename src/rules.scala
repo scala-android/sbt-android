@@ -486,6 +486,7 @@ object Plugin extends sbt.Plugin with PluginFail {
         versionCode.value.toList.map (c => ("int", "VERSION_CODE", c.toString)
       )
     },
+    resConfigs               := Nil,
     resValues                := Nil,
     resValuesGenerator      <<= resValuesGeneratorTaskDef,
     rGenerator              <<= rGeneratorTaskDef,

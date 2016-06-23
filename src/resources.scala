@@ -260,7 +260,7 @@ object Resources {
   }
 
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: String,
-           extraParams: Seq[String],
+           extraParams: Seq[String], resConfigs: Seq[String],
            libs: Seq[LibraryDependency], lib: Boolean, debug: Boolean,
            res: File, assets: File, resApk: String, gen: File, proguardTxt: String,
            logger: Logger) = synchronized {
@@ -285,6 +285,7 @@ object Resources {
     aaptCommand.setLibraries(all.asJava)
     aaptCommand.setPackageForR(pkg)
     aaptCommand.setResPackageOutput(resApk)
+    aaptCommand.setResourceConfigs(resConfigs.asJava)
     aaptCommand.setSourceOutputDir(if (resApk == null) genPath else null)
     aaptCommand.setSymbolOutputDir(if (resApk == null) genPath else null)
     aaptCommand.setProguardOutput(proguardTxt)
