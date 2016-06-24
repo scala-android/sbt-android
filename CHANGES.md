@@ -1,5 +1,9 @@
 ## New features in 1.6.x ##
 
+* `1.6.5`:
+  * Usability fix for `proguardCache` rules changing; automatically force
+    clean build when the rules are changed
+  * Implement support for `resConfigs` see [resource shrinking](http://tools.android.com/tech-docs/new-build-system/resource-shrinking)
 * `1.6.4`:
   * Do not enable `dexInProcess` unless explicitly turned on (fails in too
     many configurations to enable automatically)
