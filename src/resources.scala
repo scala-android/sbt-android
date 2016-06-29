@@ -91,6 +91,7 @@ object Resources {
       case m: ApkLibrary => m
       case n: AarLibrary => n
     } collect { case n if n.getResFolder.isDirectory => n.getResFolder }
+    val nonGeneratingRes = depres.toSet
     s.log.debug("apklib/aar resources: " + depres)
 
     val respaths = depres ++ res.reverse ++
@@ -105,15 +106,19 @@ object Resources {
         Density.XXHIGH).asJava,
       logger)
     val sets = respaths.distinct flatMap { r =>
+      s.log.debug("Adding resource path: " + r)
       val set = new ResourceSet(r.getAbsolutePath)
       set.addSource(r)
 
-      set.setPreprocessor(vectorprocessor)
-      val generated = new GeneratedResourceSet(set)
-      set.setGeneratedSet(generated)
-
-      s.log.debug("Adding resource path: " + r)
-      List(generated, set)
+      // see https://code.google.com/p/android/issues/detail?id=214182#c5
+      if (nonGeneratingRes(r)) {
+        List(set)
+      } else {
+        set.setPreprocessor(vectorprocessor)
+        val generated = new GeneratedResourceSet(set)
+        set.setGeneratedSet(generated)
+        List(generated, set)
+      }
     }
 
     val inputs = (respaths flatMap { r => (r ***) get }) filter (n =>

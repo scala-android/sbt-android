@@ -1,7 +1,7 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
-val pluginVersion = "1.6.5"
+val pluginVersion = "1.6.6-SNAPSHOT"
 val gradleBuildVersion = "1.2.1"
 
 val androidToolsVersion = "2.1.2"
@@ -115,7 +115,7 @@ libraryDependencies ++= Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
-  "com.android.tools.lint" % "lint" % "25.1.0",
+  "com.android.tools.lint" % "lint" % "25.1.2",
   "net.orfjackal.retrolambda" % "retrolambda" % "2.3.0"
 )
 
