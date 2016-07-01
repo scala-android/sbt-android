@@ -1,5 +1,11 @@
 ## New features in 1.6.x ##
 
+* `1.6.6`:
+  * handle vector drawable rasterization for `24.0.0` support libraries
+  * fix `proguardCache` change check
+  * allow using `android-install` and `android-update` commands in
+    non-android projects
+  * fix incremental builds with vector drawable rasterization
 * `1.6.5`:
   * Usability fix for `proguardCache` rules changing; automatically force
     clean build when the rules are changed
