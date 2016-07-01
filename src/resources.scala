@@ -173,6 +173,7 @@ object Resources {
       slog.debug("requesting full merge: dependency resources have changed!")
       merge()
     } else {
+      merger.getDataSets.asScala.foreach(_.setPreprocessor(preprocessor))
 
       val fileValidity = new FileValidity[ResourceSet]
       val exists = changes.added ++ changes.removed ++ changes.modified exists {
