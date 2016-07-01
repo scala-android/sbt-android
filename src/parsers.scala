@@ -8,6 +8,7 @@ import Parsers._
 import sbt.{Def, State, TaskKey}
 import sbt.Defaults.loadFromContext
 import Def.Initialize
+import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 import scala.xml.{Elem, Node, NodeSeq, XML}
 import sbt.Cache.StringFormat
@@ -45,10 +46,23 @@ private[android] object parsers {
       parser getOrElse opt(Def.spaceDelimited("<activity name>").map(_.mkString(" ")))
     }
 
+  private[this] def sdkManager(s: State): AndroidSdkHandler = {
+    val e = sbt.Project.extract(s)
+    def existing = {
+      val androids = e.structure.allProjects map (p => sbt.ProjectRef(e.structure.root, p.id)) filter {
+        ref => e.getOpt(Keys.projectLayout in ref).isDefined
+      }
+      androids.headOption.map(p => e.get(Keys.Internal.sdkManager in p))
+    }
+
+    e.getOpt(Keys.Internal.sdkManager).orElse(existing).getOrElse(
+      SdkInstaller.sdkManager(
+        sbt.file(SdkInstaller.sdkPath(s.log, Tasks.loadProperties(sbt.file(".")))),
+        true, s.log))
+  }
   def installSdkParser: State => Parser[Option[String]] = state => {
     val ind = SbtAndroidProgressIndicator(state.log)
-    val repomanager = sbt.Project.extract(state).get(
-      Keys.Internal.sdkManager).getSdkManager(ind)
+    val repomanager = sdkManager(state).getSdkManager(ind)
     val newpkgs = repomanager.getPackages.getNewPkgs.asScala.filterNot(_.obsolete).toList.map { p =>
       p.getPath
     }
@@ -58,8 +72,7 @@ private[android] object parsers {
   //noinspection MutatorLikeMethodIsParameterless
   def updateSdkParser: State => Parser[Either[Option[String],String]] = state => {
     val ind = SbtAndroidProgressIndicator(state.log)
-    val repomanager = sbt.Project.extract(state).get(
-      Keys.Internal.sdkManager).getSdkManager(ind)
+    val repomanager = sdkManager(state).getSdkManager(ind)
     val updates = repomanager.getPackages.getUpdatedPkgs.asScala.toList.collect {
       case u if u.hasRemote => u.getRemote.getPath
     }
