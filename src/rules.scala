@@ -277,8 +277,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       // scalac has -g:vars by default
       val bcp = boot.map(_.data) mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
-    },
-    managedSources    <<= managedSources dependsOn stableProguardCache
+    }
   )) ++ inConfig(Test) (Seq(
     exportJars         := false,
     managedClasspath <++= platform map { t =>
@@ -825,7 +824,7 @@ object Plugin extends sbt.Plugin with PluginFail {
           (d ** "*.scala").get.nonEmpty)
     },
     // make streams dependOn because coursier replaces `update`
-    streams in update <<= (streams in update) dependsOn m2repoCheck,
+    streams in update <<= (streams in update) dependsOn m2repoCheck dependsOn stableProguardCache,
     crossPaths        <<= autoScalaLibrary,
     resolvers        <++= sdkPath { p =>
       Seq(SdkLayout.googleRepository(p), SdkLayout.androidRepository(p))
