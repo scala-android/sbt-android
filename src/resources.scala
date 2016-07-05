@@ -315,7 +315,8 @@ object Resources {
 
   def generateTR(t: Boolean, a: Seq[File], p: String, layout: ProjectLayout,
                  platformApi: Int, platform: (String,Seq[String]), sv: String,
-                 l: Seq[LibraryDependency], f: Boolean, i: Seq[String], s: TaskStreams): Seq[File] = {
+                 l: Seq[LibraryDependency], f: Boolean, includeAar: Boolean,
+                 i: Seq[String], s: TaskStreams): Seq[File] = {
 
     val j = platform._1
     val r = layout.res
@@ -395,6 +396,7 @@ object Resources {
             r +: (for {
               lib <- l filterNot {
                 case p: Dependencies.Pkg => ignores(p.pkg)
+                case a: AarLibrary       => !includeAar
                 case _                   => false
               }
             } yield lib.getResFolder)

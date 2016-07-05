@@ -614,6 +614,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     retrolambdaEnabled       := false,
     typedResources          <<= autoScalaLibrary,
     typedResourcesFull       := true,
+    typedResourcesAar        := false,
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
     useProguard             <<= proguardScala,

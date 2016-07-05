@@ -83,6 +83,8 @@ object Keys {
     "flag indicating whether to generated TR.scala") in Android
   val typedResourcesFull = SettingKey[Boolean]("typed-resources-full",
     "whether full of resources should be generated at TR.scala, default true") in Android
+  val typedResourcesAar = SettingKey[Boolean]("typed-resources-aar",
+    "whether to include aar resources when generating TR, default false") in Android
   val typedResourcesIgnores = SettingKey[Seq[String]]("typed-resources-ignores",
     "list of android package names to ignore for TR.scala generation") in Android
   val buildConfigGenerator = TaskKey[Seq[File]]("build-config-generator",

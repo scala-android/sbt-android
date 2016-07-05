@@ -300,7 +300,8 @@ object Tasks extends TaskBase {
     Resources.generateTR(typedResources.value, rGenerator.value,
       packageForR.value, projectLayout.value, platformApi.value,
       platformJars.value, (scalaVersion in ThisProject).value,
-      libraryProjects.value, typedResourcesFull.value, typedResourcesIgnores.value, streams.value)
+      libraryProjects.value, typedResourcesFull.value, typedResourcesAar.value,
+      typedResourcesIgnores.value, streams.value)
   }
 
   def ndkbuild(manager: AndroidSdkHandler, layout: ProjectLayout, args: Seq[String],
