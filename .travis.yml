@@ -27,9 +27,9 @@ before_script:
   - echo no | android create avd --force -n test -t android-21 --abi armeabi-v7a
   - emulator -avd test -no-audio -no-window &
   # install & cache NDK
-  - mkdir -p $HOME/.cache/ndk
-  - curl https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux-x86_64.zip -z $ANDROID_NDK_HOME/ndk-build -o $HOME/.cache/ndk/ndk-${NDK_VERSION}.zip
-  - (unzip -q $HOME/.cache/ndk/ndk-$NDK_VERSION.zip -d $HOME 2> /dev/null; true)
+  - curl https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux-x86_64.zip -z ${ANDROID_NDK_HOME}/ndk-build -o $HOME/ndk-${NDK_VERSION}.zip
+  - (unzip -q $HOME/ndk-$NDK_VERSION.zip -d $HOME; true)
+  - ls $ANDROID_NDK_HOME
   # wait for emulator after ndk
   - android-wait-for-emulator
   - adb shell input keyevent 82 &
