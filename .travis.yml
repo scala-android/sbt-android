@@ -26,10 +26,12 @@ before_script:
   # Emulator Management: Create, Start and Wait
   - echo no | android create avd --force -n test -t android-21 --abi armeabi-v7a
   - emulator -avd test -no-audio -no-window &
-  - android-wait-for-emulator
+  # install & cache NDK
   - mkdir -p $HOME/.cache/ndk
-  - curl https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux-x86_64.zip -z $ANDROID_NDK_HOME -o $HOME/.cache/ndk/ndk-${NDK_VERSION}.zip
-  - unzip -q $HOME/.cache/ndk/ndk-$NDK_VERSION.zip -d $HOME
+  - curl https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux-x86_64.zip -z $ANDROID_NDK_HOME/ndk-build -o $HOME/.cache/ndk/ndk-${NDK_VERSION}.zip
+  - (unzip -q $HOME/.cache/ndk/ndk-$NDK_VERSION.zip -d $HOME 2> /dev/null; true)
+  # wait for emulator after ndk
+  - android-wait-for-emulator
   - adb shell input keyevent 82 &
 script:
   - curl -o sbt-launcher.sh https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt
