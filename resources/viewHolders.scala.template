@@ -23,16 +23,15 @@ object TypedViewHolder {
   def setContentView[T <: View]
   (activity: Activity, layout: TypedLayout[T])
   (implicit ev: TypedViewHolderFactory[layout.type]): ev.VH = {
-    // Force the content view to exist if it didn't already.
     val contentView = activity.getWindow.getDecorView.findViewById(
       android.R.id.content).asInstanceOf[ViewGroup]
-    val holder = inflate(activity.getLayoutInflater, contentView, false, layout)
+    val holder = inflate(activity.getLayoutInflater, layout, contentView, false)
     activity.setContentView(holder.rootView, holder.rootView.getLayoutParams)
     holder.asInstanceOf[ev.VH] // harmless cast, appease intellij
   }
 
   def inflate[T <: View]
-  (inflater: LayoutInflater, parent: ViewGroup, attach: Boolean, layout: TypedLayout[T])
+  (inflater: LayoutInflater, layout: TypedLayout[T], parent: ViewGroup, attach: Boolean)
   (implicit ev: TypedViewHolderFactory[layout.type]): ev.VH = {
     ev.create(inflater.inflate(layout.id, parent, attach).asInstanceOf[ev.V])
   }

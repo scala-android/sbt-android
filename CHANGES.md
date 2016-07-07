@@ -1,5 +1,32 @@
 ## New features in 1.6.x ##
 
+* `1.6.7`: SNAPSHOT WORK IN PROGRESS
+  * New TypedViewHolder bindings, automatically generated from layout
+    XML to create type-safe and static bindings to layout views
+    * `val viewholder: TypedViewHolder.XXX = TypedViewHolder.setContentView(activity, TR.layout.XXX)`
+    * `val viewholder: TypedViewHolder.YYY = TypedViewHolder.inflate(inflater, TR.layout.YYY, parent, attachToParent)`
+    * Limitations
+      * `<fragment>` will be ignored
+      * `<merge>` is treated as `android.view.View`
+      * `<include>` will be assigned a viewholder val or have all of
+        its views included into the viewholder, depending on whether
+        an id is supplied or the root view type is compatible.
+      * repeated ids will result in only 1 holder val being created.
+        colliding names will otherwise have 2..99 appended automatically
+      * view types with type parameters cannot be expressed directly nor
+        handled. This has always been an issue with TR, workaround by
+        using `<view class="viewTypeWithParameter">`. As a result
+        `<view class=...>` will not be processed for the class name and
+        will resolve to `android.view.View`
+      * IntelliJ will not properly recognize that the `TypedViewHolder`
+        is correctly typed, force a type ascription as above and ignore
+        the resulting error highlight rather than allowing IntelliJ to
+        infer, see
+        [SCL-10491](https://youtrack.jetbrains.com/issue/SCL-10491)
+    * Enabled by default if scala is present in project, disable by
+      setting `typedViewHolders := false`
+  * Typed resources no longer generated for aar by default,
+    re-enable by setting `typedResourcesAar := true`
 * `1.6.6`:
   * handle vector drawable rasterization for `24.0.0` support libraries
   * fix `proguardCache` change check

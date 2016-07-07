@@ -314,13 +314,20 @@ object Resources {
   }
 
   lazy val androidJarMemo = scalaz.Memo.immutableHashMapMemo[File, ClassLoader](ClasspathUtilities.toLoader(_: File))
+  lazy val androidClassMemo = scalaz.Memo.immutableHashMapMemo[(String,String),Option[String]] {
+    case ((j, cls)) => Try(androidJarMemo(file(j)).loadClass(cls).getName).toOption
+  }
   def classForLabel(j: String, l: String) = {
+    // unfortunately, this is a cyclic problem: cannot inspect the class until
+    // sources are built, can't build sources until TR is generated
+    // This prevents us from doing inspections on `l` to determine properties
+    // such as requiring type parameters
     if (l contains ".") Some(l)
     else {
       Seq("android.widget."
         , "android.view."
         , "android.webkit.").flatMap {
-        pkg => Try(androidJarMemo(file(j)).loadClass(pkg + l).getName).toOption
+        pkg => androidClassMemo((j, pkg + l))
       }.headOption
     }
   }
@@ -478,7 +485,7 @@ object Resources {
             } mkString "\n",
             layoutTypes map { case (k,v) =>
               "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
-            } mkString "\n", trs.mkString, getColor, getDrawable, getDrawable, deprForward))
+            } mkString "\n", trs.mkString, getColor, getDrawable, getDrawable, deprForward) replace ("\r", ""))
           Set(tr)
         } else Set.empty
       }(a.toSet).toSeq
@@ -625,7 +632,6 @@ object Resources {
       sealed trait LayoutEntry
       case class LayoutInclude(id: Option[String], layout: String) extends LayoutEntry
       case class LayoutView(name: String, id: String, viewType: String) extends LayoutEntry
-//      case object LayoutMerge extends LayoutEntry
       case class LayoutStructure(name: String,
                                  rootView: String, rootId: Option[String],
                                  views: List[LayoutEntry],
@@ -642,25 +648,32 @@ object Resources {
           // TODO handle 'include' and 'merge'
           if (n.label == "layout" || n.label == "#PCDATA") // noop, skip
             (root,children)
-          else if (n.label == "merge") { // TODO HANDLE merge
+          else if (n.label == "fragment")
             (root,children)
-          }
           else if (n.label == "include") {
             val includeId = n.attribute(ANDROID_NS, "id") map (_.head.text) match {
               case Some(re(id))       => Some(s"R.id.${wrap(id)}")
               case Some(re2(p, id))   => Some(s"$p.R.id.${wrap(id)}")
               case _                  => None
             }
-            val included = n.attribute("layout").fold("")(_.head.text).collect {
-              case includedre(l) => l
-            }.head
-
-            (root, LayoutInclude(includeId, included) :: children)
+            val includeLayout = n.attribute("layout").fold("")(_.head.text)
+            includeLayout match {
+              case includedre(l) =>
+                (root, LayoutInclude(includeId, l) :: children)
+              case _ =>
+                (root,children)
+            }
           } else if (root.isEmpty && !includeRoot)
             (Some((viewId.map(_._2), n.label)),children)
+          else if (n.label == "merge") // ignore merge when root is already set
+            (root,children)
           else if (viewId.isEmpty) // no ID, don't record a viewholder entry
             (root,children)
           else {
+            // <view class=> is used as a workaround when the class takes type
+            // parameters. for that reason, we have to ignore <view class=>
+            // (it's also used when it's illegal xml syntax, but that's an
+            // unfortunate casualty)
 //            val viewType = if (n.label == "view") {
 //              n.attribute("class").map (_.head.text).get
 //            } else
@@ -683,8 +696,8 @@ object Resources {
         } yield xml)
 
 
-//      FileFunction.cached(
-//        s.cacheDirectory / "viewHoldersGenerator", FilesInfo.lastModified) { in =>
+      FileFunction.cached(
+        s.cacheDirectory / "viewHoldersGenerator", FilesInfo.lastModified) { in =>
         val vhs = pkg.split("\\.").foldLeft(layout.gen) { _ / _ } / "viewHolders.scala"
         val vhTemplate = IO.readLinesURL(
           resourceUrl("viewHolders.scala.template")) mkString "\n"
@@ -704,16 +717,45 @@ object Resources {
           rest.map(l => parseLayout(l.configs.map(_.capitalize).mkString, l.path, false)).toList)
       }.map(s => s.name -> s).toMap
 
+      val alternatives = 2 to 99
+      def takeAlternative(seen: Set[String], name: String): String = {
+        if (!seen(name)) name
+        else name + alternatives.dropWhile(i => seen(name + i)).head
+      }
+
+      def processViews(views: List[LayoutEntry], _seen: Set[String] = Set.empty): (Set[String],List[String]) = {
+        views.foldLeft((_seen,List.empty[String])) { case ((seen,items), e) => e match {
+          case LayoutView(name, id, viewType) =>
+            if (seen(name))
+              (seen, items)
+            else {
+              val castType = classForLabel(j, viewType).getOrElse("android.view.View")
+              val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
+              val actualName = takeAlternative(seen, name)
+              (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
+            }
+          case LayoutInclude(id, included) =>
+            val vh = viewholders(included)
+            val actualIncluded = takeAlternative(seen, included)
+            val wrapi = wrap(actualIncluded)
+            if (vh.rootView == "merge") {
+              (seen + actualIncluded, s"    lazy val $wrapi = new TypedViewHolder.$wrapi(rootView)" :: items)
+            } else {
+              id.orElse(vh.rootId).fold {
+                val (newseen, newviews) = processViews(vh.views, seen)
+                (newseen, newviews ++ items)
+              } { i =>
+                val castType = classForLabel(j, vh.rootView).getOrElse("android.view.View")
+                val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
+                (seen + i, s"    lazy val $wrapi = new TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
+              }
+            }
+        }}
+      }
       val (vhlist, facts) = viewholders.values.map { s =>
         val wname = wrap(s.name)
         val rootClass = classForLabel(j, s.rootView).getOrElse("android.view.View")
-        val views = s.views.map {
-          case LayoutView(name, id, viewType) =>
-            val castType = classForLabel(j, viewType).getOrElse("android.view.View")
-            val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
-            s"    lazy val ${wrap(name)} = rootView.findViewById($id)$cast"
-          case LayoutInclude(id, included) => "TODO INCLUDE"
-        }
+        val (_, views) = processViews(s.views)
         val vh = s"""  case class $wname(val rootView: $rootClass) extends TypedViewHolder[$rootClass] {
                      |    val rootViewId = ${s.rootId.getOrElse("-1")}
                      |${views.mkString("\n")}
@@ -726,15 +768,12 @@ object Resources {
                     |    def create(v: V): $vhname = new $vhname(v)
                     |  }""".stripMargin
 
-        println(vh)
-        println(f)
         (vh,f)
       }.unzip
 
-        IO.write(vhs, vhTemplate format (pkg, facts.mkString("\n"), vhlist.mkString("\n")))
-//        Set(vhs)
-//      }(files.toSet).toSeq
-      Seq(vhs)
+        IO.write(vhs, vhTemplate format (pkg, facts.mkString("\n"), vhlist.mkString("\n")) replace ("\r", ""))
+        Set(vhs)
+      }(files.toSet).toSeq
     }
   }
 }
