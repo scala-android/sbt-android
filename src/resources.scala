@@ -313,10 +313,21 @@ object Resources {
       .distinctLibs
   }
 
+  lazy val androidJarMemo = scalaz.Memo.immutableHashMapMemo[File, ClassLoader](ClasspathUtilities.toLoader(_: File))
+  def classForLabel(j: String, l: String) = {
+    if (l contains ".") Some(l)
+    else {
+      Seq("android.widget."
+        , "android.view."
+        , "android.webkit.").flatMap {
+        pkg => Try(androidJarMemo(file(j)).loadClass(pkg + l).getName).toOption
+      }.headOption
+    }
+  }
   def generateTR(t: Boolean, a: Seq[File], p: String, layout: ProjectLayout,
                  platformApi: Int, platform: (String,Seq[String]), sv: String,
                  l: Seq[LibraryDependency], f: Boolean, includeAar: Boolean,
-                 i: Seq[String], s: TaskStreams): Seq[File] = {
+                 withViewHolders: Boolean, i: Seq[String], s: TaskStreams): Seq[File] = {
 
     val j = platform._1
     val r = layout.res
@@ -331,11 +342,11 @@ object Resources {
       FileFunction.cached(s.cacheDirectory / "typed-resources-generator", FilesInfo.hash) { in =>
         if (in.nonEmpty) {
           s.log.info("Regenerating TR.scala because R.java has changed")
-          val androidjar = ClasspathUtilities.toLoader(file(j))
           val layouts = (r ** "layout*" ** "*.xml" get) ++
             (for {
               lib <- l filterNot {
                 case p: Dependencies.Pkg => ignores(p.pkg)
+                case a: AarLibrary       => !includeAar
                 case _                   => false
               }
               xml <- lib.getResFolder ** "layout*" ** "*.xml" get
@@ -344,17 +355,6 @@ object Resources {
           s.log.debug("Layouts: " + layouts)
           // XXX handle package references? @id/android:ID or @id:android/ID
           val re = "@\\+id/(.*)".r
-
-          def classForLabel(l: String) = {
-            if (l contains ".") Some(l)
-            else {
-              Seq("android.widget."
-                , "android.view."
-                , "android.webkit.").flatMap {
-                pkg => Try(androidjar.loadClass(pkg + l).getName).toOption
-              }.headOption
-            }
-          }
 
           def warn(res: Seq[(String,String)]) = {
             // nice to have:
@@ -376,7 +376,7 @@ object Resources {
           val layoutTypes = warn(for {
             file   <- layouts
             layout  = XML loadFile file
-            l      <- classForLabel(layout.label)
+            l      <- classForLabel(j, layout.label).orElse(Some("android.view.View"))
           } yield file.getName.stripSuffix(".xml") -> l)
 
           val resources = warn(for {
@@ -384,7 +384,7 @@ object Resources {
             layout  = XML loadFile b
             n      <- layout.descendant_or_self
             re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
-            l      <- classForLabel(n.label)
+            l      <- classForLabel(j, n.label)
           } yield id -> l)
 
           val trTemplate = IO.readLinesURL(
@@ -472,6 +472,7 @@ object Resources {
           })
 
           IO.write(tr, trTemplate format (p,
+            if (withViewHolders) "" else  " extends AnyVal",
             resources map { case (k,v) =>
               "  final val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n",
@@ -596,5 +597,144 @@ object Resources {
     } yield restype ->
       (res * s"$restype*" * "*").get.map(_.getName.takeWhile(_ != '.')).toList.filter(_.nonEmpty)
     rms2.foldLeft(emptyResourceMap) { case (m, (t, xs)) => m + (t -> (m(t) ++ xs)) }
+  }
+
+  def generateViewHolders(generate: Boolean,
+                          pkg: String,
+                          platform: (String,Seq[String]),
+                          layout: ProjectLayout,
+                          libs: Seq[LibraryDependency], includeAar: Boolean,
+                          ignores: Seq[String], s: TaskStreams): Seq[File] = {
+    val re = """@\+id/(\w+)""".r
+    val re2 = """@(\w+):id/(\w+)""".r
+    val includedre = """@layout/(\w+)""".r
+
+    val j = platform._1
+    if (!generate) Nil
+    else {
+      object LayoutFile {
+        implicit val ord: Ordering[LayoutFile] = new Ordering[LayoutFile] {
+          override def compare(x: LayoutFile, y: LayoutFile) = {
+            val n = x.name.compareTo(y.name)
+            val s = x.configs.size - y.configs.size
+            if (n == 0) s else n
+          }
+        }
+      }
+      case class LayoutFile(name: String, configs: List[String], path: File)
+      sealed trait LayoutEntry
+      case class LayoutInclude(id: Option[String], layout: String) extends LayoutEntry
+      case class LayoutView(name: String, id: String, viewType: String) extends LayoutEntry
+//      case object LayoutMerge extends LayoutEntry
+      case class LayoutStructure(name: String,
+                                 rootView: String, rootId: Option[String],
+                                 views: List[LayoutEntry],
+                                 configs: List[LayoutStructure])
+
+      def parseLayout(n: String, f: File, includeRoot: Boolean): LayoutStructure = {
+        val xml = XML.loadFile(f)
+        val (r,c) = xml.descendant_or_self.foldLeft((Option.empty[(Option[String],String)],List.empty[LayoutEntry])) { case ((root, children), n) =>
+          val viewId = n.attribute(ANDROID_NS, "id") map { _.head.text } match {
+            case Some(re(id))       => Some((wrap(id), s"R.id.${wrap(id)}"))
+            case Some(re2(p, id))   => Some((wrap(id), s"$p.R.id.${wrap(id)}"))
+            case _                  => None
+          }
+          // TODO handle 'include' and 'merge'
+          if (n.label == "layout" || n.label == "#PCDATA") // noop, skip
+            (root,children)
+          else if (n.label == "merge") { // TODO HANDLE merge
+            (root,children)
+          }
+          else if (n.label == "include") {
+            val includeId = n.attribute(ANDROID_NS, "id") map (_.head.text) match {
+              case Some(re(id))       => Some(s"R.id.${wrap(id)}")
+              case Some(re2(p, id))   => Some(s"$p.R.id.${wrap(id)}")
+              case _                  => None
+            }
+            val included = n.attribute("layout").fold("")(_.head.text).collect {
+              case includedre(l) => l
+            }.head
+
+            (root, LayoutInclude(includeId, included) :: children)
+          } else if (root.isEmpty && !includeRoot)
+            (Some((viewId.map(_._2), n.label)),children)
+          else if (viewId.isEmpty) // no ID, don't record a viewholder entry
+            (root,children)
+          else {
+//            val viewType = if (n.label == "view") {
+//              n.attribute("class").map (_.head.text).get
+//            } else
+//              n.label
+            (root, LayoutView(viewId.get._1, viewId.get._2, n.label) :: children)
+          }
+        }
+        LayoutStructure(n, r.fold("")(_._2), r.flatMap(_._1), c, Nil)
+      }
+      val ig = ignores.toSet
+      val libsToProcess = libs filterNot {
+        case p: Dependencies.Pkg => ig(p.pkg)
+        case a: AarLibrary => !includeAar
+        case _ => false
+      }
+      val files = (layout.res ** "layout*" ** "*.xml" get) ++
+        (for {
+          lib <- libsToProcess
+          xml <- lib.getResFolder ** "layout*" ** "*.xml" get
+        } yield xml)
+
+
+//      FileFunction.cached(
+//        s.cacheDirectory / "viewHoldersGenerator", FilesInfo.lastModified) { in =>
+        val vhs = pkg.split("\\.").foldLeft(layout.gen) { _ / _ } / "viewHolders.scala"
+        val vhTemplate = IO.readLinesURL(
+          resourceUrl("viewHolders.scala.template")) mkString "\n"
+        vhs.delete()
+
+      val layouts = files.map { f =>
+        val parent = f.getParentFile.getName
+        LayoutFile(f.getName.stripSuffix(".xml"), parent.split("-").toList.drop(1).sorted, f)
+      }
+      val grouped = layouts.groupBy(_.name).mapValues(_.sorted)
+      val viewholders = grouped.map { case (n, data) =>
+        val main = data.head
+        val rest = data.drop(1)
+        val struct = parseLayout(main.name, main.path, false)
+
+        struct.copy(configs =
+          rest.map(l => parseLayout(l.configs.map(_.capitalize).mkString, l.path, false)).toList)
+      }.map(s => s.name -> s).toMap
+
+      val (vhlist, facts) = viewholders.values.map { s =>
+        val wname = wrap(s.name)
+        val rootClass = classForLabel(j, s.rootView).getOrElse("android.view.View")
+        val views = s.views.map {
+          case LayoutView(name, id, viewType) =>
+            val castType = classForLabel(j, viewType).getOrElse("android.view.View")
+            val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
+            s"    lazy val ${wrap(name)} = rootView.findViewById($id)$cast"
+          case LayoutInclude(id, included) => "TODO INCLUDE"
+        }
+        val vh = s"""  case class $wname(val rootView: $rootClass) extends TypedViewHolder[$rootClass] {
+                     |    val rootViewId = ${s.rootId.getOrElse("-1")}
+                     |${views.mkString("\n")}
+                     |  }""".stripMargin
+
+        val vhname = s"TypedViewHolder.${wrap(s.name)}"
+        val f = s"""  implicit val ${s.name}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.${wrap(s.name)}.type] { type VH = $vhname }  = new TypedViewHolderFactory[TR.layout.$wname.type] {
+                    |    type V = $rootClass
+                    |    type VH = $vhname
+                    |    def create(v: V): $vhname = new $vhname(v)
+                    |  }""".stripMargin
+
+        println(vh)
+        println(f)
+        (vh,f)
+      }.unzip
+
+        IO.write(vhs, vhTemplate format (pkg, facts.mkString("\n"), vhlist.mkString("\n")))
+//        Set(vhs)
+//      }(files.toSet).toSeq
+      Seq(vhs)
+    }
   }
 }

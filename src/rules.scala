@@ -235,6 +235,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     },
     sourceGenerators   := sourceGenerators.value ++ List(
       rGenerator.taskValue,
+      viewHoldersGenerator.taskValue,
       typedResourcesGenerator.taskValue,
       aidl.taskValue,
       buildConfigGenerator.taskValue,
@@ -615,8 +616,10 @@ object Plugin extends sbt.Plugin with PluginFail {
     typedResources          <<= autoScalaLibrary,
     typedResourcesFull       := true,
     typedResourcesAar        := false,
+    typedViewHolders        <<= autoScalaLibrary,
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
+    viewHoldersGenerator    <<= viewHoldersGeneratorTaskDef,
     useProguard             <<= proguardScala,
     useProguardInDebug      <<= proguardScala,
     extraResDirectories         := Nil,

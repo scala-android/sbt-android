@@ -301,7 +301,20 @@ object Tasks extends TaskBase {
       packageForR.value, projectLayout.value, platformApi.value,
       platformJars.value, (scalaVersion in ThisProject).value,
       libraryProjects.value, typedResourcesFull.value, typedResourcesAar.value,
+      typedViewHolders.value,
       typedResourcesIgnores.value, streams.value)
+  }
+
+  val viewHoldersGeneratorTaskDef = Def.task {
+    Resources.generateViewHolders(
+      typedResources.value && typedViewHolders.value,
+      packageForR.value,
+      platformJars.value,
+      projectLayout.value,
+      libraryProjects.value,
+      typedResourcesAar.value,
+      typedResourcesIgnores.value,
+      streams.value)
   }
 
   def ndkbuild(manager: AndroidSdkHandler, layout: ProjectLayout, args: Seq[String],

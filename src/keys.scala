@@ -79,6 +79,10 @@ object Keys {
   // resource-related keys
   val typedResourcesGenerator = TaskKey[Seq[File]]("typed-resources-generator",
     "TR.scala generating task") in Android
+  val typedViewHolders = SettingKey[Boolean]("typed-viewholders",
+    "whether to create ViewHolder classes for layouts, default true") in Android
+  val viewHoldersGenerator = TaskKey[Seq[File]]("viewholders-generator",
+    "viewHolders.scala generating task") in Android
   val typedResources = SettingKey[Boolean]("typed-resources",
     "flag indicating whether to generated TR.scala") in Android
   val typedResourcesFull = SettingKey[Boolean]("typed-resources-full",
