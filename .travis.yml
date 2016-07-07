@@ -3,25 +3,33 @@ os:
   - linux
 jdk:
   - oraclejdk8
+
+env:
+  global:
+    - NDK_VERSION=r11c
+    - ANDROID_NDK_HOME=$HOME/android-ndk-$NDK_VERSION
 cache:
   directories:
     - $HOME/.m2/repository
     - $HOME/.sbt
     - $HOME/.ivy2
+    - $ANDROID_NDK_HOME
 android:
   components:
     - sys-img-armeabi-v7a-android-21
     - build-tools-22.0.1
     - build-tools-23.0.1
-    - ndk-bundle
     - platform-tools
     - tools
     - extra
-# Emulator Management: Create, Start and Wait
 before_script:
+  # Emulator Management: Create, Start and Wait
   - echo no | android create avd --force -n test -t android-21 --abi armeabi-v7a
   - emulator -avd test -no-audio -no-window &
   - android-wait-for-emulator
+  - mkdir -p $HOME/.cache/ndk
+  - curl https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux-x86_64.zip -z $ANDROID_NDK_HOME -o $HOME/.cache/ndk/ndk-${NDK_VERSION}.zip
+  - unzip -q $HOME/.cache/ndk/ndk-$NDK_VERSION.zip -d $HOME
   - adb shell input keyevent 82 &
 script:
   - curl -o sbt-launcher.sh https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt
