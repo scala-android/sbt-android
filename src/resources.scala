@@ -635,9 +635,10 @@ object Resources {
       case class LayoutStructure(name: String,
                                  rootView: String, rootId: Option[String],
                                  views: List[LayoutEntry],
-                                 configs: List[LayoutStructure])
+                                 configs: List[LayoutStructure],
+                                 config: Set[String])
 
-      def parseLayout(n: String, f: File, includeRoot: Boolean): LayoutStructure = {
+      def parseLayout(n: String, f: File, configs: Set[String], includeRoot: Boolean): LayoutStructure = {
         val xml = XML.loadFile(f)
         val (r,c) = xml.descendant_or_self.foldLeft((Option.empty[(Option[String],String)],List.empty[LayoutEntry])) { case ((root, children), n) =>
           val viewId = n.attribute(ANDROID_NS, "id") map { _.head.text } match {
@@ -681,7 +682,7 @@ object Resources {
             (root, LayoutView(viewId.get._1, viewId.get._2, n.label) :: children)
           }
         }
-        LayoutStructure(n, r.fold("")(_._2), r.flatMap(_._1), c, Nil)
+        LayoutStructure(n, r.fold("")(_._2), r.flatMap(_._1), c, Nil, configs)
       }
       val ig = ignores.toSet
       val libsToProcess = libs filterNot {
@@ -703,73 +704,89 @@ object Resources {
           resourceUrl("viewHolders.scala.template")) mkString "\n"
         vhs.delete()
 
-      val layouts = files.map { f =>
-        val parent = f.getParentFile.getName
-        LayoutFile(f.getName.stripSuffix(".xml"), parent.split("-").toList.drop(1).sorted, f)
-      }
-      val grouped = layouts.groupBy(_.name).mapValues(_.sorted)
-      val viewholders = grouped.map { case (n, data) =>
-        val main = data.head
-        val rest = data.drop(1)
-        val struct = parseLayout(main.name, main.path, false)
+        val layouts = files.map { f =>
+          val parent = f.getParentFile.getName
+          LayoutFile(f.getName.stripSuffix(".xml"), parent.split("-").toList.drop(1).sorted, f)
+        }
+        val grouped = layouts.groupBy(_.name).mapValues(_.sorted)
+        val viewholders = grouped.map { case (n, data) =>
+          val main = data.head
+          val rest = data.drop(1)
+          val struct = parseLayout(main.name, main.path, Set.empty, false)
 
-        struct.copy(configs =
-          rest.map(l => parseLayout(l.configs.map(_.capitalize).mkString, l.path, false)).toList)
-      }.map(s => s.name -> s).toMap
+          struct.copy(configs =
+            rest.map(l => parseLayout(l.configs.map(_.capitalize).mkString, l.path, l.configs.toSet, false)).toList)
+        }.map(s => s.name -> s).toMap
 
-      val alternatives = 2 to 99
-      def takeAlternative(seen: Set[String], name: String): String = {
-        if (!seen(name)) name
-        else name + alternatives.dropWhile(i => seen(name + i)).head
-      }
+        val alternatives = 2 to 99
+        def takeAlternative(seen: Set[String], name: String): String = {
+          if (!seen(name)) name
+          else name + alternatives.dropWhile(i => seen(name + i)).head
+        }
 
-      def processViews(views: List[LayoutEntry], _seen: Set[String] = Set.empty): (Set[String],List[String]) = {
-        views.foldLeft((_seen,List.empty[String])) { case ((seen,items), e) => e match {
-          case LayoutView(name, id, viewType) =>
-            if (seen(name))
-              (seen, items)
-            else {
-              val castType = classForLabel(j, viewType).getOrElse("android.view.View")
-              val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
-              val actualName = takeAlternative(seen, name)
-              (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
-            }
-          case LayoutInclude(id, included) =>
-            val vh = viewholders(included)
-            val actualIncluded = takeAlternative(seen, included)
-            val wrapi = wrap(actualIncluded)
-            if (vh.rootView == "merge") {
-              (seen + actualIncluded, s"    lazy val $wrapi = new TypedViewHolder.$wrapi(rootView)" :: items)
-            } else {
-              id.orElse(vh.rootId).fold {
-                val (newseen, newviews) = processViews(vh.views, seen)
-                (newseen, newviews ++ items)
-              } { i =>
-                val castType = classForLabel(j, vh.rootView).getOrElse("android.view.View")
+        def findClosestConfig(required: Set[String], items: List[LayoutStructure]): LayoutStructure =
+        // included head already, skip
+          items.drop(1).foldLeft((0,items.head)) { case ((count, best), i) =>
+            if (i.config.forall(required) && count < i.config.size)
+              (i.config.size, i)
+            else
+              (count,best)
+          }._2
+
+        def processViews(structure: LayoutStructure, _seen: Set[String] = Set.empty): (Set[String],List[String]) = {
+          structure.views.foldLeft((_seen,List.empty[String])) { case ((seen,items), e) => e match {
+            case LayoutView(name, id, viewType) =>
+              if (seen(name))
+                (seen, items)
+              else {
+                val castType = classForLabel(j, viewType).getOrElse("android.view.View")
                 val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
-                (seen + i, s"    lazy val $wrapi = new TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
+                val actualName = takeAlternative(seen, name)
+                (seen + actualName, s"    final lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
               }
-            }
-        }}
-      }
-      val (vhlist, facts) = viewholders.values.map { s =>
-        val wname = wrap(s.name)
-        val rootClass = classForLabel(j, s.rootView).getOrElse("android.view.View")
-        val (_, views) = processViews(s.views)
-        val vh = s"""  case class $wname(val rootView: $rootClass) extends TypedViewHolder[$rootClass] {
-                     |    val rootViewId = ${s.rootId.getOrElse("-1")}
-                     |${views.mkString("\n")}
-                     |  }""".stripMargin
+            case LayoutInclude(id, included) =>
+              val vh = viewholders(included)
+              val actualIncluded = takeAlternative(seen, included)
+              val wrapi = wrap(actualIncluded)
+              if (vh.rootView == "merge") {
+                (seen + actualIncluded, s"    final lazy val $wrapi = new TypedViewHolder.$wrapi(rootView)" :: items)
+              } else {
+                id.orElse(vh.rootId).fold {
+                  val (newseen, newviews) = processViews(findClosestConfig(structure.config, vh :: vh.configs), seen)
+                  (newseen, newviews ++ items)
+                } { i =>
+                  val castType = classForLabel(j, vh.rootView).getOrElse("android.view.View")
+                  val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
+                  (seen + i, s"    final lazy val $wrapi = new TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
+                }
+              }
+          }}
+        }
+        val (vhlist, facts) = viewholders.values.map { s =>
+          val wname = wrap(s.name)
+          val rootClass = classForLabel(j, s.rootView).getOrElse("android.view.View")
+          val (_, views) = processViews(s)
+          val configs = s.configs map { cfg =>
+            val (_,cfgviews) = processViews(cfg)
+            s"""    object ${cfg.name} {
+                |${cfgviews.map("  " + _).mkString("\n")}
+                |    }""".stripMargin
+          }
+          val vh = s"""  final case class $wname(val rootView: $rootClass) extends TypedViewHolder[$rootClass] {
+                       |    final val rootViewId = ${s.rootId.getOrElse("-1")}
+                       |${views.mkString("\n")}
+                       |${configs.mkString("\n")}
+                       |  }""".stripMargin
 
-        val vhname = s"TypedViewHolder.${wrap(s.name)}"
-        val f = s"""  implicit val ${s.name}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.${wrap(s.name)}.type] { type VH = $vhname }  = new TypedViewHolderFactory[TR.layout.$wname.type] {
-                    |    type V = $rootClass
-                    |    type VH = $vhname
-                    |    def create(v: V): $vhname = new $vhname(v)
-                    |  }""".stripMargin
+          val vhname = s"TypedViewHolder.${wrap(s.name)}"
+          val f = s"""  implicit val ${s.name}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.${wrap(s.name)}.type] { type VH = $vhname }  = new TypedViewHolderFactory[TR.layout.$wname.type] {
+                      |    type V = $rootClass
+                      |    type VH = $vhname
+                      |    def create(v: V): $vhname = new $vhname(v)
+                      |  }""".stripMargin
 
-        (vh,f)
-      }.unzip
+          (vh,f)
+        }.unzip
 
         IO.write(vhs, vhTemplate format (pkg, facts.mkString("\n"), vhlist.mkString("\n")) replace ("\r", ""))
         Set(vhs)

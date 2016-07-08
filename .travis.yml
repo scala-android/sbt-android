@@ -13,7 +13,6 @@ cache:
     - $HOME/.m2/repository
     - $HOME/.sbt
     - $HOME/.ivy2
-    - $ANDROID_NDK_HOME
 android:
   components:
     - sys-img-armeabi-v7a-android-21
