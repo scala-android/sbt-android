@@ -772,7 +772,7 @@ object Resources {
                 |${cfgviews.map("  " + _).mkString("\n")}
                 |    }""".stripMargin
           }
-          val vh = s"""  final case class $wname(val rootView: $rootClass) extends TypedViewHolder[$rootClass] {
+          val vh = s"""  final case class $wname(rootView: $rootClass) extends TypedViewHolder[$rootClass] {
                        |    final val rootViewId = ${s.rootId.getOrElse("-1")}
                        |${views.mkString("\n")}
                        |${configs.mkString("\n")}
