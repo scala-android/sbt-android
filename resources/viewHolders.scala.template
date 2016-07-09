@@ -2,7 +2,6 @@ package %s
 
 import android.app.Activity
 import android.view.{LayoutInflater, View, ViewGroup}
-import android.widget._
 
 trait TypedViewHolder[T <: View] {
   val rootViewId: Int

@@ -742,14 +742,14 @@ object Resources {
                 val castType = classForLabel(j, viewType).getOrElse("android.view.View")
                 val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
                 val actualName = takeAlternative(seen, name)
-                (seen + actualName, s"    final lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
+                (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
               }
             case LayoutInclude(id, included) =>
               val vh = viewholders(included)
               val actualIncluded = takeAlternative(seen, included)
               val wrapi = wrap(actualIncluded)
               if (vh.rootView == "merge") {
-                (seen + actualIncluded, s"    final lazy val $wrapi = new TypedViewHolder.$wrapi(rootView)" :: items)
+                (seen + actualIncluded, s"    lazy val $wrapi = new TypedViewHolder.$wrapi(rootView)" :: items)
               } else {
                 id.orElse(vh.rootId).fold {
                   val (newseen, newviews) = processViews(findClosestConfig(structure.config, vh :: vh.configs), seen)
@@ -757,7 +757,7 @@ object Resources {
                 } { i =>
                   val castType = classForLabel(j, vh.rootView).getOrElse("android.view.View")
                   val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
-                  (seen + i, s"    final lazy val $wrapi = new TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
+                  (seen + i, s"    lazy val $wrapi = new TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
                 }
               }
           }}
@@ -773,7 +773,7 @@ object Resources {
                 |    }""".stripMargin
           }
           val vh = s"""  final case class $wname(rootView: $rootClass) extends TypedViewHolder[$rootClass] {
-                       |    final val rootViewId = ${s.rootId.getOrElse("-1")}
+                       |    val rootViewId = ${s.rootId.getOrElse("-1")}
                        |${views.mkString("\n")}
                        |${configs.mkString("\n")}
                        |  }""".stripMargin
