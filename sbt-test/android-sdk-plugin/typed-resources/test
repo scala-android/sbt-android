@@ -1,3 +1,4 @@
 > android:typed-resources-generator
 > compile
 > android:test
+> android:uninstall
