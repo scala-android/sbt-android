@@ -1,6 +1,6 @@
 ## New features in 1.6.x ##
 
-* `1.6.7`: SNAPSHOT WORK IN PROGRESS
+* `1.6.7`:
   * New TypedViewHolder bindings, automatically generated from layout
     XML to create type-safe and static bindings to layout views
     * `val viewholder: TypedViewHolder.XXX = TypedViewHolder.setContentView(activity, TR.layout.XXX)`
@@ -26,9 +26,11 @@
       * This is compilation-time binding only. Any runtime layout
         changes: additions/removals will not be handled
     * Enabled by default if scala is present in project, disable by
-      setting `typedViewHolders := false`
-  * Typed resources no longer generated for aar by default,
-    re-enable by setting `typedResourcesAar := true`
+      setting `typedViewHolders := false`, requires `typedResources` to
+      be enabled.
+  * Typed resources are no longer generated for aar by default,
+    re-enable by setting `typedResourcesAar := true`; build performance
+    improvements
 * `1.6.6`:
   * handle vector drawable rasterization for `24.0.0` support libraries
   * fix `proguardCache` change check
