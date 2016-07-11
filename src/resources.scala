@@ -736,14 +736,13 @@ object Resources {
         def processViews(structure: LayoutStructure, _seen: Set[String] = Set.empty): (Set[String],List[String]) = {
           structure.views.foldLeft((_seen,List.empty[String])) { case ((seen,items), e) => e match {
             case LayoutView(name, id, viewType) =>
-              if (seen(name))
-                (seen, items)
-              else {
-                val castType = classForLabel(j, viewType).getOrElse("android.view.View")
-                val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
-                val actualName = takeAlternative(seen, name)
-                (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
+              val castType = classForLabel(j, viewType).getOrElse("android.view.View")
+              val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
+              val actualName = takeAlternative(seen, name)
+              if (seen(name)) {
+                s.log.warn(s"name '$name' already used in '${structure.name}', using '$actualName'")
               }
+              (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
             case LayoutInclude(id, included) =>
               val vh = viewholders(included)
               val actualIncluded = takeAlternative(seen, included)

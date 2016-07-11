@@ -23,6 +23,8 @@
         the resulting error highlight rather than allowing IntelliJ to
         infer, see
         [SCL-10491](https://youtrack.jetbrains.com/issue/SCL-10491)
+      * This is compilation-time binding only. Any runtime layout
+        changes: additions/removals will not be handled
     * Enabled by default if scala is present in project, disable by
       setting `typedViewHolders := false`
   * Typed resources no longer generated for aar by default,
