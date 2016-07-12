@@ -1,5 +1,14 @@
 ## New features in 1.6.x ##
 
+* `1.6.8`: SNAPSHOT WIP
+  * TypedViewHolder usability improvements
+    * better error messaging when `<include>` layouts are missing
+    * automatically setTag on TypedViewHolder creation
+    * `TypedViewHolder.from(view, TR.layout.XXX)` to retrieve a correctly
+      tagged viewholder
+    * when `rootView` has an associated id, create a named field for the
+      `rootView`
+  * consider `proguardOptions` when forcing a clean build due to config change
 * `1.6.7`:
   * New TypedViewHolder bindings, automatically generated from layout
     XML to create type-safe and static bindings to layout views
