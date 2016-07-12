@@ -828,7 +828,7 @@ object Plugin extends sbt.Plugin with PluginFail {
           (d ** "*.scala").get.nonEmpty)
     },
     // make streams dependOn because coursier replaces `update`
-    streams in update <<= (streams in update) dependsOn m2repoCheck dependsOn stableProguardCache,
+    streams in update <<= (streams in update) dependsOn m2repoCheck dependsOn stableProguardConfig,
     crossPaths        <<= autoScalaLibrary,
     resolvers        <++= sdkPath { p =>
       Seq(SdkLayout.googleRepository(p), SdkLayout.androidRepository(p))
@@ -849,16 +849,20 @@ object Plugin extends sbt.Plugin with PluginFail {
     managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
   )
 
-  private[this] val stableProguardCache = Def.taskDyn {
-    val cachecheckdir = streams.value.cacheDirectory / "proguardCacheCheck"
-    val rulecheck = (cachecheckdir * "*").get.headOption.map(_.getName)
+  private[this] val stableProguardConfig = Def.taskDyn {
+    val checkdir = streams.value.cacheDirectory / "proguardRuleCheck"
+    val rulecheck = (checkdir * "*").get.toList.map(_.getName).sorted
     val ruleHash = Hash.toHex(Hash(proguardCache.value.mkString(";")))
-    if (rulecheck.exists (_ != ruleHash) && useProguardInDebug.value) Def.task {
-      streams.value.log.warn("proguardCache rules have changed, forcing clean build")
+    val optionHash = Hash.toHex(Hash(proguardOptions.value.mkString(";")))
+    val checkfiles = List(ruleHash, optionHash).sorted
+
+    if (rulecheck.nonEmpty && checkfiles != rulecheck && useProguardInDebug.value) Def.task {
+      streams.value.log.warn("proguard rules have changed, forcing clean build")
       val _ = (clean in Compile).value
     } else Def.task {
-      cachecheckdir.mkdirs()
-      IO.touch(cachecheckdir / ruleHash)
+      checkdir.mkdirs()
+      IO.touch(checkdir / ruleHash)
+      IO.touch(checkdir / optionHash)
     }
   }
 }
