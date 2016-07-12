@@ -744,6 +744,13 @@ object Resources {
               }
               (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
             case LayoutInclude(id, included) =>
+              if (!viewholders.contains(included)) {
+                Plugin.fail(
+                  s"""Included layout $included in ${structure.name} was not found
+                     |perhaps you need to set `typedResourcesAar := true`
+                     |or disable TypedViewHolders `typedViewHolders := false`"""
+                    .stripMargin)
+              }
               val vh = viewholders(included)
               val actualIncluded = takeAlternative(seen, included)
               val wrapi = wrap(actualIncluded)
