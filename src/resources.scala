@@ -718,10 +718,14 @@ object Resources {
             rest.map(l => parseLayout(l.configs.map(_.capitalize).mkString, l.path, l.configs.toSet, false)).toList)
         }.map(s => s.name -> s).toMap
 
-        val alternatives = 2 to 99
+        def alternatives: Stream[Int] = 2 #:: alternatives.map(_ + 1)
         def takeAlternative(seen: Set[String], name: String): String = {
           if (!seen(name)) name
-          else name + alternatives.dropWhile(i => seen(name + i)).head
+          else {
+            val newname = name + alternatives.dropWhile(i => seen(name + i)).head
+            s.log.warn("id/layout $name already used, falling back to $newname")
+            newname
+          }
         }
 
         def findClosestConfig(required: Set[String], items: List[LayoutStructure]): LayoutStructure =
@@ -733,7 +737,7 @@ object Resources {
               (count,best)
           }._2
 
-        def processViews(structure: LayoutStructure, _seen: Set[String] = Set.empty): (Set[String],List[String]) = {
+        def processViews(structure: LayoutStructure, _seen: Set[String] = Set("rootView", "rootViewId")): (Set[String],List[String]) = {
           structure.views.foldLeft((_seen,List.empty[String])) { case ((seen,items), e) => e match {
             case LayoutView(name, id, viewType) =>
               val castType = classForLabel(j, viewType).getOrElse("android.view.View")
@@ -768,8 +772,9 @@ object Resources {
               }
           }}
         }
-        val (vhlist, facts) = viewholders.values.map { s =>
-          val wname = wrap(s.name)
+        val (vhlist, facts) = viewholders.values.foldLeft((Set("setContentView", "inflate", "from"),List.empty[(String,String)])) { case ((seen, xs),s) =>
+          val actualName = takeAlternative(seen, s.name)
+          val wname = wrap(actualName)
           val rootClass = classForLabel(j, s.rootView).getOrElse("android.view.View")
           val (_, views) = processViews(s)
           val configs = s.configs map { cfg =>
@@ -779,20 +784,21 @@ object Resources {
                 |    }""".stripMargin
           }
           val vh = s"""  final case class $wname(rootView: $rootClass) extends TypedViewHolder[$rootClass] {
-                       |    val rootViewId = ${s.rootId.getOrElse("-1")}
-                       |${views.mkString("\n")}
-                       |${configs.mkString("\n")}
-                       |  }""".stripMargin
+                      |    val rootViewId = ${s.rootId.getOrElse("-1")}
+                      |    rootView.setTag(R.layout.$wname, this)
+                      |${views.mkString("\n")}
+                      |${configs.mkString("\n")}
+                      |  }""".stripMargin
 
-          val vhname = s"TypedViewHolder.${wrap(s.name)}"
-          val f = s"""  implicit val ${s.name}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.${wrap(s.name)}.type] { type VH = $vhname }  = new TypedViewHolderFactory[TR.layout.$wname.type] {
+          val vhname = s"TypedViewHolder.$wname"
+          val f = s"""  implicit val ${actualName}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.$wname.type] { type VH = $vhname }  = new TypedViewHolderFactory[TR.layout.$wname.type] {
                       |    type V = $rootClass
                       |    type VH = $vhname
                       |    def create(v: V): $vhname = new $vhname(v)
                       |  }""".stripMargin
 
-          (vh,f)
-        }.unzip
+          (seen + actualName,(vh,f) :: xs)
+        }._2.unzip
 
         IO.write(vhs, vhTemplate format (pkg, facts.mkString("\n"), vhlist.mkString("\n")) replace ("\r", ""))
         Set(vhs)

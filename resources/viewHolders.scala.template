@@ -19,8 +19,7 @@ object TypedViewHolderFactory {
 }
 
 object TypedViewHolder {
-  def setContentView[T <: View]
-  (activity: Activity, layout: TypedLayout[T])
+  def setContentView(activity: Activity, layout: TypedLayout[_])
   (implicit ev: TypedViewHolderFactory[layout.type]): ev.VH = {
     val contentView = activity.getWindow.getDecorView.findViewById(
       android.R.id.content).asInstanceOf[ViewGroup]
@@ -29,10 +28,15 @@ object TypedViewHolder {
     holder.asInstanceOf[ev.VH] // harmless cast, appease intellij
   }
 
-  def inflate[T <: View]
-  (inflater: LayoutInflater, layout: TypedLayout[T], parent: ViewGroup, attach: Boolean)
+  def inflate(inflater: LayoutInflater, layout: TypedLayout[_], parent: ViewGroup, attach: Boolean)
   (implicit ev: TypedViewHolderFactory[layout.type]): ev.VH = {
     ev.create(inflater.inflate(layout.id, parent, attach).asInstanceOf[ev.V])
+  }
+  def from(view: View, layout: TypedLayout[_])
+  (implicit ev: TypedViewHolderFactory[layout.type]): ev.VH = {
+    val vh = view.getTag(layout.id)
+    if (vh == null) throw new IllegalStateException("ViewHolder not set for " + layout)
+    vh.asInstanceOf[ev.VH]
   }
 %s
 }
