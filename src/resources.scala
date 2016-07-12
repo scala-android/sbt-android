@@ -638,25 +638,21 @@ object Resources {
                                  configs: List[LayoutStructure],
                                  config: Set[String])
 
+      def idNameFromString(s: String): Option[(String,String)] = s match {
+        case re(id)     => Some((wrap(id), s"R.id.${wrap(id)}"))
+        case re2(p, id) => Some((wrap(id), s"$p.R.id.${wrap(id)}"))
+        case _          => None
+      }
       def parseLayout(n: String, f: File, configs: Set[String], includeRoot: Boolean): LayoutStructure = {
         val xml = XML.loadFile(f)
         val (r,c) = xml.descendant_or_self.foldLeft((Option.empty[(Option[String],String)],List.empty[LayoutEntry])) { case ((root, children), n) =>
-          val viewId = n.attribute(ANDROID_NS, "id") map { _.head.text } match {
-            case Some(re(id))       => Some((wrap(id), s"R.id.${wrap(id)}"))
-            case Some(re2(p, id))   => Some((wrap(id), s"$p.R.id.${wrap(id)}"))
-            case _                  => None
-          }
-          // TODO handle 'include' and 'merge'
+          val viewId = n.attribute(ANDROID_NS, "id") map { _.head.text } flatMap idNameFromString
           if (n.label == "layout" || n.label == "#PCDATA") // noop, skip
             (root,children)
           else if (n.label == "fragment")
             (root,children)
           else if (n.label == "include") {
-            val includeId = n.attribute(ANDROID_NS, "id") map (_.head.text) match {
-              case Some(re(id))       => Some(s"R.id.${wrap(id)}")
-              case Some(re2(p, id))   => Some(s"$p.R.id.${wrap(id)}")
-              case _                  => None
-            }
+            val includeId = n.attribute(ANDROID_NS, "id") map (_.head.text) flatMap idNameFromString map (_._2)
             val includeLayout = n.attribute("layout").fold("")(_.head.text)
             includeLayout match {
               case includedre(l) =>
@@ -737,7 +733,7 @@ object Resources {
               (count,best)
           }._2
 
-        def processViews(structure: LayoutStructure, _seen: Set[String] = Set("rootView", "rootViewId")): (Set[String],List[String]) = {
+        def processViews(structure: LayoutStructure, _seen: Set[String]): (Set[String],List[String]) = {
           structure.views.foldLeft((_seen,List.empty[String])) { case ((seen,items), e) => e match {
             case LayoutView(name, id, viewType) =>
               val castType = classForLabel(j, viewType).getOrElse("android.view.View")
@@ -776,16 +772,20 @@ object Resources {
           val actualName = takeAlternative(seen, s.name)
           val wname = wrap(actualName)
           val rootClass = classForLabel(j, s.rootView).getOrElse("android.view.View")
-          val (_, views) = processViews(s)
+          val (_, views) = processViews(s, Set("rootView", "rootViewId") ++ s.rootId.map(_.split('.').last))
           val configs = s.configs map { cfg =>
-            val (_,cfgviews) = processViews(cfg)
+            val (_,cfgviews) = processViews(cfg, Set("rootView", "rootViewId") ++ s.rootId.map(_.split('.').last))
             s"""    object ${cfg.name} {
-                |${cfgviews.map("  " + _).mkString("\n")}
-                |    }""".stripMargin
+               |${cfgviews.map("  " + _).mkString("\n")}
+               |    }""".stripMargin
+          }
+          val rootName = s.rootId.fold("") { id =>
+            val n = wrap(id.split('.').last)
+            s"\n    val $n = rootView"
           }
           val vh = s"""  final case class $wname(rootView: $rootClass) extends TypedViewHolder[$rootClass] {
                       |    val rootViewId = ${s.rootId.getOrElse("-1")}
-                      |    rootView.setTag(R.layout.$wname, this)
+                      |    rootView.setTag(R.layout.$wname, this)$rootName
                       |${views.mkString("\n")}
                       |${configs.mkString("\n")}
                       |  }""".stripMargin
