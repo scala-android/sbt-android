@@ -1,0 +1,6 @@
+> android:install
+$ copy-file sample.scala-tmp src/main/scala/com/example/sample.scala
+> protify
+$ copy-file strings.xml-tmp src/main/res/values/strings.xml
+> protify
+> android:uninstall
