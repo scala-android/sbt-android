@@ -9,6 +9,10 @@
     * when `rootView` has an associated id, create a named field for the
       `rootView`
   * consider `proguardOptions` when forcing a clean build due to config change
+  * Added test cases to ensure compatibility with `sbt-structure` and `protify`
+    * In order to successfully import `sbt-android` projects into IntelliJ
+      until JetBrains/sbt-structure#41 is merged, download
+      [sbt-structure-0.13.jar](sbt-test/android-sdk-plugin/sbt-structure-compatibility/project/lib/sbt-structure-0.13.jar) from the test case
 * `1.6.7`:
   * New TypedViewHolder bindings, automatically generated from layout
     XML to create type-safe and static bindings to layout views
