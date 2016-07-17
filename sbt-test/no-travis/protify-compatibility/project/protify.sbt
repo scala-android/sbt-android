@@ -1,1 +1,1 @@
-addSbtPlugin("org.scala-android" % "sbt-android-protify" % "1.2.6")
+addSbtPlugin("org.scala-android" % "sbt-android-protify" % "1.3.0-SNAPSHOT")

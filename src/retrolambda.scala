@@ -53,9 +53,10 @@ object RetrolambdaSupport {
       }((dest ** "*.class" get).toSet)
       IO.jar((PathFinder(dest) ***) pair rebase(dest, "") filter (
         _._1.getName endsWith ".class"), finalJar, new java.util.jar.Manifest)
+      finalJar :: (classpath.toSet -- java8jars).toList
+    } else {
+      classpath
     }
-
-    finalJar :: (classpath.toSet -- java8jars).toList
   }
 }
 
