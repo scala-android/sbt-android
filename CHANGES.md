@@ -1,6 +1,6 @@
 ## New features in 1.6.x ##
 
-* `1.6.8`: SNAPSHOT WIP
+* `1.6.8`:
   * TypedViewHolder usability improvements
     * better error messaging when `<include>` layouts are missing
     * automatically setTag on TypedViewHolder creation

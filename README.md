@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/scala-android/sbt-android.svg?branch=master)](https://travis-ci.org/scala-android/sbt-android)
 [![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.6.7 ([Change log](CHANGES.md))
+Current version is 1.6.8 ([Change log](CHANGES.md))
 
 Auto-import from gradle using [sbt-android-gradle](GRADLE.md)
 
@@ -61,7 +61,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    in the file `~/.sbt/0.13/plugins/android.sbt`:
     
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.7")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.8")
    ```
    
 2. Set the environment variable `ANDROID_HOME` pointing to the path where the
@@ -82,7 +82,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    following line:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.7")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.8")
    ```
 
 5. Create or edit the file named `build.sbt` and add the
