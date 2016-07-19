@@ -594,13 +594,16 @@ object Plugin extends sbt.Plugin with PluginFail {
       val usesSdk = m \ "uses-sdk"
       val v = String.valueOf(platformApi.value)
       if (usesSdk.isEmpty) v else
-        usesSdk(0).attribute(ANDROID_NS, "targetSdkVersion").fold(v) { _.head.text }
+        usesSdk.head.attribute(ANDROID_NS, "targetSdkVersion").fold(v) { _.head.text }
     },
     minSdkVersion            := {
       val m = manifest.value
+      val defmin = 19
+      val tgt = Try(targetSdkVersion.value.toInt).getOrElse(defmin)
+      val usemin = math.min(defmin, tgt).toString
       val usesSdk = m \ "uses-sdk"
-      if (usesSdk.isEmpty) "9" else
-        usesSdk(0).attribute(ANDROID_NS, "minSdkVersion").fold("7") { _.head.text }
+      if (usesSdk.isEmpty) usemin else
+        usesSdk.head.attribute(ANDROID_NS, "minSdkVersion").fold(usemin) { _.head.text }
     },
     proguardVersion          := "5.0",
     proguardCache            := "scala" :: Nil,
