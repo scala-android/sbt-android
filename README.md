@@ -156,6 +156,12 @@ found on the #sbt-android IRC channel on Freenode, or the
         6. Select the newly added AAR module above, and it will now be visible.
       * Steps 5 and 6 will need to be repeated any time the build description
         is refreshed (SBT toolwindow -> refresh)
+      * This has been fixed by
+        [JetBrains/sbt-structure#42](https://github.com/JetBrains/sbt-structure/pull/42)
+        * Until it gets merged, can download
+          [sbt-structure-0.13.jar](sbt-test/android-sdk-plugin/sbt-structure-compatibility/project/lib/sbt-structure-0.13.jar)
+          from the test case and place it into
+          `$HOME/.IntelliJVERSION/config/plugins/scala/launcher/sbt-structure-0.13.jar`
 * Consuming apklib and aar artifacts from other projects
   * Optionally use `apklib()` or `aar()`
     * specifying `apklib()` and `aar()` are only necessary if there are multiple
