@@ -94,7 +94,9 @@ object TypedResource {
     type T = Animator
     @TargetApi(11)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
-      AnimatorInflater.loadAnimator(c, resid)
+      if (android.os.Build.VERSION.SDK_INT >= 11)
+       AnimatorInflater.loadAnimator(c, resid)
+      else ???
   }
   implicit val trIntegerArrayValueOp: TypedResValueOp[ResIntegerArray] { type T = Array[Int] } = new TypedResValueOp[ResIntegerArray] {
     type T = Array[Int]
