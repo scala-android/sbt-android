@@ -718,9 +718,7 @@ object Resources {
         def takeAlternative(seen: Set[String], name: String): String = {
           if (!seen(name)) name
           else {
-            val newname = name + alternatives.dropWhile(i => seen(name + i)).head
-            s.log.warn(s"id/layout $name already used, falling back to $newname")
-            newname
+            name + alternatives.dropWhile(i => seen(name + i)).head
           }
         }
 
@@ -740,7 +738,7 @@ object Resources {
               val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
               val actualName = takeAlternative(seen, name)
               if (seen(name)) {
-                s.log.warn(s"name '$name' already used in '${structure.name}', using '$actualName'")
+                s.log.warn(s"TVH: '$name' already used in '${structure.name}', using '$actualName'")
               }
               (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
             case LayoutInclude(id, included) =>
@@ -753,9 +751,11 @@ object Resources {
               }
               val vh = viewholders(included)
               val actualIncluded = takeAlternative(seen, included)
+              if (seen(included))
+                s.log.warn(s"TVH: '$included' already used in '${structure.name}', using '$actualIncluded'")
               val wrapi = wrap(actualIncluded)
               if (vh.rootView == "merge") {
-                (seen + actualIncluded, s"    lazy val $wrapi = new TypedViewHolder.$wrapi(rootView)" :: items)
+                (seen + actualIncluded, s"    lazy val $wrapi = new TypedViewHolder.${wrap(included)}(rootView)" :: items)
               } else {
                 id.orElse(vh.rootId).fold {
                   val (newseen, newviews) = processViews(findClosestConfig(structure.config, vh :: vh.configs), seen)
@@ -768,30 +768,32 @@ object Resources {
               }
           }}
         }
-        val (vhlist, facts) = viewholders.values.foldLeft((Set("setContentView", "inflate", "from"),List.empty[(String,String)])) { case ((seen, xs),s) =>
-          val actualName = takeAlternative(seen, s.name)
+        val (vhlist, facts) = viewholders.values.foldLeft((Set("setContentView", "inflate", "from"),List.empty[(String,String)])) { case ((seen, xs),struct) =>
+          val actualName = takeAlternative(seen, struct.name)
+          if (seen(struct.name))
+            s.log.warn(s"TVH: '${struct.name}' already used in 'TypedViewHolder', using '$actualName'")
           val wname = wrap(actualName)
-          val rootClass = classForLabel(j, s.rootView).getOrElse("android.view.View")
-          val (_, views) = processViews(s, Set("rootView", "rootViewId") ++ s.rootId.map(_.split('.').last))
-          val configs = s.configs map { cfg =>
-            val (_,cfgviews) = processViews(cfg, Set("rootView", "rootViewId") ++ s.rootId.map(_.split('.').last))
+          val rootClass = classForLabel(j, struct.rootView).getOrElse("android.view.View")
+          val (_, views) = processViews(struct, Set("rootView", "rootViewId") ++ struct.rootId.map(_.split('.').last))
+          val configs = struct.configs map { cfg =>
+            val (_,cfgviews) = processViews(cfg, Set("rootView", "rootViewId") ++ struct.rootId.map(_.split('.').last))
             s"""    object ${cfg.name} {
                |${cfgviews.map("  " + _).mkString("\n")}
                |    }""".stripMargin
           }
-          val rootName = s.rootId.fold("") { id =>
+          val rootName = struct.rootId.fold("") { id =>
             val n = wrap(id.split('.').last)
             s"\n    val $n = rootView"
           }
           val vh = s"""  final case class $wname(rootView: $rootClass) extends TypedViewHolder[$rootClass] {
-                      |    val rootViewId = ${s.rootId.getOrElse("-1")}
-                      |    rootView.setTag(R.layout.$wname, this)$rootName
+                      |    val rootViewId = ${struct.rootId.getOrElse("-1")}
+                      |    rootView.setTag(R.layout.${wrap(struct.name)}, this)$rootName
                       |${views.mkString("\n")}
                       |${configs.mkString("\n")}
                       |  }""".stripMargin
 
           val vhname = s"TypedViewHolder.$wname"
-          val f = s"""  implicit val ${actualName}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.$wname.type] { type VH = $vhname }  = new TypedViewHolderFactory[TR.layout.$wname.type] {
+          val f = s"""  implicit val ${actualName}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.${wrap(struct.name)}.type] { type VH = $vhname }  = new TypedViewHolderFactory[TR.layout.${wrap(struct.name)}.type] {
                       |    type V = $rootClass
                       |    type VH = $vhname
                       |    def create(v: V): $vhname = new $vhname(v)
