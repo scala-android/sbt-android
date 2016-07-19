@@ -719,7 +719,7 @@ object Resources {
           if (!seen(name)) name
           else {
             val newname = name + alternatives.dropWhile(i => seen(name + i)).head
-            s.log.warn("id/layout $name already used, falling back to $newname")
+            s.log.warn(s"id/layout $name already used, falling back to $newname")
             newname
           }
         }
