@@ -59,11 +59,11 @@ found on the #sbt-android IRC channel on Freenode, or the
    local packaging system like macports, brew, etc.)
    * (OPTIONAL) Install the plugin globally by adding the following line
    in the file `~/.sbt/0.13/plugins/android.sbt`:
-    
+
    ```
    addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.8")
    ```
-   
+
 2. Set the environment variable `ANDROID_HOME` pointing to the path where the
    Android SDK is installed.  If `ANDROID_HOME` is not set, an Android SDK
    will be installed automatically at `~/.android/sbt/sdk`. If any components
@@ -72,11 +72,13 @@ found on the #sbt-android IRC channel on Freenode, or the
      already installed. If neither are set, or an NDK is not installed, an
      NDK will be installed to `~/.android/sbt/sdk/ndk-bundle` automatically
      if an NDK build is detected (Android.mk and friends)
+
 3. Create a new android project using `gen-android` if the plugin is installed
    globally
    * Instead of creating a new project, one can also do
      `sbt gen-android-sbt` to make sure everything is properly setup
      in an existing project.
+
 4. (N/A if globally configured) Create a directory named `project` within
    your project and add the file `project/plugins.sbt`, in it, add the
    following line:
@@ -87,10 +89,19 @@ found on the #sbt-android IRC channel on Freenode, or the
 
 5. Create or edit the file named `build.sbt` and add the
    following line, (automatically performed if using `gen-android`) :
-   
+
    ```
    androidBuild
    ```
+
+6. Select the target platform API you're building against in `build.sbt`:
+
+   ```
+   // for Android 5.0, Lollipop, API Level 21:
+   platformTarget in Android := "android-21"
+   ```
+
+   The Android Developer pages provides a [list of applicable version codes](https://developer.android.com/guide/topics/manifest/uses-sdk-element.html#ApiLevels).
 
 6. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
@@ -130,13 +141,14 @@ found on the #sbt-android IRC channel on Freenode, or the
 * IDE integration
   * The recommended IDE is IntelliJ, not Android Studio. However Android Studio
     can be used with some massaging (i.e install the Scala Plugin).
-  * When loading a project into IntelliJ, it is required that the `Android`
-    and `Scala` plugins are installed
+  * When loading a project into IntelliJ, it is required that the
+    [`Android Support`](https://plugins.jetbrains.com/plugin/1792) and `Scala`
+    plugins are installed.
   * To ensure proper building, configure the IDE `Run` command to execute an SBT
     `android:package` task instead of `Make` (remove the make entry); this is
-    found under `Run Configurations`
+    found under `Run Configurations`.
   * The SBT plugin for IntelliJ is the one from
-    [orfjackal/idea-sbt-plugin](https://github.com/orfjackal/idea-sbt-plugin)
+    [orfjackal/idea-sbt-plugin](https://github.com/orfjackal/idea-sbt-plugin).
   * The `Scala` plugin is still required for non-Scala projects in order to
     edit sbt build files from inside the IDE.
   * IntelliJ 14 and newer now includes native support for importing projects
