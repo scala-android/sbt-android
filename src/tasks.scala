@@ -1012,7 +1012,7 @@ object Tasks extends TaskBase {
     }
 
     override def testStarted(id: TestIdentifier) {
-      log.info(" - " + id.getTestName)
+      log.info(s" - %s (%s)" format (id.getTestName, id.getClassName))
     }
 
     override def testEnded(id: TestIdentifier, metrics: TestMetrics) {
