@@ -1,5 +1,9 @@
 ## New features in 1.6.x ##
 
+* `1.6.9`:
+  * bump default `minSdkVersion` to `19`, set explicitly if lower is required
+  * Fix TR.scala lint errors
+  * Improve some warnings when generating TypedViewHolders
 * `1.6.8`:
   * TypedViewHolder usability improvements
     * better error messaging when `<include>` layouts are missing
