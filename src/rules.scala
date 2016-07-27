@@ -100,7 +100,7 @@ object Plugin extends sbt.Plugin with PluginFail {
         compile in Compile <<= compile in Compile dependsOn(
           packageT in Compile in p),
         localProjects +=
-          LibraryProject((projectLayout in p).value)((outputLayout in p).value),
+          LibraryProject((projectLayout in p).value, (extraResDirectories in p).value, (extraAssetDirectories in p).value)((outputLayout in p).value),
         localProjects := {
           (localProjects.value ++
             (localProjects in p).value).distinctLibs

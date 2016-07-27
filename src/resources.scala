@@ -70,9 +70,15 @@ object Resources {
       case n: AarLibrary => n
     } collect { case n if n.getAssetsFolder.isDirectory => n.getAssetsFolder }
     // copy assets to single location
-    depassets ++ (libs collect {
-      case r if r.layout.assets.isDirectory => r.layout.assets
-    }) foreach { a => IO.copyDirectory(a, assetBin, false, true) }
+    (
+      depassets ++
+        libs.collect {
+          case Dependencies.LibraryProject(_, _, as) => as.filter(_.isDirectory)
+        }.flatten ++
+        libs.collect {
+          case r if r.layout.assets.isDirectory => r.layout.assets
+        }
+    ).foreach { a => IO.copyDirectory(a, assetBin, false, true) }
     extraAssets foreach { a =>
       if (a.isDirectory) IO.copyDirectory(a, assetBin, false, true)
     }
@@ -82,7 +88,10 @@ object Resources {
       IO.copyDirectory(layout.testAssets, assetBin, false, true)
     // prepare resource sets for merge
     val res = extraRes ++ Seq(layout.res, rsResources) ++
-      (libs map { _.layout.res } filter { _.isDirectory })
+      libs.collect {
+        case Dependencies.LibraryProject(_, rs, _) => rs.filter(_.isDirectory)
+      }.flatten ++
+      libs.collect { case l if l.layout.res.isDirectory => l.layout.res }
 
     s.log.debug("Local/library-project resources: " + res)
     // this needs to wait for other projects to at least finish their
@@ -134,7 +143,7 @@ object Resources {
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
 
-      incrResourceMerge(layout, minSdk, resTarget, isLib, libs, cache / "collect-resources",
+      incrResourceMerge(layout, minSdk, resTarget, isLib, cache / "collect-resources",
                         logger, bldr, sets, pngcrunch, vectorprocessor, inChanges, needsFullResourceMerge, s.log)
       ((resTarget ** FileOnlyFilter).get ++ (layout.generatedVectors ** FileOnlyFilter).get).toSet
     }(inputs.toSet)
@@ -147,7 +156,6 @@ object Resources {
     minSdk: Int,
     resTarget: File,
     isLib: Boolean,
-    libs: Seq[LibraryDependency],
     blobDir: File,
     logger: ILogger,
     bldr: AndroidBuilder,
@@ -159,7 +167,7 @@ object Resources {
     slog: Logger
   )(implicit m: BuildOutput.Converter) {
 
-    def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, libs, blobDir,
+    def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, blobDir,
       logger, bldr, resources, pngcrunch, preprocessor, slog)
 
     val merger = new ResourceMerger(minSdk)
@@ -240,7 +248,6 @@ object Resources {
                         minSdk: Int,
                         resTarget: File,
                         isLib: Boolean,
-                        libs: Seq[LibraryDependency],
                         blobDir: File,
                         logger: ILogger,
                         bldr: AndroidBuilder,

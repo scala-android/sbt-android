@@ -913,6 +913,8 @@ object Tasks extends TaskBase {
                    , streams) map {
     case (bldr, dexOpts, shards, pd, legacy, lib, bin, o, d, s) =>
       implicit val output = o
+      if (lib)
+        PluginFail("This project cannot dex, it has set 'libraryProject := true'")
       Dex.dex(bldr(s.log), dexOpts, pd, None /* unused, left for compat */, legacy, lib, bin.dex, shards, d(), s)
   }
 

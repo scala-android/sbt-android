@@ -611,14 +611,15 @@ object GradleBuildSerializer {
     def dependsOnSettings = {
       if (dependencies.nonEmpty) {
         val depSettings = dependencies map { d =>
+          val escapedD = escaped(d)
           s"""
            |  TaskKey[Seq[android.Dependencies.LibraryDependency]]("transitive-aars") in Android <++=
-           |    TaskKey[Seq[android.Dependencies.LibraryDependency]]("aars") in Android in ${escaped(d)},
+           |    TaskKey[Seq[android.Dependencies.LibraryDependency]]("aars") in Android in $escapedD,
            |  collectResources <<=
-           |    collectResources dependsOn (compile in Compile in ${escaped(d)}),
+           |    collectResources dependsOn (compile in Compile in $escapedD),
            |  compile in Compile <<= compile in Compile dependsOn(
-           |    sbt.Keys.`package` in Compile in ${escaped(d)}),
-           |  localProjects += LibraryProject(${escaped(d)}.base)((outputLayout in ${escaped(d)}).value)
+           |    sbt.Keys.`package` in Compile in $escapedD),
+           |  localProjects += LibraryProject((projectLayout in $escapedD).value, (extraResDirectories in $escapedD).value, (extraAssetDirectories in $escapedD).value)((outputLayout in $escapedD).value)
            |""".stripMargin
           } mkString ",\n"
         s".settings($depSettings)"

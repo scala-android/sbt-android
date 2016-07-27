@@ -390,5 +390,6 @@ object ProjectLayout {
     override def testJavaSource = wrapped.testJavaSource
     override def jniLibs = wrapped.jniLibs
     override def res = wrapped.res
+    override def toString = "ProjectLayout.Wrapped(" + wrapped.toString + ")"
   }
 }

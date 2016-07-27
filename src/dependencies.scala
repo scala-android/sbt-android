@@ -95,7 +95,7 @@ object Dependencies {
     override def getJniFolder = path / "jni"
   }
 
-  case class LibraryProject(layout: ProjectLayout)
+  case class LibraryProject(layout: ProjectLayout, extraRes: Seq[File], extraAssets: Seq[File])
                            (implicit output: BuildOutput.Converter) extends LibraryDependency {
 
     override def getSymbolFile = layout.rTxt
@@ -126,7 +126,7 @@ object Dependencies {
       (lib, other) match {
         case (l @ AarLibrary(_), LibEquals(r @ AarLibrary(_))) ⇒
           l.moduleID == r.moduleID
-        case (l @ LibraryProject(_), LibEquals(r @ LibraryProject(_))) ⇒
+        case (l @ LibraryProject(_,_,_), LibEquals(r @ LibraryProject(_,_,_))) ⇒
           l.path.getCanonicalFile == r.path.getCanonicalFile
         case _ ⇒ false
       }
@@ -149,7 +149,7 @@ object Dependencies {
   }
 
   object LibraryProject {
-    def apply(base: File)(implicit m: BuildOutput.Converter = new BuildOutput.AndroidOutput(_)): LibraryProject = LibraryProject(ProjectLayout(base))
+    def apply(base: File)(implicit m: BuildOutput.Converter = new BuildOutput.AndroidOutput(_)): LibraryProject = LibraryProject(ProjectLayout(base), Nil, Nil)
   }
 
   trait Pkg {
@@ -159,7 +159,7 @@ object Dependencies {
     def apply(path: File)(implicit m: BuildOutput.Converter) = new AutoLibraryProject(path)
   }
   class AutoLibraryProject(path: File)(implicit m: BuildOutput.Converter)
-  extends LibraryProject(ProjectLayout(path)) with Pkg {
+  extends LibraryProject(ProjectLayout(path), Nil, Nil) with Pkg {
     lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
 
     override def equals(obj: scala.Any) = obj match {
