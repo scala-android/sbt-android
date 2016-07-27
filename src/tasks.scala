@@ -61,7 +61,7 @@ object Tasks extends TaskBase {
     (t, layout, l, p, o, d) =>
     val b = new BuildConfigGenerator(layout.gen, p)
     b.addField("boolean", "DEBUG", d.toString)
-    o foreach {
+    o.groupBy(_._2).values.map(_.head) foreach {
       case (tpe, n, value) => b.addField(tpe, n, value)
     }
     b.generate()
