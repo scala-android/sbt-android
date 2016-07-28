@@ -65,8 +65,8 @@ object Proguard {
   import ProguardUtil._
 
   def proguardInputs(u: Boolean, pgOptions: Seq[String], pgConfig: Seq[String],
-                     l: Seq[File], d: sbt.Def.Classpath, p: String,
-                     x: Seq[String], c: File, s: Boolean, pc: Seq[String],
+                     l: Seq[File], d: sbt.Def.Classpath, b: sbt.Def.Classpath,
+                     c: File, s: Boolean, pc: Seq[String],
                      debug: Boolean, st: sbt.Keys.TaskStreams) = {
 
     val cacheDir = st.cacheDirectory
@@ -77,7 +77,6 @@ object Proguard {
           !l.exists { i => i.getName == in.getName} &&
           in.isFile
       }.distinct :+ Attributed.blank(c)
-      val extras = x map (f => file(f))
 
       if (debug && pc.nonEmpty) {
         st.log.debug("Proguard cache rules: " + pc)
@@ -117,8 +116,8 @@ object Proguard {
           in
         }(cacheJars map (_.data))
 
-        ProguardInputs(injars, file(p) +: (extras ++ l), Some(cacheJar))
-      } else ProguardInputs(injars, file(p) +: (extras ++ l))
+        ProguardInputs(injars, b.map(_.data) ++ l, Some(cacheJar))
+      } else ProguardInputs(injars, b.map(_.data) ++ l)
     } else
       ProguardInputs(Seq.empty,Seq.empty)
   }

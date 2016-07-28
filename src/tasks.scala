@@ -941,18 +941,18 @@ object Tasks extends TaskBase {
   val proguardInputsTaskDef = ( proguardAggregate
                               , proguardLibraries
                               , dependencyClasspath
-                              , platformJars
+                              , bootClasspath
                               , projectLayout
                               , outputLayout
                               , apkbuildDebug
                               , streams
                               ) map {
-    case (pa, l, d, (p, x), c, o, dbg, st) =>
+    case (pa, l, d, b, c, o, dbg, st) =>
       implicit val output = o
       Proguard.proguardInputs(
         (pa.useProguard && !dbg()) || (pa.useProguardInDebug && dbg()),
         pa.proguardOptions, pa.proguardConfig,
-        l, d, p, x, c.classesJar, pa.proguardScala, pa.proguardCache, dbg(), st)
+        l, d, b, c.classesJar, pa.proguardScala, pa.proguardCache, dbg(), st)
   }
 
   val resourceShrinkerTaskDef = Def.task {
