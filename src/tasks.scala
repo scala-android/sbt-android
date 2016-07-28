@@ -564,7 +564,7 @@ object Tasks extends TaskBase {
     val n = name.value
     val u = (unmanagedJars in Compile).value
     val m = managedClasspath.value
-    val dcp = (dependencyClasspath in Runtime).value
+    val dcp = (dependencyClasspath in Runtime).value.filterNot(_.data == layout.classesJar)
     val s = streams.value
     val filter = ndkAbiFilter.value
     val logger = ilogger.value(s.log)
@@ -852,6 +852,8 @@ object Tasks extends TaskBase {
 
   val dexMainClassesConfigTaskDef = Def.task {
     implicit val output = outputLayout.value
+    if (libraryProject.value)
+      PluginFail("This project cannot dex, it has set 'libraryProject := true'")
     Dex.dexMainClassesConfig(
       processManifest.value,
       (managedClasspath in AndroidInternal).value,
