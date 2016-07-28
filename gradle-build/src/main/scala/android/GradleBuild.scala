@@ -88,7 +88,9 @@ object AndroidGradlePlugin extends AutoPlugin {
     gconnection.setVerboseLogging(false)
 
     try {
-      val discovered = GradleBuildSerializer.toposort(processDirectoryAt(file("."), f, gconnection)._2)
+      val rawdiscovered = GradleBuildSerializer.toposort(processDirectoryAt(file("."), f, gconnection)._2)
+      val existing = rawdiscovered.map(_.id).toSet
+      val discovered = rawdiscovered.map(d => d.copy(dependencies = d.dependencies.filter(existing)))
       f.delete()
 
       val end = System.currentTimeMillis
