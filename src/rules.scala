@@ -182,6 +182,11 @@ object Plugin extends sbt.Plugin with PluginFail {
     addArtifact(apklibArtifact, packageApklib)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
+    dependencyClasspath := {
+      if (debugIncludesTests.value)
+        (dependencyClasspath.value ++ (externalDependencyClasspath in Test).value).distinct
+      else dependencyClasspath.value
+    },
     compile <<= ( compile
                 , lintDetectors
                 , lintFlags
@@ -370,12 +375,14 @@ object Plugin extends sbt.Plugin with PluginFail {
     classpathConfiguration   := config("compile"),
     // end for Classpaths.configSettings
     // hack since it doesn't take in dependent project's libs
-    dependencyClasspath     <<= ( dependencyClasspath in Compile
+    dependencyClasspath     <<= ( dependencyClasspath in Runtime
+                                , externalDependencyClasspath in Test
+                                , debugIncludesTests
+                                , projectLayout
+                                , outputLayout
                                 , libraryDependencies
-                                , streams) map { (cp, d, s) =>
-      s.log.debug("Filtering compile:dependency-classpath from: " + cp)
-      val pvd = d filter { dep => dep.configurations exists (_ == "provided") }
-
+                                , streams) map { (cp, tcp, include, layout, output, d, s) =>
+      implicit val out = output
       cp foreach { a =>
         s.log.debug("%s => %s: %s" format (a.data.getName,
           a.get(configuration.key), a.get(moduleID.key)))
@@ -384,17 +391,17 @@ object Plugin extends sbt.Plugin with PluginFail {
       // it seems internal-dependency-classpath already filters out "provided"
       // from other projects, now, just filter out our own "provided" lib deps
       // do not filter out provided libs for scala, we do that later
-      val (withMID,withoutMID) = cp collect {
-        case x if x.get(moduleID.key).isDefined =>
-          (x,(x.get(moduleID.key),x.data.getName))
-        case x => (x,(None, x.data.getName))
-      } partition (_._2._1.isDefined)
-      (withMID.groupBy(_._2).values.map(_.head._1) ++  withoutMID.map(_._1)).filterNot { _.get(moduleID.key) exists { m =>
-          m.organization != "org.scala-lang" &&
-            (pvd exists (p => m.organization == p.organization &&
-              m.name == p.name))
-        }
-      }.groupBy(_.data).map { case (k,v) => v.head }.toList
+//      val (withMID,withoutMID) = cp collect {
+//        case x if x.get(moduleID.key).isDefined =>
+//          (x,(x.get(moduleID.key),x.data.getName))
+//        case x => (x,(None, x.data.getName))
+//      } partition (_._2._1.isDefined)
+//      (withMID.groupBy(_._2).values.map(_.head._1) ++  withoutMID.map(_._1)).filterNot { _.get(moduleID.key) exists { m =>
+//          m.organization != "org.scala-lang"
+//        }
+//      }.groupBy(_.data).map { case (k,v) => v.head }.toList
+      val newcp = if (include) cp ++ tcp else cp
+      newcp.distinct.filterNot(_.data == layout.classesJar)
     },
     updateCheck              := {
       val log = streams.value.log

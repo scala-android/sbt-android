@@ -564,7 +564,7 @@ object Tasks extends TaskBase {
     val n = name.value
     val u = (unmanagedJars in Compile).value
     val m = managedClasspath.value
-    val dcp = (dependencyClasspath in Compile).value
+    val dcp = (dependencyClasspath in Runtime).value
     val s = streams.value
     val filter = ndkAbiFilter.value
     val logger = ilogger.value(s.log)
