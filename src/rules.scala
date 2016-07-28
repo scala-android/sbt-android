@@ -286,11 +286,6 @@ object Plugin extends sbt.Plugin with PluginFail {
     }
   )) ++ inConfig(Test) (Seq(
     exportJars         := false,
-    managedClasspath <++= platform map { t =>
-      t.getTarget.getOptionalLibraries.asScala map { l =>
-        Attributed.blank(l.getJar)
-      }
-    },
     scalacOptions in console    := Seq.empty
   )) ++ inConfig(Android) (Classpaths.configSettings ++ Seq(
     // fix for sbt 0.13.11
