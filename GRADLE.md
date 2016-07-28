@@ -59,3 +59,5 @@ whenever changes occur.
   [bug 195881](https://code.google.com/p/android/issues/detail?id=195881).
   Settings from plugins such as `retrolambda`, `android-apt`, etc. will not be
   imported.
+* Only Android projects will be imported, any non-android gradle projects will
+  be ignored
