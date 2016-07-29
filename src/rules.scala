@@ -12,7 +12,6 @@ import sbt.Keys._
 import com.android.builder.core.{AndroidBuilder, LibraryRequest}
 import com.android.builder.sdk.DefaultSdkLoader
 import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkVersionInfo}
-import com.android.SdkConstants
 import java.io.{File, PrintWriter}
 
 import com.android.repository.Revision
@@ -698,7 +697,7 @@ object Plugin extends sbt.Plugin with PluginFail {
 
       val alternatives = propertiesSetting ++ envVarSetting ++ sdkBundleFallback
       val foundNdk = alternatives.view.map {
-        case (desc, f) if file(f + File.separator).isDirectory => Some(f)
+        case (desc, f) if file(f).isDirectory => Some(f)
         case (desc, _) =>
           log.warn(s"$desc does not point to a valid ndk installation")
           None
@@ -710,15 +709,14 @@ object Plugin extends sbt.Plugin with PluginFail {
                                 , sdkManager
                                 , buildTools
                                 , sLog) { (p, m, bt, s) =>
-      import SdkConstants._
-      val pathInBt = bt.getLocation / FN_ZIPALIGN
+      val pathInBt = SdkLayout.zipalign(bt)
 
       s.debug("checking zipalign at: " + pathInBt)
 
       if (pathInBt.exists)
         pathInBt.getAbsolutePath
       else {
-        val zipalign = file(p + OS_SDK_TOOLS_FOLDER + FN_ZIPALIGN)
+        val zipalign = SdkLayout.zipalign(p)
         if (!zipalign.exists)
           fail("zipalign not found at either %s or %s" format (
             pathInBt, zipalign))
@@ -891,10 +889,10 @@ trait AutoBuild extends Build {
   private def target(basedir: File): String = {
     val props = loadProperties(basedir)
     val path = (Option(System getenv "ANDROID_HOME") orElse
-      Option(props get "sdk.dir")) flatMap { p =>
-      val f = file(p + File.separator)
+      Option(props getProperty "sdk.dir")) flatMap { p =>
+      val f = file(p)
       if (f.exists && f.isDirectory)
-        Some(p + File.separator)
+        Some(p)
       else
         None
     } getOrElse {

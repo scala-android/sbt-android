@@ -34,8 +34,7 @@ object Commands {
   def deviceList(sdkpath: String, log: Logger): Seq[IDevice] = {
     initAdb
 
-    import SdkConstants._
-    val adbPath = sdkpath + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_ADB
+    val adbPath = SdkLayout.adb(sdkpath).getCanonicalPath
 
     val adb = AndroidDebugBridge.createBridge(adbPath, false)
 
@@ -304,8 +303,7 @@ object Commands {
 
   val adbWifiAction: State => State = state => {
     val sdk = sdkpath(state)
-    import SdkConstants._
-    val adbPath = sdk + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_ADB
+    val adbPath = SdkLayout.adb(sdk).getCanonicalPath
 
     val adbWifiOn = defaultDevice map { s =>
       (s indexOf ":") > 0
@@ -431,9 +429,8 @@ object Commands {
             PluginFail(
               "An Android project already exists in this location")
           } else {
-            import SdkConstants._
             state.log.info("Creating project: " + name)
-            val android = sdk + OS_SDK_TOOLS_FOLDER + androidCmdName
+            val android = SdkLayout.sdkManager(sdk).getCanonicalPath
             AndroidPlugin.platformTarget(target,
               SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log), true, state.log)
             val p = Seq(android,

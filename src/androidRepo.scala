@@ -3,7 +3,6 @@ package android
 import java.io.File
 import java.net.{HttpURLConnection, URL}
 
-import com.android.SdkConstants
 import com.android.repository.Revision
 import com.android.repository.api._
 import com.android.repository.impl.generated.generic.v1.GenericDetailsType
@@ -149,11 +148,11 @@ object SdkInstaller extends TaskBase {
     val cached = SdkLayout.androidHomeCache
     val path = (Option(System getenv "ANDROID_HOME") orElse
       Option(props getProperty "sdk.dir")) flatMap { p =>
-      val f = sbt.file(p + File.separator)
+      val f = sbt.file(p)
       if (f.exists && f.isDirectory) {
         cached.getParentFile.mkdirs()
         IO.writeLines(cached, p :: Nil)
-        Some(p + File.separator)
+        Some(p)
       } else None
     } orElse SdkLayout.sdkFallback(cached) getOrElse {
       val home = SdkLayout.fallbackAndroidHome
@@ -161,8 +160,7 @@ object SdkInstaller extends TaskBase {
       home.mkdirs()
       home.getCanonicalPath
     }
-    sys.props("com.android.tools.lint.bindir") =
-      path + File.separator + SdkConstants.FD_TOOLS
+    sys.props("com.android.tools.lint.bindir") = SdkLayout.tools(path).getCanonicalPath
     path
   }
 

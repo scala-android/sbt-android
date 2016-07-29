@@ -264,6 +264,7 @@ object BuildOutput {
 }
 
 object SdkLayout {
+  import com.android.SdkConstants._
   def googleRepository(sdkPath: String) = "google libraries" at (
     file(sdkPath) / "extras" / "google" / "m2repository").toURI.toString
   def androidRepository(sdkPath: String) = "android libraries" at (
@@ -273,7 +274,16 @@ object SdkLayout {
   def renderscriptSupportLibs(t: BuildToolInfo) =
     (renderscriptSupportLibFile(t) * "*.jar").get
   def ndkBundle(sdkPath: String) = file(sdkPath) / "ndk-bundle"
+  def tools(sdkPath: String) = file(sdkPath) / FD_TOOLS
+  def platformTools(sdkPath: String) = file(sdkPath) / FD_PLATFORM_TOOLS
+  def aidl(sdkPath: String) = platformTools(sdkPath) / FN_AIDL
+  def zipalign(tools: BuildToolInfo) = tools.getLocation / FN_ZIPALIGN
+  def zipalign(sdkPath: String) = tools(sdkPath) / FN_ZIPALIGN
+  def adb(sdkPath: String) = tools(sdkPath) / FN_ADB
+  def androidProguardConfig(sdkPath: String) = tools(sdkPath) /
+     FD_PROGUARD / FN_ANDROID_PROGUARD_FILE
 
+  def sdkManager(sdkPath: String) = file(sdkPath) / androidCmdName
   def sbtSubfolder = file(AndroidLocation.getFolder) / "sbt"
   def predex = sbtSubfolder / "predex"
   def explodedAars = sbtSubfolder / "exploded-aars"
@@ -284,7 +294,7 @@ object SdkLayout {
   def sdkLicenses = sbtSubfolder / "sdk-licenses"
   def sdkFallback(f: File): Option[String] = if (f.isFile) {
     Try(IO.readLines(f)).toOption.flatMap(_.headOption).map(file).collect {
-      case d if d.isDirectory => d.getAbsolutePath + File.separator
+      case d if d.isDirectory => d.getAbsolutePath
     }
   } else None
 }

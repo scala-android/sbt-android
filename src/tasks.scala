@@ -12,7 +12,6 @@ import language.postfixOps
 import java.util.Properties
 import java.io.File
 
-import com.android.SdkConstants
 import com.android.builder.core._
 import com.android.ddmlib.{DdmPreferences, IDevice}
 import com.android.ddmlib.testrunner.ITestRunListener
@@ -669,11 +668,8 @@ object Tasks extends TaskBase {
                     , platform
                     , streams
                     ) map { (s, m, layout, p, l) =>
-    import SdkConstants._
     val tools = Option(m.getLatestBuildTool(SbtAndroidProgressIndicator(l.log), false))
-    val aidl          = tools map (_.getPath(PathId.AIDL)) getOrElse {
-        s + OS_SDK_PLATFORM_TOOLS_FOLDER + FN_AIDL
-    }
+    val aidl  = tools map (_.getPath(PathId.AIDL)) getOrElse SdkLayout.aidl(s).getCanonicalPath
     val frameworkAidl = p.getTarget.getPath(IAndroidTarget.ANDROID_AIDL)
     val aidls = layout.aidl ** "*.aidl" get
 
@@ -830,10 +826,7 @@ object Tasks extends TaskBase {
     val proguardProject = layout.proguard
 
     val base = {
-      import SdkConstants._
-      import File.{separator => S}
-      val c1 = file(p + OS_SDK_TOOLS_FOLDER + FD_PROGUARD + S +
-        FN_ANDROID_PROGUARD_FILE)
+      val c1 = SdkLayout.androidProguardConfig(p)
 
       if (!c1.exists)
         PluginFail("Unable to locate SDK proguard config: " + c1)
