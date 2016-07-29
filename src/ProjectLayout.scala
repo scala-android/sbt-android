@@ -279,7 +279,7 @@ object SdkLayout {
   def aidl(sdkPath: String) = platformTools(sdkPath) / FN_AIDL
   def zipalign(tools: BuildToolInfo) = tools.getLocation / FN_ZIPALIGN
   def zipalign(sdkPath: String) = tools(sdkPath) / FN_ZIPALIGN
-  def adb(sdkPath: String) = tools(sdkPath) / FN_ADB
+  def adb(sdkPath: String) = platformTools(sdkPath) / FN_ADB
   def androidProguardConfig(sdkPath: String) = tools(sdkPath) /
      FD_PROGUARD / FN_ANDROID_PROGUARD_FILE
 
