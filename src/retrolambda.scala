@@ -16,18 +16,28 @@ object RetrolambdaSupport {
   def apply(target: File, classpath: Seq[File], forkClasspath: Seq[File], bootClasspath: Seq[File],
               s: sbt.Keys.TaskStreams): Seq[File] = synchronized {
     val cp = bootClasspath ++ classpath
-    val dest = target / "retrolambda"
+    val indir = target / "retrolambda"
+    val outdir = target / "retrolambda-processed"
     val finalJar = target / "retrolambda-processed.jar"
-    dest.mkdirs()
+    indir.mkdirs()
+    outdir.mkdirs()
     val java8jars = classpath filter Java8Detector.apply
     s.log.debug("Java8 jars detected for retrolambda processing: " + java8jars)
     FileFunction.cached(s.cacheDirectory / "retrolambda-jars", FilesInfo.lastModified) { in =>
-      in foreach (f => IO.unzip(f, dest))
+      val currentfiles = in.foldLeft(Set.empty[File])(_ ++ IO.unzip(_, indir))
+      IO.delete((indir ** "*.class").get.filterNot(currentfiles))
       in
     }(java8jars.toSet)
 
     if (java8jars.nonEmpty) {
-      FileFunction.cached(s.cacheDirectory / ("retro-" + target.getName), FilesInfo.lastModified) { in =>
+      FileFunction.cached(s.cacheDirectory / ("retro-" + target.getName))(FilesInfo.lastModified, FilesInfo.exists) { (in1,out) =>
+        val removedfiles = in1.removed.toList.flatMap(Path.rebase(indir, outdir)(_).toList)
+        removedfiles.foreach { r =>
+          val parent = r.getParentFile
+          val base = r.getName.stripSuffix(".class")
+          IO.delete((parent * s"$base$$$$Lambda$$*.class").get)
+        }
+        val in = in1.checked
         val options = ForkOptions(
           runJVMOptions = Seq(
             "-noverify",
@@ -39,7 +49,8 @@ object RetrolambdaSupport {
         val p = new java.util.Properties
         Using.fileOutputStream(false)(config) { out =>
           p.setProperty("retrolambda.defaultMethods", "true")
-          p.setProperty("retrolambda.inputDir", dest.getAbsolutePath)
+          p.setProperty("retrolambda.inputDir", indir.getAbsolutePath)
+          p.setProperty("retrolambda.outputDir", outdir.getAbsolutePath)
           p.setProperty("retrolambda.classpath", cp map (
             _.getAbsolutePath) mkString java.io.File.pathSeparator)
           p.setProperty("retrolambda.includedFiles", (
@@ -50,8 +61,8 @@ object RetrolambdaSupport {
         IO.delete(config)
         if (r != 0) PluginFail(s"Retrolambda failure: exit $r")
         in
-      }((dest ** "*.class" get).toSet)
-      IO.jar((PathFinder(dest) ***) pair rebase(dest, "") filter (
+      }((indir ** "*.class" get).toSet)
+      IO.jar((PathFinder(outdir) ***) pair rebase(outdir, "") filter (
         _._1.getName endsWith ".class"), finalJar, new java.util.jar.Manifest)
       finalJar :: (classpath.toSet -- java8jars).toList
     } else {
