@@ -523,6 +523,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     retrolambdaAggregate    <<= retrolambdaAggregateTaskDef,
     testAggregate           <<= testAggregateTaskDef,
     predex                  <<= predexTaskDef,
+    predexRetrolambda        := false,
     predexSkip               := {
       localProjects.value map (_.getJarFile)
     },

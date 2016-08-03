@@ -220,6 +220,8 @@ object Keys {
   val dexShards = SettingKey[Boolean]("dex-shards",
     "whether to enable dex sharding, requires v21+, debug-only") in Android
   val dex = TaskKey[File]("dex", "run bytecode dexer") in Android
+  val predexRetrolambda = SettingKey[Boolean]("predex-retrolambda",
+    "whether retrolambda output should be predexed, default: false") in Android
   val predex = TaskKey[Seq[(File,File)]]("predex", "pre-dex input libraries task") in Android
   val predexSkip = TaskKey[Seq[File]]("predex-skip",
     "files to skip predexing, go straight into main dex") in Android

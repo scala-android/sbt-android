@@ -921,7 +921,9 @@ object Tasks extends TaskBase {
     val multiDex = opts.multi
     val shards = dexShards.value
     val legacy = dexLegacyMode.value
-    val skip = (proguardInputs.value.proguardCache.toList ++ predexSkip.value).map(_.getCanonicalFile).toSet
+    val skip0 = (proguardInputs.value.proguardCache.toList ++ predexSkip.value).map(
+      _.getCanonicalFile).toSet
+    val skip = if (!predexRetrolambda.value) skip0 + RetrolambdaSupport.processedJar(layout.dex) else skip0
     val classes = layout.classesJar
     val pg = proguard.value
     val s = streams.value

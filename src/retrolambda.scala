@@ -13,12 +13,13 @@ import net.orfjackal.retrolambda.{Main => RMain, SystemPropertiesConfig, Retrola
  */
 object RetrolambdaSupport {
   def isAvailable = RMain.isRunningJava8
+  def processedJar(target: File) = target / "retrolambda-processed.jar"
   def apply(target: File, classpath: Seq[File], forkClasspath: Seq[File], bootClasspath: Seq[File],
               s: sbt.Keys.TaskStreams): Seq[File] = synchronized {
     val cp = bootClasspath ++ classpath
     val indir = target / "retrolambda"
     val outdir = target / "retrolambda-processed"
-    val finalJar = target / "retrolambda-processed.jar"
+    val finalJar = processedJar(target)
     indir.mkdirs()
     outdir.mkdirs()
     val java8jars = classpath filter Java8Detector.apply
