@@ -38,7 +38,7 @@ object Keys {
   val LibraryProject = Dependencies.LibraryProject
 
   val Android = config("android")
-  val AndroidInternal = config("android-internal").hide
+  val AndroidTest = config("androidTest").extend(Runtime).hide
 
   // build-environment keys
   // automatically set from ANDROID_HOME or *.properties ("sdk.dir")
@@ -366,6 +366,8 @@ object Keys {
 
     // alias to ease typing
     val packageT = sbt.Keys.`package`
+
+    val AndroidInternal = config("android-internal").hide
   }
 
   def inProjectScope(p: ProjectReference)(ss: Seq[Setting[_]]) =

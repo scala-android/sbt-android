@@ -1,5 +1,19 @@
 ## New features in 1.6.x ##
 
+* `1.6.11`: WIP
+  * Minimum SBT version is now `0.13.8`
+  * `androidTest` is now the required configuration for adding
+    dependencies to `androidTest` instrumentation tests
+    * `test` and `androidTest` dependencies are now properly isolated
+    * E.g. `"com.android.support.test" % "runner" % "0.2" % "androidTest"`
+  * Retrolambda processing improvements
+    * Incremental builds fixed (was generating bad bytecode at times)
+    * Retrolambda output can now be sharded, default sharded, modify by
+      setting `predexRetrolambda`
+  * Fix incorrect path to `android/.bat` script for the SDK manager,
+    fixes `gen-android` failing to run on `1.6.10`
+  * Fix proguard failing when the SDK is installed to a directory
+    containing spaces
 * `1.6.10`:
   * Handle `extraResDirectories` and `extraAssetDirectories` when
     processing resources from dependent projects

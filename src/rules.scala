@@ -182,8 +182,8 @@ object Plugin extends sbt.Plugin with PluginFail {
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
     dependencyClasspath := {
-      if (debugIncludesTests.value)
-        (dependencyClasspath.value ++ (externalDependencyClasspath in Test).value).distinct
+      if (debugIncludesTests.value && apkbuildDebug.value())
+        (dependencyClasspath.value ++ (externalDependencyClasspath in AndroidTest).value).distinct
       else dependencyClasspath.value
     },
     compile <<= ( compile
@@ -320,48 +320,6 @@ object Plugin extends sbt.Plugin with PluginFail {
       unmanagedSourceDirectories,
       includeFilter in (Compile,unmanagedSources),
       excludeFilter in (Compile,unmanagedSources)),
-    scalacOptions               := (scalacOptions in Compile).value,
-    javacOptions                := (javacOptions in Compile).value,
-    compile := {
-      def exported(w: PrintWriter, command: String): Seq[String] => Unit =
-        args => w.println((command +: args).mkString(" "))
-      val s = streams.value
-      val ci = (compileInputs in compile).value
-      val reporter = (TaskKey[Option[xsbti.Reporter]]("compilerReporter") in (Compile,compile)).value
-      lazy val x = s.text(CommandStrings.ExportStream)
-      def onArgs(cs: Compiler.Compilers) =
-        cs.copy(scalac = cs.scalac.onArgs(exported(x, "scalac")),
-          javac = cs.javac.onArgs(exported(x, "javac")))
-      val i = ci.copy(compilers = onArgs(ci.compilers))
-
-      try reporter match {
-        case Some(r) => Compiler(i, s.log, r)
-        case None           => Compiler(i, s.log)
-      }
-      finally x.close() // workaround for #937
-    },
-    compileIncSetup := {
-      Compiler.IncSetup(
-        Defaults.analysisMap((dependencyClasspath in Test).value),
-        definesClass.value,
-        (skip in compile).value,
-        // TODO - this is kind of a bad way to grab the cache directory for streams...
-        streams.value.cacheDirectory / compileAnalysisFilename.value,
-        compilerCache.value,
-        incOptions.value)
-    },
-    compileInputs in compile := {
-      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in Test).value)
-      Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
-    },
-    compileAnalysisFilename := {
-      // Here, if the user wants cross-scala-versioning, we also append it
-      // to the analysis cache, so we keep the scala versions separated.
-      val extra =
-        if (crossPaths.value) s"_${scalaBinaryVersion.value}"
-        else ""
-      s"inc_compile$extra"
-    },
     sources <<= Classpaths.concat(unmanagedSources, managedSources),
       // productX := Nil is a necessity to use Classpaths.configSettings
     exportedProducts         := Nil,
@@ -370,31 +328,19 @@ object Plugin extends sbt.Plugin with PluginFail {
     // end for Classpaths.configSettings
     // hack since it doesn't take in dependent project's libs
     dependencyClasspath     <<= ( dependencyClasspath in Runtime
-                                , externalDependencyClasspath in Test
+                                , externalDependencyClasspath in AndroidTest
+                                , apkbuildDebug
                                 , debugIncludesTests
                                 , projectLayout
                                 , outputLayout
                                 , libraryDependencies
-                                , streams) map { (cp, tcp, include, layout, output, d, s) =>
+                                , streams) map { (cp, tcp, dbg, include, layout, output, d, s) =>
       implicit val out = output
       cp foreach { a =>
         s.log.debug("%s => %s: %s" format (a.data.getName,
           a.get(configuration.key), a.get(moduleID.key)))
       }
-      // try to filter out duplicate aar libraries as well
-      // it seems internal-dependency-classpath already filters out "provided"
-      // from other projects, now, just filter out our own "provided" lib deps
-      // do not filter out provided libs for scala, we do that later
-//      val (withMID,withoutMID) = cp collect {
-//        case x if x.get(moduleID.key).isDefined =>
-//          (x,(x.get(moduleID.key),x.data.getName))
-//        case x => (x,(None, x.data.getName))
-//      } partition (_._2._1.isDefined)
-//      (withMID.groupBy(_._2).values.map(_.head._1) ++  withoutMID.map(_._1)).filterNot { _.get(moduleID.key) exists { m =>
-//          m.organization != "org.scala-lang"
-//        }
-//      }.groupBy(_.data).map { case (k,v) => v.head }.toList
-      val newcp = if (include) cp ++ tcp else cp
+      val newcp = if (include && dbg()) cp ++ tcp else cp
       newcp.distinct.filterNot(_.data == layout.classesJar)
     },
     updateCheck              := {
@@ -825,6 +771,47 @@ object Plugin extends sbt.Plugin with PluginFail {
           !_.contains("extras;google;m2repository") && needGms)
       }
     }
+  )) ++ inConfig(Android)(Defaults.compileAnalysisSettings ++ Seq(
+    // stuff to support `android:compile`
+    scalacOptions               := (scalacOptions in Compile).value,
+    javacOptions                := (javacOptions in Compile).value,
+    manipulateBytecode          := compileIncremental.value,
+    TaskKey[Option[xsbti.Reporter]]("compilerReporter") := None,
+    compileIncremental         <<= Defaults.compileIncrementalTask,
+    compile <<= Def.taskDyn {
+      if (debugIncludesTests.value) Def.task {
+        (compile in Compile).value
+      } else Defaults.compileTask
+    },
+    compileIncSetup := {
+      Compiler.IncSetup(
+        Defaults.analysisMap((dependencyClasspath in AndroidTest).value),
+        definesClass.value,
+        (skip in compile).value,
+        // TODO - this is kind of a bad way to grab the cache directory for streams...
+        streams.value.cacheDirectory / compileAnalysisFilename.value,
+        compilerCache.value,
+        incOptions.value)
+    },
+    compileInputs in compile := {
+      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in AndroidTest).value)
+      Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
+    },
+    compileAnalysisFilename := {
+      // Here, if the user wants cross-scala-versioning, we also append it
+      // to the analysis cache, so we keep the scala versions separated.
+      val extra =
+      if (crossPaths.value) s"_${scalaBinaryVersion.value}"
+      else ""
+      s"inc_compile$extra"
+    }
+
+  )) ++ inConfig(AndroidTest)(Seq(
+    aars in AndroidTest <<= Tasks.androidTestAarsTaskDef,
+    managedClasspath := Classpaths.managedJars(AndroidTest, classpathTypes.value, update.value),
+    externalDependencyClasspath := managedClasspath.value ++
+      (aars in AndroidTest).value.map(a => Attributed.blank(a.getJarFile)),
+    dependencyClasspath := externalDependencyClasspath.value ++ (internalDependencyClasspath in Runtime).value
   )) ++ Seq(
     autoScalaLibrary   := {
       ((scalaSource in Compile).value ** "*.scala").get.nonEmpty ||

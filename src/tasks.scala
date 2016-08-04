@@ -79,10 +79,20 @@ object Tasks extends TaskBase {
   }
 
   def moduleForFile(u: UpdateReport, f: File): ModuleID = {
-    val map: Map[File,ModuleID] =
-      u.configurations.flatMap(_.modules).distinct.flatMap { m =>
-        m.artifacts map { case (_,file) => (file,m.module) }
-      } toMap
+    def concat(s1: Option[String], s2: Option[String]) =
+      Option((s1 ++ s2).toList.distinct.mkString(",")).filter(_.nonEmpty)
+    val map: Map[File,ModuleID] = {
+      val fm = u.configurations.flatMap { c =>
+        c.modules.flatMap { mr =>
+          val module = mr.module.copy(configurations = Some(c.configuration))
+          mr.artifacts.map { case (_, file) => (file, module) }
+        }
+      }
+      fm.foldLeft(Map.empty[File,ModuleID]) { case (m, (k, mid)) =>
+        val mid2 = m.getOrElse(k, mid)
+        m.updated(k, mid2.copy(configurations = concat(mid.configurations, mid2.configurations)))
+      }
+    }
 
     map(f)
   }
@@ -91,19 +101,24 @@ object Tasks extends TaskBase {
   def moduleString(m: ModuleID) =
     m.organization + ":" + m.name.takeWhile(_ != '_')
 
-  val aarsTaskDef = ( update in Compile
-                    , localAars
-                    , libraryDependencies in Compile
-                    , transitiveAndroidLibs
-                    , transitiveAndroidWarning
-                    , transitiveAars
-                    , localProjects
-                    , projectLayout
-                    , outputLayout
-                    , streams
-                    ) map {
-    (u,local,d,tx,tw,ta,lp, layout,o,s) =>
-    implicit val output = o
+  val aarsTaskDef = Def.task {
+    val u = (update in Compile).value
+    val local = localAars.value
+    val withTest = debugIncludesTests.value
+    val d = (libraryDependencies in Compile).value
+    val tx = transitiveAndroidLibs.value
+    val tw = transitiveAndroidWarning.value
+    val ta = transitiveAars.value
+    val layout = projectLayout.value
+    implicit val output = outputLayout.value
+    val s = streams.value
+    val debug = apkbuildDebug.value()
+    //    implicit val output = o
+
+    def excludeTests(m: ModuleID): Boolean = {
+      (!withTest && m.configurations.exists(c => c.split(",").forall(s =>
+        s.startsWith("test") || s == "androidTest"))) || !debug
+    }
 
     val subaars = ta.collect { case a: AarLibrary => a }.map { a => moduleString(a.moduleID) }.toSet
     s.log.debug("aars in subprojects: " + subaars)
@@ -114,7 +129,10 @@ object Tasks extends TaskBase {
     (libs flatMap { l =>
       val dest = SdkLayout.explodedAars
       val m = moduleForFile(u, l)
-      if (tx || deps(moduleString(m))) {
+      if (excludeTests(m)) {
+        s.log.debug("Excluding testing dependency: " + m)
+        None
+      } else if (tx || deps(moduleString(m))) {
         val mID = m.organization + "-" + m.name + "-" + m.revision
         val d = dest / mID
         if (!subaars(moduleString(m))) {
@@ -133,6 +151,29 @@ object Tasks extends TaskBase {
       val dest = layout.aars
       unpackAar(a, dest / ("localAAR-" + a.getName), "localAAR" % a.getName % "LOCAL", s.log)
     })
+  }
+
+  val androidTestAarsTaskDef = Def.task {
+    val u = (update in Compile).value
+    val withTest = debugIncludesTests.value
+    val debug = apkbuildDebug.value()
+    val s = streams.value
+    def testOnly(m: ModuleID): Boolean = {
+      !withTest && m.configurations.exists(c => c.split(",").forall(_ == "androidTest"))
+    }
+    val libs = u.matching(artifactFilter(`type` = "aar"))
+    libs.flatMap { l =>
+      val m = moduleForFile(u, l)
+      val dest = SdkLayout.explodedAars
+      if (testOnly(m)) {
+        val mID = m.organization + "-" + m.name + "-" + m.revision
+        val d = dest / mID
+        s.log.warn("androidTest: test-only aar will not have resources merged " + m)
+        List(unpackAar(l, d, m, s.log): LibraryDependency)
+      } else {
+        Nil
+      }
+    }
   }
 
   def unpackAar(aar: File, dest: File, m: ModuleID, log: Logger): LibraryDependency = {
@@ -1053,7 +1094,7 @@ object Tasks extends TaskBase {
       instrumentTestTimeout.value, apkbuildDebug.value(),
       apkDebugSigningConfig.value, dexMaxHeap.value,
       dexMaxProcessCount.value,
-      (externalDependencyClasspath in Test).value map (_.data),
+      (externalDependencyClasspath in AndroidTest).value map (_.data),
       (externalDependencyClasspath in Compile).value map (_.data),
       packagingOptions.value, libraryProject.value)
   }
@@ -1229,6 +1270,7 @@ object Tasks extends TaskBase {
     val manifest = new Elem(null,
       "manifest", pkgAttr, ns, minimizeEmpty = false, usesSdk, app, instrumentation)
 
+    manifestOut.getParentFile.mkdirs()
     XML.save(manifestOut.getAbsolutePath, manifest, "utf-8", true, null)
     manifestOut
   }

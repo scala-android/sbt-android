@@ -15,7 +15,7 @@ all future updates can be accessed by using
 ## Description ##
 
 This is an easy-to-use plugin for existing and newly created android
-projects.  It is tested and developed against 0.13.6+.
+projects. It requires SBT 0.13.8+
 
 The plugin supports all android projects configurations. 3rd party libraries
 can be included by placing them in `libs`, or they can be added by using sbt's
