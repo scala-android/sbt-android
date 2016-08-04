@@ -283,7 +283,7 @@ object SdkLayout {
   def androidProguardConfig(sdkPath: String) = tools(sdkPath) /
      FD_PROGUARD / FN_ANDROID_PROGUARD_FILE
 
-  def sdkManager(sdkPath: String) = file(sdkPath) / androidCmdName
+  def sdkManager(sdkPath: String) = tools(sdkPath) / androidCmdName
   def sbtSubfolder = file(AndroidLocation.getFolder) / "sbt"
   def predex = sbtSubfolder / "predex"
   def explodedAars = sbtSubfolder / "exploded-aars"
