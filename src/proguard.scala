@@ -145,14 +145,14 @@ object Proguard {
 
       val libraryjars = for {
         j <- libjars
-        a <- Seq("-libraryjars", j.getAbsolutePath)
+        a <- Seq(s"""-libraryjars "${j.getAbsolutePath}"""")
       } yield a
-      val injars = "-injars " + (jars map {
-        _.getPath + "(!META-INF/**,!rootdoc.txt)"
+      val injars = "-injars " + (jars map { j =>
+        s""""${j.getPath}"(!META-INF/**,!rootdoc.txt)"""
       } mkString File.pathSeparator)
-      val outjars = "-outjars " + t.getAbsolutePath
-      val printmappings = Seq("-printmapping",
-        (b / "mappings.txt").getAbsolutePath)
+      val outjars = s"""-outjars "${t.getAbsolutePath}""""
+      val printmappings = Seq(
+        s"""-printmapping "${(b / "mappings.txt").getAbsolutePath}"""")
       val cfg = c ++ o ++ libraryjars ++ printmappings :+ injars :+ outjars
       val ruleCache = s.cacheDirectory / "proguard-rules.hash"
       val cacheHash = Try(IO.read(ruleCache)).toOption getOrElse ""
