@@ -95,6 +95,15 @@ object Java8Detector {
 
 object RetroMain {
   def main(args: Array[String]): Unit = {
+    println("Running Retrolambda")
+    val out = System.out
+    val filterOut = new java.io.PrintStream(out) {
+      override def println(x: String) = {
+        if (!x.startsWith("Saving lambda class:") && !x.startsWith("Classpath:"))
+          super.println(x)
+      }
+    }
+    System.setOut(filterOut)
     val p = new java.util.Properties
     // don't care about using because we're forked off and short-lived
     val in = new FileInputStream(args(0))
