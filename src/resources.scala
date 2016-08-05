@@ -91,7 +91,9 @@ object Resources {
       libs.collect {
         case Dependencies.LibraryProject(_, rs, _) => rs.filter(_.isDirectory)
       }.flatten ++
-      libs.collect { case l if l.layout.res.isDirectory => l.layout.res }
+      libs.collect { case l if l.layout.res.isDirectory => l.layout.res } ++
+      libs.collect { case l if l.layout.rsRes.isDirectory => l.layout.rsRes }
+    // yuck make this better ^^
 
     s.log.debug("Local/library-project resources: " + res)
     // this needs to wait for other projects to at least finish their
