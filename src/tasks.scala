@@ -671,36 +671,31 @@ object Tasks extends TaskBase {
     implicit val output = outputLayout.value
     val layout = projectLayout.value
     val scripts = (layout.renderscript ** "*.rs").get
-    val target = Try(rsTargetApi.value.toInt).getOrElse(11) max 11
 
-    val abis = ndkAbiFilter.value.toSet
-    val abiFilter = if (abis.isEmpty) null else abis.asJava
-    val bldr = builder.value(streams.value.log)
-    bldr.compileAllRenderscriptFiles(Seq(layout.renderscript).asJava,
-      List.empty.asJava, layout.generatedSrc, layout.rsRes, layout.rsObj,
-      layout.rsLib, target, false, rsOptimLevel.value, false,
-      rsSupportMode.value, abiFilter,
-      SbtProcessOutputHandler(streams.value.log))
+    FileFunction.cached(streams.value.cacheDirectory / "rs-gen", FilesInfo.lastModified) { in =>
+      IO.delete(layout.rsBin)
+      val target = Try(rsTargetApi.value.toInt).getOrElse(11) max 11
+      val abis = ndkAbiFilter.value.toSet
+      val abiFilter = if (abis.isEmpty) null else abis.asJava
+      val bldr = builder.value(streams.value.log)
+      bldr.compileAllRenderscriptFiles(Seq(layout.renderscript).asJava,
+        List.empty.asJava, layout.rsSrc, layout.rsRes, layout.rsObj,
+        layout.rsLib, target, false, rsOptimLevel.value, false,
+        rsSupportMode.value, abiFilter,
+        SbtProcessOutputHandler(streams.value.log))
 
-    if (rsSupportMode.value) { // copy support library
+      if (rsSupportMode.value) { // copy support library
       val in = SdkLayout.renderscriptSupportLibFile(buildTools.value)
-      val out = layout.rsLib
-      IO.copy(
-        (in * "*.jar" pair rebase(in, out)) ++
-        (in / "packaged" ** "*.so" pair rebase(in / "packaged", out))
-      )
-    }
+        val out = layout.rsLib
+        IO.copy(
+          (in * "*.jar" pair rebase(in, out)) ++
+            (in / "packaged" ** "*.so" pair rebase(in / "packaged", out))
+        )
+      }
+      (layout.rsBin ***).get.filter(_.isFile).toSet
+    }(scripts.toSet)
 
-    val JavaSource = """\s*(\S+\.java).*""".r
-    val scriptcs = (layout.rsDeps ** "*.d").get
-      .flatMap(IO.readLines(_))
-      .collect { case JavaSource(path) => new File(path) }
-
-    val scriptnames = scripts.map(_.getName.takeWhile(_!='.') + "BitCode.java")
-
-    scriptcs.flatMap { sc =>
-      scriptnames.map(sc.getParentFile / _).filter(_.isFile)
-    }.distinct ++ scriptcs
+    (layout.rsSrc ** "*.java").get
   }
 
   val aidlTaskDef = ( sdkPath
