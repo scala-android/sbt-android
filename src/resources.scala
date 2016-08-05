@@ -340,7 +340,7 @@ object Resources {
   }
   def generateTR(t: Boolean, a: Seq[File], p: String, layout: ProjectLayout,
                  platformApi: Int, platform: (String,Seq[String]), sv: String,
-                 l: Seq[LibraryDependency], f: Boolean, includeAar: Boolean,
+                 l: Seq[LibraryDependency], f: Boolean, ids: Boolean, includeAar: Boolean,
                  withViewHolders: Boolean, i: Seq[String], s: TaskStreams): Seq[File] = {
 
     val j = platform._1

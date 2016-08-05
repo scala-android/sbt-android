@@ -340,8 +340,8 @@ object Tasks extends TaskBase {
     Resources.generateTR(typedResources.value, rGenerator.value,
       packageForR.value, projectLayout.value, platformApi.value,
       platformJars.value, (scalaVersion in ThisProject).value,
-      libraryProjects.value, typedResourcesFull.value, typedResourcesAar.value,
-      typedViewHolders.value,
+      libraryProjects.value, typedResourcesFull.value, typedResourcesIds.value,
+      typedResourcesAar.value, typedViewHolders.value,
       typedResourcesIgnores.value, streams.value)
   }
 
