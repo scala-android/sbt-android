@@ -393,13 +393,17 @@ object Resources {
             l      <- classForLabel(j, layout.label).orElse(Some("android.view.View"))
           } yield file.getName.stripSuffix(".xml") -> l)
 
-          val resources = warn(for {
-            b      <- layouts
-            layout  = XML loadFile b
-            n      <- layout.descendant_or_self
-            re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
-            l      <- classForLabel(j, n.label)
-          } yield id -> l)
+          val resources = ids match {
+            case true =>
+              warn(for {
+                b      <- layouts
+                layout  = XML loadFile b
+                n      <- layout.descendant_or_self
+                re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
+                l      <- classForLabel(j, n.label)
+              } yield id -> l)
+            case false => Map.empty[String, String]
+          }
 
           val trTemplate = IO.readLinesURL(
             resourceUrl("tr.scala.template")) mkString "\n"
@@ -487,9 +491,11 @@ object Resources {
 
           IO.write(tr, trTemplate format (p,
             if (withViewHolders) "" else  " extends AnyVal",
-            resources map { case (k,v) =>
-              "  final val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
-            } mkString "\n",
+            if (ids) {
+              resources map { case (k,v) =>
+                "  final val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
+              } mkString "\n"
+            } else "  // Id generation disabled via typedResourcesIds := false",
             layoutTypes map { case (k,v) =>
               "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n", trs.mkString, getColor, getDrawable, getDrawable, deprForward) replace ("\r", ""))
