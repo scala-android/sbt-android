@@ -86,7 +86,7 @@ object Keys {
   val typedResources = SettingKey[Boolean]("typed-resources",
     "flag indicating whether to generated TR.scala") in Android
   val typedResourcesIds = SettingKey[Boolean]("typed-resources-ids",
-    "whether to generate TR ids") in Android
+    "whether to generate TR ids, default true") in Android
   val typedResourcesFull = SettingKey[Boolean]("typed-resources-full",
     "whether full of resources should be generated at TR.scala, default true") in Android
   val typedResourcesAar = SettingKey[Boolean]("typed-resources-aar",
