@@ -393,17 +393,13 @@ object Resources {
             l      <- classForLabel(j, layout.label).orElse(Some("android.view.View"))
           } yield file.getName.stripSuffix(".xml") -> l)
 
-          val resources = ids match {
-            case true =>
-              warn(for {
-                b      <- layouts
-                layout  = XML loadFile b
-                n      <- layout.descendant_or_self
-                re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
-                l      <- classForLabel(j, n.label)
-              } yield id -> l)
-            case false => Map.empty[String, String]
-          }
+          val resources = if (ids) warn(for {
+            b      <- layouts
+            layout  = XML loadFile b
+            n      <- layout.descendant_or_self
+            re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
+            l      <- classForLabel(j, n.label)
+          } yield id -> l) else Map.empty
 
           val trTemplate = IO.readLinesURL(
             resourceUrl("tr.scala.template")) mkString "\n"
