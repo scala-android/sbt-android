@@ -495,7 +495,7 @@ object Resources {
               resources map { case (k,v) =>
                 "  final val %s = TypedResource[%s](R.id.%s)" format (wrap(k),v,wrap(k))
               } mkString "\n"
-            } else "  // Id generation disabled via typedResourcesIds := false",
+            } else "  // TypedResource ID generation disabled by 'typedResourcesIds := false'",
             layoutTypes map { case (k,v) =>
               "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
             } mkString "\n", trs.mkString, getColor, getDrawable, getDrawable, deprForward) replace ("\r", ""))
