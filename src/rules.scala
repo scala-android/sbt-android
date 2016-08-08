@@ -565,6 +565,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     proguardScala           <<= autoScalaLibrary,
     retrolambdaEnabled       := false,
     typedResources          <<= autoScalaLibrary,
+    typedResourcesIds        := true,
     typedResourcesFull       := true,
     typedResourcesAar        := false,
     typedViewHolders        <<= autoScalaLibrary,
