@@ -1,10 +1,10 @@
 package android
 
-import java.io.{OutputStream, File}
+import java.io.{File, OutputStream}
 import java.util.concurrent.TimeUnit
 
 import android.Keys._
-import com.android.builder.model.{PackagingOptions => _,_}
+import com.android.builder.model.{PackagingOptions => _, _}
 import com.hanhuy.gradle.discovery.GradleBuildModel
 import com.hanhuy.sbt.bintray.UpdateChecker
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector
@@ -16,8 +16,9 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.language.postfixOps
 import scala.util.Try
-
 import Serializer._
+import com.android.tools.lint.LintCliFlags
+import com.android.tools.lint.detector.api.Severity
 /**
  * @author pfnguyen
  */
@@ -268,6 +269,34 @@ object AndroidGradlePlugin extends AutoPlugin {
     try {
       if (discovery.isApplication || discovery.isLibrary) {
         val ap = model.getAndroidProject
+        // Try, this was added fairly recently (2.0.0?)
+        val buildTools = Try(ap.getBuildToolsVersion).toOption.map(v => buildToolsVersion /:= Some(v))
+        val aaptOptions = aaptAdditionalParams /++= Try(ap.getAaptOptions).toOption.flatMap(a => Try(a.getAdditionalParameters).toOption.filter(_ != null)).fold(List.empty[String])(_.asScala.toList)
+        val lintOptions = ap.getLintOptions
+
+        val lintAndAapt = List(
+          aaptOptions,
+          lintStrict /:= lintOptions.isAbortOnError,
+          lintFlags /:= {
+            val flags = new LintCliFlags
+            flags.getSuppressedIds.addAll(lintOptions.getDisable)
+            flags.getEnabledIds.addAll(lintOptions.getEnable)
+            if (lintOptions.getCheck != null)
+              flags.setExactCheckedIds(lintOptions.getCheck)
+            flags.setFullPath(lintOptions.isAbsolutePaths)
+            flags.setShowSourceLines(!lintOptions.isNoLines)
+            flags.setQuiet(lintOptions.isQuiet)
+            flags.setCheckAllWarnings(lintOptions.isCheckAllWarnings)
+            flags.setIgnoreWarnings(lintOptions.isIgnoreWarnings)
+            flags.setWarningsAsErrors(lintOptions.isWarningsAsErrors)
+            flags.setExplainIssues(lintOptions.isExplainIssues)
+            flags.setShowEverything(lintOptions.isShowAll)
+            flags.setDefaultConfiguration(lintOptions.getLintConfig)
+            flags.setSeverityOverrides(Option(lintOptions.getSeverityOverrides).fold(Map.empty[String,Severity])(_.asScala.toMap.mapValues(i => Severity.values()(i))).asJava)
+            flags
+          }
+        )
+
         val sourceVersion = ap.getJavaCompileOptions.getSourceCompatibility
         val targetVersion = ap.getJavaCompileOptions.getTargetCompatibility
 
@@ -363,7 +392,7 @@ object AndroidGradlePlugin extends AutoPlugin {
         val sp = SbtProject(
           ap.getName, base, discovery.isApplication,
           projects.map(_.getProject.replace(":","")).toSet, buildTypes, flavors,
-          optional ++ libs ++ localAar ++ standard ++ unmanaged ++ defaultConfig.settings)
+          optional ++ buildTools ++ lintAndAapt ++ libs ++ localAar ++ standard ++ unmanaged ++ defaultConfig.settings)
         (visited, sp :: subprojects)
       } else
         (visited, subprojects)
@@ -410,6 +439,9 @@ object Serializer {
   }
   implicit def seqEncoder[T : Encoder] = new Encoder[Seq[T]] {
     def encode(l: Seq[T]) = if (l.isEmpty) "Nil" else "Seq(" + l.map(i => enc(i)).mkString(",") + ")"
+  }
+  implicit def setEncoder[T : Encoder] = new Encoder[Set[T]] {
+    def encode(l: Set[T]) = if (l.isEmpty) "Set.empty" else "Set(" + l.map(i => enc(i)).mkString(",") + ")"
   }
   implicit val packagingOptionsEncoding = new Encoder[PackagingOptions] {
     def encode(p: PackagingOptions) =
@@ -506,10 +538,36 @@ object Serializer {
     override def encode(t: (A, B)) = s"(${enc(t._1)}, ${enc(t._2)})"
   }
   implicit def mapEncoder[A : Encoder,B : Encoder] = new Encoder[Map[A,B]] {
-    override def encode(t: Map[A, B]) = s"Map(${t.toList.map(e => enc(e)).mkString(",\n      ")})"
+    override def encode(t: Map[A, B]) = if (t.isEmpty) "Map.empty" else s"Map(${t.toList.map(e => enc(e)).mkString(",\n      ")})"
   }
   implicit def attributedEncoder[T : Encoder] = new Encoder[Attributed[T]] {
     def encode(l: Attributed[T]) = s"Attributed.blank(${enc(l.data)})"
+  }
+  implicit val severityEncoder = new Encoder[Severity] {
+    override def encode(t: Severity) = "Severity." + t.toString
+  }
+  implicit val lintCliFlagsEncoder = new Encoder[LintCliFlags] {
+    override def encode(t: LintCliFlags) =
+      s"""{
+         |      import collection.JavaConverters._
+         |      import com.android.tools.lint.detector.api.Severity
+         |      val flags = lintFlags.value
+         |      flags.getSuppressedIds.addAll(${enc(t.getSuppressedIds.asScala.toSet)}.asJava)
+         |      flags.getEnabledIds.addAll(${enc(t.getEnabledIds.asScala.toSet)}.asJava)
+         |      flags.setExactCheckedIds(${Option(t.getExactCheckedIds).map(c => enc(c.asScala.toSet) + ".asJava").orNull})
+         |      flags.setFullPath(${enc(t.isFullPath)})
+         |      flags.setShowSourceLines(${enc(t.isShowSourceLines)})
+         |      flags.setQuiet(${enc(t.isQuiet)})
+         |      flags.setCheckAllWarnings(${enc(t.isCheckAllWarnings)})
+         |      flags.setIgnoreWarnings(${enc(t.isIgnoreWarnings)})
+         |      flags.setWarningsAsErrors(${enc(t.isWarningsAsErrors)})
+         |      flags.setExplainIssues(${enc(t.isExplainIssues)})
+         |      flags.setShowEverything(${enc(t.isShowEverything)})
+         |      flags.setDefaultConfiguration(${Option(t.getDefaultConfiguration).map(enc(_)).orNull})
+         |      flags.setSeverityOverrides(${enc(t.getSeverityOverrides.asScala.toMap)}.asJava)
+         |      flags
+         |    }
+         |""".stripMargin
   }
 
   sealed trait Op {

@@ -2,7 +2,7 @@ import ScriptedPlugin._
 import bintray.Keys._
 
 val pluginVersion = "1.6.11"
-val gradleBuildVersion = "1.2.2"
+val gradleBuildVersion = "1.2.3"
 
 val androidToolsVersion = "2.1.2"
 
@@ -49,6 +49,7 @@ val gradle = project.in(file("gradle-plugin")).settings(bintrayPublishSettings:_
 
 val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++ bintrayPublishSettings:_*).settings(
   version := gradleBuildVersion,
+  resolvers += Resolver.jcenterRepo,
   mappings in (Compile, packageBin) ++=
     (mappings in (Compile, packageBin) in model).value,
   name := "sbt-android-gradle",
