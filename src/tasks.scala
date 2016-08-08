@@ -449,8 +449,9 @@ object Tasks extends TaskBase {
   }
 
   val collectJniTaskDef = Def.task {
+    implicit val out = outputLayout.value
     def libJni(lib: LibraryDependency): Seq[File] =
-      Seq(lib.getJniFolder).filter(_.isDirectory) ++
+      Seq(lib.getJniFolder, lib.layout.rsLib).filter(_.isDirectory) ++
         lib.getDependencies.asScala.flatMap(l => libJni(l.asInstanceOf[LibraryDependency]))
 
     collectProjectJni.value ++ libraryProjects.value.flatMap(libJni)
