@@ -278,6 +278,12 @@ object AndroidGradlePlugin extends AutoPlugin {
           aaptOptions,
           lintStrict /:= lintOptions.isAbortOnError,
           lintFlags /:= {
+            val severities = Map(
+              LintOptions.SEVERITY_FATAL -> Severity.FATAL,
+              LintOptions.SEVERITY_ERROR -> Severity.ERROR,
+              LintOptions.SEVERITY_WARNING -> Severity.WARNING,
+              LintOptions.SEVERITY_INFORMATIONAL -> Severity.INFORMATIONAL,
+              LintOptions.SEVERITY_IGNORE -> Severity.IGNORE)
             val flags = new LintCliFlags
             flags.getSuppressedIds.addAll(lintOptions.getDisable)
             flags.getEnabledIds.addAll(lintOptions.getEnable)
@@ -292,7 +298,7 @@ object AndroidGradlePlugin extends AutoPlugin {
             flags.setExplainIssues(lintOptions.isExplainIssues)
             flags.setShowEverything(lintOptions.isShowAll)
             flags.setDefaultConfiguration(lintOptions.getLintConfig)
-            flags.setSeverityOverrides(Option(lintOptions.getSeverityOverrides).fold(Map.empty[String,Severity])(_.asScala.toMap.mapValues(i => Severity.values()(i))).asJava)
+            flags.setSeverityOverrides(Option(lintOptions.getSeverityOverrides).fold(Map.empty[String,Severity])(_.asScala.toMap.mapValues(severities(_))).asJava)
             flags
           }
         )

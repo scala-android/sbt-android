@@ -1,1 +1,1 @@
-addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.2.3")
+addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.2.4")

@@ -2,7 +2,7 @@
 
 [![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.2.3
+Current version is 1.2.4
 
 NOTE: 1.2.0 is the last version published using
 `addSbtPlugin("com.hanhuy.sbt" % "android-gradle-build" % "1.2.0")`,
@@ -23,7 +23,7 @@ whenever changes occur.
 2. From your Android project root, wherever the base `build.gradle` is located,
    load `sbt-android-gradle`:
    * `mkdir project`
-   * `echo 'addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.2.3")' > project/plugins.sbt`
+   * `echo 'addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.2.4")' > project/plugins.sbt`
 3. Run `sbt`
    * The initial load will be slow as gradle will run to extract all
      project settings and export them into sbt
