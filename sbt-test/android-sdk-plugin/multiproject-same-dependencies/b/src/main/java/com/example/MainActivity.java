@@ -3,7 +3,7 @@ package com.example.b;
 import android.app.Activity;
 import android.os.Bundle;
 
-public class MainActivity extends Activity
+public class MainActivity extends android.support.v7.app.ActionBarActivity
 {
     /** Called when the activity is first created. */
     @Override
