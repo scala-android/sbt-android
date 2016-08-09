@@ -1,5 +1,7 @@
 ## New features in 1.6.x ##
 
+* `1.6.12`:
+  * Fix critical regression in `1.6.11`
 * `1.6.11`:
   * Minimum SBT version is now `0.13.8`
   * new setting `typedResourcesIds` to determine `TR.xxx` ID generation,

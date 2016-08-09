@@ -116,8 +116,9 @@ object Tasks extends TaskBase {
     //    implicit val output = o
 
     def excludeTests(m: ModuleID): Boolean = {
-      (!withTest && m.configurations.exists(c => c.split(",").forall(s =>
-        s.startsWith("test") || s == "androidTest"))) || !debug
+      val isTest = m.configurations.exists(c => c.split(",").forall(s => s.startsWith("test") || s == "androidTest"))
+
+      (isTest && !withTest) || (isTest && !debug)
     }
 
     val subaars = ta.collect { case a: AarLibrary => a }.map { a => moduleString(a.moduleID) }.toSet
