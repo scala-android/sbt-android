@@ -66,7 +66,8 @@ object VariantSettings {
       val ss3 = variantOptions(buildType, project, s) ++ variantOptions(flavor, project, s) ++ variantOptions(for {
         f <- flavor
         t <- buildType
-      } yield f + t.capitalize, project, s)
+      } yield f + t.capitalize, project, s) ++
+        List(Keys.selectedFlavor := flavor, Keys.selectedBuildType := buildType)
 
       val ss2 = (ss ++ ss3) map fixProjectScope(project)
       val newVariant = variants.copy(append = variants.append + ((project, ss2)), status = variants.status + ((project, (buildType,flavor))))
