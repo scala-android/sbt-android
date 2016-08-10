@@ -423,8 +423,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       val s = state.value
       val prj = thisProjectRef.value
       val pkg = applicationId.value
-      val (buildType,flavor) = VariantSettings.variant(s).status.getOrElse(
-        prj, (None,None))
+      val (buildType,flavor) = variantConfiguration.value
       List(
         ("String", "BUILD_TYPE", s""""${buildType getOrElse ""}""""),
         ("String", "FLAVOR", s""""${flavor getOrElse ""}""""),
