@@ -63,11 +63,15 @@ object VariantSettings {
         flavor.toSeq.flatMap(f => flavors.getOrElse(f, Nil)) ++
           buildType.toSeq.flatMap(t => buildTypes.getOrElse(t, Nil))
 
+      val bco = buildType.map { b => Keys.buildConfigOptions +=
+        (("string", "BUILD_TYPE", s""""$b"""")) }.toList ++
+        flavor.map { f =>
+          Keys.buildConfigOptions += (("string", "FLAVOR", s""""$f"""")) }.toList
       val ss3 = variantOptions(buildType, project, s) ++ variantOptions(flavor, project, s) ++ variantOptions(for {
         f <- flavor
         t <- buildType
       } yield f + t.capitalize, project, s) ++
-        List(Keys.selectedFlavor := flavor, Keys.selectedBuildType := buildType)
+        List(Keys.variantConfiguration := ((buildType,flavor))) ++ bco
 
       val ss2 = (ss ++ ss3) map fixProjectScope(project)
       val newVariant = variants.copy(append = variants.append + ((project, ss2)), status = variants.status + ((project, (buildType,flavor))))

@@ -291,8 +291,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     artifactPath in packageBin  := (artifactPath in (Compile,packageBin)).value,
     flavors                     := Map.empty,
     buildTypes                  := Map.empty,
-    selectedFlavor              := None,
-    selectedBuildType           := None,
+    variantConfiguration        := ((None, None)),
     pluginSettingsLoaded        := {
       if (pluginSettingsLoaded.?.value.isDefined)
         fail(s"androidBuild has been applied to project ${thisProject.value.id} more than once")

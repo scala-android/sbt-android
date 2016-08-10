@@ -65,12 +65,10 @@ object Keys {
     "update-check-sdk", "Check for new versions of the Android SDK") in Android
   val flavors = SettingKey[Map[String,Seq[Setting[_]]]]("flavors",
     "build flavor definitions, map of flavor names to settings") in Android
-  val selectedFlavor = SettingKey[Option[String]]("selected-flavor",
-    "current selected flavor, default None") in Android
   val buildTypes = SettingKey[Map[String,Seq[Setting[_]]]]("build-types",
     "build type definitions, map of build type names to settings") in Android
-  val selectedBuildType = SettingKey[Option[String]]("selected-buildtype",
-    "current selected buildType, default None") in Android
+  val variantConfiguration = SettingKey[(Option[String],Option[String])](
+    "variant-configuration", "current selected (buildType,flavor)") in Android
 
   // layout-related keys
   val projectLayout = SettingKey[ProjectLayout]("project-layout",
