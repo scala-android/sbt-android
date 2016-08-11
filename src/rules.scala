@@ -617,7 +617,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     packageT                <<= zipalign,
     instrumentTestTimeout    := 180000,
     instrumentTestRunner     := "android.test.InstrumentationTestRunner",
-    debugIncludesTests       := true,
+    debugIncludesTests       := (projectLayout.value.testSources ** "*.scala").get.nonEmpty,
     debugTestsGenerator     <<= (debugIncludesTests,projectLayout) map {
       (tests,layout) =>
       if (tests)
