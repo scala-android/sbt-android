@@ -786,7 +786,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     },
     compileIncSetup := {
       Compiler.IncSetup(
-        Defaults.analysisMap((dependencyClasspath in AndroidTest).value),
+        Defaults.analysisMap((dependencyClasspath in AndroidTestInternal).value),
         definesClass.value,
         (skip in compile).value,
         // TODO - this is kind of a bad way to grab the cache directory for streams...
@@ -795,7 +795,7 @@ object Plugin extends sbt.Plugin with PluginFail {
         incOptions.value)
     },
     compileInputs in compile := {
-      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in AndroidTest).value)
+      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in AndroidTestInternal).value)
       Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
     },
     compileAnalysisFilename := {
@@ -838,7 +838,8 @@ object Plugin extends sbt.Plugin with PluginFail {
         (path ** filter).get }
     },
     libraryDependencies <+= Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name),
-    managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
+    managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value),
+    dependencyClasspath in AndroidTestInternal := (dependencyClasspath in AndroidTest).value ++ (dependencyClasspath in Runtime).value
   )
 
   private[this] val stableProguardConfig = Def.taskDyn {

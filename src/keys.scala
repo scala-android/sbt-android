@@ -39,6 +39,7 @@ object Keys {
 
   val Android = config("android")
   val AndroidTest = config("androidTest").extend(Runtime).hide
+  val AndroidTestInternal = Configurations.fullInternal(AndroidTest)
 
   // build-environment keys
   // automatically set from ANDROID_HOME or *.properties ("sdk.dir")
