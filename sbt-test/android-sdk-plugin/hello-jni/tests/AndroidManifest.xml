@@ -10,12 +10,4 @@
     <application>
         <uses-library android:name="android.test.runner" />
     </application>
-    <!--
-    This declares that this application uses the instrumentation test runner targeting
-    the package of com.example.hellojni.  To run the tests use the command:
-    "adb shell am instrument -w com.example.hellojni.tests/android.test.InstrumentationTestRunner"
-    -->
-    <instrumentation android:name="android.test.InstrumentationTestRunner"
-                     android:targetPackage="com.example.hellojni"
-                     android:label="Tests for HelloJni"/>
 </manifest>

@@ -7,7 +7,4 @@
         <uses-sdk android:minSdkVersion="3"/>
         <uses-library android:name="android.test.runner"/>
     </application>
-    <instrumentation
-            android:label="Tests for Example App"
-            android:name="android.test.InstrumentationTestRunner"/>
 </manifest> 
