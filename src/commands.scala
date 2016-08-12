@@ -405,7 +405,10 @@ object Commands {
     } else Nil
 
     IO.writeLines(projectBuild, buildSettings ++ plat ++ javacOption ++ libs)
-    state
+    if (state.remainingCommands.nonEmpty)
+      Command.process("reload", state)
+    else
+      state
   }
 
   val createProjectParser: State => Parser[Either[Unit, (String, String)]] = state => {
