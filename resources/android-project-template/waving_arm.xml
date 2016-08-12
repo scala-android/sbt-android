@@ -1,0 +1,24 @@
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:ordering="sequentially">
+    <objectAnimator
+        android:propertyName="translateY"
+        android:valueType="floatType"
+        android:valueFrom="0"
+        android:valueTo="-10"
+        android:duration="500"
+        />
+    <objectAnimator
+        android:propertyName="rotation"
+        android:valueFrom="0"
+        android:valueTo="15"
+        android:duration="250"
+        />
+    <objectAnimator
+        android:propertyName="rotation"
+        android:valueFrom="15"
+        android:valueTo="-20"
+        android:repeatMode="reverse"
+        android:repeatCount="infinite"
+        android:duration="500"
+        />
+</set>

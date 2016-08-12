@@ -340,9 +340,9 @@ object Commands {
 
   }
 
-  val createProjectSbtAction: State => State = state => {
+  val createProjectSbtAction: (State,Option[String]) => State = (state,platform) => {
     def compareSbtVersion(version: String) = {
-      val atLeast = List(0, 13, 5)
+      val atLeast = List(0, 13, 8)
       @tailrec
       def compareVersions(v1: Seq[Int], v2: Seq[String]): Int = (v1, v2) match {
         case (Nil, Nil)     =>  0
@@ -366,7 +366,7 @@ object Commands {
       PluginFail("An android project does not exist at this location")
     }
 
-    if ((base / "*.sbt").get.nonEmpty)
+    if ((base * "*.sbt").get.nonEmpty)
       PluginFail("SBT build files already exist at this location")
     state.log.info("Creating SBT project files")
     val build = base / "project"
@@ -376,10 +376,27 @@ object Commands {
     val pluginSbt = build / "android.sbt"
     val plugin = s"""addSbtPlugin("org.scala-android" % "sbt-android" % "${BuildInfo.version}")""".stripMargin
     val version = Project.extract(state).get(sbt.Keys.sbtVersion)
-    val useVersion = if (compareSbtVersion(version)) version else "0.13.5"
-    IO.writeLines(pluginSbt, plugin ::  Nil)
+    val useVersion = if (compareSbtVersion(version)) version else "0.13.8"
+    if ((base / "project" * "*.sbt").get.isEmpty) {
+      IO.writeLines(pluginSbt, plugin :: Nil)
+    } else {
+      state.log.warn("SBT files already exist in project/, not creating project/android.sbt")
+    }
     IO.writeLines(properties, "sbt.version=" + useVersion :: Nil)
-    val buildSettings = "androidBuild"
+    val buildSettings = "androidBuild" :: "useSupportVectors" ::
+      "" ::
+      "instrumentTestRunner :=" ::
+      """  "android.support.test.runner.AndroidJUnitRunner"""" ::
+      Nil
+    val libs =
+      "" ::
+        "libraryDependencies ++=" ::
+        """  aar("com.android.support" % "appcompat-v7" % "24.0.0") ::""" ::
+        """  aar("com.android.support.test" % "runner" % "0.5" % "androidTest") ::""" ::
+        """  aar("com.android.support.test.espresso" % "espresso-core" % "2.2.2" % "androidTest") ::""" ::
+        "  Nil" ::
+        Nil
+    val plat = platform.toList.flatMap(p => "" :: s"""platformTarget := "$p"""" :: Nil)
     val javacOption = if (util.Properties.isJavaAtLeast("1.8")) {
       "" ::
       """
@@ -387,14 +404,11 @@ object Commands {
       """.stripMargin.trim :: Nil
     } else Nil
 
-    IO.writeLines(projectBuild, buildSettings :: javacOption)
+    IO.writeLines(projectBuild, buildSettings ++ plat ++ javacOption ++ libs)
     state
   }
 
-  val createProjectParser: State => Parser[Either[Unit, ((String, String), String)]] = state => {
-    val platforms = (7 to 30) ++ ('N' to 'Z') map ("android-" + _.toString)
-    val targets = token(StringBasic.examples(platforms:_*))
-
+  val createProjectParser: State => Parser[Either[Unit, (String, String)]] = state => {
     val idStart = Parser.charClass(Character.isJavaIdentifierStart)
     val id = Parser.charClass(Character.isJavaIdentifierPart)
     val dot = Parser.literal('.')
@@ -410,61 +424,61 @@ object Commands {
     }, "<name>")
 
     Parser.choiceParser(EOF,
-      (Space ~> targets) ~ (Space ~> pkgName) ~ (Space ~> name)
+      (Space ~> pkgName) ~ (Space ~> name)
     )
   }
   // gen-android -p package-name -n project-name -t api
-  val createProjectAction: (State, Either[Unit, ((String, String), String)]) => State = {
+  val createProjectAction: (State, Either[Unit, (String, String)]) => State = {
     case (state, maybe) =>
-      val sdk = sdkpath(state)
       maybe.left foreach { _ =>
         PluginFail(
-          "Usage: gen-android <platform-target> <package-name> <name>")
+          "Usage: gen-android <package-name> <name>")
       }
       (maybe.right map {
-        case ((target, pkg), name) =>
+        case (pkg, name) =>
           val base = file(".")
           val layout = ProjectLayout(base)
           if (layout.manifest.exists) {
             PluginFail(
-              "An Android project already exists in this location")
+              "An android project already exists in this location")
           } else {
             state.log.info("Creating project: " + name)
-            val android = SdkLayout.sdkManager(sdk).getCanonicalPath
-            AndroidPlugin.platformTarget(target,
-              SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log), true, state.log)
-            val p = Seq(android,
-              "create", "project",
-              "-g", "-v", "0.12.1",
-              "-p", ".",
-              "-k", pkg,
-              "-n", name,
-              "-a", "MainActivity",
-              "-t", target) !
-
-            if (p != 0) {
-              PluginFail("failed to create project")
-            }
             val gitignore = base / ".gitignore"
             val ignores = Seq("target/", "project/project",
               "bin/", "local.properties")
-            val files = Seq("gradlew", "gradlew.bat",
-              "build.gradle", "local.properties", "src/main/res/layout/main.xml")
-            files foreach (f => (base / f).delete())
-            IO.delete(base / "gradle")
-            IO.delete(base / "src" / "main" / "java")
+            val stringsTemplate = IO.readLinesURL(
+              Resources.resourceUrl("android-project-template/strings.xml")) mkString "\n"
+            val manifestTemplate = IO.readLinesURL(
+              Resources.resourceUrl("android-project-template/AndroidManifest.xml")) mkString "\n"
             val sampleTemplate = IO.readLinesURL(
-              Resources.resourceUrl("android-sample.scala.template")) mkString "\n"
-            val layoutSample = IO.readLinesURL(
-              Resources.resourceUrl("android-main.xml.template")) mkString "\n"
-            IO.write(base / "src/main/res/layout/main.xml", layoutSample)
-            IO.write(base / "src/main/scala" / pkg.replace('.','/') / "sample.scala",
-              sampleTemplate.format(pkg, name))
+              Resources.resourceUrl("android-project-template/sample.scala")) mkString "\n"
+            val sampleJunit3Template = IO.readLinesURL(
+              Resources.resourceUrl("android-project-template/Junit3MainActivityTest.java")) mkString "\n"
+            val sampleJunit4Template = IO.readLinesURL(
+              Resources.resourceUrl("android-project-template/Junit4MainActivityTest.java")) mkString "\n"
 
-            val projectProperties = base / "project.properties"
+            IO.writeLines(base / "lint.xml",
+              IO.readLinesURL(Resources.resourceUrl("android-project-template/lint.xml")))
+            IO.writeLines(base / "src/main/res/layout/main.xml", IO.readLinesURL(
+                Resources.resourceUrl("android-project-template/main.xml")))
+            IO.writeLines(base / "src/main/res/anim/waving_arm.xml", IO.readLinesURL(
+              Resources.resourceUrl("android-project-template/waving_arm.xml")))
+            IO.writeLines(base / "src/main/res/drawable/waving_scala_android.xml", IO.readLinesURL(
+              Resources.resourceUrl("android-project-template/waving_scala_android.xml")))
+            IO.writeLines(base / "src/main/res/drawable/scala_android.xml", IO.readLinesURL(
+              Resources.resourceUrl("android-project-template/scala_android.xml")))
+
+            IO.write(base / "src/androidTest/java" / pkg.replace('.','/') / "Junit3MainActivityTest.java",
+              sampleJunit3Template.format(pkg, name))
+            IO.write(base / "src/androidTest/java" / pkg.replace('.','/') / "Junit4MainActivityTest.java",
+              sampleJunit4Template.format(pkg, name))
+            IO.write(base / "src/main" / "AndroidManifest.xml", manifestTemplate.format(pkg))
+            IO.write(base / "src/main/res/values/strings.xml", stringsTemplate.format(name))
+            IO.write(base / "src/main/scala" / pkg.replace('.','/') / "MainActivity.scala",
+              sampleTemplate.format(pkg))
+
             IO.writeLines(gitignore, ignores)
-            IO.writeLines(projectProperties, "target=" + target :: Nil)
-            createProjectSbtAction(state)
+            createProjectSbtAction(state, Some("android-24"))
           }
       }).right getOrElse state
   }
@@ -1038,10 +1052,10 @@ object Commands {
     "Create a new android project built using SBT"
   )(createProjectParser)(createProjectAction)
 
-  private def genAndroidSbt = Command.command(
-    "gen-android-sbt", "Create SBT files for existing android project",
+  private def genAndroidSbt = Command(
+    "gen-android-sbt", ("gen-android-sbt", "Create SBT files for existing android project"),
     "Creates build.properties, build.scala, etc for an existing android project"
-  )(createProjectSbtAction)
+  )(_ => EOF map { _ => None })(createProjectSbtAction)
 
   private def device = Command(
     "device", ("device", "Select a connected android device"),
