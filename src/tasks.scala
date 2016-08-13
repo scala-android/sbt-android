@@ -1087,7 +1087,8 @@ object Tasks extends TaskBase {
   }
 
   val testAggregateTaskDef = Def.task {
-    Aggregate.AndroidTest(debugIncludesTests.value, instrumentTestRunner.value,
+    Aggregate.AndroidTest(debugIncludesTests.value, (packageT in Test).value,
+      instrumentTestRunner.value,
       instrumentTestTimeout.value, apkbuildDebug.value(),
       apkDebugSigningConfig.value, dexMaxHeap.value,
       dexMaxProcessCount.value,
@@ -1173,7 +1174,7 @@ object Tasks extends TaskBase {
       val tmp = cache / "test-dex"
       tmp.mkdirs()
       val inputs = if (re && RetrolambdaSupport.isAvailable) {
-        RetrolambdaSupport(classes, deps, ra.classpath, ra.bootClasspath, s)
+        RetrolambdaSupport(classes, ta.classesJar +: deps, ra.classpath, ra.bootClasspath, s)
       } else {
         Seq(classes) ++ deps
       }

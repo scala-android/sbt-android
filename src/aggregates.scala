@@ -20,6 +20,7 @@ object Aggregate {
                                    additionalParams: Seq[String])
 
   private[android] case class AndroidTest(debugIncludesTests: Boolean,
+                                          classesJar: File,
                                           instrumentTestRunner: String,
                                           instrumentTestTimeout: Int,
                                           apkbuildDebug: Boolean,
