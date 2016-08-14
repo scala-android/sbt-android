@@ -1,0 +1,5 @@
+> gen-android org.scalaandroid.foo TestApp
+> android:package
+> android:run
+> android:test
+> android:uninstall
