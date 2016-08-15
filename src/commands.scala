@@ -388,6 +388,7 @@ object Commands {
       "instrumentTestRunner :=" ::
       """  "android.support.test.runner.AndroidJUnitRunner"""" ::
       Nil
+    // wrap dependencies with 'aar' due to alexarchambault/coursier#322
     val libs =
       "" ::
         "libraryDependencies ++=" ::
