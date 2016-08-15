@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/scala-android/sbt-android.svg?branch=master)](https://travis-ci.org/scala-android/sbt-android)
 [![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.6.12 ([Change log](CHANGES.md))
+Current version is 1.6.13 ([Change log](CHANGES.md))
 
 Auto-import from gradle using [sbt-android-gradle](GRADLE.md)
 
@@ -61,7 +61,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    in the file `~/.sbt/0.13/plugins/android.sbt`:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.12")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.13")
    ```
 
 2. Set the environment variable `ANDROID_HOME` pointing to the path where the
@@ -73,19 +73,19 @@ found on the #sbt-android IRC channel on Freenode, or the
      NDK will be installed to `~/.android/sbt/sdk/ndk-bundle` automatically
      if an NDK build is detected (Android.mk and friends)
 
-3. Create a new android project using `gen-android` if the plugin is installed
-   globally
-   * Instead of creating a new project, one can also do
-     `sbt gen-android-sbt` to make sure everything is properly setup
-     in an existing project.
-
-4. (N/A if globally configured) Create a directory named `project` within
+3. (N/A if globally configured) Create a directory named `project` within
    your project and add the file `project/plugins.sbt`, in it, add the
    following line:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.12")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.13")
    ```
+
+4. Create a new android project using `gen-android` if the plugin is installed
+   globally
+   * Instead of creating a new project, one can also do
+     `sbt gen-android-sbt` to make sure everything is properly setup
+     in an existing project.
 
 5. Create or edit the file named `build.sbt` and add the
    following line, (automatically performed if using `gen-android`) :
@@ -98,7 +98,7 @@ found on the #sbt-android IRC channel on Freenode, or the
 
    ```
    // for Android 5.0, Lollipop, API Level 21:
-   platformTarget in Android := "android-21"
+   platformTarget := "android-21"
    ```
 
    The Android Developer pages provides a [list of applicable version codes](https://developer.android.com/guide/topics/manifest/uses-sdk-element.html#ApiLevels).
@@ -265,7 +265,7 @@ found on the #sbt-android IRC channel on Freenode, or the
   * `logcat-grep [-p pid] [regex]`
   * `pidcat[/project] [partial pkg] [TAGs...]`
   * `pidcat-grep[/project] [partial pkg] [regex]`
-  * `gen-android <platform> <package> <name>`
+  * `gen-android <package> <name>`
   * `gen-android-sbt`
   * `device <serial>`
   * `devices`
@@ -284,3 +284,8 @@ found on the #sbt-android IRC channel on Freenode, or the
   in an `autolib` uses resources from such a library, the answer is to create
   a standard multi-project build configuration rather than utilize `autolibs`.
   `autolibs` can be disabled by manually configuring `localProjects`
+* androidTest cannot be written in scala if one wants to use junit4 annotations.
+  a workaround is possible if setting `minSdkVersion` to `21` is ok. With
+  minSdk set to 21, also set `dexMulti := true` and
+  `useProguardInDebug := false` to bypass proguard. This will allow junit4
+  tests written in scala to function.
