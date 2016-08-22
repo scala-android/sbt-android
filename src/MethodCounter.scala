@@ -12,18 +12,33 @@ import org.objectweb.asm.signature.SignatureVisitor
 import java.io.ByteArrayOutputStream
 import java.lang.reflect.Method
 
-object MethodCounter {
+object MethodCounter extends (File => Int) {
 
   def apply(jar: File): Int = {
     var count = 0
+    var seen = Set.empty[String]
 
     var classesMap: Map[Class[_], AnyRef] = Map.empty
+    var currentClass = ""
     val classes = List(classOf[ClassVisitor], classOf[MethodVisitor], classOf[FieldVisitor], classOf[AnnotationVisitor], classOf[SignatureVisitor])
     val handler = new MethodHandler {
       override def invoke(self: AnyRef, thisMethod: Method, proceed: Method, args: Array[AnyRef]) = {
         thisMethod.getName match {
+          case "visit" =>
+            if (args.length > 2)
+              currentClass = args(2).toString
           case "visitMethod" =>
-            count = count + 1
+            val n = currentClass + "." + args(1)
+            if (!seen(n)) {
+              count = count + 1
+              seen = seen + n
+            }
+          case "visitMethodInsn" =>
+            val n = args(1) + "." + args(2)
+            if (!seen(n)) {
+              count = count + 1
+              seen = seen + n
+            }
           case _ =>
         }
         val x = thisMethod.getReturnType
@@ -39,7 +54,7 @@ object MethodCounter {
       factory.setFilter(new MethodFilter {
         override def isHandled(p1: Method): Boolean = true
       })
-      val o = factory.create(Array(classOf[Int]), Array(Opcodes.ASM4.asInstanceOf[AnyRef]), handler)
+      val o = factory.create(Array(classOf[Int]), Array(Opcodes.ASM5.asInstanceOf[AnyRef]), handler)
       (clazz, o)
     }.toMap
     classesMap(classOf[ClassVisitor]) match {

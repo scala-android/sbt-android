@@ -73,7 +73,7 @@ object Dex {
     val (_ , inputs) = dexOptions.inputs
     val dexIn = (inputs filter (_.isFile)) filterNot (pd map (_._1) contains _)
     // double actual number, because "dex methods" include references to other methods
-    lazy val totalMethods = (dexIn map MethodCounter.apply).sum * 2
+    lazy val totalMethods = (dexIn map MethodCounter).sum
     // try to aim for an average of 3000 methods per shard
     val SHARD_GOAL = 3000
     val MAX_SHARDS = 50
@@ -167,6 +167,12 @@ object Dex {
       s.log.debug("DEX IN: " + dexIn)
       s.log.debug("PRE-DEXED: " + predex2)
       bin.mkdirs()
+      val sizes = dexIn.map(j => j -> MethodCounter(j)).sortBy(_._2).reverse
+      val tot = sizes.map(_._2).sum
+      if (tot > (1 << 16)) {
+        s.log.warn("Estimated method count is over 64K, dexing will most likely fail")
+        s.log.warn("    " + sizes.map { case (j,c) => f"$c%7d - $j" }.mkString("\n    "))
+      }
       // dex doesn't support --no-optimize, see
       // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(dexIn.asJava, bin,
