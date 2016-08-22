@@ -758,13 +758,24 @@ object Tasks extends TaskBase {
     else {
       val output = layout.processedManifest
       output.getParentFile.mkdirs()
-      bldr(s.log).mergeManifests(layout.manifest, a.overlays.filter(_.isFile).asJava,
-        if (merge) libs.asJava else Seq.empty.asJava,
-        pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
-        output.getAbsolutePath, null, null,
-        if (isLib) ManifestMerger2.MergeType.LIBRARY else
-          ManifestMerger2.MergeType.APPLICATION, ph.asJava, List.empty.asJava,
-        layout.processedManifestReport)
+      try {
+        bldr(s.log).mergeManifests(layout.manifest, a.overlays.filter(_.isFile).asJava,
+          if (merge) libs.asJava else Seq.empty.asJava,
+          pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
+          output.getAbsolutePath, null, null,
+          if (isLib) ManifestMerger2.MergeType.LIBRARY
+          else
+            ManifestMerger2.MergeType.APPLICATION, ph.asJava, List.empty.asJava,
+          layout.processedManifestReport)
+      } catch {
+        case e: Exception =>
+          val ms = layout.manifest :: (a.overlays.filter(_.isFile) ++
+            libs.map(_.getManifest).filter(_.isFile)).toList
+          val ex = new MessageOnlyException(
+            s"Failed to merge manifest files:\n    ${ms.mkString("\n    ")}")
+          ex.initCause(e)
+          throw ex
+      }
       if (noTestApk) {
          val top = XML.loadFile(output)
         val prefix = top.scope.getPrefix(ANDROID_NS)

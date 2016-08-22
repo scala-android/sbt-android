@@ -86,7 +86,11 @@ object Dependencies {
   case class AarLibrary(base: File) extends LibraryDependency {
     lazy val moduleID: ModuleID = {
       val mfile = moduleIdFile(path)
-      val parts = IO.readLines(mfile).head.split(":")
+      val parts = IO.readLines(mfile).headOption.fold(PluginFail(
+       s"Failed to load ModuleID info from $mfile; extracted aar is corrupted"
+      ))(_.split(":"))
+      if (parts.length < 3)
+        PluginFail(s"Failed to read ModuleID info from $mfile; extracted aar is corrupted")
       parts(0) % parts(1) % parts(2)
     }
     override lazy val layout = new ProjectLayout.Ant(base) {
