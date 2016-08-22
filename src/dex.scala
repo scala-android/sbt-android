@@ -154,7 +154,7 @@ object Dex {
         s.log.debug("Cleaning dex files for proguard cache and incremental dex")
         (bin * "*.dex" get) foreach (_.delete())
       }
-      s.log.info(s"Generating dex, incremental=$incremental, multidex=${dexOptions.multi}")
+      s.log.info(s"Generating dex, multidex=${dexOptions.multi}")
       s.log.debug("Dex inputs: " + inputs)
 
       val tmp = s.cacheDirectory / "dex"
