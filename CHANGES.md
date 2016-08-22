@@ -1,5 +1,10 @@
 ## New features in 1.6.x ##
 
+* `1.6.14`:
+  * Improve MethodCounter estimates and provided a warning when
+    estimates indicate that the single dex file limit may be exceeded
+  * Clarify logging when running dx
+  * Improve error messaging when exploded-aars are corrupted
 * `1.6.13`:
   * Re-implemented `gen-android`
     * Usage is now `gen-android <package> <name>`
