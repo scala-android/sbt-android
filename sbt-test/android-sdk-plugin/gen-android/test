@@ -1,4 +1,5 @@
 > gen-android org.scalaandroid.foo TestApp
+$ copy-file main.xml src/main/res/layout/main.xml
 > android:package
 > android:run
 > android:test
