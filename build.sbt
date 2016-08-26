@@ -163,7 +163,8 @@ scriptedDependencies <<= ( sbtTestDirectory
                          , sbtVersion) map {
   (dir,s, org, n, v, sbtv) =>
   val testBase = dir / "android-sdk-plugin"
-  val tests = testBase.listFiles(DirectoryFilter) filter { d =>
+  val testBases = List(dir / "android-sdk-plugin", dir / "no-travis")
+  val tests = testBases.flatMap(_.listFiles(DirectoryFilter)) filter { d =>
     (d ** "*.sbt").get.nonEmpty || (d / "project").isDirectory
   }
   tests foreach { test =>
