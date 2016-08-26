@@ -239,9 +239,11 @@ object Keys {
     "Maximum process count for dex, default available processor count") in Android
   val dexMulti = SettingKey[Boolean]("dex-multi",
     "multi-dex flag for dex, default false") in Android
+  val dexMainRoots = SettingKey[Seq[String]]("dex-main-roots",
+    "root android manifest component types to keep in the main dex file") in Android
   val dexMainClassesRules = SettingKey[Seq[String]](
     "dex-main-classes-rules",
-    "The proguard rules applied when generating the dex main classes list for mutli-dex build."
+    "The proguard rules applied when generating the dex main classes list for multi-dex build."
   ) in Android
   val dexMainClasses = SettingKey[Seq[String]]("dex-main-classes",
     "list of class files that go into main-dex-list parameter for dex") in Android

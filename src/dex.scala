@@ -231,6 +231,7 @@ object Dex {
                            layout: ProjectLayout,
                            legacy: Boolean,
                            multidex: Boolean,
+                           roots: Seq[String],
                            proguardRules: Seq[String],
                            inputs: Seq[File],
                            mainDexClasses: Seq[String],
@@ -243,7 +244,7 @@ object Dex {
         IO.writeLines(mainDexListTxt, mainDexClasses)
       } else {
         FileFunction.cached(s.cacheDirectory / "mainDexClasses", FilesInfo.lastModified) { in =>
-          makeMultiDexRoots(XML.loadFile(manifest), inputs, proguardRules, proguardClasspath, bt, layout.maindexRootsJar)
+          makeMultiDexRoots(XML.loadFile(manifest), inputs, roots, proguardRules, proguardClasspath, bt, layout.maindexRootsJar)
           val mainClasses = createMainDexList(inputs, layout.maindexRootsJar, bt)
           IO.writeLines(mainDexListTxt, mainClasses)
           s.log.warn("Set mainDexClasses to improve build times:")
@@ -259,6 +260,7 @@ object Dex {
 
   def makeMultiDexRoots(manifest: Elem,
                         inputs: Seq[File],
+                        roots: Seq[String],
                         proguardRules: Seq[String],
                         proguardClasspath: Def.Classpath,
                         buildTools: BuildToolInfo, output: File): Unit = {
@@ -275,13 +277,6 @@ object Dex {
         |}
       """.stripMargin
     val defaultSpec = "{ <init>(); }"
-    val roots = "activity" ::
-      "application" ::
-      "service" ::
-      "receiver" ::
-      "provider" ::
-      "instrumentation" ::
-      Nil
     val baseConfig = proguardRules ++ Seq(
       s"-libraryjars ${shrinkedAndroid.getAbsolutePath}",
       s"""-injars ${inputs.map {

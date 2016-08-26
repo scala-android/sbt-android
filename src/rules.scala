@@ -485,6 +485,13 @@ object Plugin extends sbt.Plugin with PluginFail {
     dexInProcess             := false, // turn off, does not work properly?
     dexMaxProcessCount       := java.lang.Runtime.getRuntime.availableProcessors,
     dexMulti                 := false,
+    dexMainRoots             := Seq(
+      "activity",
+      "application",
+      "service",
+      "receiver",
+      "provider",
+      "instrumentation"),
     dexMainClassesRules      := Seq(
       "-dontobfuscate",
       "-dontoptimize",

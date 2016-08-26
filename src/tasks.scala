@@ -902,6 +902,7 @@ object Tasks extends TaskBase {
       projectLayout.value,
       dexLegacyMode.value,
       dexMulti.value,
+      dexMainRoots.value,
       dexMainClassesRules.value,
       dexInputs.value._2,
       dexMainClasses.value,
