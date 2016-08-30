@@ -278,6 +278,7 @@ object Keys {
 
   val allDevices = SettingKey[Boolean]("all-devices",
     "android: execute install, run and test on all connected devices, or just selected") in Android
+  val installTimeout = SettingKey[Int]("install-timeout", "timeout (ms) for installation, default 0: forever") in Android
   val install = TaskKey[Unit]("install", "Install the built app to device") in Android
   val uninstall = TaskKey[Unit]("uninstall", "Remove the app from the device") in Android
   val debug = InputKey[Unit]("debug", "Run the app in debug mode, (wait for debugger on android)") in Android

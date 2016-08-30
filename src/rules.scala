@@ -389,6 +389,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     packageApklib           <<= packageApklibTaskDef,
     mappings in packageApklib <<= packageApklibMappings,
     allDevices               := false,
+    installTimeout           := 0,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
     clean                   <<= cleanTaskDef,

@@ -23,6 +23,8 @@ object Aggregate {
                                           classesJar: File,
                                           instrumentTestRunner: String,
                                           instrumentTestTimeout: Int,
+                                          installTimeout: Int,
+                                          allDevices: Boolean,
                                           apkbuildDebug: Boolean,
                                           debugSigningConfig: ApkSigningConfig,
                                           dexMaxHeap: String,

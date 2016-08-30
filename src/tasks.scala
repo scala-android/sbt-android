@@ -22,6 +22,7 @@ import Keys.Internal._
 import Dependencies.{AutoLibraryProject => _, LibraryProject => _, _}
 import com.android.builder.compiling.{BuildConfigGenerator, ResValueGenerator}
 import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
 
 import Resources.{ANDROID_NS, resourceUrl}
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
@@ -1101,7 +1102,8 @@ object Tasks extends TaskBase {
   val testAggregateTaskDef = Def.task {
     Aggregate.AndroidTest(debugIncludesTests.value, (packageT in Test).value,
       instrumentTestRunner.value,
-      instrumentTestTimeout.value, apkbuildDebug.value(),
+      instrumentTestTimeout.value, installTimeout.value, allDevices.value,
+      apkbuildDebug.value(),
       apkDebugSigningConfig.value, dexMaxHeap.value,
       dexMaxProcessCount.value,
       (externalDependencyClasspath in AndroidTest).value map (_.data),
@@ -1113,13 +1115,12 @@ object Tasks extends TaskBase {
                     , aaptAggregate
                     , classDirectory
                     , sdkPath
-                    , allDevices
                     , testAggregate
                     , manifestAggregate
                     , retrolambdaAggregate
                     , libraryProjects
                     , streams) map {
-    (layout, o, agg, classes, sdk, all, ta, ma, ra, libs, s) =>
+    (layout, o, agg, classes, sdk, ta, ma, ra, libs, s) =>
     if (ta.libraryProject)
       PluginFail("This project cannot `android:test`, it has set 'libraryProject := true")
     implicit val output = o
@@ -1136,6 +1137,7 @@ object Tasks extends TaskBase {
     val re = ra.enable
     val debug = ta.apkbuildDebug
     val bldr = agg.builder(s.log)
+    val all = ta.allDevices
 
     val testManifest = layout.testManifest
     val manifestFile = if (noTestApk || testManifest.exists) {
@@ -1201,7 +1203,7 @@ object Tasks extends TaskBase {
       s.log.debug("Installing test apk: " + apk)
 
       def install(device: IDevice) {
-        installPackage(apk, sdk, device, s.log)
+        installPackage(apk, ta.installTimeout, sdk, device, s.log)
       }
 
       if (all)
@@ -1378,9 +1380,10 @@ object Tasks extends TaskBase {
   val installTaskDef = ( packageT
                        , libraryProject
                        , sdkPath
+                       , installTimeout
                        , allDevices
                        , streams) map {
-    (p, l, k, all, s) =>
+    (p, l, k, timeo, all, s) =>
 
     if (!l) {
       def execute(d: IDevice): Unit = {
@@ -1388,7 +1391,7 @@ object Tasks extends TaskBase {
           d.getSerialNumber, "utf-8")
         FileFunction.cached(s.cacheDirectory / cacheName, FilesInfo.hash) { in =>
           s.log.info(s"Installing to ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
-          installPackage(p, k, d, s.log)
+          installPackage(p, timeo, k, d, s.log)
           in
         }(Set(p))
       }
@@ -1399,11 +1402,11 @@ object Tasks extends TaskBase {
     }
   }
 
-  def installPackage(apk: File, sdkPath: String, device: IDevice, log: Logger) {
+  def installPackage(apk: File, timeout: Int, sdkPath: String, device: IDevice, log: Logger) {
     logRate(log, "[%s] Install finished:" format apk.getName, apk.length) {
-      Try(device.installPackage(apk.getAbsolutePath, true)) match {
+      Try(device.installPackages(List(apk).asJava, true, List.empty.asJava, timeout, TimeUnit.MILLISECONDS)) match {
         case util.Failure(err) =>
-          PluginFail("Install failed: " + err.getMessage)
+          PluginFail("Install failed: " + err.getMessage, err)
         case util.Success(_) =>
       }
     }
