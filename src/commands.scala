@@ -388,13 +388,12 @@ object Commands {
       "instrumentTestRunner :=" ::
       """  "android.support.test.runner.AndroidJUnitRunner"""" ::
       Nil
-    // wrap dependencies with 'aar' due to alexarchambault/coursier#322
     val libs =
       "" ::
         "libraryDependencies ++=" ::
-        """  aar("com.android.support" % "appcompat-v7" % "24.0.0") ::""" ::
-        """  aar("com.android.support.test" % "runner" % "0.5" % "androidTest") ::""" ::
-        """  aar("com.android.support.test.espresso" % "espresso-core" % "2.2.2" % "androidTest") ::""" ::
+        """  "com.android.support" % "appcompat-v7" % "24.0.0" ::""" ::
+        """  "com.android.support.test" % "runner" % "0.5" % "androidTest" ::""" ::
+        """  "com.android.support.test.espresso" % "espresso-core" % "2.2.2" % "androidTest" ::""" ::
         "  Nil" ::
         Nil
     val plat = platform.toList.flatMap(p => "" :: s"""platformTarget := "$p"""" :: Nil)
