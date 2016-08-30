@@ -1,8 +1,8 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
-val pluginVersion = "1.6.15-SNAPSHOT"
-val gradleBuildVersion = "1.2.4"
+val pluginVersion = "1.6.15"
+val gradleBuildVersion = "1.2.5"
 
 val androidToolsVersion = "2.1.2"
 
@@ -56,7 +56,7 @@ val gradlebuild = project.in(file("gradle-build")).settings(buildInfoSettings ++
   organization := "org.scala-android",
   scalacOptions ++= Seq("-deprecation","-Xlint","-feature"),
   libraryDependencies ++= Seq(
-    "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
+    "com.hanhuy.sbt" %% "bintray-update-checker" % "0.2",
     "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile-internal",
     "org.gradle" % "gradle-tooling-api" % "2.6" % "provided",
     "org.slf4j" % "slf4j-api" % "1.7.10" // required by gradle-tooling-api
@@ -110,7 +110,7 @@ libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "5.0.4",
   "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile-internal",
   "org.javassist" % "javassist" % "3.20.0-GA",
-  "com.hanhuy.sbt" %% "bintray-update-checker" % "0.1",
+  "com.hanhuy.sbt" %% "bintray-update-checker" % "0.2",
   "com.android.tools.build" % "builder" % androidToolsVersion excludeAll
     ExclusionRule(organization = "org.bouncycastle"),
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",

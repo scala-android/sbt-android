@@ -1,5 +1,14 @@
 ## New features in 1.6.x ##
 
+* `1.6.15`:
+  * automatically include `scala.Dynamic` in proguard keep rules,
+    low cost (0 methods) but fixes proguardCache with any usage of dynamic
+  * add a `dexMainRoots` setting to make keep component list configurable
+  * fix dex method count warning when multidex is enabled, also clarifies
+    on what the estimated count is when the limit is hit
+  * Add `installTimeout` setting to control timeout of `android:install`
+  * update to `bintray-update-checker` 0.2 for binary compatibility issues
+    (transitively updated to argonaut 6.1a and scalaz 7.2)
 * `1.6.14`:
   * Improve MethodCounter estimates and provided a warning when
     estimates indicate that the single dex file limit may be exceeded
