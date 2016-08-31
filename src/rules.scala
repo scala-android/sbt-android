@@ -204,8 +204,10 @@ object Plugin extends sbt.Plugin with PluginFail {
       c
     },
     sourceManaged               := projectLayout.value.gen,
-    unmanagedSourceDirectories <<= projectLayout (l =>
-      Set(l.sources, l.javaSource, l.scalaSource).toSeq),
+    unmanagedSourceDirectories  := {
+      val l = projectLayout.value
+      Defaults.makeCrossSources(l.scalaSource, l.javaSource, scalaBinaryVersion.value, crossPaths.value)
+    },
     // was necessary prior to 0.13.8 to squelch "No main class detected" warning
     //packageOptions in packageBin := Package.JarManifest(new java.util.jar.Manifest) :: Nil,
     packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
