@@ -154,7 +154,17 @@ object Plugin extends sbt.Plugin with PluginFail {
     libraryProject := true,
     publishArtifact in (Compile,packageBin) := true,
     publishArtifact in (Compile,packageSrc) := true,
-    mappings in (Compile,packageSrc) ++= (managedSources in Compile).value map (s => (s,s.getName)),
+    mappings in (Compile,packageSrc) ++= {
+      val dirs = (managedSourceDirectories in Compile).value
+
+      (managedSources in Compile).value map { s =>
+        val name = dirs.flatMap { d =>
+          (s relativeTo d).toList
+        }.headOption
+
+        (s,name.fold(s.getName)(_.getPath))
+      }
+    },
     lintFlags := {
       val flags = lintFlags.value
       implicit val output = outputLayout.value
