@@ -22,7 +22,6 @@ import Keys.Internal._
 import Dependencies.{AutoLibraryProject => _, LibraryProject => _, _}
 import com.android.builder.compiling.{BuildConfigGenerator, ResValueGenerator}
 import java.net.URLEncoder
-import java.util.concurrent.TimeUnit
 
 import Resources.{ANDROID_NS, resourceUrl}
 import com.android.sdklib.repositoryv2.AndroidSdkHandler
@@ -158,7 +157,6 @@ object Tasks extends TaskBase {
   val androidTestAarsTaskDef = Def.task {
     val u = (update in Compile).value
     val withTest = debugIncludesTests.value
-    val debug = apkbuildDebug.value()
     val s = streams.value
     def testOnly(m: ModuleID): Boolean = {
       !withTest && m.configurations.exists(c => c.split(",").forall(_ == "androidTest"))

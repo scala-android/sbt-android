@@ -383,7 +383,13 @@ object Commands {
       state.log.warn("SBT files already exist in project/, not creating project/android.sbt")
     }
     IO.writeLines(properties, "sbt.version=" + useVersion :: Nil)
-    val buildSettings = "androidBuild" :: "useSupportVectors" ::
+    val buildSettings =
+      """scalaVersion := "2.11.8"""" ::
+      "" ::
+      "androidBuild" :: "useSupportVectors" ::
+      "" ::
+      "versionCode := Some(1)" ::
+      """version := "0.1-SNAPSHOT"""" ::
       "" ::
       "instrumentTestRunner :=" ::
       """  "android.support.test.runner.AndroidJUnitRunner"""" ::
