@@ -762,9 +762,21 @@ object Plugin extends sbt.Plugin with PluginFail {
         }
       }
     },
-    platformTarget          <<= (properties,thisProject) { (p,prj) =>
-      Option(p.getProperty("target")) getOrElse fail(
-        prj.id + ": configure project.properties or set 'platformTarget'")
+    platformTarget          := {
+      val p = properties.value
+      Option(p.getProperty("target")) orElse {
+        sLog.value.warn("`platformTarget` not set, automatically detecting latest...")
+        val plat = SdkInstaller.platforms(sdkManager.value, showSdkProgress.value).headOption
+        plat.foreach { t =>
+          sLog.value.warn(s"""Using `platformTarget := "$t"`""")
+          val gen = baseDirectory.value / "z-platform.sbt"
+          IO.writeLines(gen,
+            "// AUTOMATICALLY GENERATED FILE, REPLACE BY SETTING platformTarget IN build.sbt" ::
+            "" ::
+            s"""platformTarget := "$t"""" :: Nil)
+        }
+        plat
+      } getOrElse "android-24"
     },
     platformApi             := platform.value.getTarget.getVersion.getApiLevel,
     platform                := {

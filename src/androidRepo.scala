@@ -85,6 +85,19 @@ object SdkInstaller extends TaskBase {
     }
   }
 
+  def platforms(sdkHandler: AndroidSdkHandler,
+                showProgress: Boolean
+               ) = {
+    val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator(showProgress))
+    val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
+    repomanager.loadSynchronously(1.day.toMillis,
+      PrintingProgressIndicator(showProgress), downloader, null)
+    val pkgs = repomanager.getPackages.getRemotePackages.asScala.toMap.collect {
+      case (k,v) if k.startsWith("platforms;") => v
+    }.toList.sorted(platformOrder).map(_.getPath.stripPrefix("platforms;"))
+    pkgs
+  }
+
   def install(sdkHandler: AndroidSdkHandler,
               name: String,
               prefix: String,
