@@ -1299,10 +1299,9 @@ object Tasks extends TaskBase {
       val command = "am instrument -r -w %s %s" format(selection, intent)
       s.log.info(s"Testing on ${d.getProperty(IDevice.PROP_DEVICE_MODEL)} (${d.getSerialNumber})...")
       s.log.debug("Executing [%s]" format command)
-      val timeout = DdmPreferences.getTimeOut
-      DdmPreferences.setTimeOut(timeo)
-      d.executeShellCommand(command, receiver)
-      DdmPreferences.setTimeOut(timeout)
+      withDdmTimeout(timeo) {
+        d.executeShellCommand(command, receiver)
+      }
 
       s.log.debug("instrument command executed")
 
@@ -1402,12 +1401,23 @@ object Tasks extends TaskBase {
     }
   }
 
-  def installPackage(apk: File, timeout: Int, sdkPath: String, device: IDevice, log: Logger) {
+  def withDdmTimeout[A](timeo: Int)(thunk: => A): A = {
+    val timeout = DdmPreferences.getTimeOut
+    DdmPreferences.setTimeOut(timeo)
+    try {
+      thunk
+    } finally {
+      DdmPreferences.setTimeOut(timeout)
+    }
+  }
+  def installPackage(apk: File, timeo: Int, sdkPath: String, device: IDevice, log: Logger) {
     logRate(log, "[%s] Install finished:" format apk.getName, apk.length) {
-      Try(device.installPackages(List(apk).asJava, true, List.empty.asJava, timeout, TimeUnit.MILLISECONDS)) match {
-        case util.Failure(err) =>
-          PluginFail("Install failed: " + err.getMessage, err)
-        case util.Success(_) =>
+      withDdmTimeout(timeo) {
+        Try(device.installPackage(apk.getAbsolutePath, true)) match {
+          case util.Failure(err) =>
+            PluginFail("Install failed: " + err.getMessage, err)
+          case util.Success(_) =>
+        }
       }
     }
   }
