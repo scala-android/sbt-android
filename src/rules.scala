@@ -191,10 +191,14 @@ object Plugin extends sbt.Plugin with PluginFail {
     addArtifact(apklibArtifact, packageApklib)
 
   private lazy val allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
-    dependencyClasspath := {
-      if (debugIncludesTests.value && apkbuildDebug.value())
-        (dependencyClasspath.value ++ (externalDependencyClasspath in AndroidTest).value).distinct
-      else dependencyClasspath.value
+    dependencyClasspath <<= Def.taskDyn {
+      val dcp = dependencyClasspath.value
+      if (debugIncludesTests.value && apkbuildDebug.value()) Def.task {
+          (dcp ++ (externalDependencyClasspath in AndroidTest).value).distinct
+        }
+      else Def.task {
+        dcp
+      }
     },
     compile <<= ( compile
                 , lintDetectors
