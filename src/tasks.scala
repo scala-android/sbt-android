@@ -168,7 +168,8 @@ object Tasks extends TaskBase {
       if (testOnly(m)) {
         val mID = m.organization + "-" + m.name + "-" + m.revision
         val d = dest / mID
-        s.log.warn("androidTest: test-only aar will not have resources merged " + m)
+        if (testAarWarning.value)
+          s.log.warn("androidTest: test-only aar will not have resources merged " + m)
         List(unpackAar(l, d, m, s.log): LibraryDependency)
       } else {
         Nil

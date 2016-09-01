@@ -156,6 +156,8 @@ object Keys {
   // dependency/library-related keys
   val transitiveAndroidLibs = SettingKey[Boolean]("transitive-android-libs",
     "allow transitive aar and apklib dependencies, default true") in Android
+  val testAarWarning = SettingKey[Boolean]("test-aar-warning",
+    "warn when androidTest aars will not have resources merged, default true") in Android
   val transitiveAndroidWarning = SettingKey[Boolean]("transitive-android-warning",
     "warn when transitive android dependencies will be ignored, default true") in Android
   val autolibs = TaskKey[Seq[LibraryDependency]]("autolibs",

@@ -393,6 +393,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     },
     transitiveAndroidLibs    := true,
     transitiveAndroidWarning := true,
+    testAarWarning           := true,
     autolibs                <<= autolibsTaskDef,
     apklibs                 <<= apklibsTaskDef,
     localAars                := Nil,
