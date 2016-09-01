@@ -1,5 +1,9 @@
 ## New features in 1.6.x ##
 
+* `1.6.16`:
+  * Fix critical `android:install` bug, was working on devices v21+ only
+  * Handle scala crossVersion source directories correctly
+  * Handle generated source mappings better for `packageSrc`
 * `1.6.15`:
   * automatically include `scala.Dynamic` in proguard keep rules,
     low cost (0 methods) but fixes proguardCache with any usage of dynamic
