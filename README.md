@@ -3,8 +3,7 @@
 [![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Current version is 1.6.16 ([Change log](CHANGES.md) |
-[FAQ](https://github.com/scala-android/sbt-android/issues?q=label%3AFAQ%20)
-)
+[FAQ](https://github.com/scala-android/sbt-android/issues?q=label%3AFAQ%20))
 
 Auto-import from gradle using [sbt-android-gradle](GRADLE.md)
 
