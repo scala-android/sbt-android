@@ -487,7 +487,9 @@ object Commands {
               sampleTemplate.format(pkg))
 
             IO.writeLines(gitignore, ignores)
-            createProjectSbtAction(state, Some("android-24"))
+            val sdkManager = SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log)
+            val plat = SdkInstaller.platforms(sdkManager, true).headOption
+            createProjectSbtAction(state, plat orElse Some("android-24"))
           }
       }).right getOrElse state
   }
