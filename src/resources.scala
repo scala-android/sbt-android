@@ -719,7 +719,7 @@ object Resources {
         val grouped = layouts.groupBy(_.name).mapValues(_.sorted)
         val viewholders = grouped.map { case (n, data) =>
           val main = data.head
-          val rest = data.drop(1)
+          val rest = data.drop(1).filter(_.configs.nonEmpty) // handle the case of duplicate file names in dependent projects
           val struct = parseLayout(main.name, main.path, Set.empty, false)
 
           struct.copy(configs =
