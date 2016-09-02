@@ -175,10 +175,11 @@ object Dependencies {
     override def hashCode() = path.getCanonicalFile.hashCode
   }
 
+  @deprecated("`dependsOn(project)` now adds transitive settings automatically", "1.7.0")
   implicit class RichProject(val project: Project) extends AnyVal {
+    @deprecated("use `enablePlugins(AndroidPlugin).dependsOn(deps)`", "1.7.0")
     def androidBuildWith(deps: ProjectReference*): Project = {
-      project.settings(Plugin.androidBuild ++ Plugin.buildWith(deps:_*):_*) dependsOn (
-        deps map { x => x: ClasspathDep[ProjectReference] }:_*)
+      project.enablePlugins(AndroidPlugin).dependsOn(deps map { x => x: ClasspathDep[ProjectReference] }: _*)
     }
   }
 

@@ -27,6 +27,7 @@ import Resources.ANDROID_NS
 import Dependencies.LibrarySeqOps
 import parsers.sbinaryFileFormat
 
+@deprecated("android.Plugin should no longer be used", "1.7.0")
 object Plugin extends sbt.Plugin with PluginFail {
 
   // android build steps
@@ -78,6 +79,7 @@ object Plugin extends sbt.Plugin with PluginFail {
     buildType, flavor)
 
 
+  @deprecated("use `enablePlugins(AndroidPlugin)`", "1.7.0")
   lazy val androidBuild: Seq[Setting[_]]= {
     // only set the property below if this plugin is actually used
     // this property is a workaround for bootclasspath messing things
@@ -90,6 +92,7 @@ object Plugin extends sbt.Plugin with PluginFail {
   def androidBuild(projects: ProjectReference*): Seq[Setting[_]]=
     androidBuild ++ buildWith(projects: _*)
 
+  @deprecated("Use `enablePlugins(AndroidPlugin)`", "1.7.0")
   def buildWith(projects: ProjectReference*): Seq[Setting[_]] = {
     projects flatMap { p =>
       Seq(
@@ -108,8 +111,10 @@ object Plugin extends sbt.Plugin with PluginFail {
     }
   }
 
+  @deprecated("use `enablePlugins(AndroidJarPlugin)`", "1.7.0")
   lazy val androidBuildJar: Seq[Setting[_]] = androidBuild ++ buildJar
 
+  @deprecated("use `enablePlugins(AndroidAarPlugin)`", "1.7.0")
   lazy val androidBuildAar: Seq[Setting[_]] = androidBuildAar()
   @deprecated("Use aar files instead", "gradle compatibility")
   lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
@@ -783,7 +788,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       val targetHash = platformTarget.value
       val slog = sLog.value
       val sdkHandler = sdkManager.value
-      AndroidPlugin.platformTarget(targetHash, sdkHandler, showSdkProgress.value, slog)
+      AndroidGlobalPlugin.platformTarget(targetHash, sdkHandler, showSdkProgress.value, slog)
       val logger = ilogger.value(slog)
       sdkLoader.value.getTargetInfo(
         targetHash, buildTools.value.getRevision, logger)
@@ -893,83 +898,6 @@ object Plugin extends sbt.Plugin with PluginFail {
       checkdir.mkdirs()
       IO.touch(checkdir / ruleHash)
       IO.touch(checkdir / optionHash)
-    }
-  }
-}
-
-@deprecated("Build.scala files are going away in sbt 1.0", "1.6.0")
-trait AutoBuild extends Build {
-  private def loadLibraryProjects(b: File, props: Properties): Seq[Project] = {
-    val p = props.asScala
-    (p.keys.collect {
-      case k if k.startsWith("android.library.reference") => k
-    }.toList.sortWith { (a,b) => a < b } flatMap { k =>
-      val layout = ProjectLayout(b/p(k))
-      val pkg = pkgFor(layout.manifest)
-      (Project(id=pkg, base=b/p(k)) settings(Plugin.androidBuild ++
-        Seq(platformTarget := target(b/p(k)),
-          libraryProject := true): _*) enablePlugins
-            AndroidPlugin) +:
-        loadLibraryProjects(b/p(k), loadProperties(b/p(k)))
-    }).distinct
-  }
-  private def target(basedir: File): String = {
-    val props = loadProperties(basedir)
-    val path = (Option(System getenv "ANDROID_HOME") orElse
-      Option(props getProperty "sdk.dir")) flatMap { p =>
-      val f = file(p)
-      if (f.exists && f.isDirectory)
-        Some(p)
-      else
-        None
-    } getOrElse {
-      fail("set ANDROID_HOME or run 'android update project -p %s'"
-        format basedir.getCanonicalPath): String
-    }
-    Option(props getProperty "target") getOrElse {
-      val handler = AndroidSdkHandler.getInstance(file(path))
-      val manager = handler.getAndroidTargetManager(NullProgressIndicator)
-      val versions = manager.getTargets(NullProgressIndicator).asScala.toList.map {
-        _.getVersion
-      }.sorted.reverse
-
-      AndroidTargetHash.getPlatformHashString(versions.head)
-    }
-  }
-  private def pkgFor(manifest: File) =
-    XML.loadFile(manifest).attribute("package").get.head.text.replace('.', '-')
-
-  override def projects = {
-
-    val projects = super.projects
-    if (projects.isEmpty) {
-      val basedir = file(".")
-      val layout = ProjectLayout(basedir)
-      if (layout.manifest.exists) {
-
-        val props = loadProperties(basedir)
-        val libProjects = loadLibraryProjects(basedir, props)
-
-        val project = Project(id=pkgFor(layout.manifest),
-          base=basedir).androidBuildWith(libProjects map(a ⇒ a: ProjectReference): _*).settings(
-              platformTarget := target(basedir)) enablePlugins
-                AndroidPlugin
-        project +: libProjects
-      } else Nil
-    } else {
-      projects map { p =>
-        val layout = ProjectLayout(p.base)
-        if (layout.manifest.exists) {
-          val settings: Seq[Def.Setting[_]] = p.settings
-          val prefix = settings.takeWhile(
-            _.key.scope.config.toOption exists (_.name != Android.name))
-          val tail = settings.dropWhile(
-            _.key.scope.config.toOption exists (_.name != Android.name))
-          val platform = platformTarget := target(p.base)
-          p.settings(prefix ++ Plugin.androidBuild ++ (platform +: tail): _*)
-            .enablePlugins(AndroidPlugin)
-        } else p
-      }
     }
   }
 }

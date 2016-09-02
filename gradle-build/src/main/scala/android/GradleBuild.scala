@@ -27,7 +27,7 @@ object AndroidGradlePlugin extends AutoPlugin {
   val Gradle = sbt.config("gradle")
 
   override def trigger = allRequirements
-  override def requires = android.AndroidPlugin
+  override def requires = android.AndroidGlobalPlugin
 
   override def buildSettings = List(
     onLoad in Global := (onLoad in Global).value andThen { s =>
@@ -674,31 +674,14 @@ object GradleBuildSerializer {
     def dependsOnProjects = {
       if (dependencies.nonEmpty) ".dependsOn(" + dependencies.map(escaped).mkString(",") + ")" else ""
     }
-    def dependsOnSettings = {
-      if (dependencies.nonEmpty) {
-        val depSettings = dependencies map { d =>
-          val escapedD = escaped(d)
-          s"""
-           |  TaskKey[Seq[android.Dependencies.LibraryDependency]]("transitive-aars") in Android <++=
-           |    TaskKey[Seq[android.Dependencies.LibraryDependency]]("aars") in Android in $escapedD,
-           |  collectResources <<=
-           |    collectResources dependsOn (compile in Compile in $escapedD),
-           |  compile in Compile <<= compile in Compile dependsOn(
-           |    sbt.Keys.`package` in Compile in $escapedD),
-           |  localProjects += LibraryProject((projectLayout in $escapedD).value, (extraResDirectories in $escapedD).value, (extraAssetDirectories in $escapedD).value)((outputLayout in $escapedD).value)
-           |""".stripMargin
-          } mkString ",\n"
-        s".settings($depSettings)"
-      } else ""
-    }
     def serialized =
       s"""
          |val ${escaped(id)} = project.in(
          |  ${enc(base)}
-         |).settings(${if (isApplication) "androidBuild" else "androidBuildAar"}:_*).settings(
+         |).enablePlugins(${if (isApplication) "AndroidPlugin" else "AndroidAarPlugin"}).settings(
          |  ${settings.map(_.serialized).mkString(",\n  ")}
          |)$serializedBuildTypes$serializedFlavors.withExtraProperties
-         |$dependsOnProjects$dependsOnSettings
+         |$dependsOnProjects
          |""".stripMargin
   }
 

@@ -386,7 +386,7 @@ object Commands {
     val buildSettings =
       """scalaVersion := "2.11.8"""" ::
       "" ::
-      "androidBuild" :: "useSupportVectors" ::
+      "enablePlugins(AndroidPlugin)" :: "useSupportVectors" ::
       "" ::
       "versionCode := Some(1)" ::
       """version := "0.1-SNAPSHOT"""" ::

@@ -6,7 +6,21 @@ import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import sbt._
 import sbt.Keys.onLoad
 
-case object AndroidPlugin extends AutoPlugin {
+object AndroidPlugin extends AutoPlugin {
+  override def requires = AndroidGlobalPlugin
+  override def projectSettings = PluginRules.androidSettings
+}
+
+object AndroidAarPlugin extends AutoPlugin {
+  override def requires = AndroidPlugin
+  override def projectSettings = PluginRules.androidAarSettings
+}
+object AndroidJarPlugin extends AutoPlugin {
+  override def requires = AndroidPlugin
+  override def projectSettings = PluginRules.androidJarSettings
+}
+
+case object AndroidGlobalPlugin extends AutoPlugin {
 
   def onLoadOnce(key: AnyRef)(f: State => State): State => State = state => {
     val stateKey = AttributeKey[Boolean](key + "-onLoadOnce4Android")
@@ -50,10 +64,8 @@ case object AndroidPlugin extends AutoPlugin {
         (deps flatMap checkForExport) ++ (nonAndroid filterNot (d => e.getOpt(sbt.Keys.exportJars in d) exists (_ == true)))
       }
     }
-    androids map checkAndroidDependencies foreach { case (p, dep) =>
-      dep foreach { d =>
-        s.log.warn(s"android: '${p.project}' dependsOn '${d.project}' but does not `buildWith(${d.project})`")
-      }
+    val addDeps = androids map checkAndroidDependencies flatMap { case (p, dep) =>
+      PluginRules.buildWith(dep).map(VariantSettings.fixProjectScope(p))
     }
     androids flatMap checkForExport foreach { unexported =>
       s.log.warn(s"${unexported.project} is an Android dependency but does not specify `exportJars := true`")
@@ -64,9 +76,9 @@ case object AndroidPlugin extends AutoPlugin {
       e.runTask(updateCheckSdk in a, s3)._1
     }
 
-    androids.foldLeft(s2) { (s, ref) =>
+    e.append(addDeps, androids.foldLeft(s2) { (s, ref) =>
       e.runTask(antLayoutDetector in ref, s)._1
-    }
+    })
   }) :: Nil
 
   def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {
