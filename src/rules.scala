@@ -195,8 +195,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       val dcp = dependencyClasspath.value
       if (debugIncludesTests.value && apkbuildDebug.value()) Def.task {
           (dcp ++ (externalDependencyClasspath in AndroidTest).value).distinct
-        }
-      else Def.task {
+      } else Def.task {
         dcp
       }
     },
@@ -344,21 +343,22 @@ object Plugin extends sbt.Plugin with PluginFail {
     classpathConfiguration   := config("compile"),
     // end for Classpaths.configSettings
     // hack since it doesn't take in dependent project's libs
-    dependencyClasspath     <<= ( dependencyClasspath in Runtime
-                                , externalDependencyClasspath in AndroidTest
-                                , apkbuildDebug
-                                , debugIncludesTests
-                                , projectLayout
-                                , outputLayout
-                                , libraryDependencies
-                                , streams) map { (cp, tcp, dbg, include, layout, output, d, s) =>
-      implicit val out = output
-      cp foreach { a =>
-        s.log.debug("%s => %s: %s" format (a.data.getName,
-          a.get(configuration.key), a.get(moduleID.key)))
+    dependencyClasspath     <<= Def.taskDyn {
+      val cp = (dependencyClasspath in Runtime).value
+      if (apkbuildDebug.value() && debugIncludesTests.value) Def.task {
+        val s = streams.value
+        implicit val out = outputLayout.value
+        val tcp = (externalDependencyClasspath in AndroidTest).value
+        val layout = projectLayout.value
+        cp foreach { a =>
+          s.log.debug("%s => %s: %s" format (a.data.getName,
+            a.get(configuration.key), a.get(moduleID.key)))
+        }
+        val newcp = cp ++ tcp
+        newcp.distinct.filterNot(_.data == layout.classesJar)
+      } else Def.task {
+        cp
       }
-      val newcp = if (include && dbg()) cp ++ tcp else cp
-      newcp.distinct.filterNot(_.data == layout.classesJar)
     },
     updateCheck              := {
       val log = streams.value.log
