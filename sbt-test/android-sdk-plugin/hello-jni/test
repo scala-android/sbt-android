@@ -1,5 +1,5 @@
 > android:package
-$ exists bin/output/com-example-hellojni-debug.apk
+$ exists bin/output/hello-jni-debug.apk
 > javah-finder
 $ exists bin/generated/source/com_example_hellojni_HelloJni.h
 > android:test
