@@ -1,4 +1,6 @@
 import collection.JavaConversions._
+
+enablePlugins(AndroidPlugin)
  
 libraryDependencies ++= Seq(
   "org.apache.maven" % "maven-ant-tasks" % "2.1.3" % "test",

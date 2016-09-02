@@ -1,2 +1,0 @@
-> android:package
-$ exists target/android/output/com-example-android-test-debug.apk
