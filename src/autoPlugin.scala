@@ -6,7 +6,14 @@ import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import sbt._
 import sbt.Keys.onLoad
 
-object AndroidPlugin extends AutoPlugin {
+case object AndroidPlugin extends AutoPlugin {
+
+  def onLoadOnce(key: AnyRef)(f: State => State): State => State = state => {
+    val stateKey = AttributeKey[Boolean](key + "-onLoadOnce4Android")
+    if (!state.get(stateKey).getOrElse(false)) {
+      f(state.put(stateKey, true))
+    } else state
+  }
 
   override def trigger = allRequirements
   override def requires = plugins.JvmPlugin
@@ -17,7 +24,7 @@ object AndroidPlugin extends AutoPlugin {
 
   override def projectConfigurations = AndroidTest :: Internal.AndroidInternal :: Nil
 
-  override def globalSettings = (onLoad := onLoad.value andThen { s =>
+  override def globalSettings = (onLoad := onLoad.value andThen onLoadOnce(this){ s =>
     val e = Project.extract(s)
 
     val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter {
