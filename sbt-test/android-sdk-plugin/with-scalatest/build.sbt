@@ -1,4 +1,4 @@
-enablePlugins(AndroidBuild)
+enablePlugins(AndroidPlugin)
 
 scalaVersion := "2.11.7"
 

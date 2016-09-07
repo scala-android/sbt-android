@@ -1,4 +1,4 @@
-enablePlugins(AndroidBuild)
+enablePlugins(AndroidPlugin)
 
 showSdkProgress in Android := false
 
