@@ -6,11 +6,15 @@ import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import sbt._
 import sbt.Keys.onLoad
 
+// TODO move `android:run`, `android:package`, `android:install`, `android:test`, etc. here
 object AndroidApp extends AutoPlugin {
   override def requires = AndroidProject
 }
 
 // TODO refactor, AndroidPlugin = AndroidProject, remove app/lib specific settings
+// AndroidProject should not have `android:package`, `android:run`
+// etc.
+// consider keeping common `android:test` in AndroidProject
 object AndroidProject extends AutoPlugin {
   override def requires = AndroidPlugin
 }
@@ -20,10 +24,12 @@ object AndroidPlugin extends AutoPlugin {
   override def projectSettings = PluginRules.androidSettings
 }
 
+// AndroidLib should support `android:test` as well. no test, install, run, etc.
 object AndroidLib extends AutoPlugin {
   override def requires = AndroidProject
   override def projectSettings = PluginRules.androidAarSettings
 }
+// AndroidJar should support `android:test` as well. no test, install, run, etc.
 object AndroidJar extends AutoPlugin {
   override def requires = AndroidProject
   override def projectSettings = PluginRules.androidJarSettings
