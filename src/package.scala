@@ -1,7 +1,7 @@
 import sbt._
 import sbt.Keys._
 import android.Keys._
-package object android {
+package object android extends PluginFail {
   import android.Keys.Internal._
 
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
