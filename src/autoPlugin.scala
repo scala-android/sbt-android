@@ -6,12 +6,22 @@ import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import sbt._
 import sbt.Keys.onLoad
 
+object AndroidAppPlugin extends AutoPlugin {
+  override def requires = AndroidPlugin
+  override def projectSettings = PluginRules.androidSettings
+}
+
+object AndroidProjectPlugin extends AutoPlugin {
+  override def requires = AndroidPlugin
+  override def projectSettings = PluginRules.androidSettings
+}
+
 object AndroidPlugin extends AutoPlugin {
   override def requires = AndroidGlobalPlugin
   override def projectSettings = PluginRules.androidSettings
 }
 
-object AndroidAarPlugin extends AutoPlugin {
+object AndroidLibPlugin extends AutoPlugin {
   override def requires = AndroidPlugin
   override def projectSettings = PluginRules.androidAarSettings
 }
@@ -64,8 +74,8 @@ case object AndroidGlobalPlugin extends AutoPlugin {
         (deps flatMap checkForExport) ++ (nonAndroid filterNot (d => e.getOpt(sbt.Keys.exportJars in d) exists (_ == true)))
       }
     }
-    val addDeps = androids map checkAndroidDependencies flatMap { case (p, dep) =>
-      PluginRules.buildWith(dep).map(VariantSettings.fixProjectScope(p))
+    val addDeps = androids map checkAndroidDependencies map { case (p, dep) =>
+      p -> PluginRules.buildWith(dep).map(VariantSettings.fixProjectScope(p))
     }
     androids flatMap checkForExport foreach { unexported =>
       s.log.warn(s"${unexported.project} is an Android dependency but does not specify `exportJars := true`")
@@ -76,9 +86,13 @@ case object AndroidGlobalPlugin extends AutoPlugin {
       e.runTask(updateCheckSdk in a, s3)._1
     }
 
-    e.append(addDeps, androids.foldLeft(s2) { (s, ref) =>
+    val end = androids.foldLeft(s2) { (s, ref) =>
       e.runTask(antLayoutDetector in ref, s)._1
-    })
+    }
+    if (addDeps.flatMap(_._2).nonEmpty) {
+      s.log.info(s"Adding subproject dependency rules for: ${addDeps.map(_._1.project).mkString(", ")}")
+      e.append(addDeps.flatMap(_._2), end)
+    } else end
   }) :: Nil
 
   def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {
