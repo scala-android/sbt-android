@@ -179,8 +179,8 @@ object Plugin extends PluginFail {
                 , minSdkVersion
                 , targetSdkVersion
                 , streams) map { (c, ld, f, en, strict, layout, o, minSdk, tgtSdk, s) =>
-      dsl.checkVersion("minSdkVersion", minSdk)
-      dsl.checkVersion("targetSdkVersion", tgtSdk)
+      checkVersion("minSdkVersion", minSdk)
+      checkVersion("targetSdkVersion", tgtSdk)
       implicit val output = o
       if (en)
         AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)
@@ -650,7 +650,7 @@ object Plugin extends PluginFail {
     }},
     zipalignPath            <<= ( sdkPath
                                 , sdkManager
-                                , buildTools
+                                , buildToolInfo
                                 , sLog) { (p, m, bt, s) =>
       val pathInBt = SdkLayout.zipalign(bt)
 
@@ -682,7 +682,7 @@ object Plugin extends PluginFail {
                                 , sdkManager
                                 , name
                                 , ilogger
-                                , buildTools
+                                , buildToolInfo
                                 , platform
                                 , libraryRequests
                                 , sLog) {
@@ -704,7 +704,7 @@ object Plugin extends PluginFail {
     },
     bootClasspath            := builder.value(sLog.value).getBootClasspath(false).asScala map Attributed.blank,
     sdkManager               := SdkInstaller.sdkManager(file(sdkPath.value), showSdkProgress.value, sLog.value),
-    buildTools              := {
+    buildToolInfo            := {
       val slog = sLog.value
       val ind = SbtAndroidProgressIndicator(slog)
       val sdkHandler = sdkManager.value
@@ -756,7 +756,7 @@ object Plugin extends PluginFail {
       AndroidGlobalPlugin.platformTarget(targetHash, sdkHandler, showSdkProgress.value, slog)
       val logger = ilogger.value(slog)
       sdkLoader.value.getTargetInfo(
-        targetHash, buildTools.value.getRevision, logger)
+        targetHash, buildToolInfo.value.getRevision, logger)
     },
     m2repoCheck        := {
       val manager = sdkManager.value

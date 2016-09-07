@@ -24,9 +24,11 @@ package object dsl {
   def scalacFlags(config: Configuration)(opts: String*) =
     stringFlags(sbt.Keys.scalacOptions, config, opts)
 
+  @deprecated("use android.useLibrary", "1.7.0")
   def useLibrary(library: String) =
     Keys.libraryRequests += ((library, true))
 
+  @deprecated("use android.buildTools", "1.7.0")
   def buildTools(version: String) =
     Keys.buildToolsVersion := Option(version)
 
@@ -35,29 +37,40 @@ package object dsl {
       val ss2 = vs(name)
       vs + ((name, ss2 ++ ss))
     }
+
+  @deprecated("use android.extendFlavor", "1.7.0")
   def extendFlavor(name: String)(ss: Setting[_]*): Setting[_] =
     extendVariant(Keys.flavors, name, ss)
 
+  @deprecated("use android.flavor", "1.7.0")
   def flavor(name: String)(ss: Setting[_]*): Setting[_] =
     Keys.flavors += ((name, ss))
 
+  @deprecated("use android.extendBuildType", "1.7.0")
   def extendBuildType(name: String)(ss: Setting[_]*): Setting[_] =
     extendVariant(Keys.buildTypes, name, ss)
+
+  @deprecated("use android.buildType", "1.7.0")
   def buildType(name: String)(ss: Setting[_]*) =
     Keys.buildTypes += ((name, ss))
 
+  @deprecated("use android.buildConfig", "1.7.0")
   def buildConfig(`type`: String, name: String, value: Def.Initialize[Task[String]]) =
     Keys.buildConfigOptions <+= value map { v => (`type`, name, v) }
+  @deprecated("use android.buildConfig", "1.7.0")
   def buildConfig(`type`: String, name: String, value: String) =
     Keys.buildConfigOptions += ((`type`, name, value))
 
+  @deprecated("use android.resValue", "1.7.0")
   def resValue(`type`: String, name: String, value: String) =
     Keys.resValues += ((`type`, name, value))
+  @deprecated("use android.resValue", "1.7.0")
   def resValue(`type`: String, name: String, value: Def.Initialize[Task[String]]) =
     Keys.resValues <+= value map { v =>
       (`type`, name, v)
     }
 
+  @deprecated("use android.signingConfig", "1.7.0")
   def signingConfig(keystore: File,
                     alias: String,
                     storePass: Option[String] = None,
@@ -76,35 +89,36 @@ package object dsl {
     Keys.apkSigningConfig := Some(config)
   }
 
+  @deprecated("use android.apkExclude", "1.7.0")
   def apkExclude(name: String*) = Keys.packagingOptions := {
     val opts = Keys.packagingOptions.value
     opts.copy(excludes = opts.excludes ++ name)
   }
+  @deprecated("use android.apkPickFirst", "1.7.0")
   def apkPickFirst(name: String*) = Keys.packagingOptions := {
     val opts = Keys.packagingOptions.value
     opts.copy(pickFirsts = opts.pickFirsts ++ name)
   }
+  @deprecated("use android.apkMerge", "1.7.0")
   def apkMerge(name: String*) = Keys.packagingOptions := {
     val opts = Keys.packagingOptions.value
     opts.copy(merges = opts.merges ++ name)
   }
 
+  @deprecated("use android.manifestPlaceholder", "1.7.0")
   def manifestPlaceholder(key: String, value: String) =
     Keys.manifestPlaceholders += ((key,value))
+  @deprecated("use android.manifestPlaceholder", "1.7.0")
   def manifestPlaceholder(key: String, value: Def.Initialize[Task[String]]) =
     Keys.manifestPlaceholders <+= value map { v => (key,v) }
+  @deprecated("use android.apkVersionName", "1.7.0")
   def apkVersionName(name: String) = Keys.versionName := Option(name)
+  @deprecated("use android.apkVersionCode", "1.7.0")
   def apkVersionCode(code: Int) = Keys.versionCode := Option(code)
+  @deprecated("use android.apkVersionName", "1.7.0")
   def apkVersionName(name: Def.Initialize[Task[String]]) = Keys.versionName <<= name map Option.apply
+  @deprecated("use android.apkVersionCode", "1.7.0")
   def apkVersionCode(code: Def.Initialize[Task[Int]]) = Keys.versionCode <<= code map Option.apply
-
-  private[android] def checkVersion(tag: String, version: String): Unit = {
-    Try(version.toInt) match {
-      case Success(_) =>
-      case Failure(_) => if (version.length > 1)
-        PluginFail(tag + " must be an integer value or a single letter")
-    }
-  }
 
   def dexMainClassList(classes: String*) = Keys.dexMainClassesConfig := {
     val layout = Keys.projectLayout.value

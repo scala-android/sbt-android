@@ -687,7 +687,7 @@ object Tasks extends TaskBase {
         SbtProcessOutputHandler(streams.value.log))
 
       if (rsSupportMode.value) { // copy support library
-      val in = SdkLayout.renderscriptSupportLibFile(buildTools.value)
+      val in = SdkLayout.renderscriptSupportLibFile(buildToolInfo.value)
         val out = layout.rsLib
         IO.copy(
           (in * "*.jar" pair rebase(in, out)) ++
@@ -906,7 +906,7 @@ object Tasks extends TaskBase {
       dexMainClassesRules.value,
       dexInputs.value._2,
       dexMainClasses.value,
-      buildTools.value,
+      buildToolInfo.value,
       streams.value
     )
   }
@@ -943,7 +943,7 @@ object Tasks extends TaskBase {
   val dexAggregateTaskDef = Def.task {
     Aggregate.Dex(dexInputs.value, dexMaxHeap.value, dexMaxProcessCount.value,
       dexMulti.value, dexMainClassesConfig.value, dexMinimizeMain.value,
-      dexInProcess.value, buildTools.value, dexAdditionalParams.value)
+      dexInProcess.value, buildToolInfo.value, dexAdditionalParams.value)
   }
 
   val dexTaskDef = ( builder
@@ -1472,7 +1472,7 @@ object Tasks extends TaskBase {
 
   val unmanagedJarsTaskDef = ( unmanagedJars
                              , baseDirectory
-                             , buildTools
+                             , buildToolInfo
                              , rsSupportMode
                              , libraryProjects, streams) map {
     (u, b, t, rs, l, s) =>

@@ -320,7 +320,7 @@ object Keys extends DeprecatedPluginCompat {
   private[android] object Internal {
     val m2repoCheck = TaskKey[Unit]("android-m2repo-check", "Internal task to see if google/android repos are installed") in Android
     val pluginSettingsLoaded = SettingKey[Boolean]("android-plugin-settings-loaded", "Internal duplicate apply check") in Android
-    val buildTools = SettingKey[BuildToolInfo]("build-tools", "Android build tools") in Android
+    val buildToolInfo = SettingKey[BuildToolInfo]("build-tools", "Android build tools") in Android
     val ilogger = SettingKey[Logger => ILogger]("ilogger", "internal Android SDK logger") in Android
     val debugTestsGenerator = TaskKey[Seq[File]]("debug-tests-generator",
       "includes test sources in debug builds if debug-includes-tests") in Android
