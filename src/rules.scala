@@ -345,11 +345,11 @@ object Plugin extends sbt.Plugin with PluginFail {
     // hack since it doesn't take in dependent project's libs
     dependencyClasspath     <<= Def.taskDyn {
       val cp = (dependencyClasspath in Runtime).value
+      val layout = projectLayout.value
+      implicit val out = outputLayout.value
       if (apkbuildDebug.value() && debugIncludesTests.value) Def.task {
         val s = streams.value
-        implicit val out = outputLayout.value
         val tcp = (externalDependencyClasspath in AndroidTest).value
-        val layout = projectLayout.value
         cp foreach { a =>
           s.log.debug("%s => %s: %s" format (a.data.getName,
             a.get(configuration.key), a.get(moduleID.key)))
