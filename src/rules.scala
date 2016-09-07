@@ -357,7 +357,7 @@ object Plugin extends sbt.Plugin with PluginFail {
         val newcp = cp ++ tcp
         newcp.distinct.filterNot(_.data == layout.classesJar)
       } else Def.task {
-        cp
+        cp.distinct.filterNot(_.data == layout.classesJar)
       }
     },
     updateCheck              := {
