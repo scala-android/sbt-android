@@ -17,7 +17,7 @@ import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 import language.implicitConversions
 
-object Keys {
+object Keys extends DeprecatedPluginCompat {
   // alias types that got refactored out
   type ProjectLayout = android.ProjectLayout
   val ProjectLayout = android.ProjectLayout

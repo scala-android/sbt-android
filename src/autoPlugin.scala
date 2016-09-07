@@ -8,13 +8,11 @@ import sbt.Keys.onLoad
 
 object AndroidApp extends AutoPlugin {
   override def requires = AndroidProject
-  override def projectSettings = PluginRules.androidSettings
 }
 
 // TODO refactor, AndroidPlugin = AndroidProject, remove app/lib specific settings
 object AndroidProject extends AutoPlugin {
   override def requires = AndroidPlugin
-  override def projectSettings = PluginRules.androidSettings
 }
 
 object AndroidPlugin extends AutoPlugin {

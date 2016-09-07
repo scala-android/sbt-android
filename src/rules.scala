@@ -1,6 +1,5 @@
 package android
 
-import android.Dependencies.LibraryProject
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
 import com.hanhuy.sbt.bintray.UpdateChecker
@@ -21,11 +20,10 @@ import Keys._
 import Keys.Internal._
 import Tasks._
 import Resources.ANDROID_NS
-import Dependencies.LibrarySeqOps
 import parsers.sbinaryFileFormat
 
 @deprecated("android.Plugin should no longer be used", "1.7.0")
-object Plugin extends sbt.Plugin with PluginFail {
+object Plugin extends PluginFail {
 
   // android build steps
   // * handle library dependencies (android.library.reference.N)
@@ -68,9 +66,6 @@ object Plugin extends sbt.Plugin with PluginFail {
     allPluginSettings
   }
 
-  @deprecated("Use Project.androidBuildWith(subprojects) instead", "1.3.3")
-  def androidBuild(projects: ProjectReference*): Seq[Setting[_]]=
-    androidBuild ++ buildWith(projects: _*)
 
   @deprecated("Use `enablePlugins(AndroidApp)`", "1.7.0")
   def buildWith(projects: ProjectReference*): Seq[Setting[_]] = android.buildWith(projects)
@@ -80,21 +75,26 @@ object Plugin extends sbt.Plugin with PluginFail {
 
   @deprecated("use `enablePlugins(AndroidLib)`", "1.7.0")
   lazy val androidBuildAar: Seq[Setting[_]] = androidBuildAar()
-  @deprecated("Use aar files instead", "gradle compatibility")
-  lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
+
+  @deprecated("use `enablePlugins(AndroidLib)`", "1.7.0")
   def androidBuildAar(projects: ProjectReference*): Seq[Setting[_]] = {
     Forwarder.deprecations.androidBuild(projects:_*) ++ buildAar
   }
+
+  @deprecated("Use aar files instead", "gradle compatibility")
+  lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
+
   @deprecated("Use aar files instead", "gradle compatibility")
   def androidBuildApklib(projects: ProjectReference*): Seq[Setting[_]] = {
-    androidBuild(projects:_*) ++ buildApklib
+    Forwarder.deprecations.androidBuild(projects:_*) ++ buildApklib
   }
 
   private[this] object Forwarder {
     @deprecated("forwarding", "1.6.0")
     trait deprecations {
-      @inline
-      def androidBuild(prj: ProjectReference*) = Plugin.androidBuild(prj:_*)
+      @deprecated("Use Project.androidBuildWith(subprojects) instead", "1.3.3")
+      def androidBuild(projects: ProjectReference*): Seq[Setting[_]]=
+        Plugin.androidBuild ++ buildWith(projects: _*)
       val packageName = Keys.packageName
     }
     object deprecations extends deprecations
