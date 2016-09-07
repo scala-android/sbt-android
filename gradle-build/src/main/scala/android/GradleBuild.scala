@@ -60,7 +60,7 @@ object AndroidGradlePlugin extends AutoPlugin {
         val flavor = Option(properties.getProperty("build.flavor"))
         val buildType = Option(properties.getProperty("build.type"))
         if (flavor.nonEmpty || buildType.nonEmpty) {
-          project.settings(android.Plugin.withVariant(project.id, buildType, flavor))
+          project.settings(android.withVariant(project.id, buildType, flavor))
         } else
           project
       }
@@ -678,7 +678,7 @@ object GradleBuildSerializer {
       s"""
          |val ${escaped(id)} = project.in(
          |  ${enc(base)}
-         |).enablePlugins(${if (isApplication) "AndroidPlugin" else "AndroidAarPlugin"}).settings(
+         |).enablePlugins(${if (isApplication) "AndroidApp" else "AndroidLib"}).settings(
          |  ${settings.map(_.serialized).mkString(",\n  ")}
          |)$serializedBuildTypes$serializedFlavors.withExtraProperties
          |$dependsOnProjects
