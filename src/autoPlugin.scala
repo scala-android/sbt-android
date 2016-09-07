@@ -6,12 +6,13 @@ import com.android.sdklib.repositoryv2.AndroidSdkHandler
 import sbt._
 import sbt.Keys.onLoad
 
-object AndroidAppPlugin extends AutoPlugin {
-  override def requires = AndroidPlugin
+object AndroidApp extends AutoPlugin {
+  override def requires = AndroidProject
   override def projectSettings = PluginRules.androidSettings
 }
 
-object AndroidProjectPlugin extends AutoPlugin {
+// TODO refactor, AndroidPlugin = AndroidProject, remove app/lib specific settings
+object AndroidProject extends AutoPlugin {
   override def requires = AndroidPlugin
   override def projectSettings = PluginRules.androidSettings
 }
@@ -21,12 +22,12 @@ object AndroidPlugin extends AutoPlugin {
   override def projectSettings = PluginRules.androidSettings
 }
 
-object AndroidLibPlugin extends AutoPlugin {
-  override def requires = AndroidPlugin
+object AndroidLib extends AutoPlugin {
+  override def requires = AndroidProject
   override def projectSettings = PluginRules.androidAarSettings
 }
-object AndroidJarPlugin extends AutoPlugin {
-  override def requires = AndroidPlugin
+object AndroidJar extends AutoPlugin {
+  override def requires = AndroidProject
   override def projectSettings = PluginRules.androidJarSettings
 }
 
@@ -75,7 +76,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
       }
     }
     val addDeps = androids map checkAndroidDependencies map { case (p, dep) =>
-      p -> PluginRules.buildWith(dep).map(VariantSettings.fixProjectScope(p))
+      p -> android.buildWith(dep).map(VariantSettings.fixProjectScope(p))
     }
     androids flatMap checkForExport foreach { unexported =>
       s.log.warn(s"${unexported.project} is an Android dependency but does not specify `exportJars := true`")

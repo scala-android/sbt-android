@@ -1,7 +1,5 @@
 package android
 
-import java.util.Properties
-
 import android.Dependencies.LibraryProject
 import com.android.ide.common.process._
 import com.android.tools.lint.LintCliFlags
@@ -11,11 +9,10 @@ import sbt.Cache.StringFormat
 import sbt.Keys._
 import com.android.builder.core.{AndroidBuilder, LibraryRequest}
 import com.android.builder.sdk.DefaultSdkLoader
-import com.android.sdklib.{AndroidTargetHash, IAndroidTarget, SdkVersionInfo}
-import java.io.{File, PrintWriter}
+import com.android.sdklib.{IAndroidTarget, SdkVersionInfo}
+import java.io.File
 
 import com.android.repository.Revision
-import com.android.sdklib.repositoryv2.AndroidSdkHandler
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -48,38 +45,21 @@ object Plugin extends sbt.Plugin with PluginFail {
 
   /**
    * create a new project flavor, build outputs will go in "id/android"
-   * does not work in conjunction with AutoBuild, must use standard build.
    */
-  def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
-    val base = p.base / id
-    p.copy(id = id, base = base).settings(Seq(
-      projectLayout := ProjectLayout(p.base.getCanonicalFile, Some(base.getCanonicalFile)),
-      sbt.Keys.target := base) ++ settings:_*)
-  }
+  @deprecated("use android.flavorOf", "1.7.0")
+  def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = android.flavorOf(p, id, settings:_*)
+  @deprecated("use android.withVariant", "1.7.0")
   def withVariant(project: String,
                   buildType: Option[String] = None,
                   flavor: Option[String] = None): Setting[_] =
-    sbt.Keys.onLoad in Global := (sbt.Keys.onLoad in Global).value andThen { s =>
-      val ref = ProjectRef(Project.extract(s).structure.root, project)
-      android.VariantSettings.withVariant(s) { variants =>
-        if (!variants.status.contains(ref))
-          android.VariantSettings.setVariant(s, ref, buildType, flavor)
-        else s
-      }
-    }
+    android.withVariant(project, buildType, flavor)
 
+  @deprecated("use android.withVariant", "1.7.0")
   def withVariant(p: ProjectReference,
                   buildType: Option[String],
-                  flavor: Option[String]): Setting[_] = withVariant(
-    p match {
-      case ProjectRef(_, id) => id
-      case LocalProject(id)  => id
-      case _ => fail("withVariant: Unsupported ProjectReference: " + p)
-    },
-    buildType, flavor)
+                  flavor: Option[String]): Setting[_] = android.withVariant(p, buildType, flavor)
 
-
-  @deprecated("use `enablePlugins(AndroidPlugin)`", "1.7.0")
+  @deprecated("use `enablePlugins(AndroidApp)`", "1.7.0")
   lazy val androidBuild: Seq[Setting[_]]= {
     // only set the property below if this plugin is actually used
     // this property is a workaround for bootclasspath messing things
@@ -92,29 +72,13 @@ object Plugin extends sbt.Plugin with PluginFail {
   def androidBuild(projects: ProjectReference*): Seq[Setting[_]]=
     androidBuild ++ buildWith(projects: _*)
 
-  @deprecated("Use `enablePlugins(AndroidPlugin)`", "1.7.0")
-  def buildWith(projects: ProjectReference*): Seq[Setting[_]] = {
-    projects flatMap { p =>
-      Seq(
-        transitiveAars <++= aars in p,
-        collectResources <<=
-          collectResources dependsOn (compile in Compile in p),
-        compile in Compile <<= compile in Compile dependsOn(
-          packageT in Compile in p),
-        localProjects +=
-          LibraryProject((projectLayout in p).value, (extraResDirectories in p).value, (extraAssetDirectories in p).value)((outputLayout in p).value),
-        localProjects := {
-          (localProjects.value ++
-            (localProjects in p).value).distinctLibs
-        }
-      )
-    }
-  }
+  @deprecated("Use `enablePlugins(AndroidApp)`", "1.7.0")
+  def buildWith(projects: ProjectReference*): Seq[Setting[_]] = android.buildWith(projects)
 
-  @deprecated("use `enablePlugins(AndroidJarPlugin)`", "1.7.0")
+  @deprecated("use `enablePlugins(AndroidJar)`", "1.7.0")
   lazy val androidBuildJar: Seq[Setting[_]] = androidBuild ++ buildJar
 
-  @deprecated("use `enablePlugins(AndroidAarPlugin)`", "1.7.0")
+  @deprecated("use `enablePlugins(AndroidLib)`", "1.7.0")
   lazy val androidBuildAar: Seq[Setting[_]] = androidBuildAar()
   @deprecated("Use aar files instead", "gradle compatibility")
   lazy val androidBuildApklib: Seq[Setting[_]] = androidBuildApklib()
@@ -136,11 +100,10 @@ object Plugin extends sbt.Plugin with PluginFail {
     object deprecations extends deprecations
   }
 
-  def useSupportVectors = Seq(
-    renderVectorDrawables := false,
-    aaptAdditionalParams += "--no-version-vectors"
-  )
+  @deprecated("use android.useSupportVectors", "1.7.0")
+  def useSupportVectors = android.useSupportVectors
 
+  @deprecated("use `enablePlugins(AndroidJar)`", "1.7.0")
   def buildJar = Seq(
     manifest := <manifest package="org.scala-android.placeholder">
       <application/>
@@ -189,9 +152,11 @@ object Plugin extends sbt.Plugin with PluginFail {
       flags
     }
   )
+  @deprecated("Use `enablePlugins(AndroidLib)`", "1.7.0")
   def buildAar = Seq(libraryProject := true) ++
       addArtifact(aarArtifact , packageAar)
 
+  @deprecated("Stop using apklib", "1.7.0")
   def buildApklib = Seq(libraryProject := true) ++
     addArtifact(apklibArtifact, packageApklib)
 
