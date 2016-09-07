@@ -196,7 +196,7 @@ object Plugin extends sbt.Plugin with PluginFail {
       if (debugIncludesTests.value && apkbuildDebug.value()) Def.task {
           (dcp ++ (externalDependencyClasspath in AndroidTest).value).distinct
       } else Def.task {
-        dcp
+        dcp.distinct
       }
     },
     compile <<= ( compile
