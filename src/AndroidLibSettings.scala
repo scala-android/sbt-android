@@ -13,6 +13,5 @@ trait AndroidLibSettings extends AutoPlugin {
     packageAar             <<= Tasks.packageAarTaskDef,
     mappings in packageAar <<= Tasks.packageAarMappings,
     libraryProject          := true
-  ) ++
-    addArtifact(aarArtifact , packageAar)
+  ) ++ addArtifact(aarArtifact , packageAar)
 }
