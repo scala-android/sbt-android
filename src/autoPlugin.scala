@@ -19,20 +19,17 @@ object AndroidProject extends AutoPlugin {
   override def requires = AndroidPlugin
 }
 
-object AndroidPlugin extends AutoPlugin {
+object AndroidPlugin extends AutoPlugin with AndroidProjectSettings {
   override def requires = AndroidGlobalPlugin
-  override def projectSettings = PluginRules.androidSettings
 }
 
 // AndroidLib should support `android:test` as well. no test, install, run, etc.
-object AndroidLib extends AutoPlugin {
+object AndroidLib extends AutoPlugin with AndroidLibSettings {
   override def requires = AndroidProject
-  override def projectSettings = PluginRules.androidAarSettings
 }
 // AndroidJar should support `android:test` as well. no test, install, run, etc.
-object AndroidJar extends AutoPlugin {
+object AndroidJar extends AutoPlugin with AndroidJarSettings {
   override def requires = AndroidProject
-  override def projectSettings = PluginRules.androidJarSettings
 }
 
 case object AndroidGlobalPlugin extends AutoPlugin {
