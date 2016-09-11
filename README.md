@@ -2,7 +2,7 @@
 
 [![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Current version is 1.6.16 ([Change log](CHANGES.md) |
+Current version is 1.6.17 ([Change log](CHANGES.md) |
 [FAQ](https://github.com/scala-android/sbt-android/issues?q=label%3AFAQ%20))
 
 Auto-import from gradle using [sbt-android-gradle](GRADLE.md)
@@ -62,7 +62,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    in the file `~/.sbt/0.13/plugins/android.sbt`:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.16")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.17")
    ```
 
 2. Set the environment variable `ANDROID_HOME` pointing to the path where the
@@ -79,7 +79,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    following line:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.16")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.6.17")
    ```
 
 4. Create a new android project using `gen-android` if the plugin is installed

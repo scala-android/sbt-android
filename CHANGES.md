@@ -1,5 +1,17 @@
 ## New features in 1.6.x ##
 
+* `1.6.17`:
+  * Automatically set `platformTarget` to latest version available if
+    it is not specified
+  * Update to android builder 2.1.3
+  * Fix `androidTest` aars warning
+    * Add `testAarWarning` setting that can be disabled by setting to
+      `false`
+  * Update `gen-android` template to set `scalaVersion`, `version` and
+    `versionCode`
+  * Fix `TypedViewHolder` generation when file names collide in the same
+    configuration (libraries)
+  * Fix `onLoad` initialization to only occur once per load
 * `1.6.16`:
   * Fix critical `android:install` bug, was working on devices v21+ only
   * Handle scala crossVersion source directories correctly
