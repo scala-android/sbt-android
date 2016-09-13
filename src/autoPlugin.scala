@@ -15,12 +15,13 @@ object AndroidApp extends AutoPlugin {
 // AndroidProject should not have `android:package`, `android:run`
 // etc.
 // consider keeping common `android:test` in AndroidProject
-object AndroidProject extends AutoPlugin {
-  override def requires = AndroidPlugin
+object AndroidProject extends AutoPlugin with AndroidProjectSettings {
+  override def requires = plugins.JvmPlugin
 }
 
-object AndroidPlugin extends AutoPlugin with AndroidProjectSettings {
-  override def requires = AndroidGlobalPlugin
+@deprecated("use `enablePlugins(AndroidApp)`", "1.7.0")
+object AndroidPlugin extends AutoPlugin {
+  override def requires = AndroidProject
 }
 
 // AndroidLib should support `android:test` as well. no test, install, run, etc.
@@ -33,13 +34,6 @@ object AndroidJar extends AutoPlugin with AndroidJarSettings {
 }
 
 case object AndroidGlobalPlugin extends AutoPlugin {
-
-  def onLoadOnce(key: AnyRef)(f: State => State): State => State = state => {
-    val stateKey = AttributeKey[Boolean](key + "-onLoadOnce4Android")
-    if (!state.get(stateKey).getOrElse(false)) {
-      f(state.put(stateKey, true))
-    } else state
-  }
 
   override def trigger = allRequirements
   override def requires = plugins.JvmPlugin

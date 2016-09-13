@@ -16,10 +16,10 @@ TaskKey[Unit]("check-apk-for-resource") <<= (apkFile in Android) map { a =>
   if (!found) error("Renderscript resource not found in APK\n" + listArchive(a))
 }
 
-TaskKey[Unit]("check-aar-for-resource") <<= (packageAar in Android) map { a =>
-  val found = findInArchive(a) (_ == "res/raw/invert.bc")
-  if (!found) error("Renderscript resource not found in Aar\n" + listArchive(a))
-}
+//TaskKey[Unit]("check-aar-for-resource") <<= (packageAar in Android) map { a =>
+//  val found = findInArchive(a) (_ == "res/raw/invert.bc")
+//  if (!found) error("Renderscript resource not found in Aar\n" + listArchive(a))
+//}
 
 val jniLibs = Seq( 
   "x86/librs.invert.so",
@@ -37,9 +37,9 @@ def checkLibsInArchive(a: File, libs: Seq[String]) = {
   }
 }
 
-TaskKey[Unit]("check-aar-for-libs") := { 
-  checkLibsInArchive((packageAar in Android).value, "libs/renderscript-v8.jar" +: (jniLibs.map("jni/" + _))) 
-}
+//TaskKey[Unit]("check-aar-for-libs") := { 
+//  checkLibsInArchive((packageAar in Android).value, "libs/renderscript-v8.jar" +: (jniLibs.map("jni/" + _))) 
+//}
 
 TaskKey[Unit]("check-apk-for-libs") := { 
   checkLibsInArchive((apkFile in Android).value, jniLibs.map("lib/" + _))
@@ -49,6 +49,6 @@ TaskKey[Seq[String]]("list-apk") <<= (apkFile in Android) map { a =>
   listArchive(a)
 }
 
-TaskKey[Seq[String]]("list-aar") <<= (packageAar in Android) map { a =>
-  listArchive(a)
-}
+//TaskKey[Seq[String]]("list-aar") <<= (packageAar in Android) map { a =>
+//  listArchive(a)
+//}

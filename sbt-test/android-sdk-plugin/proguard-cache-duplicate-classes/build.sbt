@@ -1,4 +1,4 @@
-enablePlugins(AndroidPlugin)
+enablePlugins(AndroidApp)
 
 scalaVersion := "2.11.1"
 
@@ -11,7 +11,7 @@ libraryDependencies ++= Seq(
   "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1"
 )
 
-proguardOptions in Android ++= Seq(
+proguardOptions ++= Seq(
   "-dontwarn org.scalatest.**",
   "-dontwarn org.mockito.**",
   "-dontwarn org.objenesis.**",
@@ -21,7 +21,7 @@ proguardOptions in Android ++= Seq(
   "-keep class * extends org.scalatest.FunSuite"
 )
 
-proguardCache in Android ++=
+proguardCache ++=
   "org.scaloid" ::
     "org.scalatest" ::
     "org.scalautils" ::
@@ -36,4 +36,4 @@ proguardCache in Android ++=
 
 javacOptions in Compile ++= Seq("-source", "1.6", "-target", "1.6")
 
-showSdkProgress in Android := false
+showSdkProgress := false

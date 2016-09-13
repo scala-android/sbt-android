@@ -59,6 +59,12 @@ package object android extends PluginFail {
         PluginFail(tag + " must be an integer value or a single letter")
     }
   }
+  private[android] def onLoadOnce(key: AnyRef)(f: State => State): State => State = state => {
+    val stateKey = AttributeKey[Boolean](key + "-onLoadOnce4Android")
+    if (!state.get(stateKey).getOrElse(false)) {
+      f(state.put(stateKey, true))
+    } else state
+  }
 
   // conveniences follow
   def useSupportVectors = Seq(

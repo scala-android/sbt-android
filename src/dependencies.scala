@@ -177,9 +177,9 @@ object Dependencies {
 
   @deprecated("`dependsOn(project)` now adds transitive settings automatically", "1.7.0")
   implicit class RichProject(val project: Project) extends AnyVal {
-    @deprecated("use `enablePlugins(AndroidPlugin).dependsOn(deps)`", "1.7.0")
+    @deprecated("use `enablePlugins(AndroidApp).dependsOn(deps)`", "1.7.0")
     def androidBuildWith(deps: ProjectReference*): Project = {
-      project.enablePlugins(AndroidPlugin).dependsOn(deps map { x => x: ClasspathDep[ProjectReference] }: _*)
+      project.enablePlugins(AndroidApp).dependsOn(deps map { x => x: ClasspathDep[ProjectReference] }: _*)
     }
   }
 

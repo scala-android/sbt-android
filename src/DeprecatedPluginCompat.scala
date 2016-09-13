@@ -19,15 +19,15 @@ trait DeprecatedPluginCompat {
                   flavor: Option[String]): Setting[_] = android.withVariant(p, buildType, flavor)
 
   @deprecated("use `enablePlugins(AndroidApp)`", "1.7.0")
-  def androidBuild: Seq[Setting[_]] = AndroidPlugin.projectSettings
+  def androidBuild: Seq[Setting[_]] = AndroidProject.projectSettings ++ AndroidApp.projectSettings
 
   @deprecated("Use `enablePlugins(AndroidApp)`", "1.7.0")
   def buildWith(projects: ProjectReference*): Seq[Setting[_]] = android.buildWith(projects)
 
   @deprecated("use `enablePlugins(AndroidJar)`", "1.7.0")
-  def androidBuildJar: Seq[Setting[_]] = AndroidPlugin.projectSettings ++ AndroidJar.projectSettings
+  def androidBuildJar: Seq[Setting[_]] = AndroidProject.projectSettings ++ AndroidJar.projectSettings
   @deprecated("use `enablePlugins(AndroidLib)`", "1.7.0")
-  def androidBuildAar: Seq[Setting[_]] = AndroidPlugin.projectSettings ++ AndroidLib.projectSettings
+  def androidBuildAar: Seq[Setting[_]] = AndroidProject.projectSettings ++ AndroidLib.projectSettings
 
   @deprecated("use android.useSupportVectors", "1.7.0")
   def useSupportVectors = android.useSupportVectors

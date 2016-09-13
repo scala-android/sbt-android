@@ -1,9 +1,9 @@
-enablePlugins(AndroidPlugin)
+enablePlugins(AndroidApp)
 
 scalaVersion := "2.11.7"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "2.1.5" % "test"
 
-showSdkProgress in Android := false
+showSdkProgress := false
 
 debugIncludesTests := false

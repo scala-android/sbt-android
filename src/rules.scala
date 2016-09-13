@@ -41,7 +41,7 @@ object Plugin extends PluginFail {
                   flavor: Option[String]): Setting[_] = android.withVariant(p, buildType, flavor)
 
   @deprecated("use `enablePlugins(AndroidApp)`", "1.7.0")
-  lazy val androidBuild: Seq[Setting[_]] = AndroidPlugin.projectSettings
+  lazy val androidBuild: Seq[Setting[_]] = AndroidProject.projectSettings ++ AndroidApp.projectSettings
 
   @deprecated("Use `enablePlugins(AndroidApp)`", "1.7.0")
   def buildWith(projects: ProjectReference*): Seq[Setting[_]] = android.buildWith(projects)

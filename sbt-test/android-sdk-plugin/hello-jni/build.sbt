@@ -1,5 +1,5 @@
-enablePlugins(AndroidPlugin)
+enablePlugins(AndroidApp)
 
-showSdkProgress in Android := false
+showSdkProgress := false
 
 javacOptions in Compile ++= "-source" :: "1.7" :: "-target" :: "1.7" :: Nil
