@@ -872,7 +872,8 @@ object Commands {
         java.net.URLDecoder.decode(f.getName, "utf-8")
     }.toList
     val options = licenses.map(s => token(s).map(Option.apply))
-    EOF.map(_ => None) | Space ~> oneOf(options)
+    if (options.isEmpty) Parser.success(None)
+    else EOF.map(_ => None) | Space ~> oneOf(options)
   }
 
   def targetDevice(path: String, log: Logger): Option[IDevice] = {
