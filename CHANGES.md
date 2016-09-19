@@ -1,5 +1,8 @@
 ## New features in 1.6.x ##
 
+* `1.6.18`:
+  * Fix error that occurs when typing `a<tab>` on the repl if an android
+    license has not been downloaded
 * `1.6.17`:
   * Automatically set `platformTarget` to latest version available if
     it is not specified
