@@ -169,6 +169,8 @@ object Dex {
       bin.mkdirs()
       val sizes = dexIn.map(j => j -> MethodCounter(j)).sortBy(_._2).reverse
       val tot = sizes.map(_._2).sum
+      s.log.debug("estimated method counts:")
+      s.log.debug("    " + sizes.map { case (j,c) => f"$c%7d - $j" }.mkString("\n    "))
       if (tot > (1 << 16) && !dexOptions.multi) {
         s.log.warn(
           s"Estimated method count >64K ($tot), failure is imminent without `dexMulti := true`")
