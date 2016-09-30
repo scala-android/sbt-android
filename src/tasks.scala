@@ -104,7 +104,7 @@ object Tasks extends TaskBase {
   val aarsTaskDef = Def.task {
     val u = (update in Compile).value
     val local = localAars.value
-    val withTest = debugIncludesTests.value
+    val withTest = debugIncludesTests.?.value.getOrElse(false)
     val d = (libraryDependencies in Compile).value
     val tx = transitiveAndroidLibs.value
     val tw = transitiveAndroidWarning.value
@@ -156,7 +156,7 @@ object Tasks extends TaskBase {
 
   val androidTestAarsTaskDef = Def.task {
     val u = (update in Compile).value
-    val withTest = debugIncludesTests.value
+    val withTest = debugIncludesTests.?.value.getOrElse(false)
     val s = streams.value
     def testOnly(m: ModuleID): Boolean = {
       !withTest && m.configurations.exists(c => c.split(",").forall(_ == "androidTest"))
@@ -464,35 +464,34 @@ object Tasks extends TaskBase {
       libraryProject.value, libraryProjects.value, extraResDirectories.value,
       extraAssetDirectories.value, projectLayout.value, outputLayout.value)
   }
-  val collectResourcesTaskDef = ( builder
-                                , debugIncludesTests
-                                , minSdkVersion
-                                , collectResourcesAggregate
-                                , ilogger
-                                , renderVectorDrawables
-                                , aaptPngCrunch
-                                , streams
-                                ) map {
-    (bldr, noTestApk, minSdk, cra, logger, rv, c, s) =>
-      implicit val output = cra.outputLayout
-      val layout = cra.projectLayout
-      val er = cra.extraResDirectories
-      val ea = cra.extraAssetDirectories
-      val isLib = cra.libraryProject
-      val libs = cra.libraryProjects
-      val minLevel = Try(minSdk.toInt).toOption getOrElse
-        SdkVersionInfo.getApiByBuildCode(minSdk, true)
-      // hack because cached can only return Set[File]
-      val out = (layout.mergedAssets, layout.mergedRes)
-      val assets = layout.assets +: ea.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get)
-      withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
-        val res = Resources.doCollectResources(bldr(s.log), minLevel, noTestApk,
-          isLib, libs, layout, ea, layout.generatedRes +: er, rv, c, logger(s.log),
-          s.cacheDirectory, s)
-        if (out != res) sys.error(s"Unexpected directories $out != $res")
-        Set(res._1, res._2)
-      }
-      out
+  val collectResourcesTaskDef = Def.task {
+    val bldr = builder.value
+    val noTestApk = debugIncludesTests.?.value.getOrElse(false)
+    val minSdk = minSdkVersion.value
+    val cra = collectResourcesAggregate.value
+    val logger = ilogger.value
+    val rv = renderVectorDrawables.value
+    val c = aaptPngCrunch.value
+    val s = streams.value
+    implicit val output = cra.outputLayout
+    val layout = cra.projectLayout
+    val er = cra.extraResDirectories
+    val ea = cra.extraAssetDirectories
+    val isLib = cra.libraryProject
+    val libs = cra.libraryProjects
+    val minLevel = Try(minSdk.toInt).toOption getOrElse
+      SdkVersionInfo.getApiByBuildCode(minSdk, true)
+    // hack because cached can only return Set[File]
+    val out = (layout.mergedAssets, layout.mergedRes)
+    val assets = layout.assets +: ea.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get)
+    withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
+      val res = Resources.doCollectResources(bldr(s.log), minLevel, noTestApk,
+        isLib, libs, layout, ea, layout.generatedRes +: er, rv, c, logger(s.log),
+        s.cacheDirectory, s)
+      if (out != res) sys.error(s"Unexpected directories $out != $res")
+      Set(res._1, res._2)
+    }
+    out
   }
 
 
@@ -732,19 +731,17 @@ object Tasks extends TaskBase {
     }
   }
 
-  val processManifestTaskDef = ( builder
-                               , libraryProject
-                               , libraryProjects
-                               , manifestAggregate
-                               , mergeManifests
-                               , instrumentTestRunner
-                               , projectLayout
-                               , outputLayout
-                               , debugIncludesTests
-                               , streams
-                               ) map {
-    (bldr, isLib, libs, a, merge, trunner, layout, out, noTestApk, s) =>
-    implicit val o = out
+  val processManifestTaskDef = Def.task {
+    val bldr = builder.value
+    val isLib = libraryProject.value
+    val libs = libraryProjects.value
+    val a = manifestAggregate.value
+    val merge = mergeManifests.value
+    val trunner = instrumentTestRunner.value
+    val layout = projectLayout.value
+    val noTestApk = debugIncludesTests.?.value.getOrElse(false)
+    val s = streams.value
+    implicit val o = outputLayout.value
     val pkg = a.applicationId
     val ph = a.placeholders: Map[String,Object]
     val vc = a.versionCode
@@ -1099,30 +1096,34 @@ object Tasks extends TaskBase {
   }
 
   val testAggregateTaskDef = Def.task {
-    Aggregate.AndroidTest(debugIncludesTests.value, (packageT in Test).value,
+    Aggregate.AndroidTest(
+      debugIncludesTests.?.value.getOrElse(false),
+      (packageT in Test).value,
       instrumentTestRunner.value,
-      instrumentTestTimeout.value, installTimeout.value, allDevices.value,
+      instrumentTestTimeout.value,
+      installTimeout.?.value.getOrElse(0),
+      allDevices.?.value.getOrElse(false),
       apkbuildDebug.value(),
-      apkDebugSigningConfig.value, dexMaxHeap.value,
-      dexMaxProcessCount.value,
+      apkDebugSigningConfig.?.value.getOrElse(DebugSigningConfig()),
+      dexMaxHeap.?.value.getOrElse("1024m"),
+      dexMaxProcessCount.?.value.getOrElse(java.lang.Runtime.getRuntime.availableProcessors),
       (externalDependencyClasspath in AndroidTest).value map (_.data),
       (externalDependencyClasspath in Compile).value map (_.data),
-      packagingOptions.value, libraryProject.value)
+      packagingOptions.?.value.getOrElse(PackagingOptions()),
+      libraryProject.value)
   }
-  val testTaskDef = ( projectLayout
-                    , outputLayout
-                    , aaptAggregate
-                    , classDirectory
-                    , sdkPath
-                    , testAggregate
-                    , manifestAggregate
-                    , retrolambdaAggregate
-                    , libraryProjects
-                    , streams) map {
-    (layout, o, agg, classes, sdk, ta, ma, ra, libs, s) =>
-    if (ta.libraryProject)
-      PluginFail("This project cannot `android:test`, it has set 'libraryProject := true")
-    implicit val output = o
+  val testTaskDef = Def.task {
+    val layout = projectLayout.value
+
+    implicit val output = outputLayout.value
+    val agg = aaptAggregate.value
+    val classes = classDirectory.value
+    val sdk = sdkPath.value
+    val ta = testAggregate.value
+    val ma = manifestAggregate.value
+    val ra = retrolambdaAggregate.value
+    val libs = libraryProjects.value
+    val s = streams.value
     val pkg = ma.applicationId
     val minSdk = ma.minSdkVersion
     val targetSdk = ma.targetSdkVersion
@@ -1148,11 +1149,11 @@ object Tasks extends TaskBase {
     if (!noTestApk) {
       classes.mkdirs()
       val manifest = XML.loadFile(manifestFile)
-      val testPackage = manifest.attribute("package") get 0 text
+      val testPackage = manifest.attribute("package").get.head.text
       val instr = manifest \\ "instrumentation"
       val instrData = (instr map { i =>
-        (i.attribute(ANDROID_NS, "name") map (_(0).text),
-        i.attribute(ANDROID_NS, "targetPackage") map (_(0).text))
+        (i.attribute(ANDROID_NS, "name") map (_.head.text),
+        i.attribute(ANDROID_NS, "targetPackage") map (_.head.text))
       }).headOption
       val trunner = instrData flatMap (
         _._1) getOrElse runner
@@ -1231,9 +1232,9 @@ object Tasks extends TaskBase {
   val testOnlyTaskDef: Def.Initialize[InputTask[Unit]] = Def.inputTask {
     val layout = projectLayout.value
     implicit val output = outputLayout.value
-    val noTestApk = debugIncludesTests.value
+    val noTestApk = debugIncludesTests.?.value.getOrElse(false)
     val pkg = applicationId.value
-    val all = allDevices.value
+    val all = allDevices.?.value.getOrElse(false)
     val s = streams.value
     val timeo = instrumentTestTimeout.value
     val sdk = sdkPath.value

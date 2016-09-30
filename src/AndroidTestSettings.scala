@@ -13,13 +13,14 @@ trait AndroidTestSettings extends AutoPlugin {
     sourceGenerators += debugTestsGenerator.taskValue
   )) ++ inConfig(Android)(List(
     test                    <<= testTaskDef,
-    test                    <<= test dependsOn (compile in Android, install),
+    test                    <<= test dependsOn (compile in Android, install.?),
     testOnly                <<= testOnlyTaskDef,
     testAggregate           <<= testAggregateTaskDef,
     instrumentTestTimeout    := 180000,
     instrumentTestRunner     := "android.test.InstrumentationTestRunner",
-    debugTestsGenerator     <<= (debugIncludesTests,projectLayout) map {
-      (tests,layout) =>
+    debugTestsGenerator      := {
+      val tests = debugIncludesTests.?.value.getOrElse(false)
+      val layout = projectLayout.value
         if (tests)
           (layout.testScalaSource ** "*.scala").get ++
             (layout.testJavaSource ** "*.java").get
@@ -33,7 +34,7 @@ trait AndroidTestSettings extends AutoPlugin {
     TaskKey[Option[xsbti.Reporter]]("compilerReporter") := None,
     compileIncremental         <<= Defaults.compileIncrementalTask,
     compile <<= Def.taskDyn {
-      if (debugIncludesTests.value) Def.task {
+      if (debugIncludesTests.?.value.getOrElse(false)) Def.task {
         (compile in Compile).value
       } else Defaults.compileTask
     },

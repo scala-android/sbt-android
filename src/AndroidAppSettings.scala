@@ -12,13 +12,13 @@ import scala.util.Try
   */
 trait AndroidAppSettings extends AutoPlugin {
   override def projectSettings = inConfig(Android)(List(
+    debugIncludesTests       := (projectLayout.value.testSources ** "*.scala").get.nonEmpty,
     installTimeout           := 0,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
     clean                   <<= cleanTaskDef,
     debug                   <<= runTaskDef(true) dependsOn install,
     run                     <<= runTaskDef(false) dependsOn install,
-    // TODO support testing in `AndroidLib`
     allDevices               := false,
     dexInputs               <<= dexInputsTaskDef,
     dexAggregate            <<= dexAggregateTaskDef,

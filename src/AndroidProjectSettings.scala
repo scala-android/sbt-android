@@ -38,7 +38,7 @@ trait AndroidProjectSettings extends AutoPlugin {
   private def allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
     dependencyClasspath <<= Def.taskDyn {
       val dcp = dependencyClasspath.value
-      if (debugIncludesTests.value && apkbuildDebug.value()) Def.task {
+      if (debugIncludesTests.?.value.getOrElse(false) && apkbuildDebug.value()) Def.task {
         (dcp ++ (externalDependencyClasspath in AndroidTest).value).distinct
       } else Def.task {
         dcp.distinct
@@ -191,7 +191,7 @@ trait AndroidProjectSettings extends AutoPlugin {
       val cp = (dependencyClasspath in Runtime).value
       val layout = projectLayout.value
       implicit val out = outputLayout.value
-      if (apkbuildDebug.value() && debugIncludesTests.value) Def.task {
+      if (apkbuildDebug.value() && debugIncludesTests.?.value.getOrElse(false)) Def.task {
         val s = streams.value
         val tcp = (externalDependencyClasspath in AndroidTest).value
         cp foreach { a =>
@@ -385,8 +385,6 @@ trait AndroidProjectSettings extends AutoPlugin {
     collectProjectJni       <<= collectProjectJniTaskDef,
     collectProjectJni       <<= collectProjectJni dependsOn renderscript,
     collectJni              <<= collectJniTaskDef,
-    // TODO FIXME only belongs in AndroidApp's settings
-    debugIncludesTests       := (projectLayout.value.testSources ** "*.scala").get.nonEmpty,
     apkbuildDebug            := MutableSetting(true),
     setDebug                 := { apkbuildDebug.value(true) },
     setRelease               := { apkbuildDebug.value(false) },
