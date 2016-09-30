@@ -11,9 +11,7 @@ import scala.util.Try
   * @author pfnguyen
   */
 trait AndroidAppSettings extends AutoPlugin {
-  override def projectSettings = inConfig(Compile)(List(
-    sourceGenerators += debugTestsGenerator.taskValue
-  )) ++ inConfig(Android)(List(
+  override def projectSettings = inConfig(Android)(List(
     installTimeout           := 0,
     install                 <<= installTaskDef,
     uninstall               <<= uninstallTaskDef,
@@ -22,14 +20,10 @@ trait AndroidAppSettings extends AutoPlugin {
     run                     <<= runTaskDef(false) dependsOn install,
     // TODO support testing in `AndroidLib`
     allDevices               := false,
-    test                    <<= testTaskDef,
-    test                    <<= test dependsOn (compile in Android, install),
-    testOnly                <<= testOnlyTaskDef,
     dexInputs               <<= dexInputsTaskDef,
     dexAggregate            <<= dexAggregateTaskDef,
     proguardAggregate       <<= proguardAggregateTaskDef,
     apkbuildAggregate       <<= apkbuildAggregateTaskDef,
-    testAggregate           <<= testAggregateTaskDef,
     predex                  <<= predexTaskDef,
     predexRetrolambda        := false,
     predexSkip               := {
@@ -111,15 +105,6 @@ trait AndroidAppSettings extends AutoPlugin {
     signRelease             <<= signReleaseTaskDef,
     zipalign                <<= zipalignTaskDef,
     packageT                <<= zipalign,
-    instrumentTestTimeout    := 180000,
-    instrumentTestRunner     := "android.test.InstrumentationTestRunner",
-    debugTestsGenerator     <<= (debugIncludesTests,projectLayout) map {
-      (tests,layout) =>
-        if (tests)
-          (layout.testScalaSource ** "*.scala").get ++
-            (layout.testJavaSource ** "*.java").get
-        else Nil
-    },
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
     packageDebug            <<= packageT,
     packageDebug            <<= packageDebug dependsOn setDebug,
@@ -143,52 +128,10 @@ trait AndroidAppSettings extends AutoPlugin {
         zipalign.getAbsolutePath
       }
     }
-  )) ++ inConfig(Android)(Defaults.compileAnalysisSettings ++ List(
-    // stuff to support `android:compile`
-    scalacOptions               := (scalacOptions in Compile).value,
-    javacOptions                := (javacOptions in Compile).value,
-    manipulateBytecode          := compileIncremental.value,
-    TaskKey[Option[xsbti.Reporter]]("compilerReporter") := None,
-    compileIncremental         <<= Defaults.compileIncrementalTask,
-    compile <<= Def.taskDyn {
-      if (debugIncludesTests.value) Def.task {
-        (compile in Compile).value
-      } else Defaults.compileTask
-    },
-    compileIncSetup := {
-      Compiler.IncSetup(
-        Defaults.analysisMap((dependencyClasspath in AndroidTestInternal).value),
-        definesClass.value,
-        (skip in compile).value,
-        // TODO - this is kind of a bad way to grab the cache directory for streams...
-        streams.value.cacheDirectory / compileAnalysisFilename.value,
-        compilerCache.value,
-        incOptions.value)
-    },
-    compileInputs in compile := {
-      val cp = classDirectory.value +: Attributed.data((dependencyClasspath in AndroidTestInternal).value)
-      Compiler.inputs(cp, sources.value, classDirectory.value, scalacOptions.value, javacOptions.value, maxErrors.value, sourcePositionMappers.value, compileOrder.value)(compilers.value, compileIncSetup.value, streams.value.log)
-    },
-    compileAnalysisFilename := {
-      // Here, if the user wants cross-scala-versioning, we also append it
-      // to the analysis cache, so we keep the scala versions separated.
-      val extra =
-      if (crossPaths.value) s"_${scalaBinaryVersion.value}"
-      else ""
-      s"inc_compile$extra"
-    }
-
-  )) ++ inConfig(AndroidTest)(List(
-    aars in AndroidTest <<= Tasks.androidTestAarsTaskDef,
-    managedClasspath := Classpaths.managedJars(AndroidTest, classpathTypes.value, update.value),
-    externalDependencyClasspath := managedClasspath.value ++
-      (aars in AndroidTest).value.map(a => Attributed.blank(a.getJarFile)),
-    dependencyClasspath := externalDependencyClasspath.value ++ (internalDependencyClasspath in Runtime).value
   )) ++ List(
     streams in update <<= (streams in update) dependsOn stableProguardConfig,
     libraryDependencies <+= Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name),
-    managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value),
-    dependencyClasspath in AndroidTestInternal := (dependencyClasspath in AndroidTest).value ++ (dependencyClasspath in Runtime).value
+      managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
   )
 
   private[this] val stableProguardConfig = Def.taskDyn {
