@@ -11,7 +11,7 @@ import com.android.builder.core.{AndroidBuilder, LibraryRequest}
 import com.android.builder.sdk.DefaultSdkLoader
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.repository.Revision
-import com.android.sdklib.{IAndroidTarget, SdkVersionInfo}
+import com.android.sdklib.IAndroidTarget
 
 import scala.collection.JavaConverters._
 import scala.util.Try
@@ -270,8 +270,6 @@ trait AndroidProjectSettings extends AutoPlugin {
     },
     buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
     buildConfigOptions       := {
-      val s = state.value
-      val prj = thisProjectRef.value
       val pkg = applicationId.value
       val (buildType,flavor) = variantConfiguration.value
       List(
