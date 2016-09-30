@@ -7,7 +7,7 @@ import sbt._
 import sbt.Keys.onLoad
 
 // TODO move `android:run`, `android:package`, `android:install`, `android:test`, etc. here
-object AndroidApp extends AutoPlugin {
+object AndroidApp extends AutoPlugin with AndroidAppSettings {
   override def requires = AndroidProject
 }
 
