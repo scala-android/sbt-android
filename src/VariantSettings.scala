@@ -9,14 +9,14 @@ import VariantSettings._
 object VariantSettings {
   type VariantMap = Map[ProjectRef, Seq[Setting[_]]]
   type VariantStatus = Map[ProjectRef, (Option[String],Option[String])]
-  def empty = VariantSettings(Map.empty, Nil, Map.empty)
+  def empty(s: State) = VariantSettings(Project.extract(s).session.original, Map.empty, Nil, Map.empty)
 
   private[android] val explicitGlobalLogLevels = AttributeKey[Boolean](
     "explicit-global-log-levels", "True if the global logging levels were explicitly set by the user.", 10)
   val variantSettings = AttributeKey[VariantSettings](
     "flavor-settings", "Tracks current build, project, and setting flavor modifications.", KeyRanks.DSetting)
 
-  def variant(state: State): VariantSettings = state.get(variantSettings) getOrElse empty
+  def variant(state: State): VariantSettings = state.get(variantSettings) getOrElse empty(state)
   def withVariant(s: State)(f: VariantSettings => State): State = f(variant(s))
 
   def clearVariant(s: State): State = {
@@ -140,18 +140,20 @@ object VariantSettings {
       override def log(level: Level.Value, message: => String) = slog.log(level, message)
     }
     val withLogger = newVariant.appendRaw(loggerInject :: Nil)
-    val newStructure = Load.reapply(session.mergeSettings ++ withLogger.mergeSettings.toList, structure)(showContextKey(session, structure))
-    setProject(newVariant, newStructure, s)
+    val session2 = session.copy(original = newVariant.original ++ withLogger.mergeSettings)
+    val newStructure = Load.reapply(session2.mergeSettings, structure)(showContextKey(session, structure))
+    setProject(newVariant, session2, newStructure, s)
   }
 
   def showContextKey(session: SessionSettings, structure: BuildStructure, keyNameColor: Option[String] = None): Show[ScopedKey[_]] =
     Def.showRelativeKey(session.current, structure.allProjects.size > 1, keyNameColor)
-  def setProject(variants: VariantSettings, structure: BuildStructure, s: State): State = {
+  def setProject(variants: VariantSettings, session: SessionSettings, structure: BuildStructure, s: State): State = {
     val unloaded = Project.runUnloadHooks(s)
     val (onLoad, onUnload) = Project.getHooks(structure.data)
     val newAttrs = unloaded.attributes
       .put(sbt.Keys.stateBuildStructure, structure)
       .put(variantSettings, variants)
+      .put(sbt.Keys.sessionSettings, session)
       .put(sbt.Keys.onUnload.key, onUnload)
     val newState = unloaded.copy(attributes = newAttrs)
     onLoad(setGlobalLogLevels(Project.updateCurrent(newState), structure.data))
@@ -177,10 +179,10 @@ object VariantSettings {
     }
 
 }
-final case class VariantSettings(append: VariantMap, rawAppend: Seq[Setting[_]], status: VariantStatus) {
+final case class VariantSettings(original: Seq[Setting[_]], append: VariantMap, rawAppend: Seq[Setting[_]], status: VariantStatus) {
   def appendRaw(ss: Seq[Setting[_]]): VariantSettings = copy(rawAppend = rawAppend ++ ss)
   def mergeSettings: Seq[Setting[_]] = merge(append) ++ rawAppend
-  def clearExtraSettings: VariantSettings = empty
+  def clearExtraSettings: VariantSettings = VariantSettings(original, Map.empty, Nil, Map.empty)
 
   private[this] def merge(map: VariantMap): Seq[Setting[_]] = map.values.toList.flatten[Setting[_]]
 }
