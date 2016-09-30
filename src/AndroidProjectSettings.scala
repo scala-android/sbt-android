@@ -385,6 +385,7 @@ trait AndroidProjectSettings extends AutoPlugin {
     collectProjectJni       <<= collectProjectJniTaskDef,
     collectProjectJni       <<= collectProjectJni dependsOn renderscript,
     collectJni              <<= collectJniTaskDef,
+    proguardOptions          := Nil,
     apkbuildDebug            := MutableSetting(true),
     setDebug                 := { apkbuildDebug.value(true) },
     setRelease               := { apkbuildDebug.value(false) },

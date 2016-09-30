@@ -66,7 +66,6 @@ trait AndroidAppSettings extends AutoPlugin {
     proguardVersion          := "5.0",
     proguardCache            := "scala" :: Nil,
     proguardLibraries        := Nil,
-    proguardOptions          := Nil,
     proguardConfig          <<= proguardConfigTaskDef,
     proguardConfig          <<= proguardConfig dependsOn packageResources,
     proguard                <<= proguardTaskDef,
