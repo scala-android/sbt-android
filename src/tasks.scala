@@ -737,7 +737,7 @@ object Tasks extends TaskBase {
     val libs = libraryProjects.value
     val a = manifestAggregate.value
     val merge = mergeManifests.value
-    val trunner = instrumentTestRunner.value
+    val trunner = instrumentTestRunner.?.value
     val layout = projectLayout.value
     val noTestApk = debugIncludesTests.?.value.getOrElse(false)
     val s = streams.value
@@ -774,7 +774,7 @@ object Tasks extends TaskBase {
           throw ex
       }
       if (noTestApk) {
-         val top = XML.loadFile(output)
+        val top = XML.loadFile(output)
         val prefix = top.scope.getPrefix(ANDROID_NS)
         val application = top \ APPLICATION_TAG
         val usesLibraries = top \ APPLICATION_TAG \ USES_LIBRARY_TAG
@@ -783,34 +783,38 @@ object Tasks extends TaskBase {
         val hasTestRunner = usesLibraries exists (
           _.attribute(ANDROID_NS, "name") exists (_ == TEST_RUNNER_LIB))
 
-        val last = Some(top) map { top =>
+        def runnerLibTag(top: Elem) = {
           if  (!hasTestRunner) {
             val runnerlib = new PrefixedAttribute(
               prefix, "name", TEST_RUNNER_LIB, Null)
             val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope,
-                                   minimizeEmpty = true)
+              minimizeEmpty = true)
             val u = top.copy(
               child = top.child.updated(top.child.indexOf(application.head),
                 application.head.asInstanceOf[Elem].copy(
                   child = application.head.child ++ usesLib)))
             u
           } else top
-        } map { top =>
+        }
+
+        def instrumentTag(top: Elem) = {
           if (instrument.isEmpty) {
-             val target = new PrefixedAttribute(prefix,
-               "targetPackage", pkg, Null)
-             val label = new PrefixedAttribute(prefix,
-               "label", "Test Runner", target)
-             val name = new PrefixedAttribute(
-               prefix, "name", trunner, label)
-             val instrumentation = new Elem(null,
-               INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
-            val u = top.copy(child = top.child ++ instrumentation)
-            u
+            trunner.fold(top) { tr =>
+              val target = new PrefixedAttribute(prefix,
+                "targetPackage", pkg, Null)
+              val label = new PrefixedAttribute(prefix,
+                "label", "Test Runner", target)
+              val name = new PrefixedAttribute(
+                prefix, "name", tr, label)
+              val instrumentation = new Elem(null,
+                INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
+              val u = top.copy(child = top.child ++ instrumentation)
+              u
+            }
           } else top
         }
 
-        XML.save(output.getAbsolutePath, last.get, "utf-8", true, null)
+        XML.save(output.getAbsolutePath, instrumentTag(runnerLibTag(top)), "utf-8", true, null)
       }
       output
     }

@@ -10,7 +10,6 @@ object AndroidApp extends AutoPlugin with AndroidAppSettings with AndroidTestSet
   override def requires = AndroidProject
 }
 
-// TODO refactor, AndroidPlugin = AndroidProject, remove app/lib specific settings
 // AndroidProject should not have `android:package`, `android:run`
 // etc.
 // consider keeping common `android:test` in AndroidProject
@@ -86,6 +85,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
     }
     if (addDeps.flatMap(_._2).nonEmpty) {
       s.log.info(s"Adding android subproject dependency rules for: ${addDeps.collect { case (p,ds) if ds.nonEmpty => p.project }.mkString(", ")}")
+      // TODO FIXME THIS BREAKS IN THE PRESENCE OF VARIANTS
       e.append(addDeps.flatMap(_._2), end)
     } else end
   }) :: Nil

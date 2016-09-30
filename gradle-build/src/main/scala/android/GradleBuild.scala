@@ -165,7 +165,7 @@ object AndroidGradlePlugin extends AutoPlugin {
       proguardOptions /++= config.getProguardFiles.asScala.toList.flatMap(IO.readLines(_, IO.utf8)),
       manifestPlaceholders /++= config.getManifestPlaceholders.asScala.toMap map { case (k,o) => (k,o.toString) }
     ) ++ Option(config.getMultiDexEnabled).toList.map { b =>
-      dexMulti /:= Literal("dexMulti.value || " + b.toString)
+      dexMulti /:= Literal("dexMulti.?.value.getOrElse(false) || " + b.toString)
     } ++ Option(config.getMultiDexKeepFile).toList.map {
       dexMainClasses /++= IO.readLines(_, IO.utf8)
     }
