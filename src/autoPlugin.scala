@@ -24,7 +24,7 @@ object AndroidPlugin extends AutoPlugin {
 }
 
 // AndroidLib should support `android:test` as well. no install, run, etc.
-object AndroidLib extends AutoPlugin with AndroidLibSettings with AndroidTestSettings {
+object AndroidLib extends AutoPlugin with AndroidLibSettings {
   override def requires = AndroidProject
 }
 // AndroidJar should support `android:test` as well. no install, run, etc.

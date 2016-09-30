@@ -12,6 +12,7 @@ trait AndroidTestSettings extends AutoPlugin {
   override def projectSettings = super.projectSettings ++ inConfig(Compile)(List(
     sourceGenerators += debugTestsGenerator.taskValue
   )) ++ inConfig(Android)(List(
+    // TODO actually implement support for AndroidLib/AndroidJar
     test                    <<= testTaskDef,
     test                    <<= test dependsOn (compile in Android, install.?),
     testOnly                <<= testOnlyTaskDef,
