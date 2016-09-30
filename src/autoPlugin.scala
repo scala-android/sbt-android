@@ -85,7 +85,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
       e.runTask(antLayoutDetector in ref, s)._1
     }
     if (addDeps.flatMap(_._2).nonEmpty) {
-      s.log.info(s"Adding subproject dependency rules for: ${addDeps.map(_._1.project).mkString(", ")}")
+      s.log.info(s"Adding android subproject dependency rules for: ${addDeps.collect { case (p,ds) if ds.nonEmpty => p.project }.mkString(", ")}")
       e.append(addDeps.flatMap(_._2), end)
     } else end
   }) :: Nil
