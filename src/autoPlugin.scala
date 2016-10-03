@@ -42,7 +42,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
 
   override def projectConfigurations = AndroidTest :: Internal.AndroidInternal :: Nil
 
-  override def globalSettings = (onLoad := onLoad.value andThen onLoadOnce(this){ s =>
+  override def globalSettings = (onLoad := onLoadOnce(this){ s =>
     val e = Project.extract(s)
 
     val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter {
@@ -92,7 +92,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
       s.log.info(s"Adding android subproject dependency rules for: ${addDeps.collect { case (p,ds) if ds.nonEmpty => p.project }.mkString(", ")}")
       append(addDeps.flatMap(_._2), end)
     } else end
-  }) :: Nil
+  } andThen onLoad.value) :: Nil
 
   def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {
     SdkInstaller.retryWhileFailed("determine platform target", slog) {
