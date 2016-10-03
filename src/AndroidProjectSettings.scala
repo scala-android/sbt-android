@@ -8,7 +8,7 @@ import com.android.tools.lint.LintCliFlags
 import com.hanhuy.sbt.bintray.UpdateChecker
 import Tasks._
 import com.android.builder.core.{AndroidBuilder, LibraryRequest}
-import com.android.builder.sdk.DefaultSdkLoader
+import com.android.builder.sdk.{DefaultSdkLoader, SdkLibData}
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.repository.Revision
 import com.android.sdklib.IAndroidTarget
@@ -434,9 +434,10 @@ trait AndroidProjectSettings extends AutoPlugin {
         val bldr = new AndroidBuilder(n, "sbt-android",
           new DefaultProcessExecutor(l), SbtJavaProcessExecutor, l2, l, false)
         val sdkInfo = ldr.getSdkInfo(l)
-        bldr.setTargetInfo(sdkInfo, t,
-          reqs.map { case ((nm, required)) =>
-            new LibraryRequest(nm, required) }.asJava)
+        bldr.setSdkInfo(sdkInfo)
+        bldr.setTargetInfo(t)
+        bldr.setLibraryRequests(reqs.map { case ((nm, required)) =>
+          new LibraryRequest(nm, required) }.asJava)
 
       { logger =>
         l_(logger)
@@ -498,7 +499,7 @@ trait AndroidProjectSettings extends AutoPlugin {
       AndroidGlobalPlugin.platformTarget(targetHash, sdkHandler, showSdkProgress.value, slog)
       val logger = ilogger.value(slog)
       sdkLoader.value.getTargetInfo(
-        targetHash, buildToolInfo.value.getRevision, logger)
+        targetHash, buildToolInfo.value.getRevision, logger, SdkLibData.dontDownload)
     },
     m2repoCheck        := {
       val manager = sdkManager.value

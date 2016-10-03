@@ -222,7 +222,7 @@ case class SbtAndroidErrorReporter() extends ErrorReporter(ErrorReporter.Evaluat
     }
   }
 
-  override def handleSyncIssue(data: String, `type`: Int, severity: Int, msg: String) = {
+  override def handleIssue(data: String, `type`: Int, severity: Int, msg: String) = {
     if (severity == SyncIssue.SEVERITY_WARNING) {
       log.foreach(_.warn(s"android sync: data=$data, type=${`type`}, msg=$msg"))
     } else if (severity == SyncIssue.SEVERITY_ERROR) {

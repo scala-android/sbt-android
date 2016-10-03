@@ -8,7 +8,7 @@ import Parsers._
 import sbt.{Def, State, TaskKey}
 import sbt.Defaults.loadFromContext
 import Def.Initialize
-import com.android.sdklib.repositoryv2.AndroidSdkHandler
+import com.android.sdklib.repository.AndroidSdkHandler
 
 import scala.xml.{Elem, Node, NodeSeq, XML}
 import sbt.Cache.StringFormat

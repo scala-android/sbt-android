@@ -2,7 +2,7 @@ package android
 
 import Keys._
 import com.android.sdklib.IAndroidTarget
-import com.android.sdklib.repositoryv2.AndroidSdkHandler
+import com.android.sdklib.repository.AndroidSdkHandler
 import sbt._
 import sbt.Keys.onLoad
 

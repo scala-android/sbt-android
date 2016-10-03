@@ -4,7 +4,9 @@ import bintray.Keys._
 val pluginVersion = "1.7.0-SNAPSHOT"
 val gradleBuildVersion = "1.3.0-SNAPSHOT"
 
-val androidToolsVersion = "2.1.3"
+val androidToolsVersion = "2.2.0"
+
+resolvers += Resolver.jcenterRepo // TODO remove this once google fixes
 
 // gradle-plugin and gradle-model projects
 val model = project.in(file("gradle-model")).settings(
@@ -116,7 +118,7 @@ libraryDependencies ++= Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
-  "com.android.tools.lint" % "lint" % "25.1.3",
+  "com.android.tools.lint" % "lint" % "25.2.0",
   "net.orfjackal.retrolambda" % "retrolambda" % "2.3.0"
 )
 
@@ -174,8 +176,11 @@ scriptedDependencies <<= ( sbtTestDirectory
     val propertiesFile = project / "build.properties"
     pluginsFile.delete()
     propertiesFile.delete()
-    IO.write(pluginsFile,
-      """addSbtPlugin("%s" %% "%s" %% "%s")""" format (org, n, v))
+    IO.writeLines(pluginsFile,
+      "resolvers += Resolver.jcenterRepo" ::
+      "" ::
+      """addSbtPlugin("%s" %% "%s" %% "%s")""".format(org, n, v) ::
+      Nil)
     IO.write(propertiesFile, """sbt.version=%s""" format sbtv)
   }
 }

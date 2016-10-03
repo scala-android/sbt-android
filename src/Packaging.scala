@@ -7,15 +7,14 @@ import java.util.zip.ZipEntry
 import android.Keys.PackagingOptions
 import com.android.SdkConstants
 import com.android.builder.core.AndroidBuilder
-import com.android.builder.packaging.DuplicateFileException
-import com.android.ide.common.packaging.PackagingUtils
+import com.android.builder.model.AaptOptions
+import com.android.builder.packaging.{DuplicateFileException, PackagingUtils}
 import com.android.utils.ILogger
 import sbt.Def.Classpath
 import sbt.Keys.moduleID
 import sbt._
 
 import scala.collection.JavaConverters._
-
 
 /**
  * @author pfnguyen
@@ -51,13 +50,14 @@ object Packaging {
               , collectJniOut: File
               , resFolder: File
               , collectResourceFolder: File
+              , collectAssetsFolder: File
               , output: File
               , logger: ILogger
               , s: sbt.Keys.TaskStreams): File = {
     apkbuild(
       bldr, Jars(managed, unmanaged, dependenciesCp), isLib,
       aggregateOptions, abiFilter, collectJniOut, resFolder,
-      collectResourceFolder, output, logger, s
+      collectResourceFolder, collectAssetsFolder, output, logger, s
     )
   }
 
@@ -69,6 +69,7 @@ object Packaging {
               , collectJniOut: File
               , resFolder: File
               , collectResourceFolder: File
+              , collectAssetsFolder: File
               , output: File
               , logger: ILogger
               , s: sbt.Keys.TaskStreams): File = {
@@ -131,12 +132,19 @@ object Packaging {
       ))
       (collectJniOut ** FileOnlyFilter).get.toSet
     }((jniFolders.flatMap(_ ** FileOnlyFilter get) ++ jars).toSet)
-    bldr.packageApk(shrinker.getAbsolutePath, (dexFolder +: predexed).toSet.asJava,
+    bldr.oldPackageApk(shrinker.getAbsolutePath, (dexFolder +: predexed).toSet.asJava,
       List(collectResourceFolder).filter(_.exists).asJava,
       List(collectJniOut).filter(_.exists).asJava,
+      if (collectAssetsFolder.isDirectory) collectAssetsFolder else null,
       abiFilter.asJava, debug,
       if (debug) debugSigningConfig.toSigningConfig("debug") else null,
-      output.getAbsolutePath, minSdk)
+      output, minSdk,
+      PackagingUtils.getNoCompressPredicate(new AaptOptions {
+        override def getNoCompress = null
+        override def getFailOnMissingConfigEntry = true
+        override def getAdditionalParameters = null
+        override def getIgnoreAssets = null
+      }, aggregateOptions.manifest))
     s.log.debug("Including predexed: " + predexed)
     s.log.info("Packaged: %s (%s)" format (
       output.getName, sizeString(output.length)))
@@ -194,8 +202,8 @@ object Packaging {
           // Folders like CVS, .svn, etc.. should already have been excluded from the
           // jar file, but we need to exclude some other folder (like /META-INF) so
           // we check anyway.
-          !segments.exists(PackagingUtils.checkFolderForPackaging) ||
-            !PackagingUtils.checkFileForPackaging(segments.last, false /*allowClassFiles*/ )
+          segments.last.startsWith(".") || segments.last.startsWith("_") ||
+            !PackagingUtils.checkFileForApkPackaging(segments.last, false /*allowClassFiles*/)
         }
       }
     }

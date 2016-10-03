@@ -37,6 +37,8 @@ trait BuildOutput extends Any {
   def mergedRes: File
   def mergedAssets: File
   def mergeBlame: File
+  def aaptTemp: File
+  def mergeTemp: File
   def proguardOut: File
   def rTxt: File
   def testRTxt: File
@@ -70,6 +72,9 @@ object BuildOutput {
   type Converter = ProjectLayout => BuildOutput
 
   class AndroidOutput(val layout: ProjectLayout) extends AnyVal with BuildOutput {
+    def temp = intermediates / "temp"
+    def mergeTemp = temp / "merge"
+    def aaptTemp = temp / "aapt"
     def intermediates = layout.bin / "intermediates"
     def generated = layout.bin / "generated"
     def packaging = intermediates / "packaging"
@@ -148,6 +153,8 @@ object BuildOutput {
   }
   class Wrapped(val base: BuildOutput) extends BuildOutput {
     def layout = base.layout
+    def mergeTemp = base.mergeTemp
+    def aaptTemp = base.aaptTemp
     def intermediates = base.intermediates
     def generated = base.generated
     def packaging = base.packaging
@@ -206,6 +213,8 @@ object BuildOutput {
   }
   implicit class LayoutOutputExtension(val layout: ProjectLayout)(implicit val base: BuildOutput.Converter) extends BuildOutput {
     def intermediates = base(layout).intermediates
+    def mergeTemp = base(layout).mergeTemp
+    def aaptTemp = base(layout).aaptTemp
     def generated = base(layout).generated
     def packaging = base(layout).packaging
     def output = base(layout).output

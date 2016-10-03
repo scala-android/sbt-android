@@ -5,11 +5,8 @@ import sbt._
 import scala.collection.JavaConverters._
 import scala.xml.XML
 import language.postfixOps
-
-import com.android.builder.dependency.JarDependency
-import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
-
 import BuildOutput._
+import com.android.builder.model.{AndroidLibrary, JavaLibrary}
 
 object Dependencies {
   // excludes are temporary until everything/one uses libraryDependencies
@@ -53,20 +50,21 @@ object Dependencies {
     override def getLintJar = path / "lint.jar"
     override def getProguardRules = path / "proguard.txt"
 
-    override def getDependencies: java.util.List[AndroidLibrary] =
+    private[this] def getDependencies: java.util.List[AndroidLibrary] =
       Seq.empty.asJava
     override def getLibraryDependencies = getDependencies
-    override def getManifestDependencies = getDependencies
-
-    override def getLocalDependencies = getLocalJars.asScala map {
-      j => new JarDependency(j, true, true, false, null, null)
-    } asJava
 
     override def getProjectVariant = null
 
     override def getRequestedCoordinates = null
 
     override def getResolvedCoordinates = null
+
+    override def isProvided = false
+
+    override def getJavaDependencies: java.util.List[JavaLibrary] = List.empty.asJava
+
+    override def isSkipped = false
   }
 
   case class ApkLibrary(base: File) extends LibraryDependency with Pkg {
@@ -115,14 +113,12 @@ object Dependencies {
     override def getAidlFolder = layout.aidl
     override def getRenderscriptFolder = layout.renderscript
 
-    override def getDependencies = {
-      ((IO.listFiles(layout.aars) map {
-        case d if d.isDirectory => AarLibrary(d)
-        case f if f.isFile      => AarLibrary(SdkLayout.explodedAars / f.getName)
-      }) ++ (IO.listFiles(layout.apklibs) filter (_.isDirectory) map { d =>
-        ApkLibrary(d): AndroidLibrary
-      })).toList.asJava
-    }
+    override def getLibraryDependencies = ((IO.listFiles(layout.aars) map {
+      case d if d.isDirectory => AarLibrary(d)
+      case f if f.isFile      => AarLibrary(SdkLayout.explodedAars / f.getName)
+    }) ++ (IO.listFiles(layout.apklibs) filter (_.isDirectory) map { d =>
+      ApkLibrary(d): AndroidLibrary
+    })).toList.asJava
   }
 
   case class LibEquals[A <: AndroidLibrary](lib: A) {
@@ -207,7 +203,7 @@ object Dependencies {
   {
     def resolved = Project.getProject(project, struct)
 
-    def deps = resolved map(_.dependencies) getOrElse(Nil) map(_.project)
+    def deps = resolved map(_.dependencies) getOrElse Nil  map(_.project)
 
     def deepDeps: Seq[ProjectRef] =
       ((deps flatMap(_.deepDeps)) :+ project).distinct

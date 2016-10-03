@@ -13,7 +13,7 @@ import com.android.sdklib.BuildToolInfo
 import com.android.utils.ILogger
 import Dependencies._
 import com.android.builder.sdk.{SdkLoader, TargetInfo}
-import com.android.sdklib.repositoryv2.AndroidSdkHandler
+import com.android.sdklib.repository.AndroidSdkHandler
 
 import language.implicitConversions
 

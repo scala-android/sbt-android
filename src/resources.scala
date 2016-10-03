@@ -1,21 +1,22 @@
 package android
 
-import java.io.File
-
 import android.Dependencies.{AarLibrary, ApkLibrary, LibraryDependency}
-import com.android.builder.core.{AaptPackageProcessBuilder, AndroidBuilder, VariantType}
-import com.android.builder.model.AaptOptions
-import com.android.builder.dependency.{LibraryDependency => AndroidLibrary}
+import com.android.builder.core.{AndroidBuilder, VariantType}
+import com.android.builder.model.{AaptOptions, AndroidLibrary}
 import com.android.builder.png.VectorDrawableRenderer
 import com.android.ide.common.res2._
 import com.android.resources.Density
 import com.android.utils.ILogger
 import sbt.Keys.TaskStreams
-import sbt._
+import sbt.{File, _}
 
 import collection.JavaConverters._
 import language.postfixOps
 import Dependencies.LibrarySeqOps
+import com.android.builder.internal.aapt.{Aapt, AaptPackageConfig}
+import com.android.builder.internal.aapt.v1.AaptV1
+import com.android.builder.internal.aapt.v2.OutOfProcessAaptV2
+import com.android.sdklib.BuildToolInfo
 import sbt.classpath.ClasspathUtilities
 
 import scala.util.Try
@@ -119,7 +120,8 @@ object Resources {
       logger)
     val sets = respaths.distinct flatMap { r =>
       s.log.debug("Adding resource path: " + r)
-      val set = new ResourceSet(r.getAbsolutePath)
+      // TODO pass library name?
+      val set = new ResourceSet(r.getAbsolutePath, true)
       set.addSource(r)
 
       // see https://code.google.com/p/android/issues/detail?id=214182#c5
@@ -169,7 +171,6 @@ object Resources {
     needsFullResourceMerge: Boolean,
     slog: Logger
   )(implicit m: BuildOutput.Converter) {
-
     def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, blobDir,
       logger, bldr, resources, pngcrunch, preprocessor, slog)
 
@@ -238,15 +239,30 @@ object Resources {
       }
       if (!exists) {
         slog.info("Performing incremental resource merge")
-        val writer = new MergedResourceWriter(resTarget,
-          bldr.getAaptCruncher(SbtProcessOutputHandler(slog)),
-          pngcrunch, true, layout.publicTxt, layout.mergeBlame,
-          preprocessor)
+        val writer = mergedResourceWriter(bldr, layout, resTarget, preprocessor, pngcrunch, layout.aaptTemp, layout.mergeTemp, slog)
         merger.mergeData(writer, true)
-        merger.writeBlobTo(blobDir, writer)
+        merger.writeBlobTo(blobDir, writer, true)
       }
     }
   }
+
+  def mergedResourceWriter(bldr: AndroidBuilder,
+                           layout: ProjectLayout,
+                           resTarget: File,
+                           preprocessor: ResourcePreprocessor,
+                           pngcrunch: Boolean,
+                           aaptTemp: File,
+                           mergeTemp: File,
+                           logger: Logger)
+                          (implicit m: BuildOutput.Converter): MergedResourceWriter = {
+    mergeTemp.mkdirs()
+    new MergedResourceWriter(resTarget,
+      layout.publicTxt, layout.mergeBlame, preprocessor, new ResourceCompiler {
+        val aa = makeAapt(bldr, bldr.getTarget.getBuildToolInfo, aaptTemp, true, pngcrunch, logger)
+        override def compile(file: File, output: File) = aa.compile(file, output)
+      }, mergeTemp)
+  }
+
   def fullResourceMerge(layout: ProjectLayout,
                         minSdk: Int,
                         resTarget: File,
@@ -268,47 +284,93 @@ object Resources {
       r.loadFromFiles(logger)
       merger.addDataSet(r)
     }
-    val writer = new MergedResourceWriter(resTarget,
-      bldr.getAaptCruncher(SbtProcessOutputHandler(slog)),
-      pngcrunch, true, layout.publicTxt, layout.mergeBlame, preprocessor)
+    val writer = mergedResourceWriter(bldr, layout, resTarget, preprocessor, pngcrunch, layout.aaptTemp, layout.mergeTemp, slog)
     merger.mergeData(writer, false)
-    merger.writeBlobTo(blobDir, writer)
+    merger.writeBlobTo(blobDir, writer, true)
   }
 
+  def makeAapt(bldr: AndroidBuilder, bt: BuildToolInfo, aaptTemp: File,
+               process9Patch: Boolean, crunchPng: Boolean,
+               logger: Logger): Aapt = {
+    aaptTemp.mkdirs()
+    val filteredLogger = new ILogger {
+      val ignore = "Not recognizing known sRGB profile that has been edited"
+
+      def squelch[A](f: String => A, fmt: String, args: Seq[AnyRef]): Unit = {
+        val msg = String.format(fmt, args:_*)
+        if (!msg.contains(ignore)) {
+          f(msg)
+        }
+      }
+
+      override def verbose(msgFormat: String, args: AnyRef*) = squelch(logger.debug(_: String), msgFormat, args)
+      override def warning(msgFormat: String, args: AnyRef*) = squelch(logger.warn(_: String), msgFormat, args)
+      override def error(t: Throwable, msgFormat: String, args: AnyRef*) = squelch(logger.error(_: String), msgFormat, args)
+      override def info(msgFormat: String, args: AnyRef*) = squelch(logger.info(_: String), msgFormat, args)
+    }
+    // aapt2 is not yet ready for use
+    if (false/* BuildToolInfo.PathId.AAPT2.isPresentIn(bt.getRevision)*/) {
+      new OutOfProcessAaptV2(
+        bldr.getProcessExecutor,
+        SbtProcessOutputHandler(logger),
+        bt,
+        aaptTemp,
+        filteredLogger)
+    } else {
+      val processMode = if (crunchPng && process9Patch) {
+        AaptV1.PngProcessMode.ALL
+      } else if (process9Patch) {
+        AaptV1.PngProcessMode.NINE_PATCH_ONLY
+      } else {
+        AaptV1.PngProcessMode.NONE
+      }
+
+      new AaptV1(
+        bldr.getProcessExecutor,
+        SbtProcessOutputHandler(logger),
+        bt,
+        filteredLogger,
+        processMode,
+        java.lang.Runtime.getRuntime.availableProcessors)
+    }
+  }
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: String,
            extraParams: Seq[String], resConfigs: Seq[String],
            libs: Seq[LibraryDependency], lib: Boolean, debug: Boolean,
-           res: File, assets: File, resApk: String, gen: File, proguardTxt: String,
-           logger: Logger) = synchronized {
+           res: File, assets: File, resApk: File, gen: File, proguardTxt: File,
+           aaptTemp: File, logger: Logger) = synchronized {
 
     gen.mkdirs()
+    val all = collectdeps(libs)
+    logger.debug("All libs: " + all)
+    logger.debug("packageForR: " + pkg)
+    logger.debug("proguard.txt: " + proguardTxt)
+    val aapt = makeAapt(bldr, bldr.getTargetInfo.getBuildTools,
+      aaptTemp, true, true, logger)
     val options = new AaptOptions {
       override def getIgnoreAssets = null
       override def getNoCompress = null
       override def getFailOnMissingConfigEntry = false
       override def getAdditionalParameters = extraParams.asJava
     }
-    val genPath = gen.getAbsolutePath
-    val all = collectdeps(libs)
-    logger.debug("All libs: " + all)
-    logger.debug("packageForR: " + pkg)
-    logger.debug("proguard.txt: " + proguardTxt)
-    val aaptCommand = new AaptPackageProcessBuilder(manifest, options)
+    val aaptConfig = new AaptPackageConfig.Builder
     if (res.isDirectory)
-      aaptCommand.setResFolder(res)
-    if (assets.isDirectory)
-      aaptCommand.setAssetsFolder(assets)
-    aaptCommand.setLibraries(all.asJava)
-    aaptCommand.setPackageForR(pkg)
-    aaptCommand.setResPackageOutput(resApk)
-    aaptCommand.setResourceConfigs(resConfigs.asJava)
-    aaptCommand.setSourceOutputDir(if (resApk == null) genPath else null)
-    aaptCommand.setSymbolOutputDir(if (resApk == null) genPath else null)
-    aaptCommand.setProguardOutput(proguardTxt)
-    aaptCommand.setType(if (lib) VariantType.LIBRARY else VariantType.DEFAULT)
-    aaptCommand.setDebuggable(debug)
+      aaptConfig.setResourceDir(res)
+    aaptConfig.setOptions(options)
+    aaptConfig.setManifestFile(manifest)
+    aaptConfig.setAndroidTarget(bldr.getTarget)
+    aaptConfig.setBuildToolInfo(bldr.getTargetInfo.getBuildTools)
+    aaptConfig.setCustomPackageForR(pkg)
+    aaptConfig.setDebuggable(debug)
+    aaptConfig.setLibraries(all.asJava)
+    aaptConfig.setResourceOutputApk(resApk)
+    aaptConfig.setResourceConfigs(resConfigs.asJava)
+    aaptConfig.setSourceOutputDir(if (resApk == null) gen else null)
+    aaptConfig.setSymbolOutputDir(if (resApk == null) gen else null)
+    aaptConfig.setProguardOutputFile(proguardTxt)
+    aaptConfig.setVariantType(if (lib) VariantType.LIBRARY else VariantType.DEFAULT)
     try {
-      bldr.processResources(aaptCommand, true, SbtProcessOutputHandler(logger))
+      bldr.processResources(aapt, aaptConfig, true)
     } catch {
       case e: com.android.ide.common.process.ProcessException =>
         PluginFail(e.getMessage)
@@ -317,7 +379,7 @@ object Resources {
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
     libs
-      .map(_.getDependencies.asScala)
+      .map(_.getLibraryDependencies.asScala)
       .flatMap(collectdeps)
       .++(libs)
       .distinctLibs
@@ -655,7 +717,7 @@ object Resources {
         case re2(p, id) => Some((wrap(id), s"$p.R.id.${wrap(id)}"))
         case _          => None
       }
-      def parseLayout(n: String, f: File, configs: Set[String], includeRoot: Boolean): LayoutStructure = {
+      def parseLayout(nme: String, f: File, configs: Set[String], includeRoot: Boolean): LayoutStructure = {
         val xml = XML.loadFile(f)
         val (r,c) = xml.descendant_or_self.foldLeft((Option.empty[(Option[String],String)],List.empty[LayoutEntry])) { case ((root, children), n) =>
           val viewId = n.attribute(ANDROID_NS, "id") map { _.head.text } flatMap idNameFromString
@@ -690,7 +752,7 @@ object Resources {
             (root, LayoutView(viewId.get._1, viewId.get._2, n.label) :: children)
           }
         }
-        LayoutStructure(n, r.fold("")(_._2), r.flatMap(_._1), c, Nil, configs)
+        LayoutStructure(nme, r.fold("")(_._2), r.flatMap(_._1), c, Nil, configs)
       }
       val ig = ignores.toSet
       val libsToProcess = libs filterNot {
@@ -755,7 +817,7 @@ object Resources {
               (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
             case LayoutInclude(id, included) =>
               if (!viewholders.contains(included)) {
-                Plugin.fail(
+                android.fail(
                   s"""Included layout $included in ${structure.name} was not found
                      |perhaps you need to set `typedResourcesAar := true`
                      |or disable TypedViewHolders `typedViewHolders := false`"""

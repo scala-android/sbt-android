@@ -10,3 +10,5 @@ platformTarget in Android := "android-17"
 buildToolsVersion in Android := Some("24.0.0")
 
 showSdkProgress in Android := false
+
+javacOptions ++= List("-source", "1.7", "-target", "1.7")

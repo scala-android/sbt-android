@@ -8,6 +8,8 @@ import com.android.builder.core.{AndroidBuilder, DexOptions}
 import com.android.sdklib.BuildToolInfo
 import sbt.{Attributed, Logger}
 
+import collection.JavaConverters._
+
 object Aggregate {
   private[android] case class Retrolambda(enable: Boolean,
                                           classpath: Seq[File],
@@ -49,6 +51,7 @@ object Aggregate {
   private[android] case class Apkbuild(packagingOptions: PackagingOptions,
                                        apkbuildDebug: Boolean,
                                        debugSigningConfig: ApkSigningConfig,
+                                       manifest: File,
                                        dex: File,
                                        predex: Seq[(File,File)],
                                        collectJni: Seq[File],
@@ -75,13 +78,15 @@ object Aggregate {
     lazy val incremental = inputs._1 && !multi
 
     def toDexOptions(incremental: Boolean = incremental) = new DexOptions {
-      override def getIncremental: Boolean = incremental
       override def getJavaMaxHeapSize: String = maxHeap
       override def getJumboMode: Boolean = false
       override def getMaxProcessCount: Integer = maxProcessCount
       override def getThreadCount: Integer = Runtime.getRuntime.availableProcessors()
       override def getPreDexLibraries: Boolean = false
       override def getDexInProcess = dexInProcess
+      override def getKeepRuntimeAnnotatedClasses = true
+      override def getOptimize = true
+      override def getAdditionalParameters = additionalParams.asJava
     }
   }
 

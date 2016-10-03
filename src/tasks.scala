@@ -24,7 +24,10 @@ import com.android.builder.compiling.{BuildConfigGenerator, ResValueGenerator}
 import java.net.URLEncoder
 
 import Resources.{ANDROID_NS, resourceUrl}
-import com.android.sdklib.repositoryv2.AndroidSdkHandler
+import com.android.builder.model.AaptOptions
+import com.android.builder.packaging.PackagingUtils
+import com.android.sdklib.repository.AndroidSdkHandler
+import com.google.common.base.Predicates
 
 object Tasks extends TaskBase {
   val TOOLS_NS = "http://schemas.android.com/tools"
@@ -219,7 +222,7 @@ object Tasks extends TaskBase {
 //        logger, file("/"), s)
       Resources.aapt(bldr(s.log), lib.getManifest, null, aparams, cfgs, Seq.empty, true, debug(),
           lib.getResFolder, lib.getAssetsFolder, null,
-          lib.layout.gen, lib.getProguardRules.getAbsolutePath,
+          lib.layout.gen, lib.getProguardRules, layout.aaptTemp,
           s.log)
 
       def copyDirectory(src: File, dst: File) {
@@ -261,7 +264,7 @@ object Tasks extends TaskBase {
           Resources.aapt(agg.builder(s.log), lib.getManifest, null,
             agg.additionalParams, agg.resConfigs, Seq.empty, true, agg.debug,
             lib.getResFolder, lib.getAssetsFolder, null,
-            lib.layout.gen, lib.getProguardRules.getAbsolutePath,
+            lib.layout.gen, lib.getProguardRules, layout.aaptTemp,
             s.log)
         }
         def copyDirectory(src: File, dst: File) {
@@ -453,7 +456,7 @@ object Tasks extends TaskBase {
     implicit val out = outputLayout.value
     def libJni(lib: LibraryDependency): Seq[File] =
       Seq(lib.getJniFolder, lib.layout.rsLib).filter(_.isDirectory) ++
-        lib.getDependencies.asScala.flatMap(l => libJni(l.asInstanceOf[LibraryDependency]))
+        lib.getLibraryDependencies.asScala.flatMap(l => libJni(l.asInstanceOf[LibraryDependency]))
 
     collectProjectJni.value ++ libraryProjects.value.flatMap(libJni)
   }
@@ -563,13 +566,13 @@ object Tasks extends TaskBase {
 
       val p = layout.resApk(agg.debug)
       withCachedRes(s, p.getName, normalres(layout, extrares, libs), genres(layout, libs)) {
-        val proguardTxt = layout.proguardTxt.getAbsolutePath
+        layout.proguardTxt.getAbsolutePath
         layout.proguardTxt.getParentFile.mkdirs()
 
         s.log.info("Packaging resources: " + p.getName)
         Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams,
-          agg.resConfigs, libs, lib, agg.debug, res, assets, p.getAbsolutePath,
-          layout.gen, proguardTxt, s.log)
+          agg.resConfigs, libs, lib, agg.debug, res, assets, p,
+          layout.gen, layout.proguardTxt, layout.aaptTemp, s.log)
         Set(p)
       }
       p
@@ -594,7 +597,7 @@ object Tasks extends TaskBase {
   val apkbuildAggregateTaskDef = Def.task {
     Aggregate.Apkbuild(packagingOptions.value,
       apkbuildDebug.value(), apkDebugSigningConfig.value,
-      dex.value, predex.value, collectJni.value,
+      processManifest.value, dex.value, predex.value, collectJni.value,
       resourceShrinker.value, minSdkVersion.value.toInt)
   }
 
@@ -610,7 +613,7 @@ object Tasks extends TaskBase {
     val filter = ndkAbiFilter.value
     val logger = ilogger.value(s.log)
     Packaging.apkbuild(builder.value(s.log), Packaging.Jars(m, u, dcp), libraryProject.value, a,
-      filter.toSet, layout.collectJni, layout.resources, layout.collectResource,
+      filter.toSet, layout.collectJni, layout.resources, layout.collectResource, layout.mergedAssets,
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)
   }
 
@@ -756,7 +759,7 @@ object Tasks extends TaskBase {
       val output = layout.processedManifest
       output.getParentFile.mkdirs()
       try {
-        bldr(s.log).mergeManifests(layout.manifest, a.overlays.filter(_.isFile).asJava,
+        bldr(s.log).mergeManifestsForApplication(layout.manifest, a.overlays.filter(_.isFile).asJava,
           if (merge) libs.asJava else Seq.empty.asJava,
           pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
           output.getAbsolutePath, null, null,
@@ -833,7 +836,7 @@ object Tasks extends TaskBase {
                           ) map {
     case (agg, layout, o, extrares, manif, (assets, res), pkg, lib, libs, s) =>
       implicit val output = o
-      val proguardTxt = layout.proguardTxt.getAbsolutePath
+      layout.proguardTxt
       layout.proguardTxt.getParentFile.mkdirs()
 
       // not covered under FileFunction.cached because FilesInfo.hash is too
@@ -845,7 +848,7 @@ object Tasks extends TaskBase {
           s.log.warn("No resources found at " + res.getAbsolutePath)
         Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams,
           agg.resConfigs, libs, lib, agg.debug, res, assets, null, layout.gen,
-          proguardTxt, s.log)
+          layout.proguardTxt, layout.aaptTemp, s.log)
         (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
       }
   }
@@ -1164,18 +1167,20 @@ object Tasks extends TaskBase {
       val tpkg = instrData flatMap (_._2) getOrElse pkg
       val processedManifest = layout.processedManifest
       // profiling and functional test? false for now
-      bldr.processTestManifest(testPackage, minSdk, targetSdk,
-        tpkg, trunner, false, false, manifestFile, libs.asJava,
+      bldr.mergeManifestsForTestVariant(testPackage, minSdk, targetSdk,
+        tpkg, trunner, false, false, "androidTest", manifestFile, libs.asJava,
         (placeholders: Map[String,Object]).asJava, processedManifest.getAbsoluteFile,
         cache / "processTestManifest")
       val options = new DexOptions {
-        override def getIncremental = true
         override def getJumboMode = false
         override def getPreDexLibraries = false
         override def getJavaMaxHeapSize = ta.dexMaxHeap
         override def getThreadCount = java.lang.Runtime.getRuntime.availableProcessors()
         override def getMaxProcessCount = ta.dexMaxProcessCount
         override def getDexInProcess = false
+        override def getKeepRuntimeAnnotatedClasses = true
+        override def getOptimize = true
+        override def getAdditionalParameters = List.empty.asJava
       }
       val rTxt = layout.testRTxt
       val dex = layout.testDex
@@ -1186,7 +1191,7 @@ object Tasks extends TaskBase {
       if (!rTxt.exists) rTxt.createNewFile()
       Resources.aapt(bldr, processedManifest, testPackage,
         agg.additionalParams, agg.resConfigs, libs, false, debug, layout.testRes,
-        layout.testAssets, res.getAbsolutePath, classes, null, s.log)
+        layout.testAssets, res, classes, null, layout.aaptTemp, s.log)
 
       val deps = tlib filterNot (clib contains)
       val tmp = cache / "test-dex"
@@ -1199,11 +1204,16 @@ object Tasks extends TaskBase {
       // dex doesn't support --no-optimize, see
       // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(inputs.asJava,
-        dex, false, null, options, List.empty.asJava, false, true, SbtProcessOutputHandler(s.log))
+        dex, false, null, options, true, SbtProcessOutputHandler(s.log))
 
-      bldr.packageApk(res.getAbsolutePath, Set(dex).asJava,
-        List.empty.asJava, List.empty.asJava, Set.empty.asJava,
-        debug, ta.debugSigningConfig.toSigningConfig("debug"),apk.getAbsolutePath, minSdk.toInt)
+      bldr.oldPackageApk(res.getAbsolutePath, Set(dex).asJava,
+        List.empty.asJava, List.empty.asJava, if (layout.testAssets.isDirectory) layout.testAssets else null, Set.empty.asJava,
+        debug, ta.debugSigningConfig.toSigningConfig("debug"),apk, minSdk.toInt, PackagingUtils.getNoCompressPredicate(new AaptOptions {
+          override def getNoCompress = null
+          override def getFailOnMissingConfigEntry = true
+          override def getAdditionalParameters = null
+          override def getIgnoreAssets = null
+        }, processedManifest))
       s.log.debug("Installing test apk: " + apk)
 
       def install(device: IDevice) {

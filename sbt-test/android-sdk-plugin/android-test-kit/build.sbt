@@ -15,3 +15,6 @@ debugIncludesTests in Android := false
 autoScalaLibrary := false
 
 showSdkProgress in Android := false
+
+javacOptions in Compile ++= List("-source", "1.7", "-target", "1.7")
+javacOptions in Compile in flavor1 ++= List("-source", "1.7", "-target", "1.7")

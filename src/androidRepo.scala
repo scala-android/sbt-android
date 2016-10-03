@@ -3,22 +3,17 @@ package android
 import java.io.File
 import java.net.{HttpURLConnection, URL}
 
-import com.android.repository.Revision
 import com.android.repository.api._
-import com.android.repository.impl.generated.generic.v1.GenericDetailsType
-import com.android.repository.impl.generated.v1.{LocalPackage => _,_}
+import com.android.repository.impl.generated.v1.{LocalPackage => _, _}
 import com.android.repository.io.FileOp
-import com.android.sdklib.repositoryv2.AndroidSdkHandler
+import com.android.sdklib.repository.AndroidSdkHandler
 import com.android.repository.api.{RemotePackage => RepoRemotePackage}
-import com.android.sdklib.repositoryv2.generated.addon.v1.{AddonDetailsType, ExtraDetailsType, LibrariesType}
-import com.android.sdklib.repositoryv2.generated.common.v1.{IdDisplayType, LibraryType}
-import com.android.sdklib.repositoryv2.generated.repository.v1.{LayoutlibType, PlatformDetailsType}
-import com.android.sdklib.repositoryv2.generated.sysimg.v1.SysImgDetailsType
+import com.android.sdklib.repository.generated.repository.v1.PlatformDetailsType
+import com.android.sdklib.repository.installer.SdkInstallerUtil
 import sbt.{IO, Logger, Using}
 
 import collection.JavaConverters._
 import concurrent.duration._
-import scala.xml.{Elem, Node, XML}
 
 object SdkInstaller extends TaskBase {
   implicit val packageOrder: Ordering[com.android.repository.api.RemotePackage] =
@@ -131,9 +126,10 @@ object SdkInstaller extends TaskBase {
         val installed = repomanager.getPackages.getLocalPackages.asScala.get(r.getPath)
         if (installed.forall(_.getVersion != r.getVersion)) {
           slog.info(s"Installing package '${r.getDisplayName}' ...")
-          val installer = AndroidSdkHandler.findBestInstaller(r)
+          val installerF = SdkInstallerUtil.findBestInstallerFactory(r, sdkHandler)
+          val installer = installerF.createInstaller(r, repomanager, downloader, sdkHandler.getFileOp)
           val ind = PrintingProgressIndicator(showProgress)
-          val succ = installer.install(r, downloader, null, ind, repomanager, sdkHandler.getFileOp)
+          val succ = installer.prepare(ind) && installer.complete(ind)
           if (!succ) PluginFail("SDK installation failed")
           if (ind.getFraction != 1.0)
             ind.setFraction(1.0) // workaround for installer stopping at 99%
@@ -181,7 +177,6 @@ object SdkInstaller extends TaskBase {
     sdkPath(state.log, loadProperties(sbt.Project.extract(state).currentProject.base))
 
   private[this] lazy val sdkMemo = scalaz.Memo.immutableHashMapMemo[File, (Boolean, Logger) => AndroidSdkHandler] { f =>
-    AndroidSdkHandler.setRemoteFallback(FallbackSdkLoader)
     val manager = AndroidSdkHandler.getInstance(f)
 
     (showProgress, slog) => manager.synchronized {
@@ -282,247 +277,55 @@ object SdkInstaller extends TaskBase {
   }
 
 }
-object FallbackSdkLoader extends FallbackRemoteRepoLoader {
-  override def parseLegacyXml(xml: RepositorySource, progress: ProgressIndicator) = {
-    val repo = Using.urlReader(IO.utf8)(new URL(xml.getUrl))(XML.load)
-    val sdkrepo = repo.child.foldLeft((Map.empty[String,License],List.empty[com.android.repository.api.RemotePackage])) {
-      case ((ls,ps),e@Elem(prefix,
-      "platform" | "platform-tool" | "build-tool" | "tool" | "system-image" | "add-on" | "extra",
-      meta, ns, children @ _*)) =>
-        (ls,processPackage(xml, ls, e).fold(ps)(_ :: ps))
-      case ((ls,ps),e@Elem(prefix, "license", meta, ns, children @ _*)) =>
-        val id = e.attribute("id").flatMap(_.headOption).map(_.text)
-        (id.fold(ls)(i => ls + ((i,License(i,e.text)))),ps)
-      case ((ls,ps),_) => (ls,ps)
-    }
-    sdkrepo._2.asJava
-  }
 
-  def processPackage(src: RepositorySource, ls: Map[String,License], e: Node): Option[com.android.repository.api.RemotePackage] = {
-    val archive = (e \ "archives").headOption.toList.flatMap(a => processArchive(a, e.label == "platform"))
-    val obsolete = (e \ "obsolete").nonEmpty
-    for {
-      d <- (e \ "description").headOption.map(_.text)
-      r <- (e \ "revision").headOption
-    } yield {
-      val rev = processRevision(r)
-      val (dep,tpe,path) = e.label match {
-        case "platform"      =>
-          val api = (e \ "api-level").headOption.fold("???")(_.text)
-          val llapi = (e \ "layoutlib" \ "api").headOption.fold(-1)(_.text.toInt)
-          val tpe = new PlatformDetailsType
-          tpe.setApiLevel(api.toInt)
-          val layoutlib = new LayoutlibType
-          layoutlib.setApi(llapi)
-          tpe.setLayoutlib(layoutlib)
-          val d = (e \ "min-tools-rev").headOption.map { min =>
-            val dep = new DependencyType
-            val r = processRevision(min)
-            dep.setPath("tools")
-            val rev = new RevisionType
-            rev.setMajor(r.getMajor)
-            rev.setMinor(r.getMinor)
-            rev.setMicro(r.getMicro)
-            rev.setPreview(r.getPreview)
-            dep.setMinRevision(rev)
-            dep
-          }
-          (d,tpe,s"platforms;android-$api")
-        case "platform-tool" =>
-          (None,new GenericDetailsType,"platform-tools")
-        case "system-image" =>
-          val api = (e \ "api-level").headOption.fold(-1)(_.text.toInt)
-          val tag = (e \ "tag-id").headOption.fold("???")(_.text)
-          val tDi = (e \ "tag-display").headOption.fold("???")(_.text)
-          val abi = (e \ "abi").headOption.fold("???")(_.text)
-          val tpe = new SysImgDetailsType
-          tpe.setAbi(abi)
-          tpe.setApiLevel(api)
-          val idD = new IdDisplayType
-          idD.setId(tag)
-          idD.setDisplay(tDi)
-          tpe.setTag(idD)
-          (None,tpe,s"system-images;android-$api;$tag;$abi")
-        case "build-tool"    =>
-          (None,new GenericDetailsType,"build-tools;" + rev.toShortString)
-        case "tool"          =>
-          (None,new GenericDetailsType,"tools;" + rev.toShortString)
-        case "extra"         =>
-          val path = (e \ "path").headOption.fold("???")(_.text)
-          val vId = (e \ "vendor-id").headOption.fold("???")(_.text)
-          val vDi = (e \ "vendor-display").headOption.fold("???")(_.text)
-          val tpe = new ExtraDetailsType
-          val idD = new IdDisplayType
-          idD.setId(vId)
-          idD.setDisplay(vDi)
-          tpe.setVendor(idD)
-          (None,tpe,s"extras;$vId;$path")
-        case "add-on"        =>
-          val api = (e \ "api-level").headOption.fold(-1)(_.text.toInt)
-          val vId = (e \ "vendor-id").headOption.fold("???")(_.text)
-          val vDi = (e \ "vendor-display").headOption.fold("???")(_.text)
-          val nId = (e \ "name-id").headOption.fold("???")(_.text)
-          val libNodes = e \ "libs" \ "lib"
-          val tpe = new AddonDetailsType
-          tpe.setApiLevel(api.toInt)
-          val idD = new IdDisplayType
-          idD.setId(vId)
-          idD.setDisplay(vDi)
-          tpe.setVendor(idD)
-          val libs = new LibrariesType
-          val libTypes = libNodes map { n =>
-            val nm   = (n \ "name").headOption.fold("???")(_.text)
-            val desc = (n \ "description").headOption.fold("???")(_.text)
-            val lt = new LibraryType
-            lt.setDescription(desc)
-            lt.setName(nm)
-            lt
-          }
-          libs.getLibrary.addAll(libTypes.asJava)
-          tpe.setLibraries(libs)
-          (None,tpe,s"add-ons;addon-$nId-$vId-$api")
-      }
-      val licref = (e \ "uses-license").headOption.flatMap(_.attribute("ref")).fold("")(_.text)
-      RemotePackage(path, d, rev, ls(licref), obsolete, archive, dep, tpe, src).asV1
-    }
-  }
-
-  def processRevision(e: Node): Revision = {
-    val maj = (e \ "major").headOption.map(_.text.toInt)
-    val min = (e \ "minor").headOption.map(_.text.toInt: java.lang.Integer)
-    val mic = (e \ "micro").headOption.map(_.text.toInt: java.lang.Integer)
-    val pre = (e \ "preview").headOption.map(_.text.toInt: java.lang.Integer)
-    maj.fold(new Revision(e.text.trim.toInt)) { m =>
-      new Revision(m, min.orNull, mic.orNull, pre.orNull)
-    }
-  }
-
-  def processArchive(e: Node, ignoreHost: Boolean): List[Archive] = {
-    val archives = e.child.collect {
-      case c@Elem(prefix, "archive", meta, ns, children @ _*) =>
-        val size     = c \ "size"
-        val checksum = c \ "checksum"
-        val url      = c \ "url"
-        (for {
-          s  <- size.headOption.map(_.text)
-          ck <- checksum.headOption.map(_.text)
-          u  <- url.headOption.map(_.text)
-        } yield ArchiveFile(ck, s.toLong, u)).map { f =>
-          val a = Archive(f)
-          val hostOs = (c \ "host-os").headOption.map(_.text)
-          val hostBits = (c \ "host-bits").headOption.map(_.text.toInt)
-          val a1 = hostOs.fold(a)(o => a.copy(hostOs = Some(o)))
-          val a2 = hostBits.fold(a1)(b => a1.copy(hostBits = Some(b)))
-          a2
-        }
-    }.flatten.toList
-    if (ignoreHost && archives.forall(!_.asV1.isCompatible)) {
-      archives.map(_.copy(hostOs = None, hostBits = None))
-    } else archives
-  }
-}
-case class RemotePackage(getPath: String,
-                         getDisplayName: String,
-                         getVersion: Revision,
-                         getLicense: License,
-                         obsolete: Boolean,
-                         archives: List[Archive],
-                         dependency: Option[Dependency],
-                         getTypeDetails: TypeDetails,
-                         getSource: RepositorySource
-                        ) {
-  def asV1 = {
-    val r = new com.android.repository.impl.generated.v1.RemotePackage
-    r.setTypeDetails(getTypeDetails)
-    r.setPath(getPath)
-    r.setDisplayName(getDisplayName)
-    r.setVersion(getVersion)
-    r.setLicense(getLicense.asV1)
-    r.setObsolete(obsolete)
-    if (getVersion.getPreview > 0) {
-      val channel = new ChannelType
-      val channelRef = new ChannelRefType
-      channel.setId("2")
-      channel.setValue("Dev")
-      channelRef.setRef(channel)
-      r.setChannelRef(channelRef)
-    }
-    val dt = new DependenciesType
-    dt.getDependency.addAll(dependency.toList.asJava)
-    r.setDependencies(dt)
-    val as = new com.android.repository.impl.generated.v1.ArchivesType
-    as.getArchive.addAll(archives.map(_.asV1).asJava)
-    r.setArchives(as)
-    r.setSource(getSource)
-    r
-  }
-}
-
-case class License(getId: String, getValue: String) {
-  override def toString = s"License(id=$getId)"
-
-  def asV1 = {
-    val l = new com.android.repository.impl.generated.v1.LicenseType
-    l.setId(getId)
-    l.setValue(getValue)
-    l
-  }
-}
-
-case class Archive(getComplete: ArchiveFile, hostOs: Option[String] = None, hostBits: Option[Integer] = None) {
-  def asV1 = {
-    val a = new com.android.repository.impl.generated.v1.ArchiveType
-    a.setComplete(getComplete.asV1)
-    a.setHostOs(hostOs.orNull)
-    a.setHostBits(hostBits.orNull)
-    a
-  }
-}
-
-case class ArchiveFile(getChecksum: String, getSize: Long, getUrl: String) {
-  def asV1 = {
-    val a = new com.android.repository.impl.generated.v1.CompleteType
-    a.setChecksum(getChecksum)
-    a.setSize(getSize)
-    a.setUrl(getUrl)
-    a
-  }
-}
-
+// provide our own implementation of Downloader for progress indication
 case class SbtAndroidDownloader(fop: FileOp) extends Downloader {
-  override def downloadFully(url: URL, settings: SettingsController, indicator: ProgressIndicator) = {
+  override def downloadFully(url: URL, indicator: ProgressIndicator) = {
     val result = File
       .createTempFile("LegacyDownloader", System.currentTimeMillis.toString)
     result.deleteOnExit()
-    val out = fop.newFileOutputStream(result)
-    val uc = url.openConnection().asInstanceOf[HttpURLConnection]
-    val responseCode = uc.getResponseCode
-    if (responseCode == 200) {
-      val length = uc.getContentLength
-      val in = uc.getInputStream
-      Using.bufferedInputStream(in) { b =>
-        Using.bufferedOutputStream(out) { o =>
-          val len = 65536
-          val buf = Array.ofDim[Byte](len)
-          indicator.setIndeterminate(length == -1)
-          indicator.setText("Downloading " + url.getFile)
-          var read = 0
-          Iterator.continually(in.read(buf, 0, len)).takeWhile(_ != -1).foreach { r =>
-            read = read + r
-            if (length != -1)
-              indicator.setFraction(read.toDouble / length)
-            o.write(buf, 0, r)
+    downloadFully(url, result, null, indicator)
+    result
+  }
+
+
+  override def downloadFully(url: URL, target: File, checksum: String, indicator: ProgressIndicator): Unit = {
+    val alreadyDownloaded = if (fop.exists(target) && checksum != null) {
+      Using.fileInputStream(target) { in =>
+        checksum == Downloader.hash(in, fop.length(target), indicator)
+      }
+    } else false
+
+    if (!alreadyDownloaded) {
+      val out = fop.newFileOutputStream(target)
+      val uc = url.openConnection().asInstanceOf[HttpURLConnection]
+      val responseCode = uc.getResponseCode
+      if (responseCode == 200) {
+        val length = uc.getContentLength
+        val in = uc.getInputStream
+        Using.bufferedInputStream(in) { b =>
+          Using.bufferedOutputStream(out) { o =>
+            val len = 65536
+            val buf = Array.ofDim[Byte](len)
+            indicator.setIndeterminate(length == -1)
+            indicator.setText("Downloading " + url.getFile)
+            var read = 0
+            Iterator.continually(in.read(buf, 0, len)).takeWhile(_ != -1).foreach { r =>
+              read = read + r
+              if (length != -1)
+                indicator.setFraction(read.toDouble / length)
+              o.write(buf, 0, r)
+            }
+            indicator.setFraction(1.0)
+            o.close()
           }
-          indicator.setFraction(1.0)
-          o.close()
-          result
         }
       }
-    } else null
+    }
   }
 
   //noinspection JavaAccessorMethodCalledAsEmptyParen
   override def downloadAndStream(url: URL,
-                                 settings: SettingsController,
                                  indicator: ProgressIndicator) = url.openConnection().getInputStream()
+
 }
