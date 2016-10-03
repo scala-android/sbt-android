@@ -506,20 +506,20 @@ object Serializer {
            |""".stripMargin
     }
   }
+  implicit val boolEncoder = new Encoder[Boolean] {
+    def encode(b: Boolean) = b.toString
+  }
   implicit val signingConfigEncoding = new Encoder[ApkSigningConfig] {
     override def encode(t: ApkSigningConfig) = t match {
-      case PlainSigningConfig(ks, sp, al, kp, st) =>
-        s"PlainSigningConfig(${enc(ks)}, ${enc(sp)}, ${enc(al)}, ${enc(kp)}, ${enc(st)})"
-      case PromptPasswordsSigningConfig(ks, al, st) =>
-        s"PromptPasswords(${enc(ks)}, ${enc(al)}, ${enc(st)})"
+      case PlainSigningConfig(ks, sp, al, kp, st, v1, v2) =>
+        s"PlainSigningConfig(${enc(ks)}, ${enc(sp)}, ${enc(al)}, ${enc(kp)}, ${enc(st)}, ${enc(v1)}, ${enc(v2)})"
+      case PromptPasswordsSigningConfig(ks, al, st, v1, v2) =>
+        s"PromptPasswords(${enc(ks)}, ${enc(al)}, ${enc(st)}, ${enc(v1)}, ${enc(v2)})"
     }
   }
   implicit val wrappedProjectLayoutEncoding = new Encoder[ProjectLayout.Wrapped] {
     def encode(p: ProjectLayout.Wrapped) =
       s"new ProjectLayout.Wrapped(${enc(p.wrapped)})"
-  }
-  implicit val boolEncoder = new Encoder[Boolean] {
-    def encode(b: Boolean) = b.toString
   }
   implicit val intEncoder = new Encoder[Int] {
     def encode(i: Int) = i.toString
