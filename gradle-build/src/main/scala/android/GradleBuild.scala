@@ -361,7 +361,7 @@ object AndroidGradlePlugin extends AutoPlugin {
           Option(j.getResolvedCoordinates).exists { c =>
             val g = c.getGroupId
             val n = c.getArtifactId
-            g.nonEmpty && (g != "com.google.android" || !n.startsWith("support-"))
+            g.nonEmpty && g != "__local_jars__" && (g != "com.google.android" || !n.startsWith("support-"))
           }
         } map { j =>
           libraryDependency(j.getResolvedCoordinates)
