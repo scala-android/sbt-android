@@ -771,10 +771,9 @@ object Tasks extends TaskBase {
         case e: Exception =>
           val ms = layout.manifest :: (a.overlays.filter(_.isFile) ++
             libs.map(_.getManifest).filter(_.isFile)).toList
-          val ex = new MessageOnlyException(
+          s.log.trace(e)
+          fail(
             s"Failed to merge manifest files:\n    ${ms.mkString("\n    ")}")
-          ex.initCause(e)
-          throw ex
       }
       if (noTestApk) {
         val top = XML.loadFile(output)
