@@ -21,7 +21,7 @@ object Dependencies {
   def apklib(m: ModuleID, n: String): ModuleID = artifacts(m, n, "apklib")
   def aar(m: ModuleID, n: String): ModuleID    = artifacts(m, n, "aar")
 
-  trait LibraryDependency extends AndroidLibrary {
+  trait LibraryDependency extends AndroidLibrary with Pkg {
     import com.android.SdkConstants._
     def layout: ProjectLayout
 
@@ -81,7 +81,7 @@ object Dependencies {
     override def getJarFile = path / "bin" / FN_CLASSES_JAR
   }
   def moduleIdFile(path: File) = path / "sbt-module-id"
-  case class AarLibrary(base: File) extends LibraryDependency {
+  case class AarLibrary(base: File) extends LibraryDependency with Pkg {
     lazy val moduleID: ModuleID = {
       val mfile = moduleIdFile(path)
       val parts = IO.readLines(mfile).headOption.fold(PluginFail(
@@ -95,11 +95,13 @@ object Dependencies {
       override def jniLibs = getJniFolder
     }
     override def getJniFolder = path / "jni"
+    lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
   }
 
   case class LibraryProject(layout: ProjectLayout, extraRes: Seq[File], extraAssets: Seq[File])
-                           (implicit output: BuildOutput.Converter) extends LibraryDependency {
+                           (implicit output: BuildOutput.Converter) extends LibraryDependency with Pkg {
 
+    lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
     override def getSymbolFile = layout.rTxt
     override def getJarFile = layout.classesJar
     override def getProguardRules = layout.proguardTxt
@@ -159,9 +161,7 @@ object Dependencies {
     def apply(path: File)(implicit m: BuildOutput.Converter) = new AutoLibraryProject(path)
   }
   class AutoLibraryProject(path: File)(implicit m: BuildOutput.Converter)
-  extends LibraryProject(ProjectLayout(path), Nil, Nil) with Pkg {
-    lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
-
+  extends LibraryProject(ProjectLayout(path), Nil, Nil) {
     override def equals(obj: scala.Any) = obj match {
       case l: LibraryProject =>
         l.path.getCanonicalFile == path.getCanonicalFile

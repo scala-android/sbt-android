@@ -464,8 +464,10 @@ object Tasks extends TaskBase {
 
   val collectResourcesAggregateTaskDef = Def.task {
     Aggregate.CollectResources(
-      libraryProject.value, libraryProjects.value, extraResDirectories.value,
-      extraAssetDirectories.value, projectLayout.value, outputLayout.value)
+      libraryProject.value, libraryProjects.value, packageForR.value,
+      extraResDirectories.value,
+      extraAssetDirectories.value,
+      projectLayout.value, outputLayout.value)
   }
   val collectResourcesTaskDef = Def.task {
     val bldr = builder.value
@@ -488,7 +490,7 @@ object Tasks extends TaskBase {
     val out = (layout.mergedAssets, layout.mergedRes)
     val assets = layout.assets +: ea.map(_.getCanonicalFile).distinct flatMap (_ ** FileOnlyFilter get)
     withCachedRes(s, "collect-resources-task", assets ++ normalres(layout, er, libs), genres(layout, libs)) {
-      val res = Resources.doCollectResources(bldr(s.log), minLevel, noTestApk,
+      val res = Resources.doCollectResources(bldr(s.log), cra.packageForR, minLevel, noTestApk,
         isLib, libs, layout, ea, layout.generatedRes +: er, rv, c, logger(s.log),
         s.cacheDirectory, s)
       if (out != res) sys.error(s"Unexpected directories $out != $res")

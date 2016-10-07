@@ -45,6 +45,7 @@ object Resources {
   )
 
   def doCollectResources( bldr: AndroidBuilder
+                        , pkg: String
                         , minSdk: Int
                         , noTestApk: Boolean
                         , isLib: Boolean
@@ -88,13 +89,13 @@ object Resources {
     if (noTestApk && layout.testAssets.exists)
       IO.copyDirectory(layout.testAssets, assetBin, false, true)
     // prepare resource sets for merge
-    val res = extraRes ++ Seq(layout.res, rsResources) ++
+    val res = extraRes.map(pkg -> _) ++ Seq(layout.res, rsResources).map(pkg -> _) ++
       libs.collect {
-        case Dependencies.LibraryProject(_, rs, _) => rs.filter(_.isDirectory)
+        case l@Dependencies.LibraryProject(_, rs, _) => rs.filter(_.isDirectory).map(l.pkg -> _)
       }.flatten ++
       libs.flatMap { l =>
         (if (l.layout.res.isDirectory) List(l.layout.res) else Nil) ++
-          (if (l.layout.rsRes.isDirectory) List(l.layout.rsRes) else Nil)
+          (if (l.layout.rsRes.isDirectory) List(l.layout.rsRes) else Nil) map (l.pkg -> _)
       }
 
     s.log.debug("Local/library-project resources: " + res)
@@ -103,14 +104,14 @@ object Resources {
     val depres = collectdeps(libs) collect {
       case m: ApkLibrary => m
       case n: AarLibrary => n
-    } collect { case n if n.getResFolder.isDirectory => n.getResFolder }
-    val nonGeneratingRes = depres.toSet
+    } collect { case n if n.getResFolder.isDirectory => n.pkg -> n.getResFolder }
+    val nonGeneratingRes = depres.map(_._2).toSet
     s.log.debug("apklib/aar resources: " + depres)
 
     val respaths = depres ++ res.reverse ++
-      (if (layout.res.isDirectory) Seq(layout.res) else Seq.empty) ++
+      ((if (layout.res.isDirectory) Seq(layout.res) else Seq.empty) ++
       (if (noTestApk && layout.testRes.isDirectory)
-        Seq(layout.res) else Seq.empty)
+        Seq(layout.res) else Seq.empty)).map(pkg -> _)
     val vectorprocessor = new VectorDrawableRenderer(
       if (renderVectors) minSdk else math.max(minSdk,21),
       layout.generatedVectors, Set(Density.MEDIUM,
@@ -118,10 +119,10 @@ object Resources {
         Density.XHIGH,
         Density.XXHIGH).asJava,
       logger)
-    val sets = respaths.distinct flatMap { r =>
+    val sets = respaths.distinct flatMap { case (p,r) =>
       s.log.debug("Adding resource path: " + r)
       // TODO pass library name?
-      val set = new ResourceSet(r.getAbsolutePath, true)
+      val set = new ResourceSet(r.getAbsolutePath, p, true)
       set.addSource(r)
 
       // see https://code.google.com/p/android/issues/detail?id=214182#c5
@@ -135,7 +136,7 @@ object Resources {
       }
     }
 
-    val inputs = (respaths flatMap { r => (r ***) get }) filter (n =>
+    val inputs = (respaths flatMap { case (_,r) => (r ***) get }) filter (n =>
       !n.getName.startsWith(".") && !n.getName.startsWith("_"))
     var needsFullResourceMerge = false
 
@@ -143,7 +144,7 @@ object Resources {
       needsFullResourceMerge = true
       IO.delete(resTarget)
       in
-    }(depres.toSet)
+    }(nonGeneratingRes)
     FileFunction.cached(cache / "collect-resources")(
       FilesInfo.lastModified, FilesInfo.exists) { (inChanges,outChanges) =>
       s.log.info("Collecting resources")
@@ -230,7 +231,13 @@ object Resources {
                 false
             } catch {
               case e: RuntimeException =>
-                slog.warn("Unable to handle changed file: " + file + ": " + e)
+                slog.warn("Unable to handle changed file: " + file)
+                slog.trace(e)
+                merge()
+                true
+              case e: MergingException =>
+                slog.warn("Unable to handle changed file: " + file)
+                slog.trace(e)
                 merge()
                 true
             }
@@ -424,8 +431,8 @@ object Resources {
           val layouts = (r ** "layout*" ** "*.xml" get) ++
             (for {
               lib <- l filterNot {
-                case p: Dependencies.Pkg => ignores(p.pkg)
                 case a: AarLibrary       => !includeAar
+                case p: Dependencies.Pkg => ignores(p.pkg)
                 case _                   => false
               }
               xml <- lib.getResFolder ** "layout*" ** "*.xml" get
@@ -474,8 +481,8 @@ object Resources {
           val resdirs = if (f) {
             r +: (for {
               lib <- l filterNot {
-                case p: Dependencies.Pkg => ignores(p.pkg)
                 case a: AarLibrary       => !includeAar
+                case p: Dependencies.Pkg => ignores(p.pkg)
                 case _                   => false
               }
             } yield lib.getResFolder)
@@ -756,8 +763,8 @@ object Resources {
       }
       val ig = ignores.toSet
       val libsToProcess = libs filterNot {
-        case p: Dependencies.Pkg => ig(p.pkg)
         case a: AarLibrary => !includeAar
+        case p: Dependencies.Pkg => ig(p.pkg)
         case _ => false
       }
       val files = (layout.res ** "layout*" ** "*.xml" get) ++

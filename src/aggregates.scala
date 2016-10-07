@@ -38,6 +38,7 @@ object Aggregate {
 
   private[android] case class CollectResources(libraryProject: Boolean,
                                                libraryProjects: Seq[LibraryDependency],
+                                               packageForR: String,
                                                extraResDirectories: Seq[File],
                                                extraAssetDirectories: Seq[File],
                                                projectLayout: ProjectLayout,
