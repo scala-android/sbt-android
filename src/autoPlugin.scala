@@ -68,11 +68,6 @@ case object AndroidGlobalPlugin extends AutoPlugin {
         (deps flatMap checkForExport) ++ (nonAndroid filterNot (d => e.getOpt(sbt.Keys.exportJars in d) exists (_ == true)))
       }
     }
-    def append(settings: Seq[Setting[_]], state: State): State = {
-      val appendSettings = Load.transformSettings(Load.projectScope(e.currentRef), e.currentRef.build, e.rootProject, settings)
-      val newStructure = Load.reapply(e.session.original ++ appendSettings, e.structure)(Project.showContextKey(e.session, e.structure))
-      Project.setProject(e.session.copy(original = e.session.original ++ appendSettings), newStructure, state)
-    }
     val addDeps = androids map checkAndroidDependencies map { case (p, dep) =>
       p -> android.buildWith(dep).map(VariantSettings.fixProjectScope(p))
     }
@@ -90,7 +85,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
     }
     if (addDeps.flatMap(_._2).nonEmpty) {
       s.log.info(s"Adding android subproject dependency rules for: ${addDeps.collect { case (p,ds) if ds.nonEmpty => p.project }.mkString(", ")}")
-      append(addDeps.flatMap(_._2), end)
+      VariantSettings.append(end, addDeps.flatMap(_._2))
     } else end
   } andThen onLoad.value) :: Nil
 
