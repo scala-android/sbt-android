@@ -11,6 +11,7 @@ object VariantSettings {
   type VariantStatus = Map[ProjectRef, (Option[String],Option[String])]
   def empty(s: State) = VariantSettings(Map.empty, Nil, Map.empty)
 
+  private[android] val onUnloadSkip = AttributeKey[Boolean]("on-unload-skip", "skip onUnload if set")
   private[android] val originalSettings = AttributeKey[Seq[Setting[_]]]("original-settings",
     "Track the settings originally loaded")
   private[android] val explicitGlobalLogLevels = AttributeKey[Boolean](
@@ -131,10 +132,9 @@ object VariantSettings {
   def append(s: State, ss: Seq[Setting[_]]) = {
     val e = Project.extract(s)
     val appendSettings = Load.transformSettings(Load.projectScope(e.currentRef), e.currentRef.build, e.rootProject, ss)
-    val originals = s.get(originalSettings) getOrElse (e.session.original ++ appendSettings)
-    val newStructure = Load.reapply(originals, e.structure)(Project.showContextKey(e.session, e.structure))
-    val s2 = Project.setProject(e.session.copy(original = originals), newStructure, s)
-    s2.put(originalSettings, originals)
+    val newSettings = e.session.original ++ appendSettings
+    val newStructure = Load.reapply(newSettings, e.structure)(Project.showContextKey(e.session, e.structure))
+    Project.setProject(e.session.copy(original = newSettings), newStructure, s.put(originalSettings, s.get(originalSettings).getOrElse(e.session.original) ++ appendSettings).put(onUnloadSkip, true))
   }
 
   def reapply(session: SessionSettings, newVariant: VariantSettings, structure: BuildStructure, s: State): State =
@@ -152,14 +152,14 @@ object VariantSettings {
     val withLogger = newVariant.appendRaw(loggerInject :: Nil)
     val originals = s.get(originalSettings) getOrElse session.original
     val session2 = session.copy(original = originals ++ withLogger.mergeSettings)
-    val newStructure = Load.reapply(session2.mergeSettings, structure)(showContextKey(session, structure))
+    val newStructure = Load.reapply(session2.mergeSettings, structure)(showContextKey(session2, structure))
     setProject(newVariant, session2, originals, newStructure, s)
   }
 
   def showContextKey(session: SessionSettings, structure: BuildStructure, keyNameColor: Option[String] = None): Show[ScopedKey[_]] =
     Def.showRelativeKey(session.current, structure.allProjects.size > 1, keyNameColor)
   def setProject(variants: VariantSettings, session: SessionSettings, originals: Seq[Setting[_]], structure: BuildStructure, s: State): State = {
-    val unloaded = Project.runUnloadHooks(s)
+    val unloaded = Project.runUnloadHooks(s.put(onUnloadSkip, true))
     val (onLoad, onUnload) = Project.getHooks(structure.data)
     val newAttrs = unloaded.attributes
       .put(sbt.Keys.stateBuildStructure, structure)

@@ -66,6 +66,13 @@ package object android extends PluginFail {
     } else state
   }
 
+  private[android] def onReload(key: AnyRef)(f: State => State): State => State = state => {
+    (if (!state.get(VariantSettings.onUnloadSkip).getOrElse(false)) {
+      val stateKey = AttributeKey[Boolean](key + "-onLoadOnce4Android")
+      f(state.remove(stateKey))
+    } else state).remove(VariantSettings.onUnloadSkip)
+  }
+
   // conveniences follow
   def useSupportVectors = Seq(
     renderVectorDrawables := false,

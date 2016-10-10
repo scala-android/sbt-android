@@ -4,7 +4,7 @@ import Keys._
 import com.android.sdklib.IAndroidTarget
 import com.android.sdklib.repository.AndroidSdkHandler
 import sbt._
-import sbt.Keys.onLoad
+import sbt.Keys.{onLoad,onUnload}
 
 object AndroidApp extends AutoPlugin with AndroidAppSettings with AndroidTestSettings {
   override def requires = AndroidProject
@@ -42,7 +42,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
 
   override def projectConfigurations = AndroidTest :: Internal.AndroidInternal :: Nil
 
-  override def globalSettings = (onLoad := onLoadOnce(this){ s =>
+  override def globalSettings = (onLoad := onLoad.value andThen onLoadOnce(this){ s =>
     val e = Project.extract(s)
 
     val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter {
@@ -87,7 +87,9 @@ case object AndroidGlobalPlugin extends AutoPlugin {
       s.log.info(s"Adding android subproject dependency rules for: ${addDeps.collect { case (p,ds) if ds.nonEmpty => p.project }.mkString(", ")}")
       VariantSettings.append(end, addDeps.flatMap(_._2))
     } else end
-  } andThen onLoad.value) :: Nil
+  }) :: (onUnload := onUnload.value andThen onReload(this){ s =>
+    s.remove(VariantSettings.originalSettings)
+  }) :: Nil
 
   def platformTarget(targetHash: String, sdkHandler: AndroidSdkHandler, showProgress: Boolean, slog: Logger): IAndroidTarget = {
     SdkInstaller.retryWhileFailed("determine platform target", slog) {
