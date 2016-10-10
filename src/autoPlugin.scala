@@ -72,6 +72,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
       p -> android.buildWith(dep).map(VariantSettings.fixProjectScope(p))
     }
     androids flatMap checkForExport foreach { unexported =>
+      // TODO automatically append `exportJars := true` ?
       s.log.warn(s"${unexported.project} is an Android dependency but does not specify `exportJars := true`")
     }
 

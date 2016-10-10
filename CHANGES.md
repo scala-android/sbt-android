@@ -1,7 +1,7 @@
 ## New features in 1.7.x ##
 
 * `1.7.0`:
-  * Start properly using sbt's `AutoPlugin`, build android apps by
+  * Switch to `AutoPlugin` enabling, build android apps by
     setting `enablePlugins(AndroidApp)`, aar files with
     `enablePlugins(AndroidLib)` and jar files using
     `enablePlugins(AndroidJar)`

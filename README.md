@@ -93,19 +93,20 @@ found on the #sbt-android IRC channel on Freenode, or the
    following line, (automatically performed if using `gen-android`) :
 
    ```
-   androidBuild
+   enablePlugins(AndroidApp)
    ```
 
-6. Select the target platform API you're building against in `build.sbt`:
+6. (OPTIONAL) Select the target platform API you're building against in `build.sbt`,
+   if not selected, the newest available will be selected automatically:
 
    ```
-   // for Android 5.0, Lollipop, API Level 21:
-   platformTarget := "android-21"
+   // for Android 7.0, Nougat, API Level 24:
+   platformTarget := "android-24"
    ```
 
    The Android Developer pages provides a [list of applicable version codes](https://developer.android.com/guide/topics/manifest/uses-sdk-element.html#ApiLevels).
 
-6. Now you will be able to run SBT, some available commands in sbt are:
+7. Now you will be able to run SBT, some available commands in sbt are:
    * `compile`
      * Compiles all the sources in the project, java and scala
      * Compile output is automatically processed through proguard if there
@@ -178,9 +179,9 @@ found on the #sbt-android IRC channel on Freenode, or the
           `$HOME/.IntelliJVERSION/config/plugins/scala/launcher/sbt-structure-0.13.jar`
 * Consuming apklib and aar artifacts from other projects
   * Optionally use `apklib()` or `aar()`
-    * specifying `apklib()` and `aar()` are only necessary if there are multiple
-      filetypes for the dependency, such as `jar`, etc.
-  * `libraryDependencies += apklib("groupId" % "artifactId" % "version", "optionalArtifactFilename")`
+    * specifying `apklib()` and `aar()` is only necessary if the pom
+      packaging for the dependency is not `apklib` or `aar`
+  * `libraryDependencies += aar("groupId" % "artifactId" % "version", "optionalArtifactFilename")`
     * Basically, wrap the typical dependency specification with either
       apklib() or aar() to consume the library
     * If aars or apklibs are duplicately included in a multi-project build,
@@ -203,22 +204,13 @@ found on the #sbt-android IRC channel on Freenode, or the
       "com.google.android.gms" % "play-services" % "VERSION"
     ```
 
-* Generating apklib and/or aar artifacts
+* Generating aar artifacts
   * To specify that your project will generate and publish either an `aar`
-    or `apklib` artifact simply change the `android.Plugin.androidBuild`
-    line to one of the variants that will build the desired output type.
-    * For `apklib` use `android.Plugin.androidBuildApklib`
-    * For `aar` use `android.Plugin.androidBuildAar`
-  * Alternatively, use `android.Plugin.buildAar` and/or
-    `android.Plugin.buildApklib` in addition to any of the variants above
-    * In `build.sbt`, add `android.Plugin.buildAar` and/or
-      `android.Plugin.buildApklib` on a new line.
-    * It could also be specified, for example, like so:
-      `android.Plugin.androidBuild ++ android.Plugin.buildAar`
+    artifact simply change the `enablePlugins(AndroidApp)`
+    line to `enablePlugins(AndroidLib)`
 * Multi-project builds
   * See multi-project build examples in the test cases for an example of
     configuration.
-  * `androidBuild(...)` should be used to specify all dependent library-projects
   * All sub-projects in a multi-project build must specify `exportJars := true`.
     Android projects automatically set this variable.
   * When using multi-project builds in Scala, where library projects have
@@ -233,11 +225,13 @@ found on the #sbt-android IRC channel on Freenode, or the
   * Configurable keys can be discovered by typing `android:<tab>` at the
     sbt shell
 * Configuring proguard, some options are available
-  * `proguardOptions ++= Seq("-dontobfuscate", "-dontoptimize")` -
+  * `proguardOptions ++= Seq("-keep class com.foo.bar.Baz")` -
     will tell proguard not to obfuscute nor optimize code (any valid proguard
     option is usable here)
  * `proguardConfig ...` can be used to replace the entire
    proguard config included with sbt-android
+   * To allow obfuscation: `proguardConfig -= "-dontobfuscate"`
+   * To allow optimization: `proguardConfig -= "-dontoptimize"`
 * On-device testing, use `android:test` and see
   [Android Testing Fundamentals](http://developer.android.com/tools/testing/testing_android.html)
 *  Unit testing with robolectric and Junit (use the `test` task), see how
@@ -282,7 +276,7 @@ found on the #sbt-android IRC channel on Freenode, or the
 
 ### TODO / Known Issues ###
 
-* `autolibs` do not properly process `apklib` and `aar` resources. If anything
+* `autolibs` do not properly process `aar` resources. If anything
   in an `autolib` uses resources from such a library, the answer is to create
   a standard multi-project build configuration rather than utilize `autolibs`.
   `autolibs` can be disabled by manually configuring `localProjects`
