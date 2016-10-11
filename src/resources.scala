@@ -230,13 +230,8 @@ object Resources {
               } else
                 false
             } catch {
-              case e: RuntimeException =>
-                slog.warn("Unable to handle changed file: " + file)
-                slog.trace(e)
-                merge()
-                true
-              case e: MergingException =>
-                slog.warn("Unable to handle changed file: " + file)
+              case e: Exception =>
+                slog.warn(s"Unable to handle changed file: $file (${e.getMessage})")
                 slog.trace(e)
                 merge()
                 true
