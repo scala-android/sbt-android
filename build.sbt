@@ -117,10 +117,34 @@ libraryDependencies ++= Seq(
     ExclusionRule(organization = "org.bouncycastle"),
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
-    ExclusionRule(organization = "net.sf.proguard"),
-  "com.android.tools.lint" % "lint" % "25.2.0",
+    ExclusionRule(organization = "net.sf.proguard") excludeAll
+    ExclusionRule(organization = "com.android.tools.external.com-intellij"), // until google properly publishes to central
+  "com.android.tools.lint" % "lint" % "25.2.0" excludeAll
+    ExclusionRule(organization = "com.android.tools.external.com-intellij"), // until google properly publishes to central
+  "com.android.tools.lint" % "lint-api" % "25.2.0" excludeAll // until google properly publishes uast to central
+    ExclusionRule(organization = "com.android.tools.external.com-intellij"), // until google properly publishes to central
+  "com.android.tools.lint" % "lint-checks" % "25.2.0" excludeAll // until google properly publishes uast to central
+    ExclusionRule(organization = "com.android.tools.external.com-intellij"), // until google properly publishes to central
+  "com.android.tools.external.com-intellij" % "uast" % "145.597.3" % "provided", // until google properly publishes to central
   "net.orfjackal.retrolambda" % "retrolambda" % "2.3.0"
 )
+
+// embed uast until google properly publishes to maven central
+products in Compile := {
+  val p = (products in Compile).value
+  val t = crossTarget.value
+  val m = (managedClasspath in Compile).value
+  val g = t / "uast"
+  val uastJar = m.collect {
+    case j if j.get(moduleID.key).exists(_.organization == "com.android.tools.external.com-intellij") &&
+      j.get(moduleID.key).exists(_.name == "uast") => j.data
+  }.headOption
+  FileFunction.cached(streams.value.cacheDirectory / "intellij-uast", FilesInfo.lastModified) { in =>
+    in foreach (IO.unzip(_, g, { n: String => !n.startsWith("META-INF") }))
+    (g ** "*.class").get.toSet
+  }(uastJar.toSet)
+  g +: p
+}
 
 aggregate := false
 
@@ -164,7 +188,6 @@ scriptedDependencies <<= ( sbtTestDirectory
                          , version
                          , sbtVersion) map {
   (dir,s, org, n, v, sbtv) =>
-  val testBase = dir / "android-sdk-plugin"
   val testBases = List(dir / "android-sdk-plugin", dir / "no-travis")
   val tests = testBases.flatMap(_.listFiles(DirectoryFilter)) filter { d =>
     (d ** "*.sbt").get.nonEmpty || (d / "project").isDirectory
@@ -177,8 +200,6 @@ scriptedDependencies <<= ( sbtTestDirectory
     pluginsFile.delete()
     propertiesFile.delete()
     IO.writeLines(pluginsFile,
-      "resolvers += Resolver.jcenterRepo" ::
-      "" ::
       """addSbtPlugin("%s" %% "%s" %% "%s")""".format(org, n, v) ::
       Nil)
     IO.write(propertiesFile, """sbt.version=%s""" format sbtv)
