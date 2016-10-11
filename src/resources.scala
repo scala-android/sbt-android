@@ -243,7 +243,7 @@ object Resources {
         slog.info("Performing incremental resource merge")
         val writer = mergedResourceWriter(bldr, layout, resTarget, preprocessor, pngcrunch, layout.aaptTemp, layout.mergeTemp, slog)
         merger.mergeData(writer, true)
-        merger.writeBlobTo(blobDir, writer, true)
+        merger.writeBlobTo(blobDir, writer, false)
       }
     }
   }
@@ -288,7 +288,7 @@ object Resources {
     }
     val writer = mergedResourceWriter(bldr, layout, resTarget, preprocessor, pngcrunch, layout.aaptTemp, layout.mergeTemp, slog)
     merger.mergeData(writer, false)
-    merger.writeBlobTo(blobDir, writer, true)
+    merger.writeBlobTo(blobDir, writer, false)
   }
 
   def makeAapt(bldr: AndroidBuilder, bt: BuildToolInfo, aaptTemp: File,
