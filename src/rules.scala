@@ -27,7 +27,7 @@ object Plugin extends PluginFail {
   /**
    * create a new project flavor, build outputs will go in "id/android"
    */
-  @deprecated("use android.flavorOf", "1.7.0")
+  @deprecated("use `android.flavor` and `android.buildType` instead", "1.7.0")
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = android.flavorOf(p, id, settings:_*)
   @deprecated("use android.withVariant", "1.7.0")
   def withVariant(project: String,

@@ -4,6 +4,7 @@ import android.Keys._
 package object android extends PluginFail {
   import android.Keys.Internal._
 
+  @deprecated("use `android.flavor` and `android.buildType` instead", "1.7.0")
   def flavorOf(p: Project, id: String, settings: Setting[_]*): Project = {
     val base = p.base / id
     p.copy(id = id, base = base).settings(Seq(
