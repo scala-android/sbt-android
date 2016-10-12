@@ -34,6 +34,8 @@
   * Fix multiple onLoad calls (should only perform once per load)
   * Fix `variant` interaction with session `set` command
   * Update to android builder `2.2.0`
+  * Add support for `pseudoLocalesEnabled`
+    see http://blog.danlew.net/2015/04/06/pseudolocalization-visiting-androids-bizarro-world/ for usages
   * Support manifest option for `android:extractNativeLibs`
 
 ## New features in 1.6.x (last version: 1.6.18) ##

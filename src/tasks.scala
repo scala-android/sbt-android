@@ -210,8 +210,9 @@ object Tasks extends TaskBase {
                         , apkbuildDebug
                         , resConfigs
                         , aaptAdditionalParams
+                        , pseudoLocalesEnabled
                         , streams ) map {
-   (prjs,layout,o, isLib,bldr,logger,debug,cfgs,aparams, s) =>
+   (prjs,layout,o, isLib,bldr,logger,debug,cfgs,aparams, pseudo, s) =>
      implicit val output = o
      prjs collect { case a: AutoLibraryProject => a } flatMap { lib =>
       s.log.info("Processing library project: " + lib.pkg)
@@ -221,7 +222,7 @@ object Tasks extends TaskBase {
 //      doCollectResources(bldr, true, true, Seq.empty, lib.layout,
 //        logger, file("/"), s)
       Resources.aapt(bldr(s.log), lib.getManifest, null, aparams, cfgs, Seq.empty, true, debug(),
-          lib.getResFolder, lib.getAssetsFolder, null,
+          pseudo, lib.getResFolder, lib.getAssetsFolder, null,
           lib.layout.gen, lib.getProguardRules, layout.aaptTemp,
           s.log)
 
@@ -263,6 +264,7 @@ object Tasks extends TaskBase {
 
           Resources.aapt(agg.builder(s.log), lib.getManifest, null,
             agg.additionalParams, agg.resConfigs, Seq.empty, true, agg.debug,
+            agg.pseudoLocalize,
             lib.getResFolder, lib.getAssetsFolder, null,
             lib.layout.gen, lib.getProguardRules, layout.aaptTemp,
             s.log)
@@ -573,7 +575,7 @@ object Tasks extends TaskBase {
 
         s.log.info("Packaging resources: " + p.getName)
         Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams,
-          agg.resConfigs, libs, lib, agg.debug, res, assets, p,
+          agg.resConfigs, libs, lib, agg.debug, agg.pseudoLocalize, res, assets, p,
           layout.gen, layout.proguardTxt, layout.aaptTemp, s.log)
         Set(p)
       }
@@ -848,7 +850,7 @@ object Tasks extends TaskBase {
         if (!res.exists)
           s.log.warn("No resources found at " + res.getAbsolutePath)
         Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams,
-          agg.resConfigs, libs, lib, agg.debug, res, assets, null, layout.gen,
+          agg.resConfigs, libs, lib, agg.debug, agg.pseudoLocalize, res, assets, null, layout.gen,
           layout.proguardTxt, layout.aaptTemp, s.log)
         (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
       }
@@ -942,7 +944,7 @@ object Tasks extends TaskBase {
       manifestPlaceholders.value, manifestOverlays.value)
   }
   val aaptAggregateTaskDef = Def.task {
-    Aggregate.Aapt(builder.value, apkbuildDebug.value(), resConfigs.value, aaptAdditionalParams.value)
+    Aggregate.Aapt(builder.value, apkbuildDebug.value(), pseudoLocalesEnabled.value, resConfigs.value, aaptAdditionalParams.value)
   }
 
   val dexAggregateTaskDef = Def.task {
@@ -1191,7 +1193,7 @@ object Tasks extends TaskBase {
 
       if (!rTxt.exists) rTxt.createNewFile()
       Resources.aapt(bldr, processedManifest, testPackage,
-        agg.additionalParams, agg.resConfigs, libs, false, debug, layout.testRes,
+        agg.additionalParams, agg.resConfigs, libs, false, debug, agg.pseudoLocalize, layout.testRes,
         layout.testAssets, res, classes, null, layout.aaptTemp, s.log)
 
       val deps = tlib filterNot (clib contains)

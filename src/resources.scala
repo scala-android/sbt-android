@@ -339,7 +339,7 @@ object Resources {
   def aapt(bldr: AndroidBuilder, manifest: File, pkg: String,
            extraParams: Seq[String], resConfigs: Seq[String],
            libs: Seq[LibraryDependency], lib: Boolean, debug: Boolean,
-           res: File, assets: File, resApk: File, gen: File, proguardTxt: File,
+           pseudoLocalize: Boolean, res: File, assets: File, resApk: File, gen: File, proguardTxt: File,
            aaptTemp: File, logger: Logger) = synchronized {
 
     gen.mkdirs()
@@ -371,6 +371,7 @@ object Resources {
     aaptConfig.setSymbolOutputDir(if (resApk == null) gen else null)
     aaptConfig.setProguardOutputFile(proguardTxt)
     aaptConfig.setVariantType(if (lib) VariantType.LIBRARY else VariantType.DEFAULT)
+    aaptConfig.setPseudoLocalize(pseudoLocalize)
     try {
       bldr.processResources(aapt, aaptConfig, true)
     } catch {

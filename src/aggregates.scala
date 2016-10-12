@@ -18,6 +18,7 @@ object Aggregate {
 
   private[android] case class Aapt(builder: Logger => AndroidBuilder,
                                    debug: Boolean,
+                                   pseudoLocalize: Boolean,
                                    resConfigs: Seq[String],
                                    additionalParams: Seq[String])
 

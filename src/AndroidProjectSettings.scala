@@ -249,6 +249,7 @@ trait AndroidProjectSettings extends AutoPlugin {
     mappings in packageApklib <<= packageApklibMappings,
     aaptAggregate           <<= aaptAggregateTaskDef,
     aaptAdditionalParams     := Nil,
+    pseudoLocalesEnabled     := false,
     aaptPngCrunch            := true,
     cleanForR               <<= (rGenerator
       , projectLayout
