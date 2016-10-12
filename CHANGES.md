@@ -11,7 +11,7 @@
         `androidBuildJar`, `androidBuildApklib`, etc. have all been
         deprecated (for that matter, stop building apklibs!)
   * Utility functions have moved into the `android._` namespace, e.g.
-    * `flavorOf`
+    * `flavorOf` (deprecated)
     * `withVariant`
     * `useSupportVectors`
     * `fail`
