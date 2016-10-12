@@ -251,7 +251,7 @@ object Dex {
           val mainClasses = createMainDexList(inputs, layout.maindexRootsJar, bt)
           IO.writeLines(mainDexListTxt, mainClasses)
           s.log.warn("Set mainDexClasses to improve build times:")
-          s.log.warn("""  dexMainClassesConfig := baseDirectory.value / "copy-of-maindexlist.txt"""")
+          s.log.warn("""  dexMainClassesConfig := baseDirectory.value / "copy-of-target/android/intermediates/dex/maindexlist.txt"""")
           Set(mainDexListTxt)
         }(inputs.toSet)
 
