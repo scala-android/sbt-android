@@ -662,7 +662,7 @@ object Tasks extends TaskBase {
     } else {
       val aligned = l.alignedApk(r)
 
-      val rv = Seq(z, "-f", "4", r.getAbsolutePath, aligned.getAbsolutePath) !
+      val rv = Seq(z, "-f", "-p", "4", r.getAbsolutePath, aligned.getAbsolutePath) !
 
       if (rv != 0) {
         PluginFail("zipalign failed")
