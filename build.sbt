@@ -6,8 +6,6 @@ val gradleBuildVersion = "1.3.0"
 
 val androidToolsVersion = "2.2.0"
 
-resolvers += Resolver.jcenterRepo // TODO remove this once google fixes
-
 // gradle-plugin and gradle-model projects
 val model = project.in(file("gradle-model")).settings(
   name := "gradle-discovery-model",
@@ -113,38 +111,14 @@ libraryDependencies ++= Seq(
   "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile-internal",
   "org.javassist" % "javassist" % "3.20.0-GA",
   "com.hanhuy.sbt" %% "bintray-update-checker" % "0.2",
-  "com.android.tools.build" % "builder" % androidToolsVersion excludeAll
-    ExclusionRule(organization = "org.bouncycastle"),
+  "com.android.tools.build" % "builder" % androidToolsVersion,
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
-    ExclusionRule(organization = "net.sf.proguard") excludeAll
-    ExclusionRule(organization = "com.android.tools.external.com-intellij"), // until google properly publishes to central
-  "com.android.tools.lint" % "lint" % "25.2.0" excludeAll
-    ExclusionRule(organization = "com.android.tools.external.com-intellij"), // until google properly publishes to central
-  "com.android.tools.lint" % "lint-api" % "25.2.0" excludeAll // until google properly publishes uast to central
-    ExclusionRule(organization = "com.android.tools.external.com-intellij"), // until google properly publishes to central
-  "com.android.tools.lint" % "lint-checks" % "25.2.0" excludeAll // until google properly publishes uast to central
-    ExclusionRule(organization = "com.android.tools.external.com-intellij"), // until google properly publishes to central
-  "com.android.tools.external.com-intellij" % "uast" % "145.597.3" % "provided", // until google properly publishes to central
+    ExclusionRule(organization = "net.sf.proguard"),
+  "com.android.tools.lint" % "lint" % "25.2.0",
+  "com.android.tools.external.com-intellij" % "uast" % "145.597.4", // because google didn't sync the correct version...
   "net.orfjackal.retrolambda" % "retrolambda" % "2.3.0"
 )
-
-// embed uast until google properly publishes to maven central
-products in Compile := {
-  val p = (products in Compile).value
-  val t = crossTarget.value
-  val m = (managedClasspath in Compile).value
-  val g = t / "uast"
-  val uastJar = m.collect {
-    case j if j.get(moduleID.key).exists(_.organization == "com.android.tools.external.com-intellij") &&
-      j.get(moduleID.key).exists(_.name == "uast") => j.data
-  }.headOption
-  FileFunction.cached(streams.value.cacheDirectory / "intellij-uast", FilesInfo.lastModified) { in =>
-    in foreach (IO.unzip(_, g, { n: String => !n.startsWith("META-INF") }))
-    (g ** "*.class").get.toSet
-  }(uastJar.toSet)
-  g +: p
-}
 
 aggregate := false
 
