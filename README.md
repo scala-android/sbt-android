@@ -13,7 +13,7 @@ NOTE: 1.6.0 is the last version published using
 all future updates can be accessed by using
 `addSbtPlugin("org.scala-android" % "sbt-android" % VERSION)`
 
-[![Demo](demo.gif)]
+![Demo](demo.gif)
 
 ## Description ##
 
