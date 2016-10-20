@@ -569,7 +569,7 @@ object Tasks extends TaskBase {
       implicit val o = output
 
       val p = layout.resApk(agg.debug)
-      withCachedRes(s, p.getName, normalres(layout, extrares, libs), genres(layout, libs)) {
+      withCachedRes(s, p.getName, layout.manifest +: normalres(layout, extrares, libs), genres(layout, libs)) {
         layout.proguardTxt.getAbsolutePath
         layout.proguardTxt.getParentFile.mkdirs()
 
