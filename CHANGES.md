@@ -1,5 +1,9 @@
 ## New features in 1.7.x ##
 
+* `1.7.1`:
+  * zipalign on page boundaries for `android:extractNativeLibs`
+  * fix `AndroidManifest.xml` packaging (did not update if resources unchanged)
+  * remove embedded uast workaround for google publishing
 * `1.7.0`:
   * Switch to `AutoPlugin` enabling, build android apps by
     setting `enablePlugins(AndroidApp)`, aar files with
