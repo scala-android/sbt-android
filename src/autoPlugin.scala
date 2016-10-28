@@ -45,17 +45,19 @@ case object AndroidGlobalPlugin extends AutoPlugin {
   override def globalSettings = (onLoad := onLoad.value andThen onLoadOnce(this){ s =>
     val e = Project.extract(s)
 
-    val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter {
-      ref => e.getOpt(projectLayout in ref).isDefined
-    }
+    def isAndroid(ref: ProjectRef) = e.getOpt(projectLayout in ref).isDefined
+
+    val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter isAndroid
     val androidSet = androids.toSet
+
+    def isAndroidDep(ref: ProjectRef) = androidSet(ref) || isAndroid(ref)
 
     def checkAndroidDependencies(p: ProjectRef): (ProjectRef,Seq[ProjectRef]) = {
       (p,Project.getProject(p, e.structure).toSeq flatMap { prj =>
         val deps = prj.dependencies map (_.project)
         val locals = Project.extract(s).get(localProjects in p).map(
           _.path.getCanonicalPath).toSet
-        val depandroids = deps filter (prj => androidSet(prj))
+        val depandroids = deps filter isAndroidDep
         depandroids filterNot (a => Project.getProject(a, e.structure).exists (d =>
           locals(d.base.getCanonicalPath)))
       })
@@ -63,7 +65,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
     def checkForExport(p: ProjectRef): Seq[ProjectRef] = {
       Project.getProject(p, e.structure).toSeq flatMap { prj =>
         val deps = prj.dependencies map (_.project)
-        val nonAndroid = deps filterNot (prj => androidSet(prj))
+        val nonAndroid = deps filterNot isAndroidDep
 
         (deps flatMap checkForExport) ++ (nonAndroid filterNot (d => e.getOpt(sbt.Keys.exportJars in d) exists (_ == true)))
       }
