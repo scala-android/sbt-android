@@ -1,5 +1,7 @@
 ## New features in 1.7.x ##
 
+* `1.7.2`:
+  * minor bugfix
 * `1.7.1`:
   * zipalign on page boundaries for `android:extractNativeLibs`
   * fix `AndroidManifest.xml` packaging (did not update if resources unchanged)
