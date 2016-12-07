@@ -25,7 +25,8 @@ object Packaging {
                  , depenendices: Classpath) {
 
     def isScalaLang(module: ModuleID) = module.organization == "org.scala-lang"
-    def isProvidedDependency(module: ModuleID) = module.configurations exists (_ contains "provided")
+    val providedConfigurations = Set("provided", "compile-internal", "plugin->default(compile)")
+    def isProvidedDependency(module: ModuleID) = module.configurations exists providedConfigurations
 
     // filtering out org.scala-lang should not cause an issue
     // they should not be changing on us anyway
