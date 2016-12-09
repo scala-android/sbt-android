@@ -873,7 +873,7 @@ object Resources {
           val f = s"""  implicit val ${actualName}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.${wrap(struct.name)}.type] { type VH = $vhname } = new TypedViewHolderFactory[TR.layout.${wrap(struct.name)}.type] {
                       |    type V = $rootClass
                       |    type VH = $vhname
-                      |    def create(v: V): $vhname = new $vhname(v)
+                      |    def create(v: V): $vhname = $vhname(v)
                       |  }""".stripMargin
 
           (seen + actualName,(vh,f) :: xs)
