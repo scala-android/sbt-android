@@ -832,7 +832,7 @@ object Resources {
                 s.log.warn(s"TVH: '$included' already used in '${structure.name}', using '$actualIncluded'")
               val wrapi = wrap(actualIncluded)
               if (vh.rootView == "merge") {
-                (seen + actualIncluded, s"    lazy val $wrapi = new TypedViewHolder.${wrap(included)}(rootView)" :: items)
+                (seen + actualIncluded, s"    lazy val $wrapi = TypedViewHolder.${wrap(included)}(rootView)" :: items)
               } else {
                 id.orElse(vh.rootId).fold {
                   val (newseen, newviews) = processViews(findClosestConfig(structure.config, vh :: vh.configs), seen)
@@ -840,7 +840,7 @@ object Resources {
                 } { i =>
                   val castType = classForLabel(j, vh.rootView).getOrElse("android.view.View")
                   val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
-                  (seen + i, s"    lazy val $wrapi = new TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
+                  (seen + i, s"    lazy val $wrapi = TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
                 }
               }
           }}
@@ -870,7 +870,7 @@ object Resources {
                       |  }""".stripMargin
 
           val vhname = s"TypedViewHolder.$wname"
-          val f = s"""  implicit val ${actualName}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.${wrap(struct.name)}.type] { type VH = $vhname }  = new TypedViewHolderFactory[TR.layout.${wrap(struct.name)}.type] {
+          val f = s"""  implicit val ${actualName}_ViewHolderFactory: TypedViewHolderFactory[TR.layout.${wrap(struct.name)}.type] { type VH = $vhname } = new TypedViewHolderFactory[TR.layout.${wrap(struct.name)}.type] {
                       |    type V = $rootClass
                       |    type VH = $vhname
                       |    def create(v: V): $vhname = new $vhname(v)
