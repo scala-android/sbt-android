@@ -181,15 +181,22 @@ object Tasks extends TaskBase {
   }
 
   def unpackAar(aar: File, dest: File, m: ModuleID, log: Logger): LibraryDependency = {
+    val am = dest / "aar.manifest"
+    def checkmanifest(d: File) = am.isFile && {
+      val ns = IO.readLines(am)
+      val fs = ns.map(file)
+      fs.forall(_.exists)
+    }
     val lib = AarLibrary(dest)
-    if (dest.lastModified < aar.lastModified || !lib.getManifest.exists) {
+    if (dest.lastModified < aar.lastModified || !checkmanifest(dest)) {
       IO.delete(dest)
       val mfile = Dependencies.moduleIdFile(dest)
       val mline = s"${m.organization}:${m.name}:${m.revision}"
       IO.writeLines(mfile, mline :: Nil)
       log.info("Unpacking aar: %s to %s" format (aar.getName, dest.getName))
       dest.mkdirs()
-      IO.unzip(aar, dest)
+      val files = IO.unzip(aar, dest)
+      IO.writeLines(am, files.filter(_.isFile).toList.map(_.getAbsolutePath))
     }
     // rename for sbt-idea when using multiple aar packages
     val renamedJar = lib.getJarFile.getParentFile / (dest.getName + ".jar")

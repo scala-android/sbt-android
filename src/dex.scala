@@ -223,6 +223,8 @@ object Dex {
           s.log.debug("Pre-dex input: " + i.getAbsolutePath)
           s.log.info("Pre-dexing: " + i.getName)
           bldr.preDexLibraryNoCache(i, out, multiDex, options, true, SbtProcessOutputHandler(s.log))
+          if ((out * "*.dex" get).isEmpty)
+            s.log.warn(s"${i.getName} does not contain classes to dex")
         }
         (i,out)
       }).toList: Seq[(File,File)]
