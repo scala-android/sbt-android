@@ -882,8 +882,9 @@ object Tasks extends TaskBase {
                               , outputLayout
                               , sdkPath
                               , aars
+                              , transitiveAars
                               , streams) map {
-    (layout, out, p, a, s) =>
+    (layout, out, p, a, txa, s) =>
     implicit val output = out
     val proguardTxt     = layout.proguardTxt
     val proguardProject = layout.proguard
@@ -899,7 +900,7 @@ object Tasks extends TaskBase {
     def lines(file: File): Seq[String] =
       if (file.exists) IO.readLines(file) else Seq.empty
 
-    val aarConfig = a.flatMap { l =>
+    val aarConfig = (txa ++ a).distinct.flatMap { l =>
       val pc = l.path / "proguard.txt"
       if (pc.isFile) IO.readLines(pc) else Seq.empty
     }
