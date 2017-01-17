@@ -1,5 +1,8 @@
 ## New features in 1.7.x ##
 
+* `1.7.3`:
+  * minor bugfixes
+    * automatically include proguard.txt from transitively included aar
 * `1.7.2`:
   * minor bugfix
 * `1.7.1`:
