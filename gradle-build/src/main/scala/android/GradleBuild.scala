@@ -329,11 +329,11 @@ object AndroidGradlePlugin extends AutoPlugin {
         }
         val v = ap.getVariants.asScala.head
         val art = v.getMainArtifact
-        def libraryDependency(m: MavenCoordinates) = {
+        def libraryDependency(m: MavenCoordinates, isProvided: Boolean) = {
           val module = m.getGroupId % m.getArtifactId % m.getVersion intransitive()
           val mID = if (m.getPackaging == "jar") module else module.artifacts(
             Artifact(m.getArtifactId, m.getPackaging, m.getPackaging, Option(m.getClassifier), Nil, None))
-          mID
+          if (isProvided) mID.copy(configurations = Some("provided")) else mID
         }
 
         val androidLibraries = art.getDependencies.getLibraries.asScala.toList
@@ -364,7 +364,7 @@ object AndroidGradlePlugin extends AutoPlugin {
             g.nonEmpty && g != "__local_jars__" && (g != "com.google.android" || !n.startsWith("support-"))
           }
         } map { j =>
-          libraryDependency(j.getResolvedCoordinates)
+          libraryDependency(j.getResolvedCoordinates, Try(j.isProvided).getOrElse(false))
         }))
 
         val unmanaged = allJar filter (_.getResolvedCoordinates == null) map { j =>
