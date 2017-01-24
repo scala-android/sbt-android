@@ -198,14 +198,7 @@ object Tasks extends TaskBase {
       val files = IO.unzip(aar, dest)
       IO.writeLines(am, files.filter(_.isFile).toList.map(_.getAbsolutePath))
     }
-    // rename for sbt-idea when using multiple aar packages
-    val renamedJar = lib.getJarFile.getParentFile / (dest.getName + ".jar")
-    if (lib.getJarFile.exists) {
-      lib.getJarFile.renameTo(renamedJar)
-    }
-    new AarLibrary(dest) {
-      override def getJarFile = renamedJar
-    }
+    AarLibrary(dest)
   }
 
   val autolibsTaskDef = ( localProjects
