@@ -221,7 +221,8 @@ object Dex {
         if (predexed.isEmpty || predexed.exists (_.lastModified < i.lastModified)) {
           predexed foreach (_.delete())
           s.log.debug("Pre-dex input: " + i.getAbsolutePath)
-          s.log.info("Pre-dexing: " + i.getName)
+          val jname = if (i.getName == "classes.jar") s"${i.getParentFile.getName}/${i.getName}" else i.getName
+          s.log.info("Pre-dexing: " + jname)
           bldr.preDexLibraryNoCache(i, out, multiDex, options, true, SbtProcessOutputHandler(s.log))
           if ((out * "*.dex" get).isEmpty)
             s.log.info(s"${i.getName} does not contain classes to dex")
