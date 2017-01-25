@@ -251,6 +251,7 @@ trait AndroidProjectSettings extends AutoPlugin {
     aaptAdditionalParams     := Nil,
     pseudoLocalesEnabled     := false,
     aaptPngCrunch            := true,
+    aapt9PngCrunch           := true,
     cleanForR               <<= (rGenerator
       , projectLayout
       , outputLayout

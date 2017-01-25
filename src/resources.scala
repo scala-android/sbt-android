@@ -55,6 +55,7 @@ object Resources {
                         , extraRes: Seq[File]
                         , renderVectors: Boolean
                         , pngcrunch: Boolean
+                        , png9crunch: Boolean
                         , logger: ILogger
                         , cache: File
                         , s: TaskStreams
@@ -150,7 +151,7 @@ object Resources {
       s.log.info("Collecting resources")
 
       incrResourceMerge(layout, minSdk, resTarget, isLib, cache / "collect-resources",
-                        logger, bldr, sets, pngcrunch, vectorprocessor, inChanges, needsFullResourceMerge, s.log)
+                        logger, bldr, sets, pngcrunch, png9crunch, vectorprocessor, inChanges, needsFullResourceMerge, s.log)
       ((resTarget ** FileOnlyFilter).get ++ (layout.generatedVectors ** FileOnlyFilter).get).toSet
     }(inputs.toSet)
 
@@ -167,13 +168,14 @@ object Resources {
     bldr: AndroidBuilder,
     resources: Seq[ResourceSet],
     pngcrunch: Boolean,
+    png9crunch: Boolean,
     preprocessor: ResourcePreprocessor,
     changes: ChangeReport[File],
     needsFullResourceMerge: Boolean,
     slog: Logger
   )(implicit m: BuildOutput.Converter) {
     def merge() = fullResourceMerge(layout, minSdk, resTarget, isLib, blobDir,
-      logger, bldr, resources, pngcrunch, preprocessor, slog)
+      logger, bldr, resources, pngcrunch, png9crunch, preprocessor, slog)
 
     val merger = new ResourceMerger(minSdk)
     if (!merger.loadFromBlob(blobDir, true)) {
@@ -241,7 +243,7 @@ object Resources {
       }
       if (!exists) {
         slog.info("Performing incremental resource merge")
-        val writer = mergedResourceWriter(bldr, layout, resTarget, preprocessor, pngcrunch, layout.aaptTemp, layout.mergeTemp, slog)
+        val writer = mergedResourceWriter(bldr, layout, resTarget, preprocessor, pngcrunch, png9crunch, layout.aaptTemp, layout.mergeTemp, slog)
         merger.mergeData(writer, true)
         merger.writeBlobTo(blobDir, writer, false)
       }
@@ -253,6 +255,7 @@ object Resources {
                            resTarget: File,
                            preprocessor: ResourcePreprocessor,
                            pngcrunch: Boolean,
+                           png9crunch: Boolean,
                            aaptTemp: File,
                            mergeTemp: File,
                            logger: Logger)
@@ -260,7 +263,7 @@ object Resources {
     mergeTemp.mkdirs()
     new MergedResourceWriter(resTarget,
       layout.publicTxt, layout.mergeBlame, preprocessor, new ResourceCompiler {
-        val aa = makeAapt(bldr, bldr.getTarget.getBuildToolInfo, aaptTemp, true, pngcrunch, logger)
+        val aa = makeAapt(bldr, bldr.getTarget.getBuildToolInfo, aaptTemp, png9crunch, pngcrunch, logger)
         override def compile(file: File, output: File) = aa.compile(file, output)
       }, mergeTemp)
   }
@@ -274,6 +277,7 @@ object Resources {
                         bldr: AndroidBuilder,
                         resources: Seq[ResourceSet],
                         pngcrunch: Boolean,
+                        png9crunch: Boolean,
                         preprocessor: ResourcePreprocessor,
                         slog: Logger)(implicit m: BuildOutput.Converter) {
 
@@ -286,7 +290,7 @@ object Resources {
       r.loadFromFiles(logger)
       merger.addDataSet(r)
     }
-    val writer = mergedResourceWriter(bldr, layout, resTarget, preprocessor, pngcrunch, layout.aaptTemp, layout.mergeTemp, slog)
+    val writer = mergedResourceWriter(bldr, layout, resTarget, preprocessor, pngcrunch, png9crunch, layout.aaptTemp, layout.mergeTemp, slog)
     merger.mergeData(writer, false)
     merger.writeBlobTo(blobDir, writer, false)
   }
@@ -348,7 +352,7 @@ object Resources {
     logger.debug("packageForR: " + pkg)
     logger.debug("proguard.txt: " + proguardTxt)
     val aapt = makeAapt(bldr, bldr.getTargetInfo.getBuildTools,
-      aaptTemp, true, true, logger)
+      aaptTemp, false, false, logger)
     val options = new AaptOptions {
       override def getIgnoreAssets = null
       override def getNoCompress = null

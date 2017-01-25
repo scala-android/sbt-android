@@ -125,6 +125,8 @@ object Keys extends DeprecatedPluginCompat {
     "additional params to pass to aapt") in Android
   val aaptPngCrunch = SettingKey[Boolean]("aapt-png-crunch",
     "whether to enable pngcrunch, default: true, disable if pre-processing") in Android
+  val aapt9PngCrunch = SettingKey[Boolean]("aapt-9png-crunch",
+    "whether to enable 9.png crunching, default: true, disable if pre-processing") in Android
   val pseudoLocalesEnabled = SettingKey[Boolean]("pseudo-localize-enabled") in Android
 
   // packaging-related keys
