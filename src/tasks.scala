@@ -723,7 +723,6 @@ object Tasks extends TaskBase {
       val cmd = Seq(aidl,
         "-p" + frameworkAidl,
         "-o" + layout.gen.getAbsolutePath,
-        "-a",
         "-I" + layout.aidl.getAbsolutePath
         ) :+ idl.getAbsolutePath
 
