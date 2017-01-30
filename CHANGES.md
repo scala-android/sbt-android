@@ -1,5 +1,14 @@
 ## New features in 1.7.x ##
 
+* `1.7.4`:
+  * minor bugfixes
+    * fix aar unpacking on every build
+    * no longer perform renaming of classes.jar within unbundled aar
+    * fix deprecation error in generated build.sbt from gen-android
+    * no longer generate `.d` files when processing aidl (aidl tool generates
+      the incorrect name with -a)
+  * new `aapt9PngCrunch` setting to toggle whether or not 9-patch png files
+    should be processed, default to true=on
 * `1.7.3`:
   * minor bugfixes
     * automatically include proguard.txt from transitively included aar

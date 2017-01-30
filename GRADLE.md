@@ -22,7 +22,7 @@ whenever changes occur.
 2. From your Android project root, wherever the base `build.gradle` is located,
    load `sbt-android-gradle`:
    * `mkdir project`
-   * `echo 'addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.3.0")' > project/plugins.sbt`
+   * `echo 'addSbtPlugin("org.scala-android" % "sbt-android-gradle" % "1.3.1")' > project/plugins.sbt`
 3. Run `sbt`
    * The initial load will be slow as gradle will run to extract all
      project settings and export them into sbt
