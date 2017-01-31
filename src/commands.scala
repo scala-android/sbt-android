@@ -301,6 +301,24 @@ object Commands {
     state
   }
 
+  private val wifiState = AttributeKey[String]("adb-wifi-device",
+    "currently selected adb-wifi device")
+  val adbWifiReconnectAction: State => State = state => {
+    val sdk = sdkpath(state)
+    val adbPath = SdkLayout.adb(sdk).getCanonicalPath
+    state.get(wifiState).map { ip =>
+      val r = Seq(adbPath, "connect", ip) !
+
+      if (r != 0) {
+        PluginFail("failed to reconnect to ADB-over-wifi")
+        state.remove(wifiState)
+      } else
+        state
+    } getOrElse {
+      PluginFail("no ADB-over-wifi device configured")
+      state.remove(wifiState)
+    }
+  }
   val adbWifiAction: State => State = state => {
     val sdk = sdkpath(state)
     val adbPath = SdkLayout.adb(sdk).getCanonicalPath
@@ -314,7 +332,7 @@ object Commands {
       state.log.info("turning ADB-over-wifi off")
       Seq(adbPath, "-s", d.getSerialNumber, "usb") !
 
-      state
+      state.remove(wifiState)
     } else {
       state.log.info("turning ADB-over-wifi on")
 
@@ -332,7 +350,7 @@ object Commands {
 
         if (r != 0)
           PluginFail("failed to connect ADB-over-wifi")
-        deviceAction(state, ip + ":5555")
+        deviceAction(state.put(wifiState, ip), ip + ":5555")
       } else {
         PluginFail("unable to determine IP of " + d.getSerialNumber)
       }
@@ -995,8 +1013,8 @@ object Commands {
     sbt.Keys.commands ++= Seq(genAndroid, genAndroidSbt,
       pidcat, pidcatGrep, logcat, logcatGrep, adbLs, adbShell,
       devices, device, reboot, adbScreenOn, adbRunas, adbKill,
-      adbWifi, adbPush, adbPull, adbCat, adbRm, variant, variantClear,
-      showLicenses, installSdk, updateSdk)
+      adbWifi, adbWifiReconnect, adbPush, adbPull, adbCat, adbRm,
+      variant, variantClear, showLicenses, installSdk, updateSdk)
   )
 
   private def adbCat = Command(
@@ -1083,6 +1101,11 @@ object Commands {
     "adb-wifi", "Enable/disable ADB-over-wifi for selected device",
     "Toggle ADB-over-wifi for the selected device"
   )(adbWifiAction)
+
+  private def adbWifiReconnect = Command.command(
+    "adb-wifi-reconnect", "Reconnect to a disconnected ADB-over-wifi device",
+    "Reconnect to a disconnected ADB-over-wifi device due to adb restarting"
+  )(adbWifiReconnectAction)
 
   private def reboot = Command(
     "adb-reboot", ("adb-reboot", "Reboot selected device"),
