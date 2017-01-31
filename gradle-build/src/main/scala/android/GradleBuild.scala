@@ -376,6 +376,7 @@ object AndroidGradlePlugin extends AutoPlugin {
 
         val standard = List(
           resolvers /++= repos,
+          publishMavenStyle /:= false,
           platformTarget /:= ap.getCompileTarget,
           name /:= ap.getName,
           javacOptions in Compile /++= "-source" :: sourceVersion :: "-target" :: targetVersion :: Nil,
