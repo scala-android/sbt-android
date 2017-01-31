@@ -454,7 +454,7 @@ object Commands {
             state.log.info("Creating project: " + name)
             val gitignore = base / ".gitignore"
             val ignores = Seq("target/", "project/project",
-              "bin/", "local.properties")
+              "bin/", "local.properties", "proguard-sbt.txt")
             val stringsTemplate = IO.readLinesURL(
               Resources.resourceUrl("android-project-template/strings.xml")) mkString "\n"
             val manifestTemplate = IO.readLinesURL(
