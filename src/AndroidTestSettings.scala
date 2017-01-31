@@ -35,6 +35,14 @@ trait AndroidTestSettings extends AutoPlugin {
     TaskKey[Option[xsbti.Reporter]]("compilerReporter") := None,
     compileIncremental         <<= Defaults.compileIncrementalTask,
     compile <<= Def.taskDyn {
+      if (executionRoots.value.size == 1) {
+        val task = executionRoots.value.head
+        val cfg: String = task.scope.config.toOption.map(_.name).getOrElse("")
+        val tnme = task.key.label
+        if (cfg == "android" && tnme == "compile")
+          fail("'android:compile' should not be used directly\n" +
+            "perhaps you mean 'compile' or 'android:test'")
+      }
       if (debugIncludesTests.?.value.getOrElse(false)) Def.task {
         (compile in Compile).value
       } else Defaults.compileTask
