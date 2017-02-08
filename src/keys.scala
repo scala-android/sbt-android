@@ -376,6 +376,7 @@ object Keys extends DeprecatedPluginCompat {
       "Internal dex-related key aggregating task") in Android
     val aaptAggregate = TaskKey[Aggregate.Aapt]("aapt-aggregate",
       "Internal aapt-related key aggregating task") in Android
+    val hasDevice = TaskKey[Unit]("has-android-device", "internal fail-fast when no device connected") in Android
 
     // alias to ease typing
     val packageT = sbt.Keys.`package`

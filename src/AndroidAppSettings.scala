@@ -14,11 +14,16 @@ trait AndroidAppSettings extends AutoPlugin {
   override def projectSettings = inConfig(Android)(List(
     debugIncludesTests       := (projectLayout.value.testSources ** "*.scala").get.nonEmpty,
     installTimeout           := 0,
-    install                 <<= installTaskDef,
-    uninstall               <<= uninstallTaskDef,
-    clean                   <<= cleanTaskDef,
+    install                 <<= installTaskDef dependsOn hasDevice,
+    uninstall               <<= uninstallTaskDef dependsOn hasDevice,
+    clean                   <<= cleanTaskDef dependsOn hasDevice,
     debug                   <<= runTaskDef(true) dependsOn install,
     run                     <<= runTaskDef(false) dependsOn install,
+    hasDevice                := {
+      if (Commands.targetDevice(sdkPath.value, streams.value.log).isEmpty)
+        PluginFail("no device connected")
+
+    },
     allDevices               := false,
     dexInputs               <<= dexInputsTaskDef,
     dexAggregate            <<= dexAggregateTaskDef,

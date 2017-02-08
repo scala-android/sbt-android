@@ -358,7 +358,8 @@ object Commands {
 
   }
 
-  val createProjectSbtAction: (State,Option[String]) => State = (state,platform) => {
+  // TODO detect project structure and create build.sbt accordingly
+  def createProjectSbt(multi: Boolean, state: State, platform: Option[String]) = {
     def compareSbtVersion(version: String) = {
       val atLeast = List(0, 13, 8)
       @tailrec
@@ -378,16 +379,17 @@ object Commands {
       }
       compareVersions(atLeast, version.split("\\.")) <= 0
     }
-    val base = file(".")
+    val root = file(".")
+    val base = if (multi) root / "app" else root
     val layout = ProjectLayout(base)
     if (!layout.manifest.exists) {
       PluginFail("An android project does not exist at this location")
     }
 
-    if ((base * "*.sbt").get.nonEmpty)
+    if ((base * "*.sbt").get.nonEmpty || (root * "*.sbt").get.nonEmpty)
       PluginFail("SBT build files already exist at this location")
     state.log.info("Creating SBT project files")
-    val build = base / "project"
+    val build = root / "project"
     build.mkdirs()
     val properties = build / "build.properties"
     val projectBuild = base / "build.sbt"
@@ -395,23 +397,28 @@ object Commands {
     val plugin = s"""addSbtPlugin("org.scala-android" % "sbt-android" % "${BuildInfo.version}")""".stripMargin
     val version = Project.extract(state).get(sbt.Keys.sbtVersion)
     val useVersion = if (compareSbtVersion(version)) version else "0.13.8"
-    if ((base / "project" * "*.sbt").get.isEmpty) {
+    if ((build * "*.sbt").get.isEmpty) {
       IO.writeLines(pluginSbt, plugin :: Nil)
     } else {
       state.log.warn("SBT files already exist in project/, not creating project/android.sbt")
     }
     IO.writeLines(properties, "sbt.version=" + useVersion :: Nil)
+
+    if (multi) {
+      val rootBuild = root / "build.sbt"
+      IO.writeLines(rootBuild, "lazy val app = project" :: Nil)
+    }
     val buildSettings =
       """scalaVersion := "2.11.8"""" ::
-      "" ::
-      "enablePlugins(AndroidApp)" :: "android.useSupportVectors" ::
-      "" ::
-      "versionCode := Some(1)" ::
-      """version := "0.1-SNAPSHOT"""" ::
-      "" ::
-      "instrumentTestRunner :=" ::
-      """  "android.support.test.runner.AndroidJUnitRunner"""" ::
-      Nil
+        "" ::
+        "enablePlugins(AndroidApp)" :: "android.useSupportVectors" ::
+        "" ::
+        "versionCode := Some(1)" ::
+        """version := "0.1-SNAPSHOT"""" ::
+        "" ::
+        "instrumentTestRunner :=" ::
+        """  "android.support.test.runner.AndroidJUnitRunner"""" ::
+        Nil
     val libs =
       "" ::
         "libraryDependencies ++=" ::
@@ -423,9 +430,9 @@ object Commands {
     val plat = platform.toList.flatMap(p => "" :: s"""platformTarget := "$p"""" :: Nil)
     val javacOption = if (util.Properties.isJavaAtLeast("1.8")) {
       "" ::
-      """
-        |javacOptions in Compile ++= "-source" :: "1.7" :: "-target" :: "1.7" :: Nil
-      """.stripMargin.trim :: Nil
+        """
+          |javacOptions in Compile ++= "-source" :: "1.7" :: "-target" :: "1.7" :: Nil
+        """.stripMargin.trim :: Nil
     } else Nil
 
     IO.writeLines(projectBuild, buildSettings ++ plat ++ javacOption ++ libs)
@@ -433,6 +440,13 @@ object Commands {
       Command.process("reload", state)
     else
       state
+  }
+  val createProjectSbtAction: (State,Option[String]) => State = (state,platform) => {
+    createProjectSbt(false, state, platform)
+  }
+
+  val createMultiProjectSbtAction: (State,Option[String]) => State = (state,platform) => {
+    createProjectSbt(true, state, platform)
   }
 
   val createProjectParser: State => Parser[Either[Unit, (String, String)]] = state => {
@@ -454,6 +468,21 @@ object Commands {
       (Space ~> pkgName) ~ (Space ~> name)
     )
   }
+  val createMultiProjectAction: (State, Either[Unit, (String, String)]) => State = {
+    case (state, maybe) =>
+      maybe.left foreach { _ =>
+        PluginFail(
+          "Usage: gen-multi-android <package-name> <name>")
+      }
+      (maybe.right map {
+        case (pkg, name) =>
+          createProject(true, pkg, name, state.log)
+          val sdkManager = SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log)
+          val plat = SdkInstaller.platforms(sdkManager, true).headOption
+          createMultiProjectSbtAction(state, plat orElse Some("android-25"))
+      }).right getOrElse state
+  }
+
   // gen-android -p package-name -n project-name -t api
   val createProjectAction: (State, Either[Unit, (String, String)]) => State = {
     case (state, maybe) =>
@@ -463,53 +492,58 @@ object Commands {
       }
       (maybe.right map {
         case (pkg, name) =>
-          val base = file(".")
-          val layout = ProjectLayout(base)
-          if (layout.manifest.exists) {
-            PluginFail(
-              "An android project already exists in this location")
-          } else {
-            state.log.info("Creating project: " + name)
-            val gitignore = base / ".gitignore"
-            val ignores = Seq("target/", "project/project",
-              "bin/", "local.properties", "proguard-sbt.txt")
-            val stringsTemplate = IO.readLinesURL(
-              Resources.resourceUrl("android-project-template/strings.xml")) mkString "\n"
-            val manifestTemplate = IO.readLinesURL(
-              Resources.resourceUrl("android-project-template/AndroidManifest.xml")) mkString "\n"
-            val sampleTemplate = IO.readLinesURL(
-              Resources.resourceUrl("android-project-template/sample.scala")) mkString "\n"
-            val sampleJunit3Template = IO.readLinesURL(
-              Resources.resourceUrl("android-project-template/Junit3MainActivityTest.java")) mkString "\n"
-            val sampleJunit4Template = IO.readLinesURL(
-              Resources.resourceUrl("android-project-template/Junit4MainActivityTest.java")) mkString "\n"
-
-            IO.writeLines(base / "lint.xml",
-              IO.readLinesURL(Resources.resourceUrl("android-project-template/lint.xml")))
-            IO.writeLines(base / "src/main/res/layout/main.xml", IO.readLinesURL(
-                Resources.resourceUrl("android-project-template/main.xml")))
-            IO.writeLines(base / "src/main/res/anim/waving_arm.xml", IO.readLinesURL(
-              Resources.resourceUrl("android-project-template/waving_arm.xml")))
-            IO.writeLines(base / "src/main/res/drawable/waving_scala_android.xml", IO.readLinesURL(
-              Resources.resourceUrl("android-project-template/waving_scala_android.xml")))
-            IO.writeLines(base / "src/main/res/drawable/scala_android.xml", IO.readLinesURL(
-              Resources.resourceUrl("android-project-template/scala_android.xml")))
-
-            IO.write(base / "src/androidTest/java" / pkg.replace('.','/') / "Junit3MainActivityTest.java",
-              sampleJunit3Template.format(pkg, name))
-            IO.write(base / "src/androidTest/java" / pkg.replace('.','/') / "Junit4MainActivityTest.java",
-              sampleJunit4Template.format(pkg, name))
-            IO.write(base / "src/main" / "AndroidManifest.xml", manifestTemplate.format(pkg))
-            IO.write(base / "src/main/res/values/strings.xml", stringsTemplate.format(name))
-            IO.write(base / "src/main/scala" / pkg.replace('.','/') / "MainActivity.scala",
-              sampleTemplate.format(pkg))
-
-            IO.writeLines(gitignore, ignores)
-            val sdkManager = SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log)
-            val plat = SdkInstaller.platforms(sdkManager, true).headOption
-            createProjectSbtAction(state, plat orElse Some("android-24"))
-          }
+          createProject(false, pkg, name, state.log)
+          val sdkManager = SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log)
+          val plat = SdkInstaller.platforms(sdkManager, true).headOption
+          createProjectSbtAction(state, plat orElse Some("android-25"))
       }).right getOrElse state
+  }
+
+  private def createProject(multi: Boolean, pkg: String, name: String, log: Logger): Unit = {
+    val root = file(".")
+    val base = if (multi) root / "app" else root
+    val layout = ProjectLayout(base)
+    if (layout.manifest.exists) {
+      PluginFail(
+        "An android project already exists in this location")
+    } else {
+      log.info("Creating project: " + name)
+      val gitignore = root / ".gitignore"
+      val ignores = Seq("target/", "project/project",
+        "bin/", "local.properties", "proguard-sbt.txt")
+      val stringsTemplate = IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/strings.xml")) mkString "\n"
+      val manifestTemplate = IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/AndroidManifest.xml")) mkString "\n"
+      val sampleTemplate = IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/sample.scala")) mkString "\n"
+      val sampleJunit3Template = IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/Junit3MainActivityTest.java")) mkString "\n"
+      val sampleJunit4Template = IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/Junit4MainActivityTest.java")) mkString "\n"
+
+      IO.writeLines(base / "lint.xml",
+        IO.readLinesURL(Resources.resourceUrl("android-project-template/lint.xml")))
+      IO.writeLines(base / "src/main/res/layout/main.xml", IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/main.xml")))
+      IO.writeLines(base / "src/main/res/anim/waving_arm.xml", IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/waving_arm.xml")))
+      IO.writeLines(base / "src/main/res/drawable/waving_scala_android.xml", IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/waving_scala_android.xml")))
+      IO.writeLines(base / "src/main/res/drawable/scala_android.xml", IO.readLinesURL(
+        Resources.resourceUrl("android-project-template/scala_android.xml")))
+
+      IO.write(base / "src/androidTest/java" / pkg.replace('.','/') / "Junit3MainActivityTest.java",
+        sampleJunit3Template.format(pkg, name))
+      IO.write(base / "src/androidTest/java" / pkg.replace('.','/') / "Junit4MainActivityTest.java",
+        sampleJunit4Template.format(pkg, name))
+      IO.write(base / "src/main" / "AndroidManifest.xml", manifestTemplate.format(pkg))
+      IO.write(base / "src/main/res/values/strings.xml", stringsTemplate.format(name))
+      IO.write(base / "src/main/scala" / pkg.replace('.','/') / "MainActivity.scala",
+        sampleTemplate.format(pkg))
+
+      IO.writeLines(gitignore, ignores)
+    }
   }
 
   val stringParser: State => Parser[String] = state => {
@@ -546,8 +580,8 @@ object Commands {
     val PID_LEAVE = """^No longer want ([a-zA-Z0-9._:]+) \(pid (\d+)\): .*$""".r
     val PID_DEATH = """^Process ([a-zA-Z0-9._:]+) \(pid (\d+)\) has died.?$""".r
     var pids = Set.empty[String]
-    val v = d.getProperty(IDevice.PROP_BUILD_VERSION)
-    val uidSet: Set[String] = if (v == "N") {
+    val v = deviceApiLevel(d)
+    val uidSet: Set[String] = if (v >= 24) {
       val sr1 = new ShellResult
       val cmd = "cmd package list package " + pkgOpt.get
       d.executeShellCommand(cmd, sr1)
@@ -622,14 +656,22 @@ object Commands {
           if (tagMatch.nonEmpty|| msgMatch.nonEmpty)
             Some(highlightMatch(tagMatch, msgMatch, l)) else None
         })
-        val v = d.getProperty(IDevice.PROP_BUILD_VERSION)
-        val logcat = LOGCAT_COMMAND + (if (v == "N") " -v uid" else "")
+        val v = deviceApiLevel(d)
+        val logcat = pidcatCommand(d)
         d.executeShellCommand(logcat, receiver)
         receiver.flush()
 
         state
       } getOrElse PluginFail("no device connected")
   }
+
+  def logcatCommand(dev: IDevice): String = LOGCAT_COMMAND
+
+  def pidcatCommand(dev: IDevice): String =
+    logcatCommand(dev) + (if (deviceApiLevel(dev) >= 24) " -v uid" else "")
+
+  def deviceApiLevel(dev: IDevice): Int =
+    Option(dev.getProperty(IDevice.PROP_BUILD_API_LEVEL)).flatMap(a => Try(a.toInt).toOption).getOrElse(0)
 
   val pidcatAction: (State, (Option[ProjectRef],String)) => State = {
     case (state, (prj,args)) =>
@@ -653,8 +695,7 @@ object Commands {
     targetDevice(sdk, state.log) map { d =>
       val receiver = new ShellLogging(pidcatLogLine(d, pkgOpt, state.log)(l =>
         if (tags.isEmpty || tags.exists(l.tag.contains)) Some(l) else None))
-      val v = d.getProperty(IDevice.PROP_BUILD_VERSION)
-      val logcat = LOGCAT_COMMAND + (if (v == "N") " -v uid" else "")
+      val logcat = pidcatCommand(d)
       d.executeShellCommand(logcat, receiver)
       receiver.flush()
 
@@ -735,7 +776,7 @@ object Commands {
         PluginFail("Usage: adb-kill [<package-name>]")
       state.log.info("Attempting to kill: " + targetPackage.get)
       targetDevice(sdk, state.log) map { d =>
-        val api = Try(d.getProperty(IDevice.PROP_BUILD_API_LEVEL).toInt).toOption getOrElse 0
+        val api = deviceApiLevel(d)
 
         val cmd = if (api >= 11) "am force-stop " else "am kill "
         executeShellCommand(d, cmd + FileEntry.escape(targetPackage.get), state)
@@ -813,7 +854,7 @@ object Commands {
         else
           None
       })
-      d.executeShellCommand(LOGCAT_COMMAND, receiver)
+      d.executeShellCommand(logcatCommand(d), receiver)
       receiver.flush()
       state
     } getOrElse PluginFail("no device selected")
@@ -828,7 +869,7 @@ object Commands {
       val receiver = new ShellLogging(logcatLogLine(state.log)(l =>
         fpid.fold(Option(l))(p => if (p == l.pid) Some(l) else None)))
       d.executeShellCommand(
-        (LOGCAT_COMMAND :: logcatargs).mkString(" "), receiver)
+        (logcatCommand(d) :: logcatargs).mkString(" "), receiver)
       receiver.flush()
       state
     } getOrElse PluginFail("no device selected")
@@ -1010,7 +1051,7 @@ object Commands {
   }
 
   lazy val androidCommands: Seq[Setting[_]] = Seq(
-    sbt.Keys.commands ++= Seq(genAndroid, genAndroidSbt,
+    sbt.Keys.commands ++= Seq(genAndroid, genMultiAndroid, genAndroidSbt, genMultiAndroidSbt,
       pidcat, pidcatGrep, logcat, logcatGrep, adbLs, adbShell,
       devices, device, reboot, adbScreenOn, adbRunas, adbKill,
       adbWifi, adbWifiReconnect, adbPush, adbPull, adbCat, adbRm,
@@ -1082,10 +1123,20 @@ object Commands {
     "Create a new android project built using SBT"
   )(createProjectParser)(createProjectAction)
 
+  private def genMultiAndroid = Command(
+    "gen-multi-android", ("gen-multi-android", "Create a multi-project android build"),
+    "Create a new android multi-project build using SBT"
+  )(createProjectParser)(createMultiProjectAction)
+
   private def genAndroidSbt = Command(
     "gen-android-sbt", ("gen-android-sbt", "Create SBT files for existing android project"),
     "Creates build.properties, build.scala, etc for an existing android project"
   )(_ => EOF map { _ => None })(createProjectSbtAction)
+
+  private def genMultiAndroidSbt = Command(
+    "gen-multi-android-sbt", ("gen-multi-android-sbt", "Create SBT files for existing multi-project android build"),
+    "Creates build.properties, build.scala, etc for an existing android multi-project"
+  )(_ => EOF map { _ => None })(createMultiProjectSbtAction)
 
   private def device = Command(
     "device", ("device", "Select a connected android device"),
