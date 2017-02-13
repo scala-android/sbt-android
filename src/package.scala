@@ -37,6 +37,8 @@ package object android extends PluginFail {
   private[android] def buildWith(projects: Seq[ProjectReference]): Seq[Setting[_]] = {
     projects flatMap { p =>
       Seq(
+        setDebug <<= setDebug dependsOn (setDebug in p),
+        setRelease <<= setRelease dependsOn (setRelease in p),
         transitiveAars <++= aars in p,
         collectResources <<=
           collectResources dependsOn (compile in Compile in p),
