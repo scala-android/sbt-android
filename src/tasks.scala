@@ -505,9 +505,10 @@ object Tasks extends TaskBase {
 
   val packageApklibMappings = Def.task {
     val layout = projectLayout.value
+    implicit val output = outputLayout.value
     import layout._
 
-    (PathFinder(manifest)                 pair flat) ++
+    (PathFinder(layout.processedManifest) pair flat) ++
     (PathFinder(javaSource) ** "*.java"   pair rebase(javaSource,  "src"))  ++
     (PathFinder(scalaSource) ** "*.scala" pair rebase(scalaSource, "src"))  ++
     ((PathFinder(libs) ***)               pair rebase(libs,        "libs")) ++
@@ -533,15 +534,15 @@ object Tasks extends TaskBase {
     val rsLibs = layout.rsLib
     val rsRes = layout.rsRes
 
-    (PathFinder(manifest)             pair flat) ++
-    (PathFinder(layout.rTxt)          pair flat) ++
-    (PathFinder(layout.proguardTxt)   pair flat) ++
-    (PathFinder(j)                    pair flat) ++
-    ((PathFinder(libs) ** "*.jar")    pair rebase(libs,   "libs")) ++
-    ((PathFinder(rsLibs) * "*.jar")   pair rebase(rsLibs, "libs")) ++
-    ((PathFinder(res) ***)            pair rebase(res,    "res"))  ++
-    ((PathFinder(rsRes) ***)          pair rebase(rsRes,  "res"))  ++
-    ((PathFinder(assets) ***)         pair rebase(assets, "assets")) ++
+    (PathFinder(layout.processedManifest)    pair flat) ++
+    (PathFinder(layout.rTxt)                 pair flat) ++
+    (PathFinder(layout.proguardTxt)          pair flat) ++
+    (PathFinder(j)                           pair flat) ++
+    ((PathFinder(libs) ** "*.jar")           pair rebase(libs,   "libs")) ++
+    ((PathFinder(rsLibs) * "*.jar")          pair rebase(rsLibs, "libs")) ++
+    ((PathFinder(res) ***)                   pair rebase(res,    "res"))  ++
+    ((PathFinder(rsRes) ***)                 pair rebase(rsRes,  "res"))  ++
+    ((PathFinder(assets) ***)                pair rebase(assets, "assets")) ++
     so.flatMap { d => (PathFinder(d) ** "*.so") pair rebase(d, "jni") }
   }
 
@@ -757,73 +758,69 @@ object Tasks extends TaskBase {
     val minSdk = a.minSdkVersion
 
     layout.bin.mkdirs()
-    if (isLib)
-      layout.manifest
-    else {
-      val output = layout.processedManifest
-      output.getParentFile.mkdirs()
-      try {
-        bldr(s.log).mergeManifestsForApplication(layout.manifest, a.overlays.filter(_.isFile).asJava,
-          if (merge) libs.asJava else Seq.empty.asJava,
-          pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
-          output.getAbsolutePath, null, null,
-          if (isLib) ManifestMerger2.MergeType.LIBRARY
-          else
-            ManifestMerger2.MergeType.APPLICATION, ph.asJava, List.empty.asJava,
-          layout.processedManifestReport)
-      } catch {
-        case e: Exception =>
-          val ms = layout.manifest :: (a.overlays.filter(_.isFile) ++
-            libs.map(_.getManifest).filter(_.isFile)).toList
-          s.log.trace(e)
-          fail(
-            s"Failed to merge manifest files:\n    ${ms.mkString("\n    ")}")
-      }
-      if (noTestApk) {
-        val top = XML.loadFile(output)
-        val prefix = top.scope.getPrefix(ANDROID_NS)
-        val application = top \ APPLICATION_TAG
-        val usesLibraries = top \ APPLICATION_TAG \ USES_LIBRARY_TAG
-        val instrument = top \ INSTRUMENTATION_TAG
-        if (application.isEmpty) PluginFail("no manifest application node")
-        val hasTestRunner = usesLibraries exists (
-          _.attribute(ANDROID_NS, "name") exists (_ == TEST_RUNNER_LIB))
-
-        def runnerLibTag(top: Elem) = {
-          if  (!hasTestRunner) {
-            val runnerlib = new PrefixedAttribute(
-              prefix, "name", TEST_RUNNER_LIB, Null)
-            val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope,
-              minimizeEmpty = true)
-            val u = top.copy(
-              child = top.child.updated(top.child.indexOf(application.head),
-                application.head.asInstanceOf[Elem].copy(
-                  child = application.head.child ++ usesLib)))
-            u
-          } else top
-        }
-
-        def instrumentTag(top: Elem) = {
-          if (instrument.isEmpty) {
-            trunner.fold(top) { tr =>
-              val target = new PrefixedAttribute(prefix,
-                "targetPackage", pkg, Null)
-              val label = new PrefixedAttribute(prefix,
-                "label", "Test Runner", target)
-              val name = new PrefixedAttribute(
-                prefix, "name", tr, label)
-              val instrumentation = new Elem(null,
-                INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
-              val u = top.copy(child = top.child ++ instrumentation)
-              u
-            }
-          } else top
-        }
-
-        XML.save(output.getAbsolutePath, instrumentTag(runnerLibTag(top)), "utf-8", true, null)
-      }
-      output
+    val output = layout.processedManifest
+    output.getParentFile.mkdirs()
+    try {
+      bldr(s.log).mergeManifestsForApplication(layout.manifest, a.overlays.filter(_.isFile).asJava,
+        if (merge && !isLib) libs.asJava else Seq.empty.asJava,
+        pkg, vc getOrElse -1, vn orNull, minSdk.toString, sdk.toString, null,
+        output.getAbsolutePath, null, null,
+        if (isLib) ManifestMerger2.MergeType.LIBRARY
+        else
+          ManifestMerger2.MergeType.APPLICATION, ph.asJava, List.empty.asJava,
+        layout.processedManifestReport)
+    } catch {
+      case e: Exception =>
+        val ms = layout.manifest :: (a.overlays.filter(_.isFile) ++
+          libs.map(_.getManifest).filter(_.isFile)).toList
+        s.log.trace(e)
+        fail(
+          s"Failed to merge manifest files:\n    ${ms.mkString("\n    ")}")
     }
+    if (noTestApk && !isLib) {
+      val top = XML.loadFile(output)
+      val prefix = top.scope.getPrefix(ANDROID_NS)
+      val application = top \ APPLICATION_TAG
+      val usesLibraries = top \ APPLICATION_TAG \ USES_LIBRARY_TAG
+      val instrument = top \ INSTRUMENTATION_TAG
+      if (application.isEmpty) PluginFail("no manifest application node")
+      val hasTestRunner = usesLibraries exists (
+        _.attribute(ANDROID_NS, "name") exists (_ == TEST_RUNNER_LIB))
+
+      def runnerLibTag(top: Elem) = {
+        if  (!hasTestRunner) {
+          val runnerlib = new PrefixedAttribute(
+            prefix, "name", TEST_RUNNER_LIB, Null)
+          val usesLib = new Elem(null, USES_LIBRARY_TAG, runnerlib, TopScope,
+            minimizeEmpty = true)
+          val u = top.copy(
+            child = top.child.updated(top.child.indexOf(application.head),
+              application.head.asInstanceOf[Elem].copy(
+                child = application.head.child ++ usesLib)))
+          u
+        } else top
+      }
+
+      def instrumentTag(top: Elem) = {
+        if (instrument.isEmpty) {
+          trunner.fold(top) { tr =>
+            val target = new PrefixedAttribute(prefix,
+              "targetPackage", pkg, Null)
+            val label = new PrefixedAttribute(prefix,
+              "label", "Test Runner", target)
+            val name = new PrefixedAttribute(
+              prefix, "name", tr, label)
+            val instrumentation = new Elem(null,
+              INSTRUMENTATION_TAG, name, TopScope, minimizeEmpty = true)
+            val u = top.copy(child = top.child ++ instrumentation)
+            u
+          }
+        } else top
+      }
+
+      XML.save(output.getAbsolutePath, instrumentTag(runnerLibTag(top)), "utf-8", true, null)
+    }
+    output
   }
 
   val rGeneratorTaskDef = ( aaptAggregate
