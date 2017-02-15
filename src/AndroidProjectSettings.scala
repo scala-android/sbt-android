@@ -454,7 +454,7 @@ trait AndroidProjectSettings extends AutoPlugin {
       val ind = SbtAndroidProgressIndicator(slog)
       val sdkHandler = sdkManager.value
       val showProgress = showSdkProgress.value
-      buildToolsVersion.value map { version =>
+      val r = buildToolsVersion.value map { version =>
         val bti = SdkInstaller.retryWhileFailed("fetch build tool info", slog) {
           sdkHandler.getBuildToolInfo(Revision.parseRevision(version), ind)
         }
@@ -471,11 +471,16 @@ trait AndroidProjectSettings extends AutoPlugin {
           buildTools.sorted(SdkInstaller.packageOrder).dropWhile(_.getVersion.getPreview > 0).headOption
         }.fold {
           sLog.value.debug("Using Android build-tools: " + tools)
+          if (tools == null)
+            PluginFail("Unable to detect installed Android build-tools")
           tools
         } { _ =>
           sdkHandler.getLatestBuildTool(ind, false)
         }
       }
+      if (r == null)
+        PluginFail("Android SDK installation registry failed to update, restart SBT")
+      r
     },
     platformTarget          := {
       val p = properties.value
