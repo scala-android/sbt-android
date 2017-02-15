@@ -298,6 +298,7 @@ object SdkLayout {
 
   def sdkManager(sdkPath: String) = tools(sdkPath) / androidCmdName
   def sbtSubfolder = file(AndroidLocation.getFolder) / "sbt"
+  def repocfg = file(AndroidLocation.getFolder) / "repositories.cfg"
   def predex = sbtSubfolder / "predex"
   def explodedAars = sbtSubfolder / "exploded-aars"
   def androidHomeCache = sbtSubfolder / "sdk.dir"

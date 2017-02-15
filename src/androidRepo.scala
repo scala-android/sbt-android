@@ -178,6 +178,11 @@ object SdkInstaller extends TaskBase {
 
   private[this] lazy val sdkMemo = scalaz.Memo.immutableHashMapMemo[File, (Boolean, Logger) => AndroidSdkHandler] { f =>
     val manager = AndroidSdkHandler.getInstance(f)
+    if (!SdkLayout.repocfg.isFile) {
+      println(s"Android SDK repository config ${SdkLayout.repocfg.getPath} does not exist, creating")
+      IO.delete(SdkLayout.repocfg)
+      IO.touch(SdkLayout.repocfg)
+    }
 
     (showProgress, slog) => manager.synchronized {
       SdkInstaller.autoInstallPackage(manager, "", "tools", "android sdk tools", showProgress, slog)
