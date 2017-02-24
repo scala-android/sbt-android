@@ -64,7 +64,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    in the file `~/.sbt/0.13/plugins/android.sbt`:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.7.5")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.7.6")
    ```
 
 2. Set the environment variable `ANDROID_HOME` pointing to the path where the
@@ -81,7 +81,7 @@ found on the #sbt-android IRC channel on Freenode, or the
    following line:
 
    ```
-   addSbtPlugin("org.scala-android" % "sbt-android" % "1.7.5")
+   addSbtPlugin("org.scala-android" % "sbt-android" % "1.7.6")
    ```
 
 4. Create a new android project using `gen-android` if the plugin is installed

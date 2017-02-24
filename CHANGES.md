@@ -1,5 +1,9 @@
 ## New features in 1.7.x ##
 
+* `1.7.6`:
+  * minor bugfixes
+  * qol improvement to setDebug and setRelease (correspondingly: packageDebug,
+    packageRelease)--automatically apply selection to all requisite projects
 * `1.7.5`:
   * directly invoking `android:compile` is an error
   * delete `proguard-sbt.txt` if encountered
