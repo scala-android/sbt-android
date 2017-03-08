@@ -157,6 +157,8 @@ object SdkInstaller extends TaskBase {
     val cached = SdkLayout.androidHomeCache
     val path = (Option(System getenv "ANDROID_HOME") orElse
       Option(props getProperty "sdk.dir")) flatMap { p =>
+      if (p startsWith "~")
+        slog.warn("use $HOME instead of ~ when setting ANDROID_HOME")
       val f = sbt.file(p)
       if (f.exists && f.isDirectory) {
         cached.getParentFile.mkdirs()
@@ -165,7 +167,8 @@ object SdkInstaller extends TaskBase {
       } else None
     } orElse SdkLayout.sdkFallback(cached) getOrElse {
       val home = SdkLayout.fallbackAndroidHome
-      slog.info("ANDROID_HOME not set, using " + home.getCanonicalPath)
+      slog.info("ANDROID_HOME not set or invalid, using " +
+        home.getCanonicalPath)
       home.mkdirs()
       home.getCanonicalPath
     }

@@ -66,7 +66,7 @@ object Commands {
           if (d == dev.getSerialNumber) "*" else " "
         }
 
-        state.log.info(f"$sel${dev.getSerialNumber}%-22s $name%-16s ${dev.getBattery.get}%8s%% ${dev.getProperty(IDevice.PROP_BUILD_VERSION)}%-6s API ${dev.getProperty(IDevice.PROP_BUILD_API_LEVEL)}")
+        Try(state.log.info(f"$sel${dev.getSerialNumber}%-22s $name%-16s ${dev.getBattery.get}%8s%% ${dev.getProperty(IDevice.PROP_BUILD_VERSION)}%-6s API ${dev.getProperty(IDevice.PROP_BUILD_API_LEVEL)}"))
       }
     }
     state
