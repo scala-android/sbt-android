@@ -9,7 +9,6 @@ import complete.DefaultParsers._
 import java.io.File
 
 import com.android.ddmlib._
-import com.android.SdkConstants
 
 import scala.annotation.tailrec
 import scala.util.Try
@@ -18,6 +17,7 @@ import scala.util.matching.Regex
 
 object Commands {
 
+  val COLORS_ENABLED = ConsoleLogger.formatEnabled
   val LOGCAT_COMMAND = "logcat -v brief -d"
   var defaultDevice: Option[String] = None
 
@@ -704,22 +704,28 @@ object Commands {
   }
 
   def colorLevel(level: String) = {
-    LEVEL_COLORS.getOrElse(level,
-      scala.Console.BOLD + scala.Console.YELLOW_B + scala.Console.WHITE) +
-      " " + level + " " +
-      scala.Console.RESET
+    if (COLORS_ENABLED) {
+      LEVEL_COLORS.getOrElse(level,
+        scala.Console.BOLD + scala.Console.YELLOW_B + scala.Console.WHITE) +
+        " " + level + " " +
+        scala.Console.RESET
+    } else level
   }
   def colorTag(tag: String) = {
-    val idx = math.abs(tag.hashCode % TAG_COLORS.length)
-    val color = TAG_COLORS(idx)
-    color + tag.replaceAllLiterally(scala.Console.RESET, color) +
-      scala.Console.RESET
+    if (COLORS_ENABLED) {
+      val idx = math.abs(tag.hashCode % TAG_COLORS.length)
+      val color = TAG_COLORS(idx)
+      color + tag.replaceAllLiterally(scala.Console.RESET, color) +
+        scala.Console.RESET
+    } else tag
   }
   def colorPid(p: String) = {
-    val pid = p.trim.toInt
-    val idx = pid % TAG_COLORS.length
-    // can't do formatting in 'colored' because escape codes
-    TAG_COLORS(idx) + f"$pid%5d" + scala.Console.RESET
+    if (COLORS_ENABLED) {
+      val pid = p.trim.toInt
+      val idx = pid % TAG_COLORS.length
+      // can't do formatting in 'colored' because escape codes
+      TAG_COLORS(idx) + f"$pid%5d" + scala.Console.RESET
+    } else p
   }
   lazy val LEVEL_COLORS = Map(
     "D" -> (scala.Console.BOLD + scala.Console.CYAN_B + scala.Console.WHITE),
@@ -825,18 +831,22 @@ object Commands {
     }
   }
   def highlightMatch(tagMatch: Iterator[Regex.Match], msgMatch: Iterator[Regex.Match], line: LogcatLine): LogcatLine = {
-    val start = scala.Console.RED + scala.Console.BOLD
-    val incr = start.length
-    val incr2 = scala.Console.RESET.length
-    def highlightM(s: String, ms: Iterator[Regex.Match]): String = {
-      ms.foldLeft((s,0)) { case ((str, off), m) =>
-        val (s1, s2) = str.splitAt(m.start + off)
-        val (e1, e2) = (s1 + start + s2).splitAt(m.end + off + incr)
-        (e1 + scala.Console.RESET + e2, off + incr + incr2)
-      }._1
-    }
-    val tagged = line.copy(tag = highlightM(line.tag, tagMatch))
-    tagged.copy(msg = highlightM(line.msg, msgMatch))
+    if (COLORS_ENABLED) {
+      val start = scala.Console.RED + scala.Console.BOLD
+      val incr = start.length
+      val incr2 = scala.Console.RESET.length
+
+      def highlightM(s: String, ms: Iterator[Regex.Match]): String = {
+        ms.foldLeft((s, 0)) { case ((str, off), m) =>
+          val (s1, s2) = str.splitAt(m.start + off)
+          val (e1, e2) = (s1 + start + s2).splitAt(m.end + off + incr)
+          (e1 + scala.Console.RESET + e2, off + incr + incr2)
+        }._1
+      }
+
+      val tagged = line.copy(tag = highlightM(line.tag, tagMatch))
+      tagged.copy(msg = highlightM(line.msg, msgMatch))
+    } else line
   }
   val logcatGrepAction: (State, String) => State = (state, args) => {
     val (regex, fpid) = args.split(" ").foldRight((List.empty[String],Option.empty[String])) { case (a, (as,pid)) =>
