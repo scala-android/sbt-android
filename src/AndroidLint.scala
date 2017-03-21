@@ -21,9 +21,9 @@ import language.postfixOps
  */
 object AndroidLint {
 
-  def apply(layout: ProjectLayout, flags: LintCliFlags, detectors: Seq[Issue], strict: Boolean,
+  def apply(layout: ProjectLayout, classes: File, flags: LintCliFlags, detectors: Seq[Issue], strict: Boolean,
             minSdk: String, targetSdk: String, s: TaskStreams)(implicit m: BuildOutput.Converter): Unit = {
-    val client = AndroidLint.SbtLintClient(layout, flags, minSdk, targetSdk)
+    val client = AndroidLint.SbtLintClient(layout, classes, flags, minSdk, targetSdk)
     flags.getReporters.clear()
     flags.getReporters.add(SbtLintReporter(client, strict, s))
     client.run(AndroidLint.LintDetectorIssues(detectors), List(layout.base).asJava)
@@ -38,7 +38,7 @@ object AndroidLint {
     override def getIssues = issues.asJava
   }
 
-  case class SbtLintClient(layout: ProjectLayout, flags: LintCliFlags, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter) extends LintCliClient(flags, "sbt-android") {
+  case class SbtLintClient(layout: ProjectLayout, classes: File, flags: LintCliFlags, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter) extends LintCliClient(flags, "sbt-android") {
     override def addProgressPrinter() = {
 //      super.addProgressPrinter()
     }
@@ -50,15 +50,15 @@ object AndroidLint {
     override def createLintRequest(files: java.util.List[File]) = {
       val r = super.createLintRequest(files)
       r.setProjects(files.asScala map { f =>
-        SbtProject(this, layout, minSdk, targetSdk): LintProject
+        SbtProject(this, layout, classes, minSdk, targetSdk): LintProject
       } asJava)
       r
     }
 
   }
-  case class SbtProject(client: LintClient, layout: ProjectLayout, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter)
+  case class SbtProject(client: LintClient, layout: ProjectLayout, classes: File, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter)
     extends LintProject(client, layout.base, layout.base) {
-    override def getJavaClassFolders = List(layout.classes).asJava
+    override def getJavaClassFolders = List(classes).asJava
     override def getManifestFiles    = List(layout.manifest).asJava
     override def getResourceFolders  = List(layout.res).asJava
     override def getMinSdkVersion    = SdkVersionInfo.getVersion(minSdk, client.getTargets)

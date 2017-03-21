@@ -51,14 +51,15 @@ trait AndroidProjectSettings extends AutoPlugin {
       , lintStrict
       , projectLayout
       , outputLayout
+      , classDirectory
       , minSdkVersion
       , targetSdkVersion
-      , streams) map { (c, ld, f, en, strict, layout, o, minSdk, tgtSdk, s) =>
+      , streams) map { (c, ld, f, en, strict, layout, o, classes, minSdk, tgtSdk, s) =>
       checkVersion("minSdkVersion", minSdk)
       checkVersion("targetSdkVersion", tgtSdk)
       implicit val output = o
       if (en)
-        AndroidLint(layout, f, ld, strict, minSdk, tgtSdk, s)
+        AndroidLint(layout, classes, f, ld, strict, minSdk, tgtSdk, s)
       c
     },
     sourceManaged               := projectLayout.value.gen,
@@ -93,10 +94,6 @@ trait AndroidProjectSettings extends AutoPlugin {
     unmanagedJars     <<= unmanagedJarsTaskDef,
     // doesn't work properly yet, not for intellij integration
     //managedClasspath  <<= managedClasspathTaskDef,
-    classDirectory     := {
-      implicit val output = outputLayout.value
-      projectLayout.value.classes
-    },
     sourceGenerators   := sourceGenerators.value ++ List(
       rGenerator.taskValue,
       viewHoldersGenerator.taskValue,
@@ -158,7 +155,7 @@ trait AndroidProjectSettings extends AutoPlugin {
     },
     lint                        := {
       implicit val output = outputLayout.value
-      AndroidLint(projectLayout.value,
+      AndroidLint(projectLayout.value, (classDirectory in Compile).value,
         lintFlags.value, lintDetectors.value, lintStrict.value,
         minSdkVersion.value, targetSdkVersion.value, streams.value)
     },

@@ -145,6 +145,19 @@ licenses += ("MIT", url("http://opensource.org/licenses/MIT"))
 
 bintrayOrganization in bintray := None
 
+pomExtra :=
+  <scm>
+    <url>git@github.com:scala-android/sbt-android.git</url>
+    <connection>scm:git:git@github.com:scala-android/sbt-android.git</connection>
+  </scm>
+    <developers>
+      <developer>
+        <id>pfnguyen</id>
+        <name>Perry Nguyen</name>
+        <url>https://github.com/pfn</url>
+      </developer>
+    </developers>
+
 // scripted-test settings
 scriptedSettings
 
@@ -181,4 +194,3 @@ scriptedDependencies <<= ( sbtTestDirectory
 }
 
 scriptedDependencies <<= scriptedDependencies dependsOn publishLocal
-

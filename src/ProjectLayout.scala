@@ -31,8 +31,6 @@ trait BuildOutput extends Any {
   def testResApk: File
   def testApk: File
   def predex: File
-  def classes: File
-  def testClasses: File
   def classesJar: File
   def mergedRes: File
   def mergedAssets: File
@@ -96,8 +94,6 @@ object BuildOutput {
     def testResApk = testOut / "resources-test.ap_"
     def testApk = testOut / "instrumentation-test.ap_"
     def predex = intermediates / "predex"
-    def classes = intermediates / "classes"
-    def testClasses = testOut / "classes"
     def classesJar = intermediates / "classes.jar"
     def mergedRes = intermediates / "res"
     def mergedAssets = intermediates / "assets"
@@ -176,8 +172,6 @@ object BuildOutput {
     def testResApk = base.testResApk
     def testApk = base.testApk
     def predex = base.predex
-    def classes = base.classes
-    def testClasses = base.testClasses
     def classesJar = base.classesJar
     def mergedRes = base.mergedRes
     def mergedAssets = base.mergedAssets
@@ -235,8 +229,6 @@ object BuildOutput {
     def testResApk = base(layout).testResApk
     def testApk = base(layout).testApk
     def predex = base(layout).predex
-    def classes = base(layout).classes
-    def testClasses = base(layout).testClasses
     def classesJar = base(layout).classesJar
     def mergedRes = base(layout).mergedRes
     def mergedAssets = base(layout).mergedAssets
