@@ -46,6 +46,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
     val e = Project.extract(s)
 
     def isAndroid(ref: ProjectRef) = e.getOpt(projectLayout in ref).isDefined
+    def isAndroidJar(ref: ProjectRef) = e.structure.allProjects.exists(p => p.id == ref.project && p.autoPlugins.contains(AndroidJar))
 
     val androids = e.structure.allProjects map (p => ProjectRef(e.structure.root, p.id)) filter isAndroid
     val androidSet = androids.toSet
@@ -58,7 +59,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
         val locals = Project.extract(s).get(localProjects in p).map(
           _.path.getCanonicalPath).toSet
         val depandroids = deps filter isAndroidDep
-        depandroids filterNot (a => Project.getProject(a, e.structure).exists (d =>
+        depandroids filterNot isAndroidJar filterNot (a => Project.getProject(a, e.structure).exists (d =>
           locals(d.base.getCanonicalPath)))
       })
     }
