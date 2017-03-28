@@ -1,5 +1,10 @@
 ## New features in 1.7.x ##
 
+* `1.7.7`:
+  * minor bugfixes
+    * disable pidcat/logcat colors when unsupported
+  * `classDirectory` is no longer overridden (now goes to crossTarget)
+  * `AndroidJar` projects no longer `buildWith` automatically
 * `1.7.6`:
   * minor bugfixes
   * qol improvement to setDebug and setRelease (correspondingly: packageDebug,
