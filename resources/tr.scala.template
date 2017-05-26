@@ -6,15 +6,19 @@ import android.content.Context
 import android.content.res.{TypedArray,XmlResourceParser}
 import android.graphics.drawable.Drawable
 import android.os.Build
-import android.view.{View,ViewGroup,LayoutInflater}
+import android.view.{View,ViewGroup,LayoutInflater, MenuInflater, Menu, MenuItem}
 import android.view.animation.{Animation, AnimationUtils, Interpolator}
 import android.animation.{Animator, AnimatorInflater}
 
 import scala.annotation.implicitNotFound
 
+trait MenuItemExtractor { self: TypedRes[_] =>
+  def unapply(mi: MenuItem): Boolean = if (mi.getItemId == resid) true else false
+}
+
 case class TypedResource[A](id: Int) extends AnyVal
 case class TypedLayout[A](id: Int)%s
-case class TypedRes[A](resid: Int) extends AnyVal {
+case class TypedRes[A](resid: Int) extends MenuItemExtractor {
   def value(implicit ev: TypedResource.TypedResValueOp[A], c: Context): ev.T = ev.resourceValue(resid)(c)
 }
 
@@ -45,6 +49,7 @@ object TypedResource {
   sealed trait ResInteger
   sealed trait ResInterpolator
   sealed trait ResMenu
+  sealed trait ResMenuItem
   sealed trait ResMipMap
   sealed trait ResPlurals
   sealed trait ResRaw
@@ -83,6 +88,18 @@ object TypedResource {
       inflate(tl, c, true)
     def inflate[A <: View](tl: TypedLayout[A]): A =
       inflate(tl, null, false)
+  }
+
+  implicit class TypedResMenuInflater(val mi: MenuInflater) extends AnyVal {
+    def inflate(menuRes: TypedRes[ResMenu], menu: Menu): Unit = {
+      mi.inflate(menuRes.resid, menu)
+    }
+  }
+
+  implicit class TypedResMenuOps(val m: Menu) extends AnyVal {
+    def findItem(item: TypedRes[ResMenuItem]): MenuItem = {
+      m.findItem(item.resid)
+    }
   }
 
   implicit val trAnimValueOp: TypedResValueOp[ResAnim] { type T = Animation } = new TypedResValueOp[ResAnim] {
