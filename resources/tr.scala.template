@@ -66,7 +66,7 @@ object TypedResource {
     def resourceValue(resid: Int)(implicit c: Context): T
   }
 
-  @implicitNotFound("didn't find an extractor for ${A}, create an Extractor[${A}] manually")
+  @implicitNotFound("didn't find an extractor for ${A},${T}; create an Extractor[${A},${T}] manually")
   trait Extractor[A,T] {
     def matches(resid: Int, t: T): Boolean
   }
