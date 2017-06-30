@@ -20,6 +20,7 @@ import com.android.sdklib.BuildToolInfo
 import sbt.classpath.ClasspathUtilities
 
 import scala.util.Try
+import scala.util.matching.Regex
 import scala.xml.XML
 
 object Resources {
@@ -489,9 +490,11 @@ object Resources {
           } else Nil
           val rms1 = processValuesXml(resdirs, s)
           val rms2 = processResourceTypeDirs(resdirs, s)
-          val combined = reduceResourceMap(Seq(rms1, rms2)).filter(_._2.nonEmpty)
+          val rms3 = processMenuItems(resdirs, re, s)
+          val combined = reduceResourceMap(Seq(rms1, rms2, rms3)).filter(_._2.nonEmpty)
+
           val combined1 = combined.map { case (k, xs) =>
-            val k2 = if (k endsWith "-array") "array" else k
+            val k2 = if (k endsWith "-array") "array" else if (k == "menu_item") "id" else k
             val trt = trTypes(k)
             val ys = xs.toSet[String].map { x =>
               val y = x.replace('.', '_')
@@ -503,6 +506,7 @@ object Resources {
             val k2 = if (k endsWith "-array") "array" else k
             acc + ((k2, acc(k2) ++ xs))
           }
+
           val trs = combined2.foldLeft(List.empty[String]) { case (acc, (k, xs)) =>
             val k2 = if (k endsWith "-array") "array" else k
             s"""
@@ -588,6 +592,7 @@ object Resources {
     "integer"       -> "ResInteger",
     "interpolator"  -> "ResInterpolator",
     "menu"          -> "ResMenu",
+    "menu_item"     -> "ResMenuItem",
     "mipmap"        -> "ResMipMap",
     "plurals"       -> "ResPlurals",
     "raw"           -> "ResRaw",
@@ -685,6 +690,18 @@ object Resources {
     } yield restype ->
       ((res / restype * "*").get ++ (res * s"$restype-*" * "*").get).map(_.getName.takeWhile(_ != '.')).toList.filter(_.nonEmpty)
     rms2.foldLeft(emptyResourceMap) { case (m, (t, xs)) => m + (t -> (m(t) ++ xs)) }
+  }
+
+  def processMenuItems(resdirs: Seq[File], re: Regex, s: TaskStreams): ResourceMap = {
+    val menuxmls = resdirs flatMap { d => d * "menu" * "*.xml" get }
+    val menuItems = for {
+      b      <- menuxmls
+      menu  = XML loadFile b
+      n      <- menu.descendant_or_self
+      re(id) <- n.attribute(ANDROID_NS, "id") map { _.head.text }
+    } yield id
+
+    Map("menu_item" -> menuItems.toList)
   }
 
   def generateViewHolders(generate: Boolean,
