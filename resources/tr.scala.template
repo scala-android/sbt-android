@@ -81,15 +81,15 @@ object TypedResource {
     def findViewById(id: Int) = d.findViewById(id)
   }
   implicit class TypedLayoutInflater(val l: LayoutInflater) extends AnyVal {
-    def inflate[A <: View](tl: TypedLayout[A], c: ViewGroup, b: Boolean): A = {
-      val v = l.inflate(tl.id, c, b)
-      val a = if(c != null && b) c.getChildAt(c.getChildCount - 1) else v
+    def inflate[A <: View](resource: TypedLayout[A], root: ViewGroup, attachToRoot: Boolean): A = {
+      val v = l.inflate(resource.id, root, attachToRoot)
+      val a = if(root != null && attachToRoot) root.getChildAt(root.getChildCount - 1) else v
       a.asInstanceOf[A]
     }
-    def inflate[A <: View](tl: TypedLayout[A], c: ViewGroup): A =
-      inflate(tl, c, true)
-    def inflate[A <: View](tl: TypedLayout[A]): A =
-      inflate(tl, null, false)
+    def inflate[A <: View](resource: TypedLayout[A], root: ViewGroup): A =
+      inflate(resource, root, true)
+    def inflate[A <: View](resource: TypedLayout[A]): A =
+      inflate(resource, null, false)
   }
 
   implicit class TypedResMenuInflater(val mi: MenuInflater) extends AnyVal {
