@@ -343,7 +343,8 @@ object Tasks extends TaskBase {
   }
 
   val typedResourcesGeneratorTaskDef = Def.task {
-    Resources.generateTR(typedResources.value, rGenerator.value,
+    Resources.generateTR(typedResources.value,
+      rGenerator.value ++ (collectResources.value._2 ** "*.xml").get,
       packageForR.value, projectLayout.value, platformApi.value,
       platformJars.value, (scalaVersion in ThisProject).value,
       libraryProjects.value, typedResourcesFull.value, typedResourcesIds.value,
