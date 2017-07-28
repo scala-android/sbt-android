@@ -32,10 +32,11 @@ before_script:
   - (unzip -q $HOME/ndk-$NDK_VERSION.zip -d $HOME; true)
   - ls $ANDROID_NDK_HOME
   # wait for emulator after ndk
-  - android-wait-for-emulator
   - adb shell input keyevent 82 &
 script:
   - curl -o sbt-launcher.sh https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt
   - chmod a+x ./sbt-launcher.sh
+  - ./sbt-launcher.sh publish-local
   - ./sbt-launcher.sh gradlebuild/publish-local
-  - ./sbt-launcher.sh compile "scripted android-sdk-plugin/* gradle-build/*"
+  - android-wait-for-emulator
+  - ./sbt-launcher.sh "scripted android-sdk-plugin/* gradle-build/*"
