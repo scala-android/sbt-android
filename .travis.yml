@@ -37,4 +37,5 @@ before_script:
 script:
   - curl -o sbt-launcher.sh https://raw.githubusercontent.com/paulp/sbt-extras/master/sbt
   - chmod a+x ./sbt-launcher.sh
+  - ./sbt-launcher.sh gradlebuild/publish-local
   - ./sbt-launcher.sh compile "scripted android-sdk-plugin/* gradle-build/*"
