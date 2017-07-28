@@ -6,7 +6,9 @@ import scala.collection.JavaConverters._
 import scala.xml.XML
 import language.postfixOps
 import BuildOutput._
-import com.android.builder.model.{AndroidLibrary, JavaLibrary}
+import com.android.builder.dependency.level2.AndroidDependency
+import com.android.builder.model.{AndroidLibrary, JavaLibrary, MavenCoordinates}
+import com.android.manifmerger.ManifestProvider
 
 object Dependencies {
   // excludes are temporary until everything/one uses libraryDependencies
@@ -21,9 +23,11 @@ object Dependencies {
   def apklib(m: ModuleID, n: String): ModuleID = artifacts(m, n, "apklib")
   def aar(m: ModuleID, n: String): ModuleID    = artifacts(m, n, "aar")
 
-  trait LibraryDependency extends AndroidLibrary with Pkg {
+  trait LibraryDependency extends AndroidLibrary with ManifestProvider with Pkg {
     import com.android.SdkConstants._
     def layout: ProjectLayout
+
+    def asAndroidDependency: Option[AndroidDependency]
 
     def path = layout.base
 
@@ -72,6 +76,8 @@ object Dependencies {
     def target = path
     import com.android.SdkConstants._
 
+    override def asAndroidDependency = Some(AndroidDependency.createLocalTestedAarLibrary(getJarFile, pkg, base.getAbsolutePath, base))
+
     // apklib are always ant-style layouts
     override lazy val layout = ProjectLayout.Ant(base)
     lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
@@ -82,6 +88,7 @@ object Dependencies {
   }
   def moduleIdFile(path: File) = path / "sbt-module-id"
   case class AarLibrary(base: File) extends LibraryDependency with Pkg {
+    override def asAndroidDependency = Some(AndroidDependency.createExplodedAarLibrary(getJarFile, moduleID.asMavenCoordinates, pkg, base.getAbsolutePath, base))
     lazy val moduleID: ModuleID = {
       val mfile = moduleIdFile(path)
       val parts = IO.readLines(mfile).headOption.fold(PluginFail(
@@ -101,6 +108,7 @@ object Dependencies {
   case class LibraryProject(layout: ProjectLayout, extraRes: Seq[File], extraAssets: Seq[File])
                            (implicit output: BuildOutput.Converter) extends LibraryDependency with Pkg {
 
+    override def asAndroidDependency = None
     lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
     override def getSymbolFile = layout.rTxt
     override def getJarFile = layout.classesJar
@@ -195,6 +203,20 @@ object Dependencies {
     def matches(other: ModuleID) = {
       id.organization == other.organization && id.name == other.name &&
         revMatches(other.revision)
+    }
+
+    def asMavenCoordinates: MavenCoordinates = new MavenCoordinates {
+      override def getVersion = id.revision
+      override def getGroupId = id.organization
+
+      override def getClassifier = id.explicitArtifacts.collect {
+        case a if a.classifier.nonEmpty => a.classifier.get
+      }.headOption.orNull
+
+      override lazy val getVersionlessId =
+        id.organization + ":" + id.name + Option(getClassifier).fold("")(":" + _)
+      override def getPackaging = "jar"
+      override def getArtifactId = id.name
     }
   }
 

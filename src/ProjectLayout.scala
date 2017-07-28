@@ -288,7 +288,6 @@ object SdkLayout {
   def androidProguardConfig(sdkPath: String) = tools(sdkPath) /
      FD_PROGUARD / FN_ANDROID_PROGUARD_FILE
 
-  def sdkManager(sdkPath: String) = tools(sdkPath) / androidCmdName
   def sbtSubfolder = file(AndroidLocation.getFolder) / "sbt"
   def repocfg = file(AndroidLocation.getFolder) / "repositories.cfg"
   def predex = sbtSubfolder / "predex"

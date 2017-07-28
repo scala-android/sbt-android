@@ -665,15 +665,23 @@ object Tasks extends TaskBase {
     } else {
       val aligned = l.alignedApk(r)
 
-      val rv = Seq(z, "-f", "-p", "4", r.getAbsolutePath, aligned.getAbsolutePath) !
+      val checkalign = Seq(z, "-c", "-p", "4", r.getAbsolutePath) !
 
-      if (rv != 0) {
-        PluginFail("zipalign failed")
+      if (checkalign != 0) {
+        val rv = Seq(z, "-f", "-p", "4", r.getAbsolutePath, aligned.getAbsolutePath) !
+
+        if (rv != 0) {
+          PluginFail("zipalign failed")
+        }
+
+        s.log.info("zipaligned: " + aligned.getName)
+        a.getParentFile.mkdirs()
+        IO.copyFile(aligned, a)
+      } else {
+        s.log.debug("APK is already aligned, skipping zipalign")
+        IO.copyFile(r, aligned)
+        IO.copyFile(r, a)
       }
-
-      s.log.info("zipaligned: " + aligned.getName)
-      a.getParentFile.mkdirs()
-      IO.copyFile(aligned, a)
       aligned
     }
   }
@@ -1188,7 +1196,6 @@ object Tasks extends TaskBase {
         override def getMaxProcessCount = ta.dexMaxProcessCount
         override def getDexInProcess = false
         override def getKeepRuntimeAnnotatedClasses = true
-        override def getOptimize = true
         override def getAdditionalParameters = List.empty.asJava
       }
       val rTxt = layout.testRTxt
@@ -1213,16 +1220,14 @@ object Tasks extends TaskBase {
       // dex doesn't support --no-optimize, see
       // https://android.googlesource.com/platform/tools/base/+/9f5a5e1d91a489831f1d3cc9e1edb850514dee63/build-system/gradle-core/src/main/groovy/com/android/build/gradle/tasks/Dex.groovy#219
       bldr.convertByteCode(inputs.asJava,
-        dex, false, null, options, true, SbtProcessOutputHandler(s.log))
+        dex, false, null, options, SbtProcessOutputHandler(s.log))
 
-      bldr.oldPackageApk(res.getAbsolutePath, Set(dex).asJava,
-        List.empty.asJava, List.empty.asJava, if (layout.testAssets.isDirectory) layout.testAssets else null, Set.empty.asJava,
-        debug, ta.debugSigningConfig.toSigningConfig("debug"),apk, minSdk.toInt, PackagingUtils.getNoCompressPredicate(new AaptOptions {
-          override def getNoCompress = null
-          override def getFailOnMissingConfigEntry = true
-          override def getAdditionalParameters = null
-          override def getIgnoreAssets = null
-        }, processedManifest))
+      Packaging.packageApk(apk, bldr, minSdk.toInt, processedManifest, res,
+        ta.debugSigningConfig, layout.testAssets, List(dex),
+        layout.testSources / "fake-no-jni-doesnt-exist-sbt-android",
+        layout.testSources / "fake-no-javaresource-doesnt-exist-sbt-android",
+        Set.empty, true, s)
+
       s.log.debug("Installing test apk: " + apk)
 
       def install(device: IDevice) {

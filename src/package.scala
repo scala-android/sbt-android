@@ -134,6 +134,11 @@ package object android extends PluginFail {
     apkSigningConfig := Some(config)
   }
 
+  def apkDoNotStrip(name: String*) = packagingOptions := {
+    val opts = packagingOptions.value
+    opts.copy(doNotStrip = opts.doNotStrip ++ name)
+  }
+
   def apkExclude(name: String*) = packagingOptions := {
     val opts = packagingOptions.value
     opts.copy(excludes = opts.excludes ++ name)

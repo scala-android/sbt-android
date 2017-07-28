@@ -300,9 +300,11 @@ object Keys extends DeprecatedPluginCompat {
 
   implicit def toRichProject(project: Project): RichProject = RichProject(project)
 
-  case class PackagingOptions(excludes: Seq[String] = Nil, pickFirsts: Seq[String] = Nil, merges: Seq[String] = Nil) {
+  case class PackagingOptions(excludes: Seq[String] = Nil, pickFirsts: Seq[String] = Nil, merges: Seq[String] = Nil, doNotStrip: Seq[String] = Nil) {
     import collection.JavaConverters._
     def asAndroid = new com.android.builder.model.PackagingOptions {
+
+      override def getDoNotStrip = doNotStrip.toSet.asJava
       override def getPickFirsts = pickFirsts.toSet.asJava
       override def getMerges = merges.toSet.asJava
       override def getExcludes = excludes.toSet.asJava

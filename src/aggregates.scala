@@ -87,7 +87,6 @@ object Aggregate {
       override def getPreDexLibraries: Boolean = false
       override def getDexInProcess = dexInProcess
       override def getKeepRuntimeAnnotatedClasses = true
-      override def getOptimize = true
       override def getAdditionalParameters = additionalParams.asJava
     }
   }

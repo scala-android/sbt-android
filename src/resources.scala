@@ -13,9 +13,11 @@ import sbt.{File, _}
 import collection.JavaConverters._
 import language.postfixOps
 import Dependencies.LibrarySeqOps
+import com.android.builder.dependency.level2.AndroidDependency
 import com.android.builder.internal.aapt.{Aapt, AaptPackageConfig}
 import com.android.builder.internal.aapt.v1.AaptV1
 import com.android.builder.internal.aapt.v2.OutOfProcessAaptV2
+import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.sdklib.BuildToolInfo
 import sbt.classpath.ClasspathUtilities
 
@@ -262,11 +264,13 @@ object Resources {
                            logger: Logger)
                           (implicit m: BuildOutput.Converter): MergedResourceWriter = {
     mergeTemp.mkdirs()
+    val l = SbtILogger()
+    l(logger)
+    val aaptv1 = new AaptV1(new DefaultProcessExecutor(l), SbtProcessOutputHandler(logger), bldr.getTarget.getBuildToolInfo, l, AaptV1.PngProcessMode.ALL, 2)
     new MergedResourceWriter(resTarget,
-      layout.publicTxt, layout.mergeBlame, preprocessor, new ResourceCompiler {
-        val aa = makeAapt(bldr, bldr.getTarget.getBuildToolInfo, aaptTemp, png9crunch, pngcrunch, logger)
-        override def compile(file: File, output: File) = aa.compile(file, output)
-      }, mergeTemp)
+      layout.publicTxt, layout.mergeBlame, preprocessor, makeAapt(bldr,
+        bldr.getTarget.getBuildToolInfo,
+        aaptTemp, png9crunch, pngcrunch, logger), mergeTemp)
   }
 
   def fullResourceMerge(layout: ProjectLayout,
@@ -327,9 +331,9 @@ object Resources {
       val processMode = if (crunchPng && process9Patch) {
         AaptV1.PngProcessMode.ALL
       } else if (process9Patch) {
-        AaptV1.PngProcessMode.NINE_PATCH_ONLY
+        AaptV1.PngProcessMode.NO_CRUNCH//NINE_PATCH_ONLY
       } else {
-        AaptV1.PngProcessMode.NONE
+        AaptV1.PngProcessMode.NO_CRUNCH
       }
 
       new AaptV1(
@@ -369,7 +373,7 @@ object Resources {
     aaptConfig.setBuildToolInfo(bldr.getTargetInfo.getBuildTools)
     aaptConfig.setCustomPackageForR(pkg)
     aaptConfig.setDebuggable(debug)
-    aaptConfig.setLibraries(all.asJava)
+    aaptConfig.setLibraries(all.flatMap(androidLibraryAsDependency).asJava)
     aaptConfig.setResourceOutputApk(resApk)
     aaptConfig.setResourceConfigs(resConfigs.asJava)
     aaptConfig.setSourceOutputDir(if (resApk == null) gen else null)
@@ -384,6 +388,12 @@ object Resources {
         PluginFail(e.getMessage)
     }
   }
+
+  def androidLibraryAsDependency(l: AndroidLibrary): Option[AndroidDependency] =
+    l match {
+      case a: LibraryDependency => a.asAndroidDependency
+      case _ => None
+    }
 
   def collectdeps(libs: Seq[AndroidLibrary]): Seq[AndroidLibrary] = {
     libs

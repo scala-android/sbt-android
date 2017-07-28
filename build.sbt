@@ -1,10 +1,10 @@
 import ScriptedPlugin._
 import bintray.Keys._
 
-val pluginVersion = "1.7.8"
-val gradleBuildVersion = "1.3.2"
+val pluginVersion = "1.8.0-SNAPSHOT"
+val gradleBuildVersion = "1.4.0-SNAPSHOT"
 
-val androidToolsVersion = "2.2.0"
+val androidToolsVersion = "2.3.0"
 
 // gradle-plugin and gradle-model projects
 val model = project.in(file("gradle-model")).settings(
@@ -115,9 +115,9 @@ libraryDependencies ++= Seq(
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
-  "com.android.tools.lint" % "lint" % "25.2.0",
-  "com.android.tools.external.com-intellij" % "uast" % "145.597.4", // because google didn't sync the correct version...
-  "net.orfjackal.retrolambda" % "retrolambda" % "2.3.0"
+  "com.android.tools.lint" % "lint" % "25.3.0",
+//  "com.android.tools.external.com-intellij" % "uast" % "145.597.4", // because google didn't sync the correct version...
+  "net.orfjackal.retrolambda" % "retrolambda" % "2.5.1"
 )
 
 aggregate := false

@@ -38,7 +38,7 @@ object AndroidLint {
     override def getIssues = issues.asJava
   }
 
-  case class SbtLintClient(layout: ProjectLayout, classes: File, flags: LintCliFlags, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter) extends LintCliClient(flags, "sbt-android") {
+  case class SbtLintClient(layout: ProjectLayout, classes: File, _flags: LintCliFlags, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter) extends LintCliClient(_flags, "sbt-android") {
     override def addProgressPrinter() = {
 //      super.addProgressPrinter()
     }
@@ -56,8 +56,8 @@ object AndroidLint {
     }
 
   }
-  case class SbtProject(client: LintClient, layout: ProjectLayout, classes: File, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter)
-    extends LintProject(client, layout.base, layout.base) {
+  case class SbtProject(_client: LintClient, layout: ProjectLayout, classes: File, minSdk: String, targetSdk: String)(implicit m: BuildOutput.Converter)
+    extends LintProject(_client, layout.base, layout.base) {
     override def getJavaClassFolders = List(classes).asJava
     override def getManifestFiles    = List(layout.manifest).asJava
     override def getResourceFolders  = List(layout.res).asJava
@@ -65,13 +65,17 @@ object AndroidLint {
     override def getTargetSdkVersion = SdkVersionInfo.getVersion(targetSdk, client.getTargets)
   }
 
-  case class SbtLintReporter(client: LintCliClient,
+  case class SbtLintReporter(_client: LintCliClient,
                              strict: Boolean,
-                             s: TaskStreams) extends Reporter(client, null) {
+                             s: TaskStreams) extends Reporter(_client, null) {
     lazy val fmt = new MessageFormat("{0} {1}{0,choice,0#s|1#|1<s}")
     def fmtE(n: Int) = fmt.format(Array(n, "error"),   new StringBuffer, null)
     def fmtW(n: Int) = fmt.format(Array(n, "warning"), new StringBuffer, null)
-    override def write(errorCount: Int, warningCount: Int, issues: util.List[Warning]) = {
+
+    override def write(stats: Reporter.Stats, issues: util.List[Warning]) = {
+      val errorCount = stats.errorCount
+      val warningCount = stats.warningCount
+
       val short = !client.getFlags.isShowEverything
       val is = issues.asScala.toList
       if (is.isEmpty) {
