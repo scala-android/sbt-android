@@ -17,3 +17,5 @@ lazy val `test-client`	= project in file("sub/client")
 TaskKey[File]("bundle")	:= (android.Keys.packageDebug	in (`test-client`, android.Keys.Android)).value
 
 showSdkProgress in Android := false
+
+buildToolsVersion := Some("26.0.1")
