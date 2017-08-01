@@ -18,6 +18,7 @@ android:
   components:
     - sys-img-armeabi-v7a-android-21
     - platform-tools
+    - build-tools-26.0.1
     - android-24
     - tools
     - extra
