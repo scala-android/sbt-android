@@ -164,7 +164,7 @@ object Packaging {
           new RelativeFile(base(f), f) -> FileStatus.NEW
         } ++ ins.removed.toList.map { f =>
           new RelativeFile(base(f), f) -> FileStatus.REMOVED
-        } ++ ins.modified.toList.map { f =>
+        } ++ (ins.modified -- ins.added).toList.map { f =>
           new RelativeFile(base(f), f) -> FileStatus.CHANGED
         }
       }
