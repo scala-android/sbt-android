@@ -30,7 +30,7 @@ object TR {
 }
 
 trait TypedFindView extends Any {
-  protected def findViewById(id: Int): View
+  protected %6$s
   final def findView[A](tr: TypedResource[A]): A = findViewById(tr.id).asInstanceOf[A]
 }
 
@@ -72,13 +72,13 @@ object TypedResource {
   }
 
   implicit class TypedView(val v: View) extends AnyVal with TypedFindView {
-    def findViewById(id: Int) = v.findViewById(id)
+    %6$s = v.findViewById(id)
   }
   implicit class TypedActivity(val a: Activity) extends AnyVal with TypedFindView {
-    def findViewById(id: Int) = a.findViewById(id)
+    %6$s = a.findViewById(id)
   }
   implicit class TypedDialog(val d: Dialog) extends AnyVal with TypedFindView {
-    def findViewById(id: Int) = d.findViewById(id)
+    %6$s = d.findViewById(id)
   }
   implicit class TypedLayoutInflater(val l: LayoutInflater) extends AnyVal {
     def inflate[A <: View](resource: TypedLayout[A], root: ViewGroup, attachToRoot: Boolean): A = {
@@ -141,7 +141,7 @@ object TypedResource {
     type T = Int
     @TargetApi(23)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
-%6$s
+%7$s
   }
   implicit val trDimenValueOp: TypedResValueOp[ResDimen] { type T = Int } = new TypedResValueOp[ResDimen] {
     type T = Int
@@ -152,7 +152,7 @@ object TypedResource {
     type T = Drawable
     @TargetApi(21)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
-%7$s
+%8$s
   }
   implicit val trIntegerValueOp: TypedResValueOp[ResInteger] { type T = Int } = new TypedResValueOp[ResInteger] {
     type T = Int
@@ -168,7 +168,7 @@ object TypedResource {
     type T = Drawable
     @TargetApi(21)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
-%8$s
+%9$s
   }
   implicit val trRawValueOp: TypedResValueOp[ResRaw] { type T = java.io.InputStream } = new TypedResValueOp[ResRaw] {
     type T = java.io.InputStream
@@ -189,6 +189,6 @@ object TypedResource {
     @inline final def matches(resid: Int, mi: MenuItem): Boolean = (mi.getItemId == resid)
   }
 
-%9$s
+%10$s
 }
 

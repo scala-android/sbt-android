@@ -560,6 +560,12 @@ object Resources {
             }
           }
 
+          val findView = if(platformApi >= 26) {
+            "def findViewById[V <: View](id: Int): V"
+          } else {
+            "def findViewById(id: Int): View"
+          }
+
           val getColor = "      " + (if (platformApi >= 23) {
             "compat.getColor(c,resid)"
           } else {
@@ -580,7 +586,7 @@ object Resources {
             } else "  // TypedResource ID generation disabled by 'typedResourcesIds := false'",
             layoutTypes map { case (k,v) =>
               "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
-            } mkString "\n", trs.mkString, getColor, getDrawable, getDrawable, deprForward) replace ("\r", ""))
+            } mkString "\n", trs.mkString, findView, getColor, getDrawable, getDrawable, deprForward) replace ("\r", ""))
           Set(tr)
         } else Set.empty
       }(a.toSet).toSeq
