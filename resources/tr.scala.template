@@ -1,4 +1,4 @@
-package %s
+package %1$s
 
 import android.annotation.TargetApi
 import android.app.{Activity,Dialog}
@@ -13,20 +13,20 @@ import android.animation.{Animator, AnimatorInflater}
 import scala.annotation.implicitNotFound
 
 case class TypedResource[A](id: Int) extends AnyVal
-case class TypedLayout[A](id: Int)%s
+case class TypedLayout[A](id: Int)%2$s
 case class TypedRes[A](resid: Int) extends AnyVal {
   def value(implicit ev: TypedResource.TypedResValueOp[A], c: Context): ev.T = ev.resourceValue(resid)(c)
   def unapply[A,T](t: T)(implicit ex: TypedResource.Extractor[A,T]): Boolean = ex.matches(resid, t)
 }
 
 object TR {
-%s
+%3$s
 
   object layout {
-%s
+%4$s
   }
 
-%s
+%5$s
 }
 
 trait TypedFindView extends Any {
@@ -141,7 +141,7 @@ object TypedResource {
     type T = Int
     @TargetApi(23)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
-%s
+%6$s
   }
   implicit val trDimenValueOp: TypedResValueOp[ResDimen] { type T = Int } = new TypedResValueOp[ResDimen] {
     type T = Int
@@ -152,7 +152,7 @@ object TypedResource {
     type T = Drawable
     @TargetApi(21)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
-%s
+%7$s
   }
   implicit val trIntegerValueOp: TypedResValueOp[ResInteger] { type T = Int } = new TypedResValueOp[ResInteger] {
     type T = Int
@@ -168,7 +168,7 @@ object TypedResource {
     type T = Drawable
     @TargetApi(21)
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
-%s
+%8$s
   }
   implicit val trRawValueOp: TypedResValueOp[ResRaw] { type T = java.io.InputStream } = new TypedResValueOp[ResRaw] {
     type T = java.io.InputStream
@@ -189,6 +189,6 @@ object TypedResource {
     @inline final def matches(resid: Int, mi: MenuItem): Boolean = (mi.getItemId == resid)
   }
 
-%s
+%9$s
 }
 
