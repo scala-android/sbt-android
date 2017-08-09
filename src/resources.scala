@@ -560,7 +560,7 @@ object Resources {
             }
           }
 
-          val findView = if(platformApi >= 26) {
+          val findView = if (platformApi >= 26) {
             "def findViewById[V <: View](id: Int): V"
           } else {
             "def findViewById(id: Int): View"
