@@ -1,5 +1,7 @@
 ## New features in 1.7.x ##
 
+* `1.7.9`:
+  * make TR compatible with platformTarget O
 * `1.7.8`:
   * add menu items to TR (item matching extraction, inflation, etc.)
   * re-generate TR any time resource xml files change
