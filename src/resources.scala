@@ -734,7 +734,7 @@ object Resources {
       }
       case class LayoutFile(name: String, configs: List[String], path: File)
       sealed trait LayoutEntry
-      case class LayoutInclude(id: Option[String], layout: String) extends LayoutEntry
+      case class LayoutInclude(name: Option[String], id: Option[String], layout: String) extends LayoutEntry
       case class LayoutView(name: String, id: String, viewType: String) extends LayoutEntry
       case class LayoutStructure(name: String,
                                  rootView: String, rootId: Option[String],
@@ -756,11 +756,11 @@ object Resources {
           else if (n.label == "fragment")
             (root,children)
           else if (n.label == "include") {
-            val includeId = n.attribute(ANDROID_NS, "id") map (_.head.text) flatMap idNameFromString map (_._2)
+            val includeId = n.attribute(ANDROID_NS, "id") map (_.head.text) flatMap idNameFromString
             val includeLayout = n.attribute("layout").fold("")(_.head.text)
             includeLayout match {
               case includedre(l) =>
-                (root, LayoutInclude(includeId, l) :: children)
+                (root, LayoutInclude(includeId.map(_._1), includeId.map(_._2), l) :: children)
               case _ =>
                 (root,children)
             }
@@ -845,7 +845,7 @@ object Resources {
                 s.log.warn(s"TVH: '$name' already used in '${structure.name}', using '$actualName'")
               }
               (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
-            case LayoutInclude(id, included) =>
+            case LayoutInclude(name, id, included) =>
               if (!viewholders.contains(included)) {
                 android.fail(
                   s"""Included layout $included in ${structure.name} was not found
@@ -854,12 +854,15 @@ object Resources {
                     .stripMargin)
               }
               val vh = viewholders(included)
-              val actualIncluded = takeAlternative(seen, included)
-              if (seen(included))
-                s.log.warn(s"TVH: '$included' already used in '${structure.name}', using '$actualIncluded'")
-              val wrapi = wrap(actualIncluded)
+              val ident = name.getOrElse(included)
+              val actualIdent = takeAlternative(seen, ident)
+              val wrapId = wrap(actualIdent)
+
+              if (seen(ident))
+                s.log.warn(s"TVH: '$ident' already used in '${structure.name}', using '$actualIdent'")
+              val wrapi = wrap(included)
               if (vh.rootView == "merge") {
-                (seen + actualIncluded, s"    lazy val $wrapi = TypedViewHolder.${wrap(included)}(rootView)" :: items)
+                (seen + actualIdent, s"    lazy val $wrapId = TypedViewHolder.${wrapi}(rootView)" :: items)
               } else {
                 id.orElse(vh.rootId).fold {
                   val (newseen, newviews) = processViews(findClosestConfig(structure.config, vh :: vh.configs), seen)
@@ -867,7 +870,7 @@ object Resources {
                 } { i =>
                   val castType = classForLabel(j, vh.rootView).getOrElse("android.view.View")
                   val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
-                  (seen + i, s"    lazy val $wrapi = TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
+                  (seen + actualIdent, s"    lazy val $wrapId = TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
                 }
               }
           }}
