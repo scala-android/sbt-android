@@ -715,7 +715,8 @@ object Resources {
                           platform: (String,Seq[String]),
                           layout: ProjectLayout,
                           libs: Seq[LibraryDependency], includeAar: Boolean,
-                          ignores: Seq[String], s: TaskStreams): Seq[File] = {
+                          ignores: Seq[String], s: TaskStreams,
+                          platformApi: Int): Seq[File] = {
     val re = """@\+id/(\w+)""".r
     val re2 = """@(\w+):id/(\w+)""".r
     val includedre = """@layout/(\w+)""".r
@@ -836,15 +837,26 @@ object Resources {
           }._2
 
         def processViews(structure: LayoutStructure, _seen: Set[String]): (Set[String],List[String]) = {
+          def generateFindViewById(id: String, castType: String, platformApi: Int): String = {
+            if (platformApi >= 26) {
+              s"rootView.findViewById[$castType]($id)"
+            } else {
+              val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
+              s"rootView.findViewById($id)$cast"
+            }
+          }
+
           structure.views.foldLeft((_seen,List.empty[String])) { case ((seen,items), e) => e match {
             case LayoutView(name, id, viewType) =>
               val castType = classForLabel(j, viewType).getOrElse("android.view.View")
-              val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
               val actualName = takeAlternative(seen, name)
               if (seen(name)) {
                 s.log.warn(s"TVH: '$name' already used in '${structure.name}', using '$actualName'")
               }
-              (seen + actualName, s"    lazy val ${wrap(actualName)} = rootView.findViewById($id)$cast" :: items)
+
+              val typedMember = s"lazy val ${wrap(actualName)}: $castType = ${generateFindViewById(id, castType, platformApi)}"
+
+              (seen + actualName, s"    $typedMember" :: items)
             case LayoutInclude(name, id, included) =>
               if (!viewholders.contains(included)) {
                 android.fail(
@@ -869,8 +881,11 @@ object Resources {
                   (newseen, newviews ++ items)
                 } { i =>
                   val castType = classForLabel(j, vh.rootView).getOrElse("android.view.View")
-                  val cast = if (castType == "android.view.View") "" else s".asInstanceOf[$castType]"
-                  (seen + actualIdent, s"    lazy val $wrapId = TypedViewHolder.$wrapi(rootView.findViewById($i)$cast)" :: items)
+
+                  val typedMember =
+                    s"lazy val $wrapId: $castType = TypedViewHolder.$wrapId(${generateFindViewById(i, castType, platformApi)})"
+
+                  (seen + actualIdent, s"    $typedMember" :: items)
                 }
               }
           }}

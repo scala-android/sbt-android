@@ -361,7 +361,8 @@ object Tasks extends TaskBase {
       libraryProjects.value,
       typedResourcesAar.value,
       typedResourcesIgnores.value,
-      streams.value)
+      streams.value,
+      platformApi.value)
   }
 
   def ndkbuild(manager: AndroidSdkHandler, layout: ProjectLayout, args: Seq[String],
