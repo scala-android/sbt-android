@@ -893,7 +893,7 @@ object Resources {
                   val castType = classForLabel(j, vh.rootView).getOrElse("android.view.View")
 
                   val typedMember =
-                    s"lazy val $wrapId: $castType = TypedViewHolder.$wrapId(${generateFindViewById(i, castType, platformApi)})"
+                    s"lazy val $wrapId = TypedViewHolder.$wrapi(${generateFindViewById(i, castType, platformApi)})"
 
                   (seen + actualIdent, s"    $typedMember" :: items)
                 }
