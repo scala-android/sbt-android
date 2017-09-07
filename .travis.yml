@@ -21,6 +21,7 @@ android:
     - build-tools-23.0.1
     - platform-tools
     - android-24
+    - android-21
     - tools
     - extra
 before_script:
