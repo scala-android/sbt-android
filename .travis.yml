@@ -24,7 +24,7 @@ android:
     - extra
 before_script:
   # Emulator Management: Create, Start and Wait
-  - echo no | android create avd --force -n test -t android-21 --abi armeabi-v7a
+  - echo no | android create avd --force -n test -t android-24 --abi armeabi-v7a
   - emulator -avd test -no-audio -no-window &
   # install & cache NDK
   - curl https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux-x86_64.zip -z ${ANDROID_NDK_HOME}/ndk-build -o $HOME/ndk-${NDK_VERSION}.zip
