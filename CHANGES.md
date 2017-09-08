@@ -1,5 +1,9 @@
 ## New features in 1.7.x ##
 
+* `1.7.10`:
+  * change TypedViewHolder behavior: `<include>` layouts are now identified
+    by ID and not layout name
+  * make TypedViewHolder compatible with platformTarget O
 * `1.7.9`:
   * make TR compatible with platformTarget O
 * `1.7.8`:
