@@ -16,6 +16,8 @@ case class TypedResource[A](id: Int) extends AnyVal
 case class TypedLayout[A](id: Int)%2$s
 case class TypedRes[A](resid: Int) extends AnyVal {
   def value(implicit ev: TypedResource.TypedResValueOp[A], c: Context): ev.T = ev.resourceValue(resid)(c)
+  def format(args: Any*)(implicit ev: TypedResource.TypedResFormatOp[A], c: Context) =
+    ev.resourceFormat(resid, args: _*)(c)
   def unapply[T](t: T)(implicit ex: TypedResource.Extractor[A,T]): Boolean = ex.matches(resid, t)
 }
 
@@ -64,6 +66,12 @@ object TypedResource {
   trait TypedResValueOp[A] {
     type T
     def resourceValue(resid: Int)(implicit c: Context): T
+  }
+
+  @implicitNotFound("don't know how to .format() for ${A}, create a TypedResFormatOp[${A}] manually")
+  trait TypedResFormatOp[A] {
+    type T
+    def resourceFormat(resid: Int, args: Any*)(implicit c: Context): String
   }
 
   @implicitNotFound("didn't find an extractor for ${A},${T}; create an Extractor[${A},${T}] manually")
@@ -180,6 +188,13 @@ object TypedResource {
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
       c.getString(resid)
   }
+
+  implicit val trStringFormatOp: TypedResFormatOp[ResString] { type T = String } = new TypedResFormatOp[ResString] {
+    type T = String
+    @inline final def resourceFormat(resid: Int, args: Any*)(implicit c: Context): String =
+      c.getString(resid, args.asInstanceOf[Seq[Object]]: _*)
+  }
+
   implicit val trXmlValueOp: TypedResValueOp[ResXml] { type T = XmlResourceParser } = new TypedResValueOp[ResXml] {
     type T = XmlResourceParser
     @inline final def resourceValue(resid: Int)(implicit c: Context): T =
