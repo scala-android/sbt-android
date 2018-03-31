@@ -4,7 +4,7 @@ android.Plugin.androidBuild
 
 platformTarget in Android := "android-17"
 
-scalaVersion := "2.11.2"
+scalaVersion := "2.11.11"
 
 name := "hello-world"
 

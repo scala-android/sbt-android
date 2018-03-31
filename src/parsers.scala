@@ -21,7 +21,7 @@ import collection.JavaConverters._
   */
 private[android] object parsers {
   val ACTION_MAIN = "android.intent.action.MAIN"
-  def activityName(n: Node) = n.attribute(Resources.ANDROID_NS, "name").head.text
+  def activityName(n: Node): String = n.attribute(Resources.ANDROID_NS, "name").head.text
   def findMainActivities(element: Elem): NodeSeq = {
     for {
       a <- element \\ "activity" ++ element \\ "activity-alias"
@@ -58,7 +58,7 @@ private[android] object parsers {
     e.getOpt(Keys.Internal.sdkManager).orElse(existing).getOrElse(
       SdkInstaller.sdkManager(
         sbt.file(SdkInstaller.sdkPath(s.log, Tasks.loadProperties(sbt.file(".")))),
-        true, s.log))
+        showProgress = true, s.log))
   }
   def installSdkParser: State => Parser[Option[String]] = state => {
     val ind = SbtAndroidProgressIndicator(state.log)
@@ -81,15 +81,20 @@ private[android] object parsers {
       token(StringBasic).examples(updates:_*))
   }
   private[android] implicit val sbinaryFileFormat: sbinary.Format[File] = new sbinary.Format[File] {
-    override def writes(out: Output, value: File) = StringFormat.writes(out, value.getCanonicalPath)
-    override def reads(in: Input) = sbt.file(StringFormat.reads(in))
+    override def writes(out: Output, value: File): Unit = StringFormat.writes(out, value.getCanonicalPath)
+    override def reads(in: Input): File = sbt.file(StringFormat.reads(in))
   }
-  def loadForParser2[P, T: Format, T2: Format](task: TaskKey[T], task2: TaskKey[T2])
-                              (f: (State, Option[T], Option[T2]) => Parser[P]): Initialize[State => Parser[P]] =
-    loadForParserI2(task, task2)(Def value f)
+  def loadForParser2[P, T: Format, T2: Format]
+                    (task: TaskKey[T], task2: TaskKey[T2])
+                    (f: (State, Option[T], Option[T2]) => Parser[P]): Initialize[State => Parser[P]] =
+    loadForParserI2(task, task2)(Def.value(f))
 
-  def loadForParserI2[P, T : Format, T2 : Format](task: TaskKey[T], task2: TaskKey[T2])
-                               (init: Initialize[(State, Option[T], Option[T2]) => Parser[P]]): Initialize[State => Parser[P]] =
-    (sbt.Keys.resolvedScoped, init)((ctx, f) =>
-      (s: State) => f(s, loadFromContext(task, ctx, s), loadFromContext(task2, ctx, s)))
+  def loadForParserI2[P, T : Format, T2 : Format]
+                     (task: TaskKey[T], task2: TaskKey[T2])
+                     (init: Initialize[(State, Option[T], Option[T2]) => Parser[P]]): Initialize[State => Parser[P]] =
+    Def.setting{
+      val ctx = sbt.Keys.resolvedScoped.value
+      val f = init.value
+      (s: State) => f(s, loadFromContext(task, ctx, s), loadFromContext(task2, ctx, s))
+    }
 }

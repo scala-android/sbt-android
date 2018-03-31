@@ -390,5 +390,5 @@ object Keys extends DeprecatedPluginCompat {
     inScope(ThisScope.copy(project = Select(p)))(ss)
 
   implicit def projectsToRefs(pros: Seq[Project]): Seq[ProjectReference] =
-      pros map(a ⇒ a: ProjectReference)
+    pros map(a ⇒ a: ProjectReference)
 }

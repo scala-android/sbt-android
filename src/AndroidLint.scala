@@ -111,7 +111,7 @@ object AndroidLint {
 
           for {
             l1 <- Option(issue.location)
-            location <- Option(issue.location.getSecondary)
+            _ <- Option(issue.location.getSecondary)
           } {
             if (!short) {
               val s = alsoAffects(issue, Some(l1)).mkString
@@ -143,7 +143,7 @@ object AndroidLint {
       }
     }
 
-    def getDisplayPath(prj: LintProject, file: File) = {
+    def getDisplayPath(prj: LintProject, file: File): String = {
       var path = file.getPath
       if (!client.getFlags.isFullPath && path.startsWith(prj.getReferenceDir.getPath)) {
         var chop = prj.getReferenceDir.getPath.length

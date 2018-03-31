@@ -36,7 +36,7 @@ case object AndroidGlobalPlugin extends AutoPlugin {
   override def trigger = allRequirements
   override def requires = plugins.JvmPlugin
 
-  val autoImport = android.Keys
+  val autoImport: Keys.type = android.Keys
 
   override def buildSettings = Commands.androidCommands
 

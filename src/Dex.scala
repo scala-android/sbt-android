@@ -16,7 +16,7 @@ object Dex {
   def dexInputs(progOut: Option[File], in: ProguardInputs,
       pa: Aggregate.Proguard, ra: Aggregate.Retrolambda,
       multiDex: Boolean, b: File, deps: sbt.Keys.Classpath,
-      classJar: File, debug: Boolean, s: sbt.Keys.TaskStreams) = {
+      classJar: File, debug: Boolean, s: sbt.Keys.TaskStreams): (Boolean, Seq[File]) = {
     val re = ra.enable
     val progCache = pa.proguardCache
     val proguardRelease = pa.useProguard
@@ -53,7 +53,7 @@ object Dex {
   }
   def dex(bldr: AndroidBuilder, dexOpts: Aggregate.Dex, pd: Seq[(File,File)],
       pg: Option[File], legacy: Boolean, lib: Boolean,
-      bin: File, shard: Boolean, debug: Boolean, s: sbt.Keys.TaskStreams) = {
+      bin: File, shard: Boolean, debug: Boolean, s: sbt.Keys.TaskStreams): File = {
     //    if (dexes.isEmpty || dexIn.exists(i => dexes exists(_.lastModified <= i.lastModified))) {
 
     if (!legacy && shard && debug) {
@@ -188,7 +188,7 @@ object Dex {
     bin
   }
 
-  def predexFileName(inFile: File) = {
+  def predexFileName(inFile: File): String = {
     val n = inFile.getName
     val pos = n.lastIndexOf('.')
 
@@ -200,7 +200,7 @@ object Dex {
 
     name + "-" + hashCode.toString + SdkConstants.DOT_JAR
   }
-  def predexFileOutput(base: File, binPath: File, inFile: File) = {
+  def predexFileOutput(base: File, binPath: File, inFile: File): File = {
     val rpath = inFile relativeTo base
     val f = rpath.fold(SdkLayout.predex)(_ => binPath) / predexFileName(inFile)
     f.mkdirs()
@@ -210,7 +210,7 @@ object Dex {
   def predex(opts: Aggregate.Dex, inputs: Seq[File], multiDex: Boolean,
       legacy: Boolean, classes: File, pg: Option[File],
       bldr: AndroidBuilder, base: File, bin: File,
-      s: sbt.Keys.TaskStreams) = {
+      s: sbt.Keys.TaskStreams): Seq[(File, File)] = {
     bin.mkdirs()
     val options = opts.toDexOptions(incremental = false)
     if (!legacy && multiDex) {
@@ -242,7 +242,7 @@ object Dex {
                            inputs: Seq[File],
                            mainDexClasses: Seq[String],
                            bt: BuildToolInfo,
-                           s: sbt.Keys.TaskStreams)(implicit m: BuildOutput.Converter) = {
+                           s: sbt.Keys.TaskStreams)(implicit m: BuildOutput.Converter): File = {
     val mainDexListTxt = layout.maindexlistTxt.getAbsoluteFile
     mainDexListTxt.getParentFile.mkdirs()
     if (multidex && legacy) {

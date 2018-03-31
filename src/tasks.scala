@@ -53,14 +53,14 @@ object Tasks extends TaskBase {
     }
   }
 
-  val buildConfigGeneratorTaskDef = ( platformTarget
-                                    , projectLayout
-                                    , libraryProjects
-                                    , packageForR
-                                    , buildConfigOptions
-                                    , apkbuildDebug
-                                    ) map {
-    (t, layout, l, p, o, d) =>
+  val buildConfigGeneratorTaskDef = Def.task {
+    val t =  platformTarget.value
+    val layout = projectLayout.value
+    val l = libraryProjects.value
+    val p = packageForR.value
+    val o = buildConfigOptions.value
+    val d = apkbuildDebug.value
+
     val b = new BuildConfigGenerator(layout.gen, p)
     b.addField("boolean", "DEBUG", d.toString)
     o.groupBy(_._2).values.map(_.head) foreach {
@@ -201,18 +201,19 @@ object Tasks extends TaskBase {
     AarLibrary(dest)
   }
 
-  val autolibsTaskDef = ( localProjects
-                        , projectLayout
-                        , outputLayout
-                        , libraryProject
-                        , builder
-                        , ilogger
-                        , apkbuildDebug
-                        , resConfigs
-                        , aaptAdditionalParams
-                        , pseudoLocalesEnabled
-                        , streams ) map {
-   (prjs,layout,o, isLib,bldr,logger,debug,cfgs,aparams, pseudo, s) =>
+  val autolibsTaskDef = Def.task {
+    val prjs = localProjects.value
+    val layout = projectLayout.value
+    val o = outputLayout.value
+    val isLib = libraryProject.value
+    val bldr = builder.value
+    val logger = ilogger.value
+    val debug = apkbuildDebug.value
+    val cfgs = resConfigs.value
+    val aparams = aaptAdditionalParams.value
+    val pseudo = pseudoLocalesEnabled.value
+    val s = streams.value
+
      implicit val output = o
      prjs collect { case a: AutoLibraryProject => a } flatMap { lib =>
       s.log.info("Processing library project: " + lib.pkg)
@@ -236,17 +237,17 @@ object Tasks extends TaskBase {
     }
   }
 
-  val apklibsTaskDef = ( update in Compile
-                       , libraryDependencies in Compile
-                       , projectLayout
-                       , outputLayout
-                       , libraryProject
-                       , transitiveAndroidLibs
-                       , transitiveAndroidWarning
-                       , streams
-                       , aaptAggregate
-                       ) map {
-    (u,d,layout,o, isLib,tx,tw, s,agg) =>
+  val apklibsTaskDef = Def.task {
+    val u = (update in Compile).value
+    val d = (libraryDependencies in Compile).value
+    val layout = projectLayout.value
+    val o =  outputLayout.value
+    val isLib = libraryProject.value
+    val tx = transitiveAndroidLibs.value
+    val tw = transitiveAndroidWarning.value
+    val s = streams.value
+    val agg = aaptAggregate.value
+
     implicit val output = o
     val libs = u.matching(artifactFilter(`type` = "apklib"))
     val dest = layout.apklibs
@@ -295,9 +296,9 @@ object Tasks extends TaskBase {
     def comparePart(part: (String, String)) = {
       val (a, b) = part
       Try((a.toInt, b.toInt)) match {
-        case util.Success((l, r)) ⇒
+        case scala.util.Success((l, r)) ⇒
           l compareTo r
-        case util.Failure(_) ⇒
+        case scala.util.Failure(_) ⇒
           a compareTo b
       }
     }
@@ -403,13 +404,14 @@ object Tasks extends TaskBase {
     } else None
   }
 
-  val ndkJavahTaskDef = ( sourceManaged in Compile
-                        , compile in Compile
-                        , classDirectory in Compile
-                        , fullClasspath in Compile
-                        , bootClasspath
-                        , streams
-                        ) map { (src, c, classes, cp, boot, s) =>
+  val ndkJavahTaskDef = Def.task {
+    val src = (sourceManaged in Compile).value
+    val c = (compile in Compile).value
+    val classes = (classDirectory in Compile).value
+    val cp = (fullClasspath in Compile).value
+    val boot = bootClasspath.value
+    val s = streams.value
+
     val natives = NativeFinder(classes)
 
     if (natives.nonEmpty) {
@@ -432,16 +434,17 @@ object Tasks extends TaskBase {
     Aggregate.Ndkbuild(ndkJavah.value, ndkPath.value, ndkEnv.value, ndkArgs.value)
   }
 
-  val ndkBuildTaskDef = ( projectLayout
-                        , outputLayout
-                        , sdkManager
-                        , libraryProjects
-                        , sourceManaged in Compile
-                        , ndkbuildAggregate
-                        , showSdkProgress
-                        , streams
-                        , apkbuildDebug
-                        ) map { (layout, o, sdk, libs, srcs, agg, showProgress, s, debug) =>
+  val ndkBuildTaskDef = Def.task {
+    val layout = projectLayout.value
+    val o = outputLayout.value
+    val sdk = sdkManager.value
+    val libs = libraryProjects.value
+    val srcs = (sourceManaged in Compile).value
+    val agg = ndkbuildAggregate.value
+    val showProgress = showSdkProgress.value
+    val s = streams.value
+    val debug = apkbuildDebug.value
+
     implicit val output = o
     val subndk = libs flatMap { l =>
       ndkbuild(sdk, l.layout, agg.args, agg.env, agg.path, srcs, showProgress, s.log, debug()).toSeq
@@ -558,32 +561,31 @@ object Tasks extends TaskBase {
     outfile
   }
 
-  val packageResourcesTaskDef = ( aaptAggregate
-                                , projectLayout
-                                , outputLayout
-                                , extraResDirectories
-                                , processManifest
-                                , collectResources
-                                , packageForR
-                                , libraryProject
-                                , libraryProjects
-                                , streams
-                                ) map {
-    case (agg, layout, output, extrares, manif, (assets, res), pkg, lib, libs, s) =>
-      implicit val o = output
+  val packageResourcesTaskDef = Def.task {
+    val agg = aaptAggregate.value
+    val layout = projectLayout.value
+    val output = outputLayout.value
+    val extrares = extraResDirectories.value
+    val manif = processManifest.value
+    val (assets, res) = collectResources.value
+    val pkg = packageForR.value
+    val lib = libraryProject.value
+    val libs = libraryProjects.value
+    val s = streams.value
 
-      val p = layout.resApk(agg.debug)
-      withCachedRes(s, p.getName, layout.manifest +: normalres(layout, extrares, libs), genres(layout, libs)) {
-        layout.proguardTxt.getAbsolutePath
-        layout.proguardTxt.getParentFile.mkdirs()
+    implicit val o = output
+    val p = layout.resApk(agg.debug)
+    withCachedRes(s, p.getName, layout.manifest +: normalres(layout, extrares, libs), genres(layout, libs)) {
+      layout.proguardTxt.getAbsolutePath
+      layout.proguardTxt.getParentFile.mkdirs()
 
-        s.log.info("Packaging resources: " + p.getName)
-        Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams,
-          agg.resConfigs, libs, lib, agg.debug, agg.pseudoLocalize, res, assets, p,
-          layout.gen, layout.proguardTxt, layout.aaptTemp, s.log)
-        Set(p)
-      }
-      p
+      s.log.info("Packaging resources: " + p.getName)
+      Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams,
+        agg.resConfigs, libs, lib, agg.debug, agg.pseudoLocalize, res, assets, p,
+        layout.gen, layout.proguardTxt, layout.aaptTemp, s.log)
+      Set(p)
+    }
+    p
   }
 
   // collect un-merged resources for cached(),
@@ -625,8 +627,14 @@ object Tasks extends TaskBase {
       layout.unsignedApk(a.apkbuildDebug, n), logger, s)
   }
 
-  val signReleaseTaskDef = (apkSigningConfig, apkbuild, apkbuildDebug, projectLayout, outputLayout, streams) map {
-    (c, a, d, l, o, s) =>
+  val signReleaseTaskDef = Def.task {
+    val c = apkSigningConfig.value
+    val a = apkbuild.value
+    val d = apkbuildDebug.value
+    val l = projectLayout.value
+    val o = outputLayout.value
+    val s = streams.value
+
     implicit val output = o
     if (d()) {
       s.log.info("Debug package does not need signing: " + a.getName)
@@ -656,8 +664,14 @@ object Tasks extends TaskBase {
     }
   }
 
-  val zipalignTaskDef = (zipalignPath, signRelease, apkFile, projectLayout, outputLayout, streams) map {
-    (z, r, a, l, o, s) =>
+  val zipalignTaskDef = Def.task {
+    val z = zipalignPath.value
+    val r = signRelease.value
+    val a = apkFile.value
+    val l = projectLayout.value
+    val o = outputLayout.value
+    val s = streams.value
+
     implicit val output = o
     if (r.getName.contains("-unsigned")) {
       s.log.warn("Package needs signing and zipaligning: " + r.getName)
@@ -718,12 +732,13 @@ object Tasks extends TaskBase {
     (layout.rsSrc ** "*.java").get
   }
 
-  val aidlTaskDef = ( sdkPath
-                    , sdkManager
-                    , projectLayout
-                    , platform
-                    , streams
-                    ) map { (s, m, layout, p, l) =>
+  val aidlTaskDef = Def.task {
+    val s = sdkPath.value
+    val m = sdkManager.value
+    val layout = projectLayout.value
+    val p = platform.value
+    val l = streams.value
+
     val tools = Option(m.getLatestBuildTool(SbtAndroidProgressIndicator(l.log), false))
     val aidl  = tools map (_.getPath(PathId.AIDL)) getOrElse SdkLayout.aidl(s).getCanonicalPath
     val frameworkAidl = p.getTarget.getPath(IAndroidTarget.ANDROID_AIDL)
@@ -833,34 +848,34 @@ object Tasks extends TaskBase {
     output
   }
 
-  val rGeneratorTaskDef = ( aaptAggregate
-                          , projectLayout
-                          , outputLayout
-                          , extraResDirectories
-                          , processManifest
-                          , collectResources
-                          , packageForR
-                          , libraryProject
-                          , libraryProjects
-                          , streams
-                          ) map {
-    case (agg, layout, o, extrares, manif, (assets, res), pkg, lib, libs, s) =>
-      implicit val output = o
-      layout.proguardTxt
-      layout.proguardTxt.getParentFile.mkdirs()
+  val rGeneratorTaskDef = Def.task {
+    val agg = aaptAggregate.value
+    val layout = projectLayout.value
+    val o = outputLayout.value
+    val extrares = extraResDirectories.value
+    val manif = processManifest.value
+    val (assets, res) = collectResources.value
+    val pkg = packageForR.value
+    val lib = libraryProject.value
+    val libs = libraryProjects.value
+    val s = streams.value
 
-      // not covered under FileFunction.cached because FilesInfo.hash is too
-      // slow. Just let aapt do its thing every time...
-      withCachedRes(s, "R.java",
-        normalres(layout, extrares, libs), genres(layout, libs)) {
-        s.log.info("Processing resources")
-        if (!res.exists)
-          s.log.warn("No resources found at " + res.getAbsolutePath)
-        Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams,
-          agg.resConfigs, libs, lib, agg.debug, agg.pseudoLocalize, res, assets, null, layout.gen,
-          layout.proguardTxt, layout.aaptTemp, s.log)
-        (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
-      }
+    implicit val output = o
+    layout.proguardTxt
+    layout.proguardTxt.getParentFile.mkdirs()
+
+    // not covered under FileFunction.cached because FilesInfo.hash is too
+    // slow. Just let aapt do its thing every time...
+    withCachedRes(s, "R.java",
+      normalres(layout, extrares, libs), genres(layout, libs)) {
+      s.log.info("Processing resources")
+      if (!res.exists)
+        s.log.warn("No resources found at " + res.getAbsolutePath)
+      Resources.aapt(agg.builder(s.log), manif, pkg, agg.additionalParams,
+        agg.resConfigs, libs, lib, agg.debug, agg.pseudoLocalize, res, assets, null, layout.gen,
+        layout.proguardTxt, layout.aaptTemp, s.log)
+      (layout.gen ** "R.java" get) ++ (layout.gen ** "Manifest.java" get) toSet
+    }
   }
 
   def withCachedRes(s: sbt.Keys.TaskStreams, tag: String, inStamp: Seq[File],
@@ -878,13 +893,14 @@ object Tasks extends TaskBase {
     }
   }
 
-  val proguardConfigTaskDef = ( projectLayout
-                              , outputLayout
-                              , sdkPath
-                              , aars
-                              , transitiveAars
-                              , streams) map {
-    (layout, out, p, a, txa, s) =>
+  val proguardConfigTaskDef = Def.task {
+    val layout = projectLayout.value
+    val out = outputLayout.value
+    val p = sdkPath.value
+    val a = aars.value
+    val txa = transitiveAars.value
+    val s = streams.value
+
     implicit val output = out
     val proguardTxt     = layout.proguardTxt
     val proguardProject = layout.proguard
@@ -937,19 +953,20 @@ object Tasks extends TaskBase {
     Aggregate.Retrolambda(retrolambdaEnabled.value,
       Project.extract(state.value).currentUnit.classpath, bootClasspath.value.map(_.data), builder.value)
   }
-  val dexInputsTaskDef = ( proguard
-                         , proguardInputs
-                         , proguardAggregate
-                         , retrolambdaAggregate
-                         , dexMulti
-                         , projectLayout
-                         , outputLayout
-                         , dependencyClasspath
-                         , apkbuildDebug
-                         , streams) map {
-    (progOut, in, pa, ra, multiDex, b, o, deps, debug, s) =>
-      implicit val output = o
-      Dex.dexInputs(progOut, in, pa, ra, multiDex, b.dex, deps, b.classesJar, debug(), s)
+  val dexInputsTaskDef = Def.task {
+    val progOut = proguard.value
+    val in = proguardInputs.value
+    val pa = proguardAggregate.value
+    val ra = retrolambdaAggregate.value
+    val multiDex = dexMulti.value
+    val b = projectLayout.value
+    val o = outputLayout.value
+    val deps = dependencyClasspath.value
+    val debug = apkbuildDebug.value
+    val s = streams.value
+
+    implicit val output = o
+    Dex.dexInputs(progOut, in, pa, ra, multiDex, b.dex, deps, b.classesJar, debug(), s)
   }
 
   val manifestAggregateTaskDef = Def.task {
@@ -968,21 +985,22 @@ object Tasks extends TaskBase {
       dexInProcess.value, buildToolInfo.value, dexAdditionalParams.value)
   }
 
-  val dexTaskDef = ( builder
-                   , dexAggregate
-                   , dexShards
-                   , predex
-                   , dexLegacyMode
-                   , libraryProject
-                   , projectLayout
-                   , outputLayout
-                   , apkbuildDebug
-                   , streams) map {
-    case (bldr, dexOpts, shards, pd, legacy, lib, bin, o, d, s) =>
-      implicit val output = o
-      if (lib)
-        PluginFail("This project cannot dex, it has set 'libraryProject := true'")
-      Dex.dex(bldr(s.log), dexOpts, pd, None /* unused, left for compat */, legacy, lib, bin.dex, shards, d(), s)
+  val dexTaskDef = Def.task {
+    val bldr = builder.value
+    val dexOpts = dexAggregate.value
+    val shards = dexShards.value
+    val pd = predex.value
+    val legacy = dexLegacyMode.value
+    val lib = libraryProject.value
+    val bin = projectLayout.value
+    val o = outputLayout.value
+    val d = apkbuildDebug.value
+    val s = streams.value
+
+    implicit val output = o
+    if (lib)
+      PluginFail("This project cannot dex, it has set 'libraryProject := true'")
+    Dex.dex(bldr(s.log), dexOpts, pd, None /* unused, left for compat */, legacy, lib, bin.dex, shards, d(), s)
   }
 
   val predexTaskDef = Def.task {
@@ -1005,22 +1023,22 @@ object Tasks extends TaskBase {
       multiDex || shards, legacy, classes, pg, bldr, baseDirectory.value, layout.predex, s)
   }
 
-  val proguardInputsTaskDef = ( proguardAggregate
-                              , proguardLibraries
-                              , dependencyClasspath
-                              , bootClasspath
-                              , projectLayout
-                              , outputLayout
-                              , apkbuildDebug
-                              , streams
-                              ) map {
-    case (pa, l, d, b, c, o, dbg, st) =>
-      implicit val output = o
-      Proguard.proguardInputs(
-        (pa.useProguard && !dbg()) || (pa.useProguardInDebug && dbg()),
-        pa.proguardOptions, pa.proguardConfig,
-        l, d, b, c.classesJar, pa.proguardScala, pa.proguardCache, dbg(), st)
-  }
+  val proguardInputsTaskDef = Def.task {
+    val pa = proguardAggregate.value
+    val l = proguardLibraries.value
+    val d = dependencyClasspath.value
+    val b = bootClasspath.value
+    val c = projectLayout.value
+    val o = outputLayout.value
+    val dbg = apkbuildDebug.value
+    val st = streams.value
+
+    implicit val output = o
+    Proguard.proguardInputs(
+      (pa.useProguard && !dbg()) || (pa.useProguardInDebug && dbg()),
+      pa.proguardOptions, pa.proguardConfig,
+      l, d, b, c.classesJar, pa.proguardScala, pa.proguardCache, dbg(), st)
+   }
 
   val resourceShrinkerTaskDef = Def.task {
     val jar = proguard.value
@@ -1057,19 +1075,19 @@ object Tasks extends TaskBase {
       proguardConfig.value, proguardOptions.value, proguardCache.value)
   }
 
-  val proguardTaskDef: Def.Initialize[Task[Option[File]]] =
-      ( proguardAggregate
-      , builder
-      , libraryProject
-      , proguardInputs
-      , apkbuildDebug
-      , projectLayout
-      , outputLayout
-      , retrolambdaAggregate
-      , streams
-      ) map { case (a, bldr, l, inputs, d, b, output, ra, s) =>
-        implicit val o = output
-        Proguard.proguard(a, bldr(s.log), l, inputs, d(), b.proguardOut, ra, s)
+  val proguardTaskDef: Def.Initialize[Task[Option[File]]] = Def.task {
+    val a = proguardAggregate.value
+    val bldr = builder.value
+    val l = libraryProject.value
+    val inputs = proguardInputs.value
+    val d = apkbuildDebug.value
+    val b = projectLayout.value
+    val output = outputLayout.value
+    val ra = retrolambdaAggregate.value
+    val s = streams.value
+
+    implicit val o = output
+    Proguard.proguard(a, bldr(s.log), l, inputs, d(), b.proguardOut, ra, s)
   }
 
   case class TestListener(log: Logger) extends ITestRunListener {
@@ -1405,13 +1423,13 @@ object Tasks extends TaskBase {
 
   val KB = 1024 * 1.0
   val MB = KB * KB
-  val installTaskDef = ( packageT
-                       , libraryProject
-                       , sdkPath
-                       , installTimeout
-                       , allDevices
-                       , streams) map {
-    (p, l, k, timeo, all, s) =>
+  val installTaskDef = Def.task {
+    val p = packageT.value
+    val l = libraryProject.value
+    val k = sdkPath.value
+    val timeo = installTimeout.value
+    val all = allDevices.value
+    val s = streams.value
 
     if (!l) {
       def execute(d: IDevice): Unit = {
@@ -1478,8 +1496,13 @@ object Tasks extends TaskBase {
       log.info("[%s] Uninstall finished" format packageName)
     }
   }
-  val uninstallTaskDef = (sdkPath, applicationId, streams, allDevices) map { (k,p,s,all) =>
-    def uninstall(device: IDevice) {
+  val uninstallTaskDef = Def.task {
+    val k = sdkPath.value
+    val p = applicationId.value
+    val s = streams.value
+    val all = allDevices.value
+
+    def uninstall(device: IDevice): Unit = {
       uninstallPackage(Some(s.cacheDirectory), p, k, device, s.log)
     }
 
@@ -1500,12 +1523,13 @@ object Tasks extends TaskBase {
       }) distinct
   }
 
-  val unmanagedJarsTaskDef = ( unmanagedJars
-                             , baseDirectory
-                             , buildToolInfo
-                             , rsSupportMode
-                             , libraryProjects, streams) map {
-    (u, b, t, rs, l, s) =>
+  val unmanagedJarsTaskDef = Def.task {
+    val u = unmanagedJars.value
+    val b = baseDirectory.value
+    val t = buildToolInfo.value
+    val rs = rsSupportMode.value
+    val l = libraryProjects.value
+    val s = streams.value
 
     val rsJars =
       if (rs) SdkLayout.renderscriptSupportLibs(t).map(f =>

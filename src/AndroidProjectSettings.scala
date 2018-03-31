@@ -36,25 +36,30 @@ trait AndroidProjectSettings extends AutoPlugin {
   }
 
   private def allPluginSettings: Seq[Setting[_]] = inConfig(Compile) (Seq(
-    dependencyClasspath <<= Def.taskDyn {
-      val dcp = dependencyClasspath.value
-      if (debugIncludesTests.?.value.getOrElse(false) && apkbuildDebug.value()) Def.task {
-        (dcp ++ (externalDependencyClasspath in AndroidTest).value).distinct
-      } else Def.task {
-        dcp.distinct
+    dependencyClasspath := {
+      Def.taskDyn {
+        val dcp = dependencyClasspath.value
+        if (debugIncludesTests.?.value.getOrElse(false) && apkbuildDebug.value()) Def.task {
+          (dcp ++ (externalDependencyClasspath in AndroidTest).value).distinct
+        } else Def.task {
+          dcp.distinct
+        }
       }
-    },
-    compile <<= ( compile
-      , lintDetectors
-      , lintFlags
-      , lintEnabled
-      , lintStrict
-      , projectLayout
-      , outputLayout
-      , classDirectory
-      , minSdkVersion
-      , targetSdkVersion
-      , streams) map { (c, ld, f, en, strict, layout, o, classes, minSdk, tgtSdk, s) =>
+    }.value,
+    compile := {
+      val c       = compile.value
+      val ld      = lintDetectors.value
+      val f       = lintFlags.value
+      val en      = lintEnabled.value
+      val strict  = lintStrict.value
+      val layout  = projectLayout.value
+      val o       = outputLayout.value
+      val classes = classDirectory.value
+      val minSdk  = minSdkVersion.value
+      val tgtSdk  = targetSdkVersion.value
+      val s       = streams.value
+
+
       checkVersion("minSdkVersion", minSdk)
       checkVersion("targetSdkVersion", tgtSdk)
       implicit val output = o
@@ -69,13 +74,13 @@ trait AndroidProjectSettings extends AutoPlugin {
     },
     // was necessary prior to 0.13.8 to squelch "No main class detected" warning
     //packageOptions in packageBin := Package.JarManifest(new java.util.jar.Manifest) :: Nil,
-    packageConfiguration in packageBin <<= ( packageConfiguration in packageBin
-      , baseDirectory
-      , libraryProject
-      , projectLayout
-      , outputLayout
-      ) map {
-      (c, b, l, p, o) =>
+    packageConfiguration in packageBin := {
+      val c = (packageConfiguration in packageBin).value
+      val b = baseDirectory.value
+      val l = libraryProject.value
+      val p = projectLayout.value
+      val o = outputLayout.value
+
         // remove R.java generated code from library projects
         implicit val output = o
         val sources = if (l) {
@@ -91,7 +96,7 @@ trait AndroidProjectSettings extends AutoPlugin {
     resourceDirectory  := projectLayout.value.resources,
     scalaSource        := projectLayout.value.scalaSource,
     javaSource         := projectLayout.value.javaSource,
-    unmanagedJars     <<= unmanagedJarsTaskDef,
+    unmanagedJars      := unmanagedJarsTaskDef.value,
     // doesn't work properly yet, not for intellij integration
     //managedClasspath  <<= managedClasspathTaskDef,
     sourceGenerators   := sourceGenerators.value ++ List(
@@ -109,19 +114,19 @@ trait AndroidProjectSettings extends AutoPlugin {
         }) map (_.getAbsoluteFile)
       }.taskValue
     ),
-    packageT          <<= packageT dependsOn compile,
-    javacOptions      <<= ( javacOptions
-      , bootClasspath
-      , apkbuildDebug
-      , retrolambdaEnabled) map {
-      (o,boot, debug, re) =>
-        // users will want to call clean before compiling if changing debug
-        val debugOptions = if (debug()) Seq("-g") else Seq.empty
-        val bcp = boot.map(_.data) mkString File.pathSeparator
-        // make sure javac doesn't create code that proguard won't process
-        // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
-        o ++ (if (!re) Seq("-bootclasspath" , bcp) else
-          Seq("-Xbootclasspath/a:" + bcp)) ++ debugOptions
+    packageT          := (packageT dependsOn compile).value,
+    javacOptions      := {
+      val o = javacOptions.value
+      val boot = bootClasspath.value
+      val debug = apkbuildDebug.value
+      val re = retrolambdaEnabled.value
+
+      // users will want to call clean before compiling if changing debug
+      val debugOptions = if (debug()) Seq("-g") else Seq.empty
+      val bcp = boot.map(_.data) mkString File.pathSeparator
+      // make sure javac doesn't create code that proguard won't process
+      // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
+      o ++ (if (!re) Seq("-bootclasspath" , bcp) else Seq("-Xbootclasspath/a:" + bcp)) ++ debugOptions
     },
     javacOptions in doc := {
       (javacOptions in doc).value.flatMap { opt =>
@@ -134,7 +139,10 @@ trait AndroidProjectSettings extends AutoPlugin {
         (x, a) => if (x != "-target") x :: a else a.drop(1)
       }
     },
-    scalacOptions     <<= (scalacOptions, bootClasspath) map { (o,boot) =>
+    scalacOptions     := {
+      val o = scalacOptions.value
+      val boot = bootClasspath.value
+
       // scalac has -g:vars by default
       val bcp = boot.map(_.data) mkString File.pathSeparator
       o ++ Seq("-bootclasspath", bcp, "-javabootclasspath", bcp)
@@ -171,36 +179,36 @@ trait AndroidProjectSettings extends AutoPlugin {
     classDirectory              := (classDirectory in Test).value,
     sourceDirectory             := projectLayout.value.testSources,
     managedSources              := Nil,
-    unmanagedSourceDirectories <<= projectLayout (l =>
-      Set(l.testSources, l.testJavaSource, l.testScalaSource).toSeq),
-    unmanagedSources           <<= Defaults.collectFiles(
+    unmanagedSourceDirectories  := projectLayout(l => Set(l.testSources, l.testJavaSource, l.testScalaSource).toSeq).value,
+    unmanagedSources            := Defaults.collectFiles(
       unmanagedSourceDirectories,
       includeFilter in (Compile,unmanagedSources),
-      excludeFilter in (Compile,unmanagedSources)),
-    sources <<= Classpaths.concat(unmanagedSources, managedSources),
+      excludeFilter in (Compile,unmanagedSources)).value,
+    sources := Classpaths.concat(unmanagedSources, managedSources).value,
     // productX := Nil is a necessity to use Classpaths.configSettings
     exportedProducts         := Nil,
     products                 := Nil,
     classpathConfiguration   := config("compile"),
     // end for Classpaths.configSettings
     // hack since it doesn't take in dependent project's libs
-    dependencyClasspath     <<= Def.taskDyn {
-      val cp = (dependencyClasspath in Runtime).value
-      val layout = projectLayout.value
-      implicit val out = outputLayout.value
-      if (apkbuildDebug.value() && debugIncludesTests.?.value.getOrElse(false)) Def.task {
-        val s = streams.value
-        val tcp = (externalDependencyClasspath in AndroidTest).value
-        cp foreach { a =>
-          s.log.debug("%s => %s: %s" format (a.data.getName,
-            a.get(configuration.key), a.get(moduleID.key)))
+    dependencyClasspath      :=
+      Def.taskDyn {
+        val cp = (dependencyClasspath in Runtime).value
+        val layout = projectLayout.value
+        implicit val out = outputLayout.value
+        if (apkbuildDebug.value() && debugIncludesTests.?.value.getOrElse(false)) Def.task {
+          val s = streams.value
+          val tcp = (externalDependencyClasspath in AndroidTest).value
+          cp foreach { a =>
+            s.log.debug("%s => %s: %s" format(a.data.getName,
+              a.get(configuration.key), a.get(moduleID.key)))
+          }
+          val newcp = cp ++ tcp
+          newcp.distinct.filterNot(_.data == layout.classesJar)
+        } else Def.task {
+          cp.distinct.filterNot(_.data == layout.classesJar)
         }
-        val newcp = cp ++ tcp
-        newcp.distinct.filterNot(_.data == layout.classesJar)
-      } else Def.task {
-        cp.distinct.filterNot(_.data == layout.classesJar)
-      }
-    },
+      }.value,
     updateCheck              := {
       val log = streams.value.log
       UpdateChecker("pfn", "sbt-plugins", "sbt-android") {
@@ -219,7 +227,7 @@ trait AndroidProjectSettings extends AutoPlugin {
           }
       }
     },
-    updateCheckSdk          <<= SdkInstaller.updateCheckSdkTaskDef,
+    updateCheckSdk           := SdkInstaller.updateCheckSdkTaskDef.value,
     showSdkProgress          := true,
     antLayoutDetector        := {
       val log = streams.value.log
@@ -232,30 +240,30 @@ trait AndroidProjectSettings extends AutoPlugin {
         case _ =>
       }
     },
-    transitiveAndroidLibs    := true,
-    transitiveAndroidWarning := true,
-    testAarWarning           := true,
-    autolibs                <<= autolibsTaskDef,
-    apklibs                 <<= apklibsTaskDef,
-    localAars                := Nil,
-    aars                    <<= aarsTaskDef,
-    transitiveAars           := Nil,
+    transitiveAndroidLibs     := true,
+    transitiveAndroidWarning  := true,
+    testAarWarning            := true,
+    autolibs                  := autolibsTaskDef.value,
+    apklibs                   := apklibsTaskDef.value,
+    localAars                 := Nil,
+    aars                      := aarsTaskDef.value,
+    transitiveAars            := Nil,
     // TODO remove producing apklib in a future version
-    apklibArtifact          <<= normalizedName { n => Artifact(n, "apklib", "apklib") },
-    packageApklib           <<= packageApklibTaskDef,
-    mappings in packageApklib <<= packageApklibMappings,
-    aaptAggregate           <<= aaptAggregateTaskDef,
-    aaptAdditionalParams     := Nil,
-    pseudoLocalesEnabled     := false,
-    aaptPngCrunch            := true,
-    aapt9PngCrunch           := true,
-    cleanForR               <<= (rGenerator
-      , projectLayout
-      , outputLayout
-      , classDirectory in Compile
-      , streams
-      ) map {
-      (_, l, o, d, s) =>
+    apklibArtifact            := normalizedName { n => Artifact(n, "apklib", "apklib") }.value,
+    packageApklib             := packageApklibTaskDef.value,
+    mappings in packageApklib := packageApklibMappings.value,
+    aaptAggregate             := aaptAggregateTaskDef.value,
+    aaptAdditionalParams      := Nil,
+    pseudoLocalesEnabled      := false,
+    aaptPngCrunch             := true,
+    aapt9PngCrunch            := true,
+    cleanForR                 := {
+        val _ = rGenerator.value
+        val l = projectLayout.value
+        val o = outputLayout.value
+        val d = (classDirectory in Compile).value
+        val s = streams.value
+
         implicit val output = o
         FileFunction.cached(s.cacheDirectory / "clean-for-r",
           FilesInfo.hash, FilesInfo.exists) { in =>
@@ -267,7 +275,7 @@ trait AndroidProjectSettings extends AutoPlugin {
         }(Set((l.generatedSrc ** "R.java").get: _*))
         Seq.empty[File]
     },
-    buildConfigGenerator    <<= buildConfigGeneratorTaskDef,
+    buildConfigGenerator     := buildConfigGeneratorTaskDef.value,
     buildConfigOptions       := {
       val pkg = applicationId.value
       val (buildType,flavor) = variantConfiguration.value
@@ -282,71 +290,70 @@ trait AndroidProjectSettings extends AutoPlugin {
     },
     resConfigs               := Nil,
     resValues                := Nil,
-    resValuesGenerator      <<= resValuesGeneratorTaskDef,
-    rGenerator              <<= rGeneratorTaskDef,
-    rGenerator              <<= rGenerator dependsOn renderscript,
-    ndkJavah                <<= ndkJavahTaskDef,
+    resValuesGenerator       := resValuesGeneratorTaskDef.value,
+    rGenerator               := rGeneratorTaskDef.value,
+    rGenerator               := (rGenerator dependsOn renderscript).value,
+    ndkJavah                 := ndkJavahTaskDef.value,
     ndkAbiFilter             := Nil,
     ndkEnv                   := Nil,
     ndkArgs                  := Nil,
-    ndkBuild                <<= ndkBuildTaskDef,
-    aidl                    <<= aidlTaskDef,
-    rsTargetApi             <<= (properties, minSdkVersion) map { (p, m) =>
+    ndkBuild                 := ndkBuildTaskDef.value,
+    aidl                     := aidlTaskDef.value,
+    rsTargetApi              := {
+      val p = properties.value
+      val m = minSdkVersion.value
+
       Option(p.getProperty("renderscript.target")).getOrElse(m)
     },
-    rsSupportMode           <<= properties { p =>
+    rsSupportMode            := properties { p =>
       Try(p.getProperty("renderscript.support.mode").toBoolean).getOrElse(false)
-    },
-    rsOptimLevel            := 3,
-    renderscript            <<= renderscriptTaskDef,
-    localProjects           <<= (baseDirectory, properties, outputLayout) { (b,p,o) =>
+    }.value,
+    rsOptimLevel             := 3,
+    renderscript             := renderscriptTaskDef.value,
+    localProjects            := {
+      val b = baseDirectory.value
+      val p = properties.value
+      val o = outputLayout.value
+
       loadLibraryReferences(b, p)(o)
     },
     libraryProjects          := localProjects.value ++ apklibs.value ++ aars.value,
-    libraryProject          <<= properties { p =>
-      Option(p.getProperty("android.library")) exists { _.equals("true") } },
-    checkAars               <<= checkAarsTaskDef,
-    collectResourcesAggregate <<= collectResourcesAggregateTaskDef,
-    manifestAggregate       <<= manifestAggregateTaskDef,
-    ndkbuildAggregate       <<= ndkbuildAggregateTaskDef,
-    retrolambdaAggregate    <<= retrolambdaAggregateTaskDef,
-    platformJars            <<= platform { p =>
+    libraryProject           := properties { p =>
+      Option(p.getProperty("android.library")) exists { _.equals("true") } }.value,
+    checkAars                := checkAarsTaskDef.value,
+    collectResourcesAggregate:= collectResourcesAggregateTaskDef.value,
+    manifestAggregate        := manifestAggregateTaskDef.value,
+    ndkbuildAggregate        := ndkbuildAggregateTaskDef.value,
+    retrolambdaAggregate     := retrolambdaAggregateTaskDef.value,
+    platformJars             := platform { p =>
       val t = p.getTarget
       (t.getPath(IAndroidTarget.ANDROID_JAR),
         t.getOptionalLibraries.asScala map (_.getJar.getAbsolutePath))
-    },
+    }.value,
     projectLayout            := ProjectLayout(baseDirectory.value, Some(target.value)),
     outputLayout             := { layout => new BuildOutput.AndroidOutput(layout) },
-    manifestPath            <<= projectLayout { l =>
-      l.manifest
-    },
-    properties              <<= projectLayout (l => loadProperties(l.base)),
+    manifestPath             := projectLayout(l => l.manifest).value,
+    properties               := projectLayout(l => loadProperties(l.base)).value,
     mergeManifests           := true,
     manifestPlaceholders     := Map.empty,
     manifestOverlays         := Seq.empty,
-    processManifest         <<= processManifestTaskDef storeAs processManifest,
-    manifest                <<= manifestPath map { m =>
+    processManifest          := (processManifestTaskDef storeAs processManifest).value,
+    manifest                 := (manifestPath map { m =>
       if (!m.exists)
         fail("cannot find AndroidManifest.xml: " + m)
       XML.loadFile(m)
-    },
-    versionCode              := {
-      manifest.value.attribute(ANDROID_NS, "versionCode").map(_.head.text.toInt)
-    },
-    versionName              := {
-      manifest.value.attribute(
-        ANDROID_NS, "versionName").map(_.head.text) orElse Some(version.value)
-    },
-    packageForR             <<= manifest map { m =>
-      m.attribute("package").get.head.text
-    },
-    applicationId           <<= Def.task {
-      Forwarder.deprecations.packageName.?.value.fold(manifest.value.attribute("package").head.text) { p =>
-        streams.value.log.warn(
-          "'packageName in Android' is deprecated, use 'applicationId'")
-        p
-      }
-    } storeAs applicationId,
+    }).value,
+    versionCode              := manifest.value.attribute(ANDROID_NS, "versionCode").map(_.head.text.toInt),
+    versionName              := manifest.value.attribute(ANDROID_NS, "versionName").map(_.head.text) orElse Some(version.value),
+    packageForR              := (manifest map { m => m.attribute("package").get.head.text}).value,
+    applicationId            :=
+      Def.task {
+        Forwarder.deprecations.packageName.?.value.fold(manifest.value.attribute("package").head.text) { p =>
+          streams.value.log.warn(
+            "'packageName in Android' is deprecated, use 'applicationId'")
+          p
+        }
+      }.storeAs(applicationId).value,
     targetSdkVersion         := {
       val m = manifest.value
       val usesSdk = m \ "uses-sdk"
@@ -364,30 +371,36 @@ trait AndroidProjectSettings extends AutoPlugin {
         usesSdk.head.attribute(ANDROID_NS, "minSdkVersion").fold(usemin) { _.head.text }
     },
     retrolambdaEnabled       := false,
-    typedResources          <<= autoScalaLibrary,
+    typedResources           := autoScalaLibrary.value,
     typedResourcesIds        := true,
     typedResourcesFull       := true,
     typedResourcesAar        := false,
-    typedViewHolders        <<= autoScalaLibrary,
+    typedViewHolders         := autoScalaLibrary.value,
     typedResourcesIgnores    := Seq.empty,
-    typedResourcesGenerator <<= typedResourcesGeneratorTaskDef,
-    viewHoldersGenerator    <<= viewHoldersGeneratorTaskDef,
+    typedResourcesGenerator  := typedResourcesGeneratorTaskDef.value,
+    viewHoldersGenerator     := viewHoldersGeneratorTaskDef.value,
     extraResDirectories         := Nil,
     extraAssetDirectories       := Nil,
     renderVectorDrawables    := true,
-    collectResources        <<= collectResourcesTaskDef,
-    collectResources        <<= collectResources dependsOn renderscript,
-    collectResources        <<= collectResources dependsOn resValuesGenerator,
-    collectResources        <<= collectResources dependsOn checkAars,
-    collectProjectJni       <<= collectProjectJniTaskDef,
-    collectProjectJni       <<= collectProjectJni dependsOn renderscript,
-    collectJni              <<= collectJniTaskDef,
+    collectResources         := collectResourcesTaskDef.value,
+    collectResources         := (collectResources dependsOn renderscript).value,
+    collectResources         := (collectResources dependsOn resValuesGenerator).value,
+    collectResources         := (collectResources dependsOn checkAars).value,
+    collectProjectJni        := collectProjectJniTaskDef.value,
+    collectProjectJni        := (collectProjectJni dependsOn renderscript).value,
+    collectJni               := collectJniTaskDef.value,
     proguardOptions          := Nil,
     apkbuildDebug            := MutableSetting(true),
-    setDebug                 := { apkbuildDebug.value(true) },
-    setRelease               := { apkbuildDebug.value(false) },
+    setDebug                 := apkbuildDebug.value(true),
+    setRelease               := apkbuildDebug.value(false),
     sdkPath                  := SdkInstaller.sdkPath(sLog.value, properties.value),
-    ndkPath                 <<= (thisProject,properties, sdkPath, sLog) { (p,props,sdkPath, log) => {
+    ndkPath                  := {
+
+      val p     = thisProject.value
+      val props = properties.value
+      val spath = sdkPath.value
+      val log   = sLog.value
+
       val cache = SdkLayout.androidNdkHomeCache
       def storePathInCache(path: String) = {
         cache.getParentFile.mkdirs()
@@ -395,7 +408,7 @@ trait AndroidProjectSettings extends AutoPlugin {
       }
       def propertiesSetting = Option(props getProperty "ndk.dir").map("'ndk.dir' property" -> _)
       def envVarSetting = Option(System getenv "ANDROID_NDK_HOME").map("'ANDROID_NDK_HOME' env var" -> _)
-      def sdkBundleFallback = Some(SdkLayout.ndkBundle(sdkPath)).filter(_.isDirectory).map("ndk-bundle" -> _.absolutePath)
+      def sdkBundleFallback = Some(SdkLayout.ndkBundle(spath)).filter(_.isDirectory).map("ndk-bundle" -> _.absolutePath)
 
       val alternatives = propertiesSetting ++ envVarSetting ++ sdkBundleFallback
       val foundNdk = alternatives.view.map {
@@ -406,7 +419,7 @@ trait AndroidProjectSettings extends AutoPlugin {
       }.find(_.isDefined).flatten
       foundNdk.foreach(storePathInCache)
       foundNdk orElse SdkLayout.sdkFallback(cache)
-    }},
+    },
     ilogger                  := {
       val logger = SbtILogger()
 
@@ -419,24 +432,27 @@ trait AndroidProjectSettings extends AutoPlugin {
     buildToolsVersion        := None,
     sdkLoader                := DefaultSdkLoader.getLoader(sdkManager.value.getLocation),
     libraryRequests          := Nil,
-    builder                 <<= ( sdkLoader
-      , sdkManager
-      , name
-      , ilogger
-      , buildToolInfo
-      , platform
-      , libraryRequests
-      , sLog) {
-      (ldr, m, n, l_, b, t, reqs, log) =>
-        val l = l_(log)
-        val l2 = SbtAndroidErrorReporter()
-        val bldr = new AndroidBuilder(n, "sbt-android",
-          new DefaultProcessExecutor(l), SbtJavaProcessExecutor, l2, l, false)
-        val sdkInfo = ldr.getSdkInfo(l)
-        bldr.setSdkInfo(sdkInfo)
-        bldr.setTargetInfo(t)
-        bldr.setLibraryRequests(reqs.map { case ((nm, required)) =>
-          new LibraryRequest(nm, required) }.asJava)
+    builder                  := {
+      val ldr = sdkLoader.value
+      val m    = sdkManager.value
+      val n    = name.value
+      val l_   = ilogger.value
+      val b    = buildToolInfo.value
+      val t    = platform.value
+      val reqs = libraryRequests.value
+      val log  = sLog.value
+
+
+
+      val l = l_(log)
+      val l2 = SbtAndroidErrorReporter()
+      val bldr = new AndroidBuilder(n, "sbt-android",
+        new DefaultProcessExecutor(l), SbtJavaProcessExecutor, l2, l, false)
+      val sdkInfo = ldr.getSdkInfo(l)
+      bldr.setSdkInfo(sdkInfo)
+      bldr.setTargetInfo(t)
+      bldr.setLibraryRequests(reqs.map { case ((nm, required)) =>
+        new LibraryRequest(nm, required) }.asJava)
 
       { logger =>
         l_(logger)
@@ -533,15 +549,15 @@ trait AndroidProjectSettings extends AutoPlugin {
           (d ** "*.scala").get.nonEmpty)
     },
     // make streams dependOn because coursier replaces `update`
-    streams in update <<= (streams in update) dependsOn m2repoCheck,
-    crossPaths        <<= autoScalaLibrary,
-    resolvers        <++= sdkPath { p =>
+    streams in update  := ((streams in update) dependsOn m2repoCheck).value,
+    crossPaths         := autoScalaLibrary.value,
+    resolvers         ++= sdkPath { p =>
       Seq(SdkLayout.googleRepository(p), SdkLayout.androidRepository(p))
-    },
+    }.value,
     cleanFiles         += projectLayout.value.bin,
     exportJars         := true,
     unmanagedBase      := projectLayout.value.libs,
-    watchSources     <++= Def.task {
+    watchSources      ++= Def.task {
       val filter = new SimpleFileFilter({ f =>
         f.isFile && Character.isJavaIdentifierStart(f.getName.charAt(0))
       })
@@ -549,7 +565,7 @@ trait AndroidProjectSettings extends AutoPlugin {
       val extras = extraResDirectories.value.map(_.getCanonicalFile).distinct
       (layout.testSources +: layout.jni +: layout.res +: extras) flatMap { path =>
         (path ** filter).get }
-    }
+    }.value
   )
 
   private[this] object Forwarder {

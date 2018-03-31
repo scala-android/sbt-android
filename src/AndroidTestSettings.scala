@@ -3,20 +3,20 @@ package android
 import Keys._
 import Keys.Internal._
 import Tasks._
-import sbt._
+import sbt.{Def, _}
 import sbt.Keys._
 /**
   * @author pfnguyen
   */
 trait AndroidTestSettings extends AutoPlugin {
-  override def projectSettings = super.projectSettings ++ inConfig(Compile)(List(
+  override def projectSettings: Seq[Def.Setting[_]] = super.projectSettings ++ inConfig(Compile)(List(
     sourceGenerators += debugTestsGenerator.taskValue
   )) ++ inConfig(Android)(List(
     // TODO actually implement support for AndroidLib/AndroidJar
-    test                    <<= testTaskDef,
-    test                    <<= test dependsOn (compile in Android, install.?),
-    testOnly                <<= testOnlyTaskDef,
-    testAggregate           <<= testAggregateTaskDef,
+    test                     := testTaskDef.value,
+    test                     := (test dependsOn (compile in Android, install.?)).value,
+    testOnly                 := testOnlyTaskDef.evaluated,
+    testAggregate            := testAggregateTaskDef.value,
     instrumentTestTimeout    := 180000,
     instrumentTestRunner     := "android.test.InstrumentationTestRunner",
     debugTestsGenerator      := {
@@ -33,8 +33,8 @@ trait AndroidTestSettings extends AutoPlugin {
     javacOptions                := (javacOptions in Compile).value,
     manipulateBytecode          := compileIncremental.value,
     TaskKey[Option[xsbti.Reporter]]("compilerReporter") := None,
-    compileIncremental         <<= Defaults.compileIncrementalTask,
-    compile <<= Def.taskDyn {
+    compileIncremental          := Defaults.compileIncrementalTask.value,
+    compile := Def.taskDyn {
       if (executionRoots.value.size == 1) {
         val task = executionRoots.value.head
         val cfg: String = task.scope.config.toOption.map(_.name).getOrElse("")
@@ -46,7 +46,7 @@ trait AndroidTestSettings extends AutoPlugin {
       if (debugIncludesTests.?.value.getOrElse(false)) Def.task {
         (compile in Compile).value
       } else Defaults.compileTask
-    },
+    }.value,
     compileIncSetup := {
       Compiler.IncSetup(
         Defaults.analysisMap((dependencyClasspath in AndroidTestInternal).value),
@@ -71,7 +71,7 @@ trait AndroidTestSettings extends AutoPlugin {
     }
 
   )) ++ inConfig(AndroidTest)(List(
-    aars in AndroidTest <<= Tasks.androidTestAarsTaskDef,
+    aars in AndroidTest := Tasks.androidTestAarsTaskDef.value,
     managedClasspath := Classpaths.managedJars(AndroidTest, classpathTypes.value, update.value),
     externalDependencyClasspath := managedClasspath.value ++
       (aars in AndroidTest).value.map(a => Attributed.blank(a.getJarFile)),

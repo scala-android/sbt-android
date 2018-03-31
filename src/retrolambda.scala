@@ -12,7 +12,7 @@ import net.orfjackal.retrolambda.{Main => RMain, SystemPropertiesConfig, Retrola
  * @author pfnguyen
  */
 object RetrolambdaSupport {
-  def isAvailable = RMain.isRunningJava8
+  def isAvailable: Boolean = RMain.isRunningJava8
   def processedJar(target: File) = target / "retrolambda-processed.jar"
   def apply(target: File, classpath: Seq[File], forkClasspath: Seq[File], bootClasspath: Seq[File],
               s: sbt.Keys.TaskStreams): Seq[File] = synchronized {

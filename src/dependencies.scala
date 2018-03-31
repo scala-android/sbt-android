@@ -13,7 +13,7 @@ import com.android.manifmerger.ManifestProvider
 object Dependencies {
   // excludes are temporary until everything/one uses libraryDependencies
   // and only one version of the support libs
-  def artifacts(m: ModuleID, name: String, exttype: String) =
+  def artifacts(m: ModuleID, name: String, exttype: String): ModuleID =
     m.artifacts(Artifact(name, exttype, exttype)) exclude (
       "com.google.android", "support-v4") exclude (
       "com.google.android", "support-v13")
@@ -29,7 +29,7 @@ object Dependencies {
 
     def asAndroidDependency: Option[AndroidDependency]
 
-    def path = layout.base
+    def path: File = layout.base
 
     override def getExternalAnnotations = path / FN_ANNOTATIONS_ZIP
     override def getName = path.getCanonicalPath
@@ -80,7 +80,7 @@ object Dependencies {
 
     // apklib are always ant-style layouts
     override lazy val layout = ProjectLayout.Ant(base)
-    lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
+    lazy val pkg: String = XML.loadFile(getManifest).attribute("package").head.text
 
     override def getJniFolder = layout.libs
     override def getSymbolFile = layout.rTxt
@@ -102,14 +102,14 @@ object Dependencies {
       override def jniLibs = getJniFolder
     }
     override def getJniFolder = path / "jni"
-    lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
+    lazy val pkg: String = XML.loadFile(getManifest).attribute("package").head.text
   }
 
   case class LibraryProject(layout: ProjectLayout, extraRes: Seq[File], extraAssets: Seq[File])
                            (implicit output: BuildOutput.Converter) extends LibraryDependency with Pkg {
 
     override def asAndroidDependency = None
-    lazy val pkg = XML.loadFile(getManifest).attribute("package").head.text
+    lazy val pkg: String = XML.loadFile(getManifest).attribute("package").head.text
     override def getSymbolFile = layout.rTxt
     override def getJarFile = layout.classesJar
     override def getProguardRules = layout.proguardTxt
@@ -132,7 +132,7 @@ object Dependencies {
   }
 
   case class LibEquals[A <: AndroidLibrary](lib: A) {
-    override def equals(other: Any) = {
+    override def equals(other: Any): Boolean = {
       (lib, other) match {
         case (l @ AarLibrary(_), LibEquals(r @ AarLibrary(_))) ⇒
           l.moduleID == r.moduleID
@@ -142,24 +142,19 @@ object Dependencies {
       }
     }
 
-    override def hashCode() = lib match {
+    override def hashCode(): Int = lib match {
       case a@AarLibrary(_) => a.moduleID.hashCode
       case _ => lib.getFolder.hashCode
     }
   }
 
-  implicit class LibrarySeqOps[A <: AndroidLibrary](libs: Seq[A])
-  {
-    def distinctLibs = {
-      libs
-        .map(LibEquals.apply)
-        .distinct
-        .map(_.lib)
-    }
+  implicit class LibrarySeqOps[A <: AndroidLibrary](libs: Seq[A]) {
+    def distinctLibs: Seq[A] = libs.map(LibEquals.apply).distinct.map(_.lib)
   }
 
   object LibraryProject {
-    def apply(base: File)(implicit m: BuildOutput.Converter = new BuildOutput.AndroidOutput(_)): LibraryProject = LibraryProject(ProjectLayout(base), Nil, Nil)
+    def apply(base: File)(implicit m: BuildOutput.Converter = new BuildOutput.AndroidOutput(_)): LibraryProject =
+      LibraryProject(ProjectLayout(base), Nil, Nil)
   }
 
   trait Pkg {
@@ -170,13 +165,13 @@ object Dependencies {
   }
   class AutoLibraryProject(path: File)(implicit m: BuildOutput.Converter)
   extends LibraryProject(ProjectLayout(path), Nil, Nil) {
-    override def equals(obj: scala.Any) = obj match {
+    override def equals(obj: scala.Any): Boolean = obj match {
       case l: LibraryProject =>
         l.path.getCanonicalFile == path.getCanonicalFile
       case _ => false
     }
 
-    override def hashCode() = path.getCanonicalFile.hashCode
+    override def hashCode(): Int = path.getCanonicalFile.hashCode
   }
 
   @deprecated("`dependsOn(project)` now adds transitive settings automatically", "1.7.0")
@@ -187,9 +182,8 @@ object Dependencies {
     }
   }
 
-  implicit class ModuleIDOps(id: ModuleID)
-  {
-    def revMatches(other: String) = {
+  implicit class ModuleIDOps(id: ModuleID) {
+    def revMatches(other: String): Boolean = {
       def partMatches(p: (String, String)) = p._1 == p._2 || p._1 == "+"
       val parts = id.revision.split('.')
       val otherParts = other.split('.')
@@ -213,31 +207,26 @@ object Dependencies {
         case a if a.classifier.nonEmpty => a.classifier.get
       }.headOption.orNull
 
-      override lazy val getVersionlessId =
+      override lazy val getVersionlessId: String =
         id.organization + ":" + id.name + Option(getClassifier).fold("")(":" + _)
       override def getPackaging = "jar"
       override def getArtifactId = id.name
     }
   }
 
-  implicit class ProjectRefOps(project: ProjectRef)
-  (implicit struct: BuildStructure)
-  {
-    def resolved = Project.getProject(project, struct)
+  implicit class ProjectRefOps(project: ProjectRef)(implicit struct: BuildStructure) {
+    def resolved: Option[ResolvedProject] = Project.getProject(project, struct)
 
-    def deps = resolved map(_.dependencies) getOrElse Nil  map(_.project)
+    def deps: Seq[ProjectRef] = resolved.map(_.dependencies) getOrElse Nil map(_.project)
 
-    def deepDeps: Seq[ProjectRef] =
-      ((deps flatMap(_.deepDeps)) :+ project).distinct
+    def deepDeps: Seq[ProjectRef] = (deps.flatMap(_.deepDeps) :+ project).distinct
 
-    def libraryDependencies =
+    def libraryDependencies: Seq[ModuleID] =
       (sbt.Keys.libraryDependencies in project)
         .get(struct.data)
         .getOrElse(Nil)
 
-    def dependsOn(id: ModuleID) = {
-      libraryDependencies exists(_.matches(id))
-    }
+    def dependsOn(id: ModuleID): Boolean = libraryDependencies exists(_.matches(id))
   }
 }
 // vim: set ts=2 sw=2 et:

@@ -1,6 +1,6 @@
 package android
 
-import java.io.File
+import java.io.{File, InputStream}
 import java.net.{HttpURLConnection, URL}
 
 import com.android.repository.api._
@@ -80,9 +80,7 @@ object SdkInstaller extends TaskBase {
     }
   }
 
-  def platforms(sdkHandler: AndroidSdkHandler,
-                showProgress: Boolean
-               ) = {
+  def platforms(sdkHandler: AndroidSdkHandler, showProgress: Boolean): List[String] = {
     val repomanager = sdkHandler.getSdkManager(PrintingProgressIndicator(showProgress))
     val downloader = SbtAndroidDownloader(sdkHandler.getFileOp)
     repomanager.loadSynchronously(1.day.toMillis,
@@ -201,14 +199,14 @@ object SdkInstaller extends TaskBase {
   def installSdkAction: (sbt.State, Option[String]) => sbt.State = (state,toInstall) => {
     val log = state.log
     val ind = SbtAndroidProgressIndicator(log)
-    val sdkHandler = sdkManager(sbt.file(sdkpath(state)), true, log)
+    val sdkHandler = sdkManager(sbt.file(sdkpath(state)), showProgress = true, log)
     val repomanager = sdkHandler.getSdkManager(ind)
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
     val newpkgs = repomanager.getPackages.getNewPkgs.asScala.filterNot(_.obsolete).toList.sorted(platformOrder)
     toInstall match {
       case Some(p) =>
-        install(sdkHandler, p, "", true, log)(_.get(p))
+        install(sdkHandler, p, "", showProgress = true, log)(_.get(p))
       case None =>
         val packages = newpkgs.map { p =>
             val path = p.getPath
@@ -224,7 +222,7 @@ object SdkInstaller extends TaskBase {
   def updateSdkAction: (sbt.State, Either[Option[String],String]) => sbt.State = (state,toUpdate) => {
     val log = state.log
     val ind = SbtAndroidProgressIndicator(log)
-    val sdkHandler = sdkManager(sbt.file(sdkpath(state)), true, log)
+    val sdkHandler = sdkManager(sbt.file(sdkpath(state)), showProgress = true, log)
     val repomanager = sdkHandler.getSdkManager(ind)
     repomanager.loadSynchronously(1.day.toMillis,
       PrintingProgressIndicator(), SbtAndroidDownloader(sdkHandler.getFileOp), null)
@@ -246,7 +244,7 @@ object SdkInstaller extends TaskBase {
     toUpdate.left.foreach {
       case Some(_) =>
         updates.foreach { u =>
-          install(sdkHandler, u.getDisplayName, "", true, log)(_.get(u.getPath))
+          install(sdkHandler, u.getDisplayName, "", showProgress = true, log)(_.get(u.getPath))
         }
       case None =>
         updatesHelp()
@@ -255,7 +253,7 @@ object SdkInstaller extends TaskBase {
     toUpdate.right.foreach { p =>
       updates.find(_.getPath == p) match {
         case Some(pkg) =>
-          install(sdkHandler, pkg.getDisplayName, "", true, log)(_.get(pkg.getPath))
+          install(sdkHandler, pkg.getDisplayName, "", showProgress = true, log)(_.get(pkg.getPath))
         case None =>
           updatesHelp()
           PluginFail(s"Update '$p' not found")
@@ -288,7 +286,7 @@ object SdkInstaller extends TaskBase {
 
 // provide our own implementation of Downloader for progress indication
 case class SbtAndroidDownloader(fop: FileOp) extends Downloader {
-  override def downloadFully(url: URL, indicator: ProgressIndicator) = {
+  override def downloadFully(url: URL, indicator: ProgressIndicator): File = {
     val result = File
       .createTempFile("LegacyDownloader", System.currentTimeMillis.toString)
     result.deleteOnExit()
@@ -311,7 +309,7 @@ case class SbtAndroidDownloader(fop: FileOp) extends Downloader {
       if (responseCode == 200) {
         val length = uc.getContentLength
         val in = uc.getInputStream
-        Using.bufferedInputStream(in) { b =>
+        Using.bufferedInputStream(in) { _ =>
           Using.bufferedOutputStream(out) { o =>
             val len = 65536
             val buf = Array.ofDim[Byte](len)
@@ -333,7 +331,7 @@ case class SbtAndroidDownloader(fop: FileOp) extends Downloader {
   }
 
   //noinspection JavaAccessorMethodCalledAsEmptyParen
-  override def downloadAndStream(url: URL,
-                                 indicator: ProgressIndicator) = url.openConnection().getInputStream()
+  override def downloadAndStream(url: URL, indicator: ProgressIndicator): InputStream =
+    url.openConnection().getInputStream()
 
 }

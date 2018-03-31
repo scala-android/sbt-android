@@ -9,9 +9,9 @@ import sbt.Keys._
   */
 trait AndroidLibSettings extends AutoPlugin {
   override def projectSettings = Seq(
-    aarArtifact            <<= normalizedName { n => Artifact(n, "aar", "aar") },
-    packageAar             <<= Tasks.packageAarTaskDef,
-    mappings in packageAar <<= Tasks.packageAarMappings,
-    libraryProject          := true
+    aarArtifact            := normalizedName { n => Artifact(n, "aar", "aar") }.value,
+    packageAar             := Tasks.packageAarTaskDef.value,
+    mappings in packageAar := Tasks.packageAarMappings.value,
+    libraryProject         := true
   ) ++ addArtifact(aarArtifact , packageAar)
 }

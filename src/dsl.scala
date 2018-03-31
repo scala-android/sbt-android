@@ -33,10 +33,10 @@ package object dsl {
     Keys.buildToolsVersion := Option(version)
 
   private def extendVariant(key: sbt.SettingKey[Map[String,Seq[Setting[_]]]], name: String, ss: Seq[Setting[_]]) =
-    key <<= key { vs =>
+    key := key { vs =>
       val ss2 = vs(name)
       vs + ((name, ss2 ++ ss))
-    }
+    }.value
 
   @deprecated("use android.extendFlavor", "1.7.0")
   def extendFlavor(name: String)(ss: Setting[_]*): Setting[_] =
@@ -56,7 +56,7 @@ package object dsl {
 
   @deprecated("use android.buildConfig", "1.7.0")
   def buildConfig(`type`: String, name: String, value: Def.Initialize[Task[String]]) =
-    Keys.buildConfigOptions <+= value map { v => (`type`, name, v) }
+    Keys.buildConfigOptions += (value map { v => (`type`, name, v) }).value
   @deprecated("use android.buildConfig", "1.7.0")
   def buildConfig(`type`: String, name: String, value: String) =
     Keys.buildConfigOptions += ((`type`, name, value))
@@ -66,9 +66,7 @@ package object dsl {
     Keys.resValues += ((`type`, name, value))
   @deprecated("use android.resValue", "1.7.0")
   def resValue(`type`: String, name: String, value: Def.Initialize[Task[String]]) =
-    Keys.resValues <+= value map { v =>
-      (`type`, name, v)
-    }
+    Keys.resValues += (value map { v => (`type`, name, v) }).value
 
   @deprecated("use android.signingConfig", "1.7.0")
   def signingConfig(keystore: File,
@@ -110,15 +108,15 @@ package object dsl {
     Keys.manifestPlaceholders += ((key,value))
   @deprecated("use android.manifestPlaceholder", "1.7.0")
   def manifestPlaceholder(key: String, value: Def.Initialize[Task[String]]) =
-    Keys.manifestPlaceholders <+= value map { v => (key,v) }
+    Keys.manifestPlaceholders += (value map { v => (key,v) }).value
   @deprecated("use android.apkVersionName", "1.7.0")
   def apkVersionName(name: String) = Keys.versionName := Option(name)
   @deprecated("use android.apkVersionCode", "1.7.0")
   def apkVersionCode(code: Int) = Keys.versionCode := Option(code)
   @deprecated("use android.apkVersionName", "1.7.0")
-  def apkVersionName(name: Def.Initialize[Task[String]]) = Keys.versionName <<= name map Option.apply
+  def apkVersionName(name: Def.Initialize[Task[String]]) = Keys.versionName := (name map Option.apply).value
   @deprecated("use android.apkVersionCode", "1.7.0")
-  def apkVersionCode(code: Def.Initialize[Task[Int]]) = Keys.versionCode <<= code map Option.apply
+  def apkVersionCode(code: Def.Initialize[Task[Int]]) = Keys.versionCode := (code map Option.apply).value
 
   def dexMainClassList(classes: String*) = Keys.dexMainClassesConfig := {
     val layout = Keys.projectLayout.value

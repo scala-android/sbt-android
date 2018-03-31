@@ -39,7 +39,7 @@ object Packaging {
 
     // filtering out org.scala-lang should not cause an issue
     // they should not be changing on us anyway
-    lazy val list = (managed ++ unmanaged ++ depenendices).filter {
+    lazy val list: List[File] = (managed ++ unmanaged ++ depenendices).filter {
       a => (a.get(moduleID.key) forall { moduleId =>
         !isScalaLang(moduleId) && !isProvidedDependency(moduleId)
       }) && a.data.exists
@@ -271,7 +271,7 @@ object Packaging {
 
     new ApkZFileCreatorFactory(options)
   }
-  def sizeString(len: Long) = {
+  def sizeString(len: Long): String = {
     val KB = 1024 * 1.0
     val MB = KB * KB
     len match {
@@ -369,7 +369,7 @@ object Packaging {
         } else {
           val d = dest / k
           d.getParentFile.mkdirs()
-          IO.copyFile(s / validator.keyToFolderPath(k), d, true)
+          IO.copyFile(s / validator.keyToFolderPath(k), d, preserveLastModified = true)
         }
       }
     }

@@ -67,7 +67,7 @@ object Proguard {
   def proguardInputs(u: Boolean, pgOptions: Seq[String], pgConfig: Seq[String],
                      l: Seq[File], d: sbt.Def.Classpath, b: sbt.Def.Classpath,
                      c: File, s: Boolean, pc: Seq[String],
-                     debug: Boolean, st: sbt.Keys.TaskStreams) = {
+                     debug: Boolean, st: sbt.Keys.TaskStreams): ProguardInputs = {
 
     val cacheDir = st.cacheDirectory
     if (u) {
@@ -124,7 +124,7 @@ object Proguard {
 
   def proguard(a: Aggregate.Proguard, bldr: AndroidBuilder, l: Boolean,
                inputs: ProguardInputs, debug: Boolean, b: File,
-               ra: Aggregate.Retrolambda, s: sbt.Keys.TaskStreams) = {
+               ra: Aggregate.Retrolambda, s: sbt.Keys.TaskStreams): Option[File] = {
     val cp = a.managedClasspath
     val p = a.useProguard
     val d = a.useProguardInDebug

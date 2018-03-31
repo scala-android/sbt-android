@@ -1,6 +1,7 @@
 package android
 
 import Keys._
+import android.BuildOutput.Converter
 import sbt._
 import sbt.Keys._
 
@@ -11,11 +12,12 @@ import scala.xml.XML
 trait AndroidJarSettings extends AutoPlugin {
 
   override def projectSettings = Seq(
-    manifest := <manifest package="org.scala-android.placeholder">
-      <application/>
-    </manifest>,
+    manifest :=
+      <manifest package="org.scala-android.placeholder">
+        <application/>
+      </manifest>,
     processManifest := {
-      implicit val out = outputLayout.value
+      implicit val out: Converter = outputLayout.value
       val layout = projectLayout.value
       val manifestTarget = layout.processedManifest
       manifestTarget.getParentFile.mkdirs()
@@ -35,13 +37,12 @@ trait AndroidJarSettings extends AutoPlugin {
         val name = dirs.flatMap { d =>
           (s relativeTo d).toList
         }.headOption
-
         (s,name.fold(s.getName)(_.getPath))
       }
     },
     lintFlags := {
       val flags = lintFlags.value
-      implicit val output = outputLayout.value
+      implicit val output: Converter = outputLayout.value
       val layout = projectLayout.value
       layout.bin.mkdirs()
       val config = layout.libraryLintConfig

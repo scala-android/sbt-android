@@ -27,7 +27,7 @@ import scala.xml.XML
 
 object Resources {
   val ANDROID_NS = "http://schemas.android.com/apk/res/android"
-  def resourceUrl =
+  def resourceUrl: String => URL =
     Resources.getClass.getClassLoader.getResource _
 
   val reservedWords = Set(
@@ -84,14 +84,14 @@ object Resources {
         libs.collect {
           case r if r.layout.assets.isDirectory => r.layout.assets
         }
-    ).foreach { a => IO.copyDirectory(a, assetBin, false, true) }
+    ).foreach { a => IO.copyDirectory(a, assetBin, overwrite = false, preserveLastModified = true) }
     extraAssets foreach { a =>
-      if (a.isDirectory) IO.copyDirectory(a, assetBin, false, true)
+      if (a.isDirectory) IO.copyDirectory(a, assetBin, overwrite = false, preserveLastModified = true)
     }
 
-    if (assets.exists) IO.copyDirectory(assets, assetBin, false, true)
+    if (assets.exists) IO.copyDirectory(assets, assetBin, overwrite = false, preserveLastModified = true)
     if (noTestApk && layout.testAssets.exists)
-      IO.copyDirectory(layout.testAssets, assetBin, false, true)
+      IO.copyDirectory(layout.testAssets, assetBin, overwrite = false, preserveLastModified = true)
     // prepare resource sets for merge
     val res = extraRes.map(pkg -> _) ++ Seq(layout.res, rsResources).map(pkg -> _) ++
       libs.collect {

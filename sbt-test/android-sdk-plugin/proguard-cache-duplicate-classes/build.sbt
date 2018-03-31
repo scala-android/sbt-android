@@ -1,12 +1,12 @@
 enablePlugins(AndroidApp)
 
-scalaVersion := "2.11.1"
+scalaVersion := "2.11.11"
 
 libraryDependencies ++= Seq(
   "org.scaloid" %% "scaloid" % "3.4-10",
   "org.scalatest" %% "scalatest" % "2.2.1-M3",
   "org.mockito" % "mockito-core" % "1.9.5",
-  "org.scala-lang" % "scala-reflect" % "2.11.1",
+  "org.scala-lang" % "scala-reflect" % "2.11.11",
   "org.scala-lang.modules" %% "scala-xml" % "1.0.2",
   "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.1"
 )

@@ -129,7 +129,7 @@ object VariantSettings {
       s.log.info(af)
       s
   }
-  def append(s: State, ss: Seq[Setting[_]]) = {
+  def append(s: State, ss: Seq[Setting[_]]): State = {
     val e = Project.extract(s)
     val appendSettings = Load.transformSettings(Load.projectScope(e.currentRef), e.currentRef.build, e.rootProject, ss)
     val newSettings = e.session.original ++ appendSettings
@@ -137,8 +137,7 @@ object VariantSettings {
     Project.setProject(e.session.copy(original = newSettings), newStructure, s.put(originalSettings, s.get(originalSettings).getOrElse(e.session.original) ++ appendSettings).put(onUnloadSkip, true))
   }
 
-  def reapply(session: SessionSettings, newVariant: VariantSettings, structure: BuildStructure, s: State): State =
-  {
+  def reapply(session: SessionSettings, newVariant: VariantSettings, structure: BuildStructure, s: State): State = {
     // Here, for correct behavior, we also need to re-inject a settings logger, as we'll be re-evaluating settings.
     val loggerInject = sbt.Keys.sLog in GlobalScope := new Logger {
       private[this] val ref = new java.lang.ref.WeakReference(s.globalLogging.full)

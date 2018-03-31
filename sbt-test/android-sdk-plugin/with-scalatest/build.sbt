@@ -1,6 +1,6 @@
 enablePlugins(AndroidApp)
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.11.11"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "2.1.5" % "test"
 

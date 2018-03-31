@@ -2,6 +2,7 @@ package android
 import Keys._
 import Keys.Internal._
 import Tasks._
+import android.BuildOutput.Converter
 import com.android.sdklib.SdkVersionInfo
 import sbt._
 import sbt.Keys._
@@ -14,27 +15,24 @@ trait AndroidAppSettings extends AutoPlugin {
   override def projectSettings = inConfig(Android)(List(
     debugIncludesTests       := (projectLayout.value.testSources ** "*.scala").get.nonEmpty,
     installTimeout           := 0,
-    install                 <<= installTaskDef dependsOn hasDevice,
-    uninstall               <<= uninstallTaskDef dependsOn hasDevice,
-    clean                   <<= cleanTaskDef dependsOn hasDevice,
-    debug                   <<= runTaskDef(true) dependsOn install,
-    run                     <<= runTaskDef(false) dependsOn install,
+    install                  := (installTaskDef    dependsOn hasDevice).value,
+    uninstall                := (uninstallTaskDef  dependsOn hasDevice).value,
+    clean                    := (cleanTaskDef      dependsOn hasDevice).value,
+    debug                    := (runTaskDef(true)  dependsOn install).evaluated,
+    run                      := (runTaskDef(false) dependsOn install).evaluated,
     hasDevice                := {
       if (Commands.targetDevice(sdkPath.value, streams.value.log).isEmpty)
         PluginFail("no device connected")
-
     },
     allDevices               := false,
-    dexInputs               <<= dexInputsTaskDef,
-    dexAggregate            <<= dexAggregateTaskDef,
-    proguardAggregate       <<= proguardAggregateTaskDef,
-    apkbuildAggregate       <<= apkbuildAggregateTaskDef,
-    predex                  <<= predexTaskDef,
+    dexInputs                := dexInputsTaskDef.value,
+    dexAggregate             := dexAggregateTaskDef.value,
+    proguardAggregate        := proguardAggregateTaskDef.value,
+    apkbuildAggregate        := apkbuildAggregateTaskDef.value,
+    predex                   := predexTaskDef.value,
     predexRetrolambda        := false,
-    predexSkip               := {
-      localProjects.value map (_.getJarFile)
-    },
-    dex                     <<= dexTaskDef,
+    predexSkip               := localProjects.value.map(_.getJarFile),
+    dex                      := dexTaskDef.value,
     dexShards                := false,
     dexLegacyMode            := {
       val minSdk = minSdkVersion.value
@@ -67,57 +65,62 @@ trait AndroidAppSettings extends AutoPlugin {
     dexMainClasses           := Nil,
     dexMinimizeMain          := false,
     dexAdditionalParams      := Nil,
-    dexMainClassesConfig    <<= dexMainClassesConfigTaskDef dependsOn (packageT in Compile),
+    dexMainClassesConfig     := (dexMainClassesConfigTaskDef dependsOn (packageT in Compile)).value,
     proguardVersion          := "5.0",
     proguardCache            := "scala" :: Nil,
     proguardLibraries        := Nil,
-    proguardConfig          <<= proguardConfigTaskDef,
-    proguardConfig          <<= proguardConfig dependsOn packageResources,
-    proguard                <<= proguardTaskDef,
-    proguardInputs          <<= proguardInputsTaskDef,
-    proguardInputs          <<= proguardInputs dependsOn (packageT in Compile),
-    proguardScala           <<= autoScalaLibrary,
-    useProguard             <<= proguardScala,
-    useProguardInDebug      <<= proguardScala,
+    proguardConfig           := proguardConfigTaskDef.value,
+    proguardConfig           := (proguardConfig dependsOn packageResources).value,
+    proguard                 := proguardTaskDef.value,
+    proguardInputs           := proguardInputsTaskDef.value,
+    proguardInputs           := (proguardInputs dependsOn (packageT in Compile)).value,
+    proguardScala            := autoScalaLibrary.value,
+    useProguard              := proguardScala.value,
+    useProguardInDebug       := proguardScala.value,
     shrinkResources          := false,
-    resourceShrinker        <<= resourceShrinkerTaskDef,
-    packageResources        <<= packageResourcesTaskDef dependsOn rGenerator,
+    resourceShrinker         := resourceShrinkerTaskDef.value,
+    packageResources         := (packageResourcesTaskDef dependsOn rGenerator).value,
     apkFile                  := {
-      implicit val output = outputLayout.value
+      implicit val output: Converter = outputLayout.value
       projectLayout.value.integrationApkFile(name.value)
     },
     packagingOptions         := PackagingOptions(Nil, Nil, Nil),
-    apkbuild                <<= apkbuildTaskDef,
-    apkbuild                <<= apkbuild dependsOn (managedResources in Compile),
+    apkbuild                 := apkbuildTaskDef.value,
+    apkbuild                 := (apkbuild dependsOn (managedResources in Compile)).value,
     apkDebugSigningConfig    := DebugSigningConfig(),
-    apkSigningConfig        <<= properties { p =>
-      def makeSigningConfig(alias: String, store: String, passwd: String) = {
-        val c = PlainSigningConfig(file(store), passwd, alias)
-        val c2 = Option(p.getProperty("key.store.type")).fold(c) { t =>
-          c.copy(storeType = t)
+    apkSigningConfig         := properties {
+      p => {
+        def makeSigningConfig(alias: String, store: String, passwd: String) = {
+          val c = PlainSigningConfig(file(store), passwd, alias)
+          val c2 = Option(p.getProperty("key.store.type")).fold(c) { t =>
+            c.copy(storeType = t)
+          }
+          Option(p.getProperty("key.alias.password")).fold(c2) { p =>
+            c2.copy(keyPass = Some(p))
+          }
         }
-        Option(p.getProperty("key.alias.password")).fold(c2) { p =>
-          c2.copy(keyPass = Some(p))
-        }
+
+        for {
+          a <- Option(p.getProperty("key.alias"))
+          b <- Option(p.getProperty("key.store"))
+          c <- Option(p.getProperty("key.store.password"))
+        } yield makeSigningConfig(a, b, c)
       }
-      for {
-        a <- Option(p.getProperty("key.alias"))
-        b <- Option(p.getProperty("key.store"))
-        c <- Option(p.getProperty("key.store.password"))
-      } yield makeSigningConfig(a,b,c)
-    },
-    signRelease             <<= signReleaseTaskDef,
-    zipalign                <<= zipalignTaskDef,
-    packageT                <<= zipalign,
+    }.value,
+    signRelease              := signReleaseTaskDef.value,
+    zipalign                 := zipalignTaskDef.value,
+    packageT                 := zipalign.value,
     // I hope packageXXX dependsOn(setXXX) sets createDebug before package
-    packageDebug            <<= packageT,
-    packageDebug            <<= packageDebug dependsOn setDebug,
-    packageRelease          <<= packageT,
-    packageRelease          <<= packageRelease dependsOn setRelease,
-    zipalignPath            <<= ( sdkPath
-      , sdkManager
-      , buildToolInfo
-      , sLog) { (p, m, bt, s) =>
+    packageDebug             := packageT.value,
+    packageDebug             := (packageDebug dependsOn setDebug).value,
+    packageRelease           := packageT.value,
+    packageRelease           := (packageRelease dependsOn setRelease).value,
+    zipalignPath             := {
+      val p  = sdkPath.value
+      val m  = sdkManager.value
+      val bt = buildToolInfo.value
+      val s  = sLog.value
+
       val pathInBt = SdkLayout.zipalign(bt)
 
       s.debug("checking zipalign at: " + pathInBt)
@@ -133,8 +136,8 @@ trait AndroidAppSettings extends AutoPlugin {
       }
     }
   )) ++ List(
-    streams in update <<= (streams in update) dependsOn stableProguardConfig,
-    libraryDependencies <+= Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name),
+    streams in update   := ((streams in update) dependsOn stableProguardConfig).value,
+    libraryDependencies += Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name).value,
       managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
   )
 

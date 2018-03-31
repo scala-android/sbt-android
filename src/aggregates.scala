@@ -1,6 +1,7 @@
 package android
 
 import java.io.File
+import java.util
 
 import android.Dependencies.LibraryDependency
 import android.Keys.PackagingOptions
@@ -77,17 +78,17 @@ object Aggregate {
                                   dexInProcess: Boolean,
                                   buildTools: BuildToolInfo,
                                   additionalParams: Seq[String]) {
-    lazy val incremental = inputs._1 && !multi
+    lazy val incremental: Boolean = inputs._1 && !multi
 
-    def toDexOptions(incremental: Boolean = incremental) = new DexOptions {
+    def toDexOptions(incremental: Boolean = incremental): DexOptions = new DexOptions {
       override def getJavaMaxHeapSize: String = maxHeap
       override def getJumboMode: Boolean = false
       override def getMaxProcessCount: Integer = maxProcessCount
       override def getThreadCount: Integer = Runtime.getRuntime.availableProcessors()
       override def getPreDexLibraries: Boolean = false
-      override def getDexInProcess = dexInProcess
+      override def getDexInProcess: Boolean = dexInProcess
       override def getKeepRuntimeAnnotatedClasses = true
-      override def getAdditionalParameters = additionalParams.asJava
+      override def getAdditionalParameters: util.List[String] = additionalParams.asJava
     }
   }
 

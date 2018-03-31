@@ -17,7 +17,7 @@ import scala.util.matching.Regex
 
 object Commands {
 
-  val COLORS_ENABLED = ConsoleLogger.formatEnabled
+  val COLORS_ENABLED: Boolean = ConsoleLogger.formatEnabled
   val LOGCAT_COMMAND = "logcat -v brief -d"
   var defaultDevice: Option[String] = None
 
@@ -359,7 +359,7 @@ object Commands {
   }
 
   // TODO detect project structure and create build.sbt accordingly
-  def createProjectSbt(multi: Boolean, state: State, platform: Option[String]) = {
+  def createProjectSbt(multi: Boolean, state: State, platform: Option[String]): State = {
     def compareSbtVersion(version: String) = {
       val atLeast = List(0, 13, 8)
       @tailrec
@@ -396,7 +396,7 @@ object Commands {
     val pluginSbt = build / "android.sbt"
     val plugin = s"""addSbtPlugin("org.scala-android" % "sbt-android" % "${BuildInfo.version}")""".stripMargin
     val version = Project.extract(state).get(sbt.Keys.sbtVersion)
-    val useVersion = if (compareSbtVersion(version)) version else "0.13.8"
+    val useVersion = if (compareSbtVersion(version)) version else "0.13.16"
     if ((build * "*.sbt").get.isEmpty) {
       IO.writeLines(pluginSbt, plugin :: Nil)
     } else {
@@ -409,7 +409,7 @@ object Commands {
       IO.writeLines(rootBuild, "lazy val app = project" :: Nil)
     }
     val buildSettings =
-      """scalaVersion := "2.11.8"""" ::
+      """scalaVersion := "2.11.11"""" ::
         "" ::
         "enablePlugins(AndroidApp)" :: "android.useSupportVectors" ::
         "" ::
@@ -476,9 +476,9 @@ object Commands {
       }
       (maybe.right map {
         case (pkg, name) =>
-          createProject(true, pkg, name, state.log)
-          val sdkManager = SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log)
-          val plat = SdkInstaller.platforms(sdkManager, true).headOption
+          createProject(multi = true, pkg, name, state.log)
+          val sdkManager = SdkInstaller.sdkManager(file(sdkpath(state)), showProgress = true, state.log)
+          val plat = SdkInstaller.platforms(sdkManager, showProgress = true).headOption
           createMultiProjectSbtAction(state, plat orElse Some("android-25"))
       }).right getOrElse state
   }
@@ -492,9 +492,9 @@ object Commands {
       }
       (maybe.right map {
         case (pkg, name) =>
-          createProject(false, pkg, name, state.log)
-          val sdkManager = SdkInstaller.sdkManager(file(sdkpath(state)), true, state.log)
-          val plat = SdkInstaller.platforms(sdkManager, true).headOption
+          createProject(multi = false, pkg, name, state.log)
+          val sdkManager = SdkInstaller.sdkManager(file(sdkpath(state)), showProgress = true, state.log)
+          val plat = SdkInstaller.platforms(sdkManager, showProgress = true).headOption
           createProjectSbtAction(state, plat orElse Some("android-25"))
       }).right getOrElse state
   }
@@ -546,7 +546,7 @@ object Commands {
     }
   }
 
-  val stringParser: State => Parser[String] = state => {
+  val stringParser: State => Parser[String] = _ => {
     val str = Parser.oneOrMore(Parsers.any) map (_ mkString "")
     (EOF map { _ => ""}) | (Space ~> str)
   }
@@ -570,8 +570,8 @@ object Commands {
   val projectAndStringParser: State => Parser[(Option[ProjectRef],String)] = state =>
     projectParser(state) ~ stringParser(state)
 
-  val LOG_LINE = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
-  val LOG_LINE_N = """^([A-Z])/(.+?)\( *(\d+): *(\d+)\): (.*?)$""".r
+  val LOG_LINE: Regex = """^([A-Z])/(.+?)\( *(\d+)\): (.*?)$""".r
+  val LOG_LINE_N: Regex = """^([A-Z])/(.+?)\( *(\d+): *(\d+)\): (.*?)$""".r
   def pidcatLogLine(d: IDevice, pkgOpt: Option[String], log: Logger)(pred: LogcatLine => Option[LogcatLine]): String => Unit = {
     val PKG_PATTERN = """package:(\S+)""".r
     val PID_START = """^Start proc ([a-zA-Z0-9._:]+) for ([a-z]+ [^:]+): pid=(\d+) uid=(\d+) gids=(.*)$""".r
@@ -703,7 +703,7 @@ object Commands {
     } getOrElse PluginFail("no device connected")
   }
 
-  def colorLevel(level: String) = {
+  def colorLevel(level: String): String = {
     if (COLORS_ENABLED) {
       LEVEL_COLORS.getOrElse(level,
         scala.Console.BOLD + scala.Console.YELLOW_B + scala.Console.WHITE) +
@@ -711,7 +711,7 @@ object Commands {
         scala.Console.RESET
     } else level
   }
-  def colorTag(tag: String) = {
+  def colorTag(tag: String): String = {
     if (COLORS_ENABLED) {
       val idx = math.abs(tag.hashCode % TAG_COLORS.length)
       val color = TAG_COLORS(idx)
@@ -719,7 +719,7 @@ object Commands {
         scala.Console.RESET
     } else tag
   }
-  def colorPid(p: String) = {
+  def colorPid(p: String): String = {
     if (COLORS_ENABLED) {
       val pid = p.trim.toInt
       val idx = pid % TAG_COLORS.length
@@ -999,10 +999,10 @@ object Commands {
 
     override def isCancelled = false
 
-    def result = _result
+    def result: String = _result
   }
 
-  def thisPackageName(s: State, ref: Option[ProjectRef]) = {
+  def thisPackageName(s: State, ref: Option[ProjectRef]): Option[String] = {
     val extracted = Project.extract(s)
     val prj = ref getOrElse extracted.currentRef
     Try {

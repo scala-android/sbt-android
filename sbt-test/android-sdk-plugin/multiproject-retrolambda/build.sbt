@@ -8,12 +8,12 @@ organization	in ThisBuild	:= organization.value
 
 version			in ThisBuild	:= version.value
 
-scalaVersion	in ThisBuild	:= "2.11.4"
+scalaVersion	in ThisBuild	:= "2.11.11"
 
 lazy val `test`			= project in file(".") aggregate `test-client`
 
 lazy val `test-client`	= project in file("sub/client")
-		
+
 TaskKey[File]("bundle")	:= (android.Keys.packageDebug	in (`test-client`, android.Keys.Android)).value
 
 showSdkProgress in Android := false

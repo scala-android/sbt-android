@@ -325,7 +325,7 @@ trait ProjectLayout {
   def jni: File
   def jniLibs: File
   def renderscript: File
-  def proguard = base / "proguard-project.txt"
+  def proguard: File = base / "proguard-project.txt"
 }
 object ProjectLayout {
   def apply(base: File, target: Option[File] = None) = {
