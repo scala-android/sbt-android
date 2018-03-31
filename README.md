@@ -3,6 +3,8 @@
 [![Latest version](https://img.shields.io/bintray/v/pfn/sbt-plugins/sbt-android.svg?maxAge=2592000)](https://bintray.com/pfn/sbt-plugins/sbt-android)
 [![Join the chat at https://gitter.im/scala-android/sbt-android](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/scala-android/sbt-android?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
+[http://scala-android.org/](http://scala-android.org/)
+
 **[Change log](CHANGES.md) |
 [FAQ](https://github.com/scala-android/sbt-android/issues?q=label%3AFAQ%20)**
 
