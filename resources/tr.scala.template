@@ -33,7 +33,7 @@ object TR {
 
 trait TypedFindView extends Any {
   protected %6$s
-  final def findView[A](tr: TypedResource[A]): A = findViewById(tr.id).asInstanceOf[A]
+  final def findView[A](tr: TypedResource[A]): A = %11$s
 }
 
 object TypedResource {

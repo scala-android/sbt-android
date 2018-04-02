@@ -577,6 +577,9 @@ object Resources {
             "c.getResources.getDrawable(resid)"
           })
 
+          val tfvfind = if (platformApi >= 26) "findViewById[A](tr.id)"
+            else "findViewById(tr.id).asInstanceOf[A]"
+
           IO.write(tr, trTemplate format (p,
             if (withViewHolders) "" else  " extends AnyVal",
             if (ids) {
@@ -586,7 +589,7 @@ object Resources {
             } else "  // TypedResource ID generation disabled by 'typedResourcesIds := false'",
             layoutTypes map { case (k,v) =>
               "    final val %s = TypedLayout[%s](R.layout.%s)" format (wrap(k),v,wrap(k))
-            } mkString "\n", trs.mkString, findView, getColor, getDrawable, getDrawable, deprForward) replace ("\r", ""))
+            } mkString "\n", trs.mkString, findView, getColor, getDrawable, getDrawable, deprForward, tfvfind) replace ("\r", ""))
           Set(tr)
         } else Set.empty
       }(a.toSet).toSeq
