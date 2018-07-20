@@ -137,8 +137,7 @@ trait AndroidAppSettings extends AutoPlugin {
     }
   )) ++ List(
     streams in update   := ((streams in update) dependsOn stableProguardConfig).value,
-    libraryDependencies += Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name).value,
-      managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
+    libraryDependencies += Def.setting("net.sf.proguard" % "proguard-base" % proguardVersion.value % AndroidInternal.name).value
   )
 
   private[this] val stableProguardConfig = Def.taskDyn {

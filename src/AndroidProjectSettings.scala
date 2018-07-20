@@ -101,6 +101,7 @@ trait AndroidProjectSettings extends AutoPlugin {
     //managedClasspath  <<= managedClasspathTaskDef,
     sourceGenerators   := sourceGenerators.value ++ List(
       rGenerator.taskValue,
+      databindingGenerator.taskValue,
       viewHoldersGenerator.taskValue,
       typedResourcesGenerator.taskValue,
       aidl.taskValue,
@@ -126,7 +127,27 @@ trait AndroidProjectSettings extends AutoPlugin {
       val bcp = boot.map(_.data) mkString File.pathSeparator
       // make sure javac doesn't create code that proguard won't process
       // (e.g. people with java7) -- specifying 1.5 is fine for 1.6, too
-      o ++ (if (!re) Seq("-bootclasspath" , bcp) else Seq("-Xbootclasspath/a:" + bcp)) ++ debugOptions
+      val opts = o ++ (if (!re) Seq("-bootclasspath" , bcp) else Seq("-Xbootclasspath/a:" + bcp)) ++ debugOptions
+
+      val dbs = if (databindingEnabled.value) {
+        implicit val out = outputLayout.value
+        val layout = projectLayout.value
+        import android.databinding.tool.DataBindingCompilerArgs
+        val args = DataBindingCompilerArgs.builder()
+          .buildFolder(classDirectory.value)
+          .modulePackage(applicationId.value)
+            .`type`(DataBindingCompilerArgs.Type.APPLICATION)
+            .sdkDir(file(sdkPath.value))
+            .bundleFolder(classDirectory.value)
+            .xmlOutDir(layout.generated)
+            .exportClassListTo(classDirectory.value)
+            .minApi(minSdkVersion.value.toInt)
+            .enableDebugLogs(true)
+          .build()
+        args.toMap.asScala.toList.map{ case ((a,b)) => s"-A$a=$b" }
+      } else Nil
+
+      opts ++ dbs
     },
     javacOptions in doc := {
       (javacOptions in doc).value.flatMap { opt =>
@@ -321,6 +342,7 @@ trait AndroidProjectSettings extends AutoPlugin {
     libraryProject           := properties { p =>
       Option(p.getProperty("android.library")) exists { _.equals("true") } }.value,
     checkAars                := checkAarsTaskDef.value,
+    databindingVersion       := "2.3.0",
     collectResourcesAggregate:= collectResourcesAggregateTaskDef.value,
     manifestAggregate        := manifestAggregateTaskDef.value,
     ndkbuildAggregate        := ndkbuildAggregateTaskDef.value,
@@ -378,6 +400,15 @@ trait AndroidProjectSettings extends AutoPlugin {
     typedViewHolders         := autoScalaLibrary.value,
     typedResourcesIgnores    := Seq.empty,
     typedResourcesGenerator  := typedResourcesGeneratorTaskDef.value,
+    databindingGenerator     := Databinding.databindingGeneratorTaskDef.value,
+    databindingEnabled       := {
+      val layout = projectLayout.value
+      val layouts = (layout.res ** "layout*" ** "*.xml").get
+      (for {
+        file <- layouts
+        l <- XML loadFile file
+      } yield l.label).exists(_ == "layout")
+    },
     viewHoldersGenerator     := viewHoldersGeneratorTaskDef.value,
     extraResDirectories         := Nil,
     extraAssetDirectories       := Nil,
@@ -565,7 +596,9 @@ trait AndroidProjectSettings extends AutoPlugin {
       val extras = extraResDirectories.value.map(_.getCanonicalFile).distinct
       (layout.testSources +: layout.jni +: layout.res +: extras) flatMap { path =>
         (path ** filter).get }
-    }.value
+    }.value,
+      libraryDependencies += Def.setting("com.android.databinding" % "compiler" % databindingVersion.value % AndroidInternal.name).value,
+      managedClasspath in AndroidInternal := Classpaths.managedJars(AndroidInternal, classpathTypes.value, update.value)
   )
 
   private[this] object Forwarder {

@@ -128,6 +128,12 @@ object Keys extends DeprecatedPluginCompat {
   val aapt9PngCrunch = SettingKey[Boolean]("aapt-9png-crunch",
     "whether to enable 9.png crunching, default: true, disable if pre-processing") in Android
   val pseudoLocalesEnabled = SettingKey[Boolean]("pseudo-localize-enabled") in Android
+  val databindingEnabled = SettingKey[Boolean]("databinding-enabled",
+    "whether databinding is enabled, default: presence of <layout> in layouts") in Android
+  val databindingVersion = SettingKey[String]("databinding-version",
+    "version of the databinding compiler to use") in Android
+  val databindingGenerator = TaskKey[Seq[File]]("databinding-generator",
+    "databinding source generator") in Android
 
   // packaging-related keys
   val packageRelease = TaskKey[File]("package-release", "create a release apk") in Android
