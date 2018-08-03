@@ -16,7 +16,6 @@ import Dependencies.LibrarySeqOps
 import com.android.builder.dependency.level2.AndroidDependency
 import com.android.builder.internal.aapt.{Aapt, AaptPackageConfig}
 import com.android.builder.internal.aapt.v1.AaptV1
-import com.android.builder.internal.aapt.v2.OutOfProcessAaptV2
 import com.android.ide.common.process.DefaultProcessExecutor
 import com.android.sdklib.BuildToolInfo
 import sbt.classpath.ClasspathUtilities
@@ -126,7 +125,7 @@ object Resources {
     val sets = respaths.distinct flatMap { case (p,r) =>
       s.log.debug("Adding resource path: " + r)
       // TODO pass library name?
-      val set = new ResourceSet(r.getAbsolutePath, p, true)
+      val set = new ResourceSet(r.getAbsolutePath, p, p, true)
       set.addSource(r)
 
       // see https://code.google.com/p/android/issues/detail?id=214182#c5

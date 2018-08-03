@@ -1052,7 +1052,7 @@ object Tasks extends TaskBase {
       val shrunkResApk = resApk.getParentFile / ("shrunk-" + resApk.getName)
       val resTarget = layout.mergedRes
       val analyzer = new ResourceUsageAnalyzer(
-        layout.gen, jar.get, processManifest.value, null, resTarget, null)
+        layout.gen, jar.toList.asJava, processManifest.value, null, resTarget, null)
       analyzer.analyze()
       analyzer.rewriteResourceZip(resApk, shrunkResApk)
       val unused = analyzer.getUnusedResourceCount

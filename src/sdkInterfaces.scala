@@ -1,8 +1,10 @@
 package android
 
-import com.android.builder.core.ErrorReporter
+import java.util
+
+import com.android.builder.errors.EvalIssueReporter
 import com.android.builder.model.SyncIssue
-import com.android.ide.common.blame.Message
+import com.android.ide.common.blame.{Message, MessageReceiver}
 import com.android.ide.common.blame.Message.Kind
 import com.android.ide.common.process.BaseProcessOutputHandler.BaseProcessOutput
 import com.android.ide.common.process._
@@ -188,7 +190,7 @@ object SbtJavaProcessExecutor extends JavaProcessExecutor {
   }
 }
 
-case class SbtAndroidErrorReporter() extends ErrorReporter(ErrorReporter.EvaluationMode.STANDARD) {
+case class SbtAndroidErrorReporter() extends EvalIssueReporter with MessageReceiver {
   private[this] var log = Option.empty[Logger]
   def apply(l: Logger) = log = Some(l)
 
@@ -225,6 +227,7 @@ case class SbtAndroidErrorReporter() extends ErrorReporter(ErrorReporter.Evaluat
     }
   }
 
+  /*
   override def handleIssue(data: String, `type`: Int, severity: Int, msg: String) = {
     if (severity == SyncIssue.SEVERITY_WARNING) {
       log.foreach(_.warn(s"android sync: data=$data, type=${`type`}, msg=$msg"))
@@ -236,6 +239,15 @@ case class SbtAndroidErrorReporter() extends ErrorReporter(ErrorReporter.Evaluat
       override def getData = data
       override def getMessage = msg
       override def getSeverity = severity
+      override def getMultiLineMessage: util.List[String] = msg.split("\n").toList.asJava
     }
+  }
+  */
+
+  override def reportIssue(tpe: EvalIssueReporter.Type,
+                           severity: EvalIssueReporter.Severity,
+                           msg: String,
+                           data: String): SyncIssue = {
+    null
   }
 }

@@ -3,13 +3,14 @@ import ScriptedPlugin._
 val pluginVersion = "1.8.0-SNAPSHOT"
 val gradleBuildVersion = "1.4.0-SNAPSHOT"
 
-val androidToolsVersion = "2.3.0"
+val androidToolsVersion = "3.1.3"
 
 // gradle-plugin and gradle-model projects
 val model = project.in(file("gradle-model")).settings(
   name := "gradle-discovery-model",
   organization := "com.hanhuy.gradle",
   resolvers += Resolver.jcenterRepo,
+  resolvers += "google" at "https://maven.google.com",
   javacOptions ++= "-source" :: "1.6" :: "-target" :: "1.6" :: Nil,
   autoScalaLibrary := false,
   crossPaths := false,
@@ -25,12 +26,13 @@ val gradle = project.in(file("gradle-plugin")).settings(
   organization := "com.hanhuy.gradle",
   bintrayOrganization in bintray := None,
   resolvers += Resolver.jcenterRepo,
+  resolvers += "google" at "https://maven.google.com",
   publishMavenStyle := true,
   autoScalaLibrary := false,
   crossPaths := false,
   sbtPlugin := false,
   licenses += ("MIT", url("http://opensource.org/licenses/MIT")),
-  version := "0.5",
+  version := "0.6-SNAPSHOT",
   javacOptions ++= "-source" :: "1.6" :: "-target" :: "1.6" :: Nil,
   javacOptions in doc := {
     (javacOptions in doc).value.foldRight(List.empty[String]) {
@@ -105,6 +107,7 @@ unmanagedBase := baseDirectory(_ / "libs").value
 
 resourceDirectory in Compile := baseDirectory(_ / "resources").value
 
+resolvers += "google" at "https://maven.google.com"
 libraryDependencies ++= Seq(
   "org.ow2.asm" % "asm-all" % "5.0.4",
   "com.google.code.findbugs" % "jsr305" % "3.0.1" % "compile-internal",
@@ -115,6 +118,7 @@ libraryDependencies ++= Seq(
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),
   "com.android.tools.lint" % "lint" % "25.3.0",
+  "com.android.databinding" % "compiler" % androidToolsVersion,
 //  "com.android.tools.external.com-intellij" % "uast" % "145.597.4", // because google didn't sync the correct version...
   "net.orfjackal.retrolambda" % "retrolambda" % "2.5.1"
 )
