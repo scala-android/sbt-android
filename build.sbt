@@ -111,6 +111,7 @@ libraryDependencies ++= Seq(
   "org.javassist" % "javassist" % "3.20.0-GA",
   "com.hanhuy.sbt" %% "bintray-update-checker" % "0.2", // 1.0 missing
   "com.android.tools.build" % "builder" % androidToolsVersion,
+  "com.android.tools.build" % "manifest-merger" % "25.3.0",
   "org.bouncycastle" % "bcpkix-jdk15on" % "1.51",
   "com.android.tools.build" % "gradle-core" % androidToolsVersion excludeAll
     ExclusionRule(organization = "net.sf.proguard"),

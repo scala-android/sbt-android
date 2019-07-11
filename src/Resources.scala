@@ -577,8 +577,11 @@ object Resources {
             "c.getResources.getDrawable(resid)"
           })
 
-          val tfvfind = if (platformApi >= 26) "findViewById[A](tr.id)"
-            else "findViewById(tr.id).asInstanceOf[A]"
+          val tfvfind = if (platformApi >= 26) {
+            "final def findView[V <: View](tr: TypedResource[V]): V = findViewById[V](tr.id)"
+          } else {
+            "final def findView[A](tr: TypedResource[A]): A = findViewById(tr.id).asInstanceOf[A]"
+          }
 
           IO.write(tr, trTemplate format (p,
             if (withViewHolders) "" else  " extends AnyVal",
