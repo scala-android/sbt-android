@@ -1,6 +1,5 @@
 package com.hanhuy.gradle.discovery;
 
-import com.android.build.gradle.BaseExtension;
 import com.android.builder.model.AndroidProject;
 import com.android.builder.model.PackagingOptions;
 import org.gradle.api.Plugin;
@@ -14,7 +13,6 @@ import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry;
 
 import javax.inject.Inject;
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
@@ -121,20 +119,23 @@ public class GradleBuildPlugin implements Plugin<Project> {
         private final Set<String> excludes;
         private final Set<String> firsts;
         private final Set<String> merges;
+        private final Set<String> nostrip;
         @SuppressWarnings("unchecked")
         public PO(Object extension) {
-            Set<String> e = Collections.EMPTY_SET, f = Collections.EMPTY_SET, m = Collections.EMPTY_SET;
+            Set<String> e = Collections.EMPTY_SET, f = Collections.EMPTY_SET, m = Collections.EMPTY_SET, ns = Collections.EMPTY_SET;
             try {
                 Object po = findMethod(extension, "getPackagingOptions").invoke(extension);
                 e    = (Set<String>) findMethod(po, "getExcludes").invoke(po);
                 f    = (Set<String>) findMethod(po, "getPickFirsts").invoke(po);
                 m    = (Set<String>) findMethod(po, "getMerges").invoke(po);
+                ns   = (Set<String>) findMethod(po, "getDoNotStrip").invoke(po);
             } catch (Exception x) {
                 // noop
             }
             excludes = e;
             firsts   = f;
             merges   = m;
+            nostrip  = ns;
 
         }
         @Override
@@ -150,6 +151,11 @@ public class GradleBuildPlugin implements Plugin<Project> {
         @Override
         public Set<String> getMerges() {
             return merges;
+        }
+
+        @Override
+        public Set<String> getDoNotStrip() {
+            return nostrip;
         }
     }
     public static class AndroidDiscovery implements Serializable, AndroidDiscoveryModel {

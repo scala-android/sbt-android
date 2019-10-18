@@ -10,12 +10,15 @@ targetSdkVersion in Android := "19"
 
 name := "hello-multidex"
 
-resolvers += bintray.Opts.resolver.jcenter
+val googleMaven = "google-maven-repo" at "https://maven.google.com/"
+
+resolvers ++= Seq(Resolver.jcenterRepo, googleMaven)
 
 libraryDependencies ++= Seq(
-  aar("com.google.android" % "multidex" % "0.1"),
+  aar("com.android.support" % "multidex" % "1.0.3"),
   aar("com.google.android.gms" % "play-services" % "4.0.30"),
-  aar("com.android.support" % "support-v4" % "20.0.0")
+  aar("com.android.support" % "support-v4" % "20.0.0"),
+  "com.google.code.gson" % "gson" % "2.8.5"
 )
 
 useProguard in Android := false

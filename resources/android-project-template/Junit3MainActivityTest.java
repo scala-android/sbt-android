@@ -1,6 +1,6 @@
 package %s;
 
-import android.test.ActivityInstrumentationTestCase2;
+import android.support.test.rule.ActivityTestRule;
 
 /**
  * This is a simple framework for a test of an Application.  See
@@ -12,10 +12,10 @@ import android.test.ActivityInstrumentationTestCase2;
  * -e class com.example.MainActivityTest \
  * com.example.tests/android.test.InstrumentationTestRunner
  */
-public class Junit3MainActivityTest extends ActivityInstrumentationTestCase2<MainActivity> {
+public class Junit3MainActivityTest extends ActivityTestRule<MainActivity> {
 
     public Junit3MainActivityTest() {
-        super("com.example", MainActivity.class);
+        super(MainActivity.class);
     }
 
 
